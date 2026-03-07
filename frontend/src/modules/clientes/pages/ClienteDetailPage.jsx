@@ -184,7 +184,7 @@ export default function ClienteDetailPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{error}</div>
       )}
 
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Datos base */}
         <div className="bg-white border rounded-xl p-5">
           <div className="flex justify-between items-center mb-3">

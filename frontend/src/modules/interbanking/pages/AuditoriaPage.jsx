@@ -52,7 +52,7 @@ export default function AuditoriaPage() {
 
       {/* Filtros */}
       <div className="bg-white border rounded-xl p-4 mb-4">
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Usuario ID</label>
             <input className="input w-full text-sm" placeholder="ID numérico" value={filters.user_id} onChange={(e) => setFilters({ ...filters, user_id: e.target.value })} />
@@ -89,8 +89,8 @@ export default function AuditoriaPage() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Fecha/Hora</th>

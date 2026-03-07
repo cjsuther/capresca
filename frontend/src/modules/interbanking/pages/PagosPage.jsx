@@ -97,7 +97,7 @@ export default function PagosPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Pagos en Lote</h2>
         <PermissionGate moduleCode="interbanking" action="pagos:write">
           <button
@@ -193,8 +193,8 @@ export default function PagosPage() {
       )}
 
       {/* Tabla de lotes */}
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Fecha</th>

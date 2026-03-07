@@ -45,7 +45,7 @@ export default function NuevoClientePage() {
         {/* Datos base */}
         <div className="bg-white border rounded-xl p-6">
           <h3 className="font-medium text-gray-700 mb-4">Datos de contacto</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input type="email" className="input w-full" value={base.email} onChange={(e) => setBase({ ...base, email: e.target.value })} />
@@ -54,7 +54,7 @@ export default function NuevoClientePage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
               <input className="input w-full" value={base.phone} onChange={(e) => setBase({ ...base, phone: e.target.value })} />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
               <input className="input w-full" value={base.address} onChange={(e) => setBase({ ...base, address: e.target.value })} />
             </div>
@@ -74,7 +74,7 @@ export default function NuevoClientePage() {
           <h3 className="font-medium text-gray-700 mb-4">
             {isHuman ? "Datos personales" : "Datos de la empresa"}
           </h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {isHuman ? (
               <>
                 <div>
@@ -102,7 +102,7 @@ export default function NuevoClientePage() {
               </>
             ) : (
               <>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Razón social *</label>
                   <input className="input w-full" value={profile.legal_name} onChange={(e) => setProfile({ ...profile, legal_name: e.target.value })} required />
                 </div>

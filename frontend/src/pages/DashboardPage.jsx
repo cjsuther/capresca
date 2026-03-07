@@ -53,7 +53,7 @@ export default function DashboardPage() {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-500 mb-8">Selecciona un módulo para comenzar</p>
 
         {visibleModules.length === 0 ? (

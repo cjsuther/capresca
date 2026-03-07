@@ -45,7 +45,7 @@ export default function SolicitudesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Mis Solicitudes</h2>
         <PermissionGate moduleCode="cajeros" action="requests:write">
           <button
@@ -58,7 +58,7 @@ export default function SolicitudesPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-6 mb-6 grid grid-cols-2 gap-4">
+        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-6 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Monto</label>
             <input type="number" step="0.01" className="input w-full" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
@@ -69,7 +69,7 @@ export default function SolicitudesPage() {
               <option>ARS</option><option>USD</option><option>EUR</option>
             </select>
           </div>
-          <div className="col-span-2">
+          <div className="col-span-1 sm:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
             <textarea className="input w-full" rows={2} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
           </div>
@@ -84,8 +84,8 @@ export default function SolicitudesPage() {
         </form>
       )}
 
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">#</th>

@@ -15,7 +15,7 @@ export const cajerosMenu = [
 ];
 
 export default function CajerosModule() {
-  const sidebar = <Sidebar menuItems={cajerosMenu} moduleCode="cajeros" />;
+  const sidebar = (onClose) => <Sidebar menuItems={cajerosMenu} moduleCode="cajeros" onClose={onClose} />;
 
   return (
     <Layout sidebar={sidebar}>

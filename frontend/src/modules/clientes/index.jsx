@@ -13,7 +13,7 @@ export const clientesMenu = [
 ];
 
 export default function ClientesModule() {
-  const sidebar = <Sidebar menuItems={clientesMenu} moduleCode="clientes" />;
+  const sidebar = (onClose) => <Sidebar menuItems={clientesMenu} moduleCode="clientes" onClose={onClose} />;
 
   return (
     <Layout sidebar={sidebar}>

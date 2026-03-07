@@ -50,7 +50,7 @@ export default function AutorizacionesPage() {
                   <p className="text-xs text-gray-400 mt-1">{new Date(r.requested_at).toLocaleString()}</p>
                 </div>
               </div>
-              <div className="mt-4 flex gap-3 items-end">
+              <div className="mt-4 flex flex-wrap gap-3 items-end">
                 <div className="flex-1">
                   <label className="block text-xs text-gray-500 mb-1">Notas (opcional)</label>
                   <input

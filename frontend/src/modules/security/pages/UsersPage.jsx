@@ -112,7 +112,7 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Usuarios</h2>
         <PermissionGate moduleCode="security" action="users:write">
           <button
@@ -132,7 +132,7 @@ export default function UsersPage() {
 
       {/* Formulario de creación */}
       {showCreateForm && (
-        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-5 mb-4 grid grid-cols-2 gap-4">
+        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-5 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
             <input className="input w-full" value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })} required />
@@ -149,7 +149,7 @@ export default function UsersPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
             <input className="input w-full" value={createForm.full_name} onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })} />
           </div>
-          <div className="col-span-2 flex gap-2 justify-end">
+          <div className="col-span-1 sm:col-span-2 flex gap-2 justify-end">
             <button type="button" onClick={() => setShowCreateForm(false)} className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-gray-50">Cancelar</button>
             <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Crear</button>
           </div>
@@ -157,8 +157,8 @@ export default function UsersPage() {
       )}
 
       {/* Tabla de usuarios */}
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Usuario</th>

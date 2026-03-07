@@ -11,7 +11,7 @@ export const securityMenu = [
 ];
 
 export default function SecurityModule() {
-  const sidebar = <Sidebar menuItems={securityMenu} moduleCode="security" />;
+  const sidebar = (onClose) => <Sidebar menuItems={securityMenu} moduleCode="security" onClose={onClose} />;
 
   return (
     <Layout sidebar={sidebar}>

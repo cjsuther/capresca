@@ -39,7 +39,7 @@ export default function CuentasPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Cuentas</h2>
         <div className="flex items-center gap-3">
           {lastSync && (
@@ -65,8 +65,8 @@ export default function CuentasPage() {
           Presioná "Actualizar" para cargar las cuentas
         </div>
       ) : (
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white border rounded-xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="text-left px-4 py-3 font-medium">ID Cuenta</th>

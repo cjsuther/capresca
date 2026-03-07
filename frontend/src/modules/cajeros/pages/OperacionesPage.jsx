@@ -12,8 +12,8 @@ export default function OperacionesPage() {
   return (
     <div>
       <h2 className="text-xl font-semibold text-gray-800 mb-6">Historial de Operaciones</h2>
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[500px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">#</th>

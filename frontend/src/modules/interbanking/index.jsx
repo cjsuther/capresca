@@ -17,7 +17,7 @@ export const interbankingMenu = [
 ];
 
 export default function InterbankingModule() {
-  const sidebar = <Sidebar menuItems={interbankingMenu} moduleCode="interbanking" />;
+  const sidebar = (onClose) => <Sidebar menuItems={interbankingMenu} moduleCode="interbanking" onClose={onClose} />;
 
   return (
     <Layout sidebar={sidebar}>

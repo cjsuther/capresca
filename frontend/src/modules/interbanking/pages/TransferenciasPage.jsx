@@ -140,7 +140,7 @@ export default function TransferenciasPage() {
 
           {/* Paso 2 — Datos */}
           {step === 2 && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Cuenta Origen</label>
                 <select className="input w-full text-sm" value={form.cuenta_origen} onChange={(e) => setForm({ ...form, cuenta_origen: e.target.value })} required>
@@ -158,7 +158,7 @@ export default function TransferenciasPage() {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Concepto</label>
                 <input className="input w-full text-sm" placeholder="Descripción..." value={form.concepto} onChange={(e) => setForm({ ...form, concepto: e.target.value })} required />
               </div>
-              <div className="col-span-3 flex justify-end">
+              <div className="col-span-1 sm:col-span-3 flex justify-end">
                 <button
                   onClick={() => setConfirmOpen(true)}
                   disabled={!form.cuenta_origen || !form.monto || !form.concepto}
@@ -191,12 +191,12 @@ export default function TransferenciasPage() {
       )}
 
       {/* Historial */}
-      <div className="bg-white border rounded-xl overflow-hidden">
+      <div className="bg-white border rounded-xl overflow-x-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="font-medium text-gray-700">Historial</h3>
           <button onClick={loadHistorial} className="text-xs text-blue-600 hover:underline">Actualizar</button>
         </div>
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Fecha</th>
