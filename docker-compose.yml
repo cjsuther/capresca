@@ -1,0 +1,205 @@
+version: "3.9"
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  security_data:
+  cajeros_data:
+  clientes_data:
+  interbanking_data:
+
+services:
+
+  # ──────────────────────────────────────────
+  # Nginx - reverse proxy externo
+  # ──────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - proxy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Frontend React + Vite
+  # ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_BASE_URL=/api
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # API Gateway (proxy)
+  # ──────────────────────────────────────────
+  proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    environment:
+      - SECURITY_SERVICE_URL=http://security:8001
+      - CAJEROS_SERVICE_URL=http://cajeros:8002
+      - CLIENTES_SERVICE_URL=http://clientes:8003
+      - INTERBANKING_SERVICE_URL=http://interbanking:8004
+      - JWT_SECRET=${JWT_SECRET}
+      - PERMISSIONS_CACHE_TTL=60
+    depends_on:
+      - security
+      - cajeros
+      - clientes
+      - interbanking
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Seguridad
+  # ──────────────────────────────────────────
+  security:
+    build:
+      context: ./modules/security
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${SECURITY_DB_USER}:${SECURITY_DB_PASS}@db_security:5432/${SECURITY_DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_HOURS=8
+    depends_on:
+      db_security:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_security:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${SECURITY_DB_NAME}
+      - POSTGRES_USER=${SECURITY_DB_USER}
+      - POSTGRES_PASSWORD=${SECURITY_DB_PASS}
+    volumes:
+      - security_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SECURITY_DB_USER} -d ${SECURITY_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Cajeros
+  # ──────────────────────────────────────────
+  cajeros:
+    build:
+      context: ./modules/cajeros
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${CAJEROS_DB_USER}:${CAJEROS_DB_PASS}@db_cajeros:5432/${CAJEROS_DB_NAME}
+      - SECURITY_SERVICE_URL=http://security:8001
+    depends_on:
+      db_cajeros:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_cajeros:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${CAJEROS_DB_NAME}
+      - POSTGRES_USER=${CAJEROS_DB_USER}
+      - POSTGRES_PASSWORD=${CAJEROS_DB_PASS}
+    volumes:
+      - cajeros_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CAJEROS_DB_USER} -d ${CAJEROS_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Clientes
+  # ──────────────────────────────────────────
+  clientes:
+    build:
+      context: ./modules/clientes
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${CLIENTES_DB_USER}:${CLIENTES_DB_PASS}@db_clientes:5432/${CLIENTES_DB_NAME}
+      - SECURITY_SERVICE_URL=http://security:8001
+    depends_on:
+      db_clientes:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_clientes:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${CLIENTES_DB_NAME}
+      - POSTGRES_USER=${CLIENTES_DB_USER}
+      - POSTGRES_PASSWORD=${CLIENTES_DB_PASS}
+    volumes:
+      - clientes_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CLIENTES_DB_USER} -d ${CLIENTES_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Interbanking
+  # ──────────────────────────────────────────
+  interbanking:
+    build:
+      context: ./modules/interbanking
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${INTERBANKING_DB_USER}:${INTERBANKING_DB_PASS}@db_interbanking:5432/${INTERBANKING_DB_NAME}
+      - INTERBANKING_BASE_URL=${INTERBANKING_BASE_URL}
+      - ENCRYPTION_KEY=${INTERBANKING_ENCRYPTION_KEY}
+      - SECURITY_SERVICE_URL=http://security:8001
+    depends_on:
+      db_interbanking:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_interbanking:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${INTERBANKING_DB_NAME}
+      - POSTGRES_USER=${INTERBANKING_DB_USER}
+      - POSTGRES_PASSWORD=${INTERBANKING_DB_PASS}
+    volumes:
+      - interbanking_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INTERBANKING_DB_USER} -d ${INTERBANKING_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
