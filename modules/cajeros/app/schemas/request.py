@@ -9,7 +9,6 @@ class RequestCreate(BaseModel):
     amount: Decimal
     currency: str = "ARS"
     reason: Optional[str] = None
-    authorizer_user_id: Optional[int] = None
 
 
 class ResolveRequest(BaseModel):

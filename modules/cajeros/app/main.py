@@ -1,9 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers import rules, transactions
 
-from app.routers import limits, relations, requests, operations
-
-app = FastAPI(title="Cajeros Module", version="1.0.0")
+app = FastAPI(title="Cajeros Module", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,10 +13,8 @@ app.add_middleware(
 )
 
 PREFIX = "/api/cajeros"
-app.include_router(limits.router, prefix=PREFIX)
-app.include_router(relations.router, prefix=PREFIX)
-app.include_router(requests.router, prefix=PREFIX)
-app.include_router(operations.router, prefix=PREFIX)
+app.include_router(rules.router, prefix=PREFIX)
+app.include_router(transactions.router, prefix=PREFIX)
 
 
 @app.get("/health")

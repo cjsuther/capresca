@@ -50,3 +50,15 @@ export const addMember = (id, data) =>
 
 export const removeMember = (clientId, memberId) =>
   api.delete(`/clientes/${clientId}/members/${memberId}`);
+
+export const getCbus = (clientId) =>
+  api.get(`/clientes/${clientId}/cbus`).then((r) => r.data);
+
+export const addCbu = (clientId, data) =>
+  api.post(`/clientes/${clientId}/cbus`, data).then((r) => r.data);
+
+export const updateCbu = (clientId, cbuId, data) =>
+  api.put(`/clientes/${clientId}/cbus/${cbuId}`, data).then((r) => r.data);
+
+export const deleteCbu = (clientId, cbuId) =>
+  api.delete(`/clientes/${clientId}/cbus/${cbuId}`);

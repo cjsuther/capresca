@@ -19,11 +19,12 @@ def get_relations(db: Session, user_id: int):
 def create_relation(db: Session, data: RelationCreate) -> AuthorizationRelation:
     existing = db.query(AuthorizationRelation).filter(
         AuthorizationRelation.cajero_user_id == data.cajero_user_id,
-        AuthorizationRelation.authorizer_user_id == data.authorizer_user_id,
+        AuthorizationRelation.amount_threshold == data.amount_threshold,
+        AuthorizationRelation.currency == data.currency,
         AuthorizationRelation.is_active == True,
     ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="La relación ya existe")
+        raise HTTPException(status_code=400, detail="Ya existe una relación con ese umbral para este cajero")
 
     rel = AuthorizationRelation(**data.model_dump())
     db.add(rel)

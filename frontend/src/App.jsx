@@ -6,6 +6,7 @@ import SecurityModule from "./modules/security";
 import CajerosModule from "./modules/cajeros";
 import ClientesModule from "./modules/clientes";
 import InterbankingModule from "./modules/interbanking";
+import ConciliacionModule from "./modules/conciliacion";
 
 export default function App() {
   return (
@@ -54,6 +55,15 @@ export default function App() {
           element={
             <ModuleRoute moduleCode="interbanking">
               <InterbankingModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/conciliacion/*"
+          element={
+            <ModuleRoute moduleCode="conciliacion">
+              <ConciliacionModule />
             </ModuleRoute>
           }
         />

@@ -4,12 +4,12 @@ import {
   getClient, getNotes, addNote,
   updateClient, updateHumanProfile, updateLegalProfile,
   getMembers, addMember, removeMember,
-  searchClients,
+  searchClients, getCbus, addCbu, deleteCbu,
 } from "../../../api/clientes";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import {
   ArrowLeft, User, Building2, Pencil, Check, X,
-  UserPlus, Trash2, Search,
+  UserPlus, Trash2, Search, CreditCard, Plus,
 } from "lucide-react";
 
 // ── Campo editable ───────────────────────────────────────────────
@@ -57,6 +57,12 @@ export default function ClienteDetailPage() {
   const [selectedHuman, setSelectedHuman] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
 
+  // CBUs
+  const [cbus, setCbus] = useState([]);
+  const [newCbu, setNewCbu] = useState("");
+  const [newCbuAlias, setNewCbuAlias] = useState("");
+  const [cbuError, setCbuError] = useState("");
+
   const load = () =>
     getClient(id).then((c) => {
       setClient(c);
@@ -72,9 +78,38 @@ export default function ClienteDetailPage() {
     getNotes(id).then(setNotes);
   }, [id]);
 
+  const loadCbus = () => getCbus(id).then(setCbus);
+
   useEffect(() => {
-    if (client?.client_type === "LEGAL") loadMembers();
+    if (client?.client_type === "LEGAL") {
+      loadMembers();
+      loadCbus();
+    }
   }, [client]);
+
+  const handleAddCbu = async (e) => {
+    e.preventDefault();
+    setCbuError("");
+    if (!/^\d{22}$/.test(newCbu)) { setCbuError("El CBU debe tener exactamente 22 dígitos"); return; }
+    try {
+      await addCbu(id, { cbu: newCbu, alias: newCbuAlias || null });
+      setNewCbu("");
+      setNewCbuAlias("");
+      loadCbus();
+    } catch (err) {
+      setCbuError(err.response?.data?.detail || "Error al agregar CBU");
+    }
+  };
+
+  const handleDeleteCbu = async (cbuId) => {
+    if (!confirm("¿Eliminar este CBU?")) return;
+    try {
+      await deleteCbu(id, cbuId);
+      loadCbus();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Error al eliminar CBU");
+    }
+  };
 
   const handleAddNote = async (e) => {
     e.preventDefault();
@@ -350,6 +385,61 @@ export default function ClienteDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CBUs (solo PJ) */}
+      {!isHuman && (
+        <div className="bg-white border rounded-xl p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard size={16} className="text-gray-500" />
+            <h3 className="font-medium text-gray-700">CBUs registrados</h3>
+          </div>
+
+          <PermissionGate moduleCode="clientes" action="clients:write">
+            <form onSubmit={handleAddCbu} className="flex gap-2 mb-4">
+              <input
+                className="input text-sm w-52 font-mono"
+                placeholder="CBU (22 dígitos)"
+                value={newCbu}
+                maxLength={22}
+                onChange={(e) => setNewCbu(e.target.value.replace(/\D/g, ""))}
+              />
+              <input
+                className="input text-sm flex-1"
+                placeholder="Alias (opcional)"
+                value={newCbuAlias}
+                onChange={(e) => setNewCbuAlias(e.target.value)}
+              />
+              <button type="submit" className="flex items-center gap-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <Plus size={14} /> Agregar
+              </button>
+            </form>
+            {cbuError && <p className="text-xs text-red-600 mb-3">{cbuError}</p>}
+          </PermissionGate>
+
+          {cbus.length === 0 ? (
+            <p className="text-sm text-gray-400">Sin CBUs registrados</p>
+          ) : (
+            <div className="space-y-2">
+              {cbus.map((c) => (
+                <div key={c.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+                  <div>
+                    <span className="text-sm font-mono text-gray-800">{c.cbu}</span>
+                    {c.alias && <span className="ml-3 text-xs text-gray-500">{c.alias}</span>}
+                  </div>
+                  <PermissionGate moduleCode="clientes" action="clients:write">
+                    <button
+                      onClick={() => handleDeleteCbu(c.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </PermissionGate>
+                </div>
+              ))}
             </div>
           )}
         </div>

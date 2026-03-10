@@ -26,18 +26,27 @@ ROUTE_MAP = [
     ("GET",    r"^/api/security/modules",       settings.security_service_url, "security:modules:read"),
 
     # ── Cajeros ─────────────────────────────────────────────────
-    ("GET",  r"^/api/cajeros/limits",       settings.cajeros_service_url,  "cajeros:limits:read"),
-    ("PUT",  r"^/api/cajeros/limits/",      settings.cajeros_service_url,  "cajeros:limits:write"),
-    ("GET",  r"^/api/cajeros/relations",    settings.cajeros_service_url,  "cajeros:relations:read"),
-    ("POST", r"^/api/cajeros/relations$",   settings.cajeros_service_url,  "cajeros:relations:write"),
-    ("DELETE", r"^/api/cajeros/relations/", settings.cajeros_service_url,  "cajeros:relations:write"),
-    ("POST", r"^/api/cajeros/requests$",    settings.cajeros_service_url,  "cajeros:requests:write"),
-    ("GET",  r"^/api/cajeros/requests",     settings.cajeros_service_url,  "cajeros:requests:read"),
-    ("PUT",  r"^/api/cajeros/requests/.+/approve$", settings.cajeros_service_url, "cajeros:requests:authorize"),
-    ("PUT",  r"^/api/cajeros/requests/.+/reject$",  settings.cajeros_service_url, "cajeros:requests:authorize"),
-    ("GET",  r"^/api/cajeros/operations",   settings.cajeros_service_url,  "cajeros:operations:read"),
+    ("GET",    r"^/api/cajeros/rules$",                          settings.cajeros_service_url, "cajeros:rules:read"),
+    ("POST",   r"^/api/cajeros/rules$",                          settings.cajeros_service_url, "cajeros:rules:write"),
+    ("DELETE", r"^/api/cajeros/rules/\d+$",                      settings.cajeros_service_url, "cajeros:rules:write"),
+    ("POST",   r"^/api/cajeros/transactions$",                   settings.cajeros_service_url, "cajeros:transactions:write"),
+    ("GET",    r"^/api/cajeros/transactions$",                   settings.cajeros_service_url, "cajeros:transactions:read"),
+    ("GET",    r"^/api/cajeros/transactions/\d+$",               settings.cajeros_service_url, "cajeros:transactions:read"),
+    ("PUT",    r"^/api/cajeros/transactions/\d+/authorize$",     settings.cajeros_service_url, "cajeros:transactions:authorize"),
+    ("PUT",    r"^/api/cajeros/transactions/\d+/reject$",        settings.cajeros_service_url, "cajeros:transactions:authorize"),
+    ("DELETE", r"^/api/cajeros/transactions/\d+$",               settings.cajeros_service_url, "cajeros:transactions:delete"),
+
+    # ── Notifications ────────────────────────────────────────────
+    ("GET",  r"^/api/notifications/unread-count$",   settings.notifications_service_url, None),
+    ("PUT",  r"^/api/notifications/read-all$",       settings.notifications_service_url, None),
+    ("PUT",  r"^/api/notifications/\d+/read$",       settings.notifications_service_url, None),
+    ("GET",  r"^/api/notifications",                 settings.notifications_service_url, None),
 
     # ── Clientes ────────────────────────────────────────────────
+    ("GET",    r"^/api/clientes/\d+/cbus$",         settings.clientes_service_url, "clientes:clients:read"),
+    ("POST",   r"^/api/clientes/\d+/cbus$",         settings.clientes_service_url, "clientes:clients:write"),
+    ("PUT",    r"^/api/clientes/\d+/cbus/\d+$",     settings.clientes_service_url, "clientes:clients:write"),
+    ("DELETE", r"^/api/clientes/\d+/cbus/\d+$",     settings.clientes_service_url, "clientes:clients:write"),
     ("GET",    r"^/api/clientes",                   settings.clientes_service_url, "clientes:clients:read"),
     ("POST",   r"^/api/clientes/human$",            settings.clientes_service_url, "clientes:clients:write"),
     ("POST",   r"^/api/clientes/legal$",            settings.clientes_service_url, "clientes:clients:write"),
@@ -51,6 +60,17 @@ ROUTE_MAP = [
     ("POST",   r"^/api/clientes/\d+/notes",         settings.clientes_service_url, "clientes:notes:write"),
     ("GET",    r"^/api/clientes/\d+/members",       settings.clientes_service_url, "clientes:clients:read"),
     ("POST",   r"^/api/clientes/\d+/members",       settings.clientes_service_url, "clientes:clients:write"),
+
+    # ── Conciliación ─────────────────────────────────────────────
+    ("GET",  r"^/api/conciliacion/records/\d+/boleta$",              settings.conciliacion_service_url, "conciliacion:download"),
+    ("GET",  r"^/api/conciliacion/records/\d+/history$",             settings.conciliacion_service_url, "conciliacion:read"),
+    ("GET",  r"^/api/conciliacion/records/\d+$",                     settings.conciliacion_service_url, "conciliacion:read"),
+    ("PUT",  r"^/api/conciliacion/records/\d+$",                     settings.conciliacion_service_url, "conciliacion:write"),
+    ("PUT",  r"^/api/conciliacion/interbanking/\w+/\d+/agency$",     settings.conciliacion_service_url, "conciliacion:write"),
+    ("DELETE", r"^/api/conciliacion/links/\d+$",                     settings.conciliacion_service_url, "conciliacion:write"),
+    ("GET",  r"^/api/conciliacion/summary$",                         settings.conciliacion_service_url, "conciliacion:read"),
+    ("GET",  r"^/api/conciliacion/agencies$",                        settings.conciliacion_service_url, "conciliacion:read"),
+    ("GET",  r"^/api/conciliacion$",                                 settings.conciliacion_service_url, "conciliacion:read"),
 
     # ── Interbanking ─────────────────────────────────────────────
     ("GET",    r"^/api/interbanking/config/token-status$",          settings.interbanking_service_url, "interbanking:config:read"),

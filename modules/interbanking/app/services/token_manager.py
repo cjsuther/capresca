@@ -43,8 +43,28 @@ def get_valid_token(db: Session, user_id: int = 0) -> tuple[str, int]:
 
 
 def _refresh_token(db: Session, cred: InterbankingCredential, user_id: int) -> tuple[str, int]:
-    client_secret = decrypt_secret(cred.client_secret_encrypted)
-    payload = {"grant_type": "client_credentials", "client_id": cred.client_id}
+    password = decrypt_secret(cred.password_encrypted)
+
+    # Construir URL del token endpoint con scope como query param
+    token_url = f"{cred.auth_url}/cas/oidc/accessToken"
+    params = {}
+    if cred.scope:
+        params["scope"] = cred.scope
+
+    payload = {
+        "grant_type": "password",
+        "username": cred.username,
+        "password": password,
+        "client_id": cred.client_id,
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    if cred.service_url:
+        headers["service"] = cred.service_url
+
     start = time.time()
     success = False
     error_msg = None
@@ -53,10 +73,11 @@ def _refresh_token(db: Session, cred: InterbankingCredential, user_id: int) -> t
 
     try:
         resp = httpx.post(
-            f"{cred.base_url}/oauth/token",
+            token_url,
             data=payload,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            timeout=10,
+            params=params,
+            headers=headers,
+            timeout=15,
         )
         status_code = resp.status_code
         resp.raise_for_status()
@@ -66,14 +87,13 @@ def _refresh_token(db: Session, cred: InterbankingCredential, user_id: int) -> t
         error_msg = str(e)
     finally:
         duration_ms = int((time.time() - start) * 1000)
-        # Auditar sin incluir el client_secret
         audit_service.log(
             db=db,
             user_id=user_id,
             operation="OBTENER_TOKEN",
             method="POST",
-            endpoint="/oauth/token",
-            request_payload={"client_id": cred.client_id, "grant_type": "client_credentials"},
+            endpoint="/cas/oidc/accessToken",
+            request_payload={"client_id": cred.client_id, "grant_type": "password", "username": cred.username},
             response_status=status_code,
             response_payload={"token_type": response_data.get("token_type")} if response_data else None,
             duration_ms=duration_ms,

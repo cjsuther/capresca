@@ -28,8 +28,12 @@ def save_config(data: CredentialCreate, db: Session = Depends(get_db)):
     cred = InterbankingCredential(
         name=data.name,
         base_url=data.base_url,
+        auth_url=data.auth_url,
         client_id=data.client_id,
-        client_secret_encrypted=encrypt_secret(data.client_secret),
+        username=data.username,
+        password_encrypted=encrypt_secret(data.password),
+        scope=data.scope,
+        service_url=data.service_url,
         is_active=True,
     )
     db.add(cred)
@@ -40,12 +44,32 @@ def save_config(data: CredentialCreate, db: Session = Depends(get_db)):
 
 @router.post("/test")
 def test_config(data: CredentialCreate, db: Session = Depends(get_db)):
+    token_url = f"{data.auth_url}/cas/oidc/accessToken"
+    params = {}
+    if data.scope:
+        params["scope"] = data.scope
+
+    payload = {
+        "grant_type": "password",
+        "username": data.username,
+        "password": data.password,
+        "client_id": data.client_id,
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    if data.service_url:
+        headers["service"] = data.service_url
+
     try:
         resp = httpx.post(
-            f"{data.base_url}/oauth/token",
-            data={"grant_type": "client_credentials", "client_id": data.client_id},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            timeout=10,
+            token_url,
+            data=payload,
+            params=params,
+            headers=headers,
+            timeout=15,
         )
         resp.raise_for_status()
         token_data = resp.json()

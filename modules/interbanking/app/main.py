@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import config, cuentas, transferencias, pagos, auditoria
+from app.routers import internal as internal_router
 
 app = FastAPI(title="Interbanking Module", version="1.0.0")
 
@@ -18,6 +19,7 @@ app.include_router(cuentas.router,         prefix="/api/interbanking/cuentas")
 app.include_router(transferencias.router,  prefix="/api/interbanking/transferencias")
 app.include_router(pagos.router,           prefix="/api/interbanking/pagos")
 app.include_router(auditoria.router,       prefix="/api/interbanking/auditoria")
+app.include_router(internal_router.router)
 
 
 @app.get("/health")

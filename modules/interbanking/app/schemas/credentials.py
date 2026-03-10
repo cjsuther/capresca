@@ -6,15 +6,23 @@ from typing import Optional
 class CredentialCreate(BaseModel):
     name: str
     base_url: str
+    auth_url: str
     client_id: str
-    client_secret: str
+    username: str
+    password: str
+    scope: str = "transferencias-confeccion"
+    service_url: str = ""
 
 
 class CredentialResponse(BaseModel):
     id: int
     name: str
     base_url: str
+    auth_url: str
     client_id: str
+    username: str
+    scope: str
+    service_url: Optional[str] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

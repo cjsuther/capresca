@@ -6,6 +6,7 @@ import { useUser } from "../context/usePermissions";
 import { logout as apiLogout } from "../api/auth";
 import { changeMyPassword } from "../api/security";
 import { ChangePasswordModal } from "./ChangePasswordModal";
+import { NotificationBell } from "./NotificationBell";
 
 export function Layout({ children, sidebar }) {
   const navigate = useNavigate();
@@ -48,7 +49,9 @@ export function Layout({ children, sidebar }) {
           </Link>
         </div>
 
-        {/* Menú de usuario */}
+        {/* Notificaciones + Menú de usuario */}
+        <div className="flex items-center gap-1">
+        <NotificationBell />
         <div className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -85,6 +88,7 @@ export function Layout({ children, sidebar }) {
               </div>
             </>
           )}
+        </div>
         </div>
       </header>
 

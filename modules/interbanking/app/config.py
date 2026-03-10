@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str
     interbanking_base_url: str = "https://api.interbanking.com.ar"
+    interbanking_auth_url: str = "https://preauth.interbanking.com.ar"
     encryption_key: str
     security_service_url: str = "http://security:8001"
 

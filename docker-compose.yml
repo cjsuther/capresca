@@ -9,6 +9,8 @@ volumes:
   cajeros_data:
   clientes_data:
   interbanking_data:
+  notifications_data:
+  conciliacion_data:
 
 services:
 
@@ -53,6 +55,8 @@ services:
       - CAJEROS_SERVICE_URL=http://cajeros:8002
       - CLIENTES_SERVICE_URL=http://clientes:8003
       - INTERBANKING_SERVICE_URL=http://interbanking:8004
+      - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
+      - CONCILIACION_SERVICE_URL=http://conciliacion:8006
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -60,6 +64,8 @@ services:
       - cajeros
       - clientes
       - interbanking
+      - notifications
+      - conciliacion
     networks:
       - app_network
     restart: unless-stopped
@@ -110,6 +116,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${CAJEROS_DB_USER}:${CAJEROS_DB_PASS}@db_cajeros:5432/${CAJEROS_DB_NAME}
       - SECURITY_SERVICE_URL=http://security:8001
+      - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
     depends_on:
       db_cajeros:
         condition: service_healthy
@@ -178,6 +185,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${INTERBANKING_DB_USER}:${INTERBANKING_DB_PASS}@db_interbanking:5432/${INTERBANKING_DB_NAME}
       - INTERBANKING_BASE_URL=${INTERBANKING_BASE_URL}
+      - INTERBANKING_AUTH_URL=${INTERBANKING_AUTH_URL}
       - ENCRYPTION_KEY=${INTERBANKING_ENCRYPTION_KEY}
       - SECURITY_SERVICE_URL=http://security:8001
     depends_on:
@@ -199,6 +207,74 @@ services:
       - app_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${INTERBANKING_DB_USER} -d ${INTERBANKING_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Notificaciones
+  # ──────────────────────────────────────────
+  notifications:
+    build:
+      context: ./modules/notifications
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://notif_user:notif_pass@db_notifications:5432/notifications_db
+    depends_on:
+      db_notifications:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_notifications:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=notifications_db
+      - POSTGRES_USER=notif_user
+      - POSTGRES_PASSWORD=notif_pass
+    volumes:
+      - notifications_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notif_user -d notifications_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Conciliación
+  # ──────────────────────────────────────────
+  conciliacion:
+    build:
+      context: ./modules/conciliacion
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://concil_user:concil_pass@db_conciliacion:5432/conciliacion_db
+      - CLIENTES_SERVICE_URL=http://clientes:8003
+      - INTERBANKING_SERVICE_URL=http://interbanking:8004
+    depends_on:
+      db_conciliacion:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_conciliacion:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=conciliacion_db
+      - POSTGRES_USER=concil_user
+      - POSTGRES_PASSWORD=concil_pass
+    volumes:
+      - conciliacion_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U concil_user -d conciliacion_db"]
       interval: 5s
       timeout: 5s
       retries: 10

@@ -18,6 +18,7 @@ MODULES = [
     {"code": "cajeros", "name": "Cajeros", "description": "Solicitudes y autorizaciones de operaciones", "icon": "banknotes"},
     {"code": "clientes", "name": "Clientes", "description": "Gestión de clientes y contactos", "icon": "users"},
     {"code": "interbanking", "name": "Interbanking", "description": "Operaciones bancarias via Interbanking Argentina", "icon": "banknote"},
+    {"code": "conciliacion", "name": "Conciliación", "description": "Conciliación de pagos y transferencias", "icon": "scale"},
 ]
 
 PERMISSIONS = {
@@ -29,14 +30,14 @@ PERMISSIONS = {
         ("modules:read", "Ver módulos"),
     ],
     "cajeros": [
-        ("requests:read", "Ver solicitudes"),
-        ("requests:write", "Crear solicitudes"),
-        ("requests:authorize", "Autorizar/rechazar solicitudes"),
-        ("limits:read", "Ver límites"),
-        ("limits:write", "Editar límites"),
-        ("relations:read", "Ver relaciones cajero-autorizador"),
-        ("relations:write", "Gestionar relaciones"),
-        ("operations:read", "Ver historial de operaciones"),
+        ("rules:read", "Ver reglas de autorización"),
+        ("rules:write", "Crear/eliminar reglas de autorización"),
+        ("transactions:read", "Ver transacciones propias"),
+        ("transactions:read_all", "Ver todas las transacciones"),
+        ("transactions:write", "Registrar transacciones"),
+        ("transactions:authorize", "Autorizar o rechazar transacciones"),
+        ("transactions:delete", "Eliminar transacciones propias"),
+        ("transactions:admin", "Administrar todas las transacciones"),
     ],
     "clientes": [
         ("clients:read", "Ver clientes"),
@@ -55,6 +56,11 @@ PERMISSIONS = {
         ("pagos:read", "Ver lotes de pago"),
         ("pagos:write", "Crear y procesar lotes"),
         ("auditoria:read", "Ver log de auditoría"),
+    ],
+    "conciliacion": [
+        ("read", "Ver conciliación"),
+        ("write", "Editar conciliación y gestionar vínculos"),
+        ("download", "Descargar boletas PDF"),
     ],
 }
 
@@ -105,14 +111,7 @@ def run():
             db.flush()
 
         cajero_perms = [p for code, p in perm_map.items() if code in (
-            "cajeros:requests:read", "cajeros:requests:write",
-            "cajeros:limits:read", "cajeros:operations:read",
-            "clientes:clients:read",
-        )]
-        # Usar códigos sin prefijo de módulo (como están guardados)
-        cajero_perms = [p for code, p in perm_map.items() if code in (
-            "requests:read", "requests:write",
-            "limits:read", "operations:read",
+            "transactions:read", "transactions:write", "transactions:delete",
             "clients:read",
         )]
         cajero_role.permissions = cajero_perms
@@ -125,10 +124,8 @@ def run():
             db.flush()
 
         supervisor_perms = [p for code, p in perm_map.items() if code in (
-            "requests:read", "requests:authorize",
-            "limits:read", "limits:write",
-            "relations:read", "relations:write",
-            "operations:read",
+            "transactions:read", "transactions:read_all", "transactions:authorize",
+            "rules:read", "rules:write",
             "clients:read",
         )]
         supervisor_role.permissions = supervisor_perms

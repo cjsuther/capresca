@@ -2,16 +2,34 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.request import AuthorizationRequest, AuthorizedOperation, RequestStatus
+from app.models.relation import AuthorizationRelation
 from app.schemas.request import RequestCreate, ResolveRequest
 
 
+def _find_authorizer(db: Session, cajero_user_id: int, amount, currency: str):
+    """Return the authorizer_user_id for the most specific active threshold that applies."""
+    relation = (
+        db.query(AuthorizationRelation)
+        .filter(
+            AuthorizationRelation.cajero_user_id == cajero_user_id,
+            AuthorizationRelation.is_active == True,
+            AuthorizationRelation.currency == currency,
+            AuthorizationRelation.amount_threshold <= amount,
+        )
+        .order_by(AuthorizationRelation.amount_threshold.desc())
+        .first()
+    )
+    return relation.authorizer_user_id if relation else None
+
+
 def create_request(db: Session, data: RequestCreate, cajero_user_id: int) -> AuthorizationRequest:
+    authorizer_user_id = _find_authorizer(db, cajero_user_id, data.amount, data.currency)
     req = AuthorizationRequest(
         cajero_user_id=cajero_user_id,
         amount=data.amount,
         currency=data.currency,
         reason=data.reason,
-        authorizer_user_id=data.authorizer_user_id,
+        authorizer_user_id=authorizer_user_id,
         status=RequestStatus.PENDING,
     )
     db.add(req)

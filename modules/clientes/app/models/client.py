@@ -29,6 +29,7 @@ class Client(Base):
     legal_profile = relationship("LegalClient", back_populates="client", uselist=False)
     contacts = relationship("ClientContact", back_populates="client", cascade="all, delete-orphan")
     notes = relationship("ClientNote", back_populates="client", cascade="all, delete-orphan")
+    cbus = relationship("ClientCbu", foreign_keys="ClientCbu.client_id", cascade="all, delete-orphan")
 
 
 class HumanClient(Base):
@@ -59,6 +60,7 @@ class LegalClient(Base):
     incorporation_date = Column(String(16), nullable=True)
     legal_representative = Column(String(255), nullable=True)
     industry_sector = Column(String(128), nullable=True)
+    agency_number = Column(String(20), nullable=True, unique=True)
 
     client = relationship("Client", back_populates="legal_profile")
 
@@ -100,3 +102,20 @@ class LegalClientMember(Base):
 
     legal_client = relationship("Client", foreign_keys=[legal_client_id])
     human_client = relationship("Client", foreign_keys=[human_client_id])
+
+
+class ClientCbu(Base):
+    __tablename__ = "client_cbus"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    cbu = Column(String(22), nullable=False, unique=True, index=True)
+    alias = Column(String(100), nullable=True)
+    bank_name = Column(String(100), nullable=True)
+    account_type = Column(String(50), nullable=True)  # 'CC' | 'CA' | 'OTRO'
+    description = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, nullable=False)
+
+    client = relationship("Client", foreign_keys=[client_id], overlaps="cbus")

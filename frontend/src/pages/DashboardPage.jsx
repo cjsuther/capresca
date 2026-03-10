@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -40,6 +40,15 @@ const ALL_MODULES = [
     color: "bg-indigo-50 border-indigo-200 text-indigo-700",
     iconColor: "text-indigo-500",
     path: "/modules/interbanking",
+  },
+  {
+    code: "conciliacion",
+    name: "Conciliación",
+    description: "Conciliación de pagos y transferencias bancarias",
+    icon: Scale,
+    color: "bg-teal-50 border-teal-200 text-teal-700",
+    iconColor: "text-teal-500",
+    path: "/modules/conciliacion",
   },
 ];
 

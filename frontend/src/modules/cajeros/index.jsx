@@ -1,17 +1,15 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { FileText, CheckCircle, Clock, Banknote } from "lucide-react";
+import { Receipt, PlusCircle, ShieldCheck } from "lucide-react";
 import { Layout } from "../../components/Layout";
 import { Sidebar } from "../../components/Sidebar";
-import SolicitudesPage from "./pages/SolicitudesPage";
-import AutorizacionesPage from "./pages/AutorizacionesPage";
-import LimitesPage from "./pages/LimitesPage";
-import OperacionesPage from "./pages/OperacionesPage";
+import TransactionsPage from "./pages/TransactionsPage";
+import NewTransactionPage from "./pages/NewTransactionPage";
+import RulesPage from "./pages/RulesPage";
 
 export const cajerosMenu = [
-  { label: "Mis Solicitudes", path: "/modules/cajeros/solicitudes", permission: "requests:read", icon: FileText },
-  { label: "Autorizaciones", path: "/modules/cajeros/autorizaciones", permission: "requests:authorize", icon: CheckCircle },
-  { label: "Límites", path: "/modules/cajeros/limites", permission: "limits:read", icon: Banknote },
-  { label: "Operaciones", path: "/modules/cajeros/operaciones", permission: "operations:read", icon: Clock },
+  { label: "Transacciones", path: "/modules/cajeros/transactions", permission: "transactions:read", icon: Receipt },
+  { label: "Nueva Transacción", path: "/modules/cajeros/transactions/new", permission: "transactions:write", icon: PlusCircle },
+  { label: "Adm. Autorizaciones", path: "/modules/cajeros/rules", permission: "rules:read", icon: ShieldCheck },
 ];
 
 export default function CajerosModule() {
@@ -20,11 +18,11 @@ export default function CajerosModule() {
   return (
     <Layout sidebar={sidebar}>
       <Routes>
-        <Route path="/" element={<Navigate to="solicitudes" replace />} />
-        <Route path="solicitudes" element={<SolicitudesPage />} />
-        <Route path="autorizaciones" element={<AutorizacionesPage />} />
-        <Route path="limites" element={<LimitesPage />} />
-        <Route path="operaciones" element={<OperacionesPage />} />
+        <Route path="/" element={<Navigate to="transactions" replace />} />
+        <Route path="transactions" element={<TransactionsPage />} />
+        <Route path="transactions/new" element={<NewTransactionPage />} />
+        <Route path="transactions/:id" element={<TransactionsPage />} />
+        <Route path="rules" element={<RulesPage />} />
       </Routes>
     </Layout>
   );
