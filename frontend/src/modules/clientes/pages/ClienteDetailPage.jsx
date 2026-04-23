@@ -289,6 +289,7 @@ export default function ClienteDetailPage() {
               <Field label="ID Fiscal"     value={profile?.tax_id}              editing={editingProfile} name="tax_id"              form={profileForm} onChange={setProf} />
               <Field label="Representante" value={profile?.legal_representative} editing={editingProfile} name="legal_representative" form={profileForm} onChange={setProf} />
               <Field label="Sector"        value={profile?.industry_sector}     editing={editingProfile} name="industry_sector"     form={profileForm} onChange={setProf} />
+              <Field label="Nro. Agencia"  value={profile?.agency_number}       editing={editingProfile} name="agency_number"       form={profileForm} onChange={setProf} />
             </dl>
           )}
         </div>

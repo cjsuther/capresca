@@ -47,7 +47,7 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
     return user
 
 
-def blacklist_token(db: Session, jti: str, user_id: int, expires_at: str) -> None:
+def blacklist_token(db: Session, jti: str, user_id: int, expires_at) -> None:
     entry = TokenBlacklist(jti=jti, user_id=user_id, expires_at=expires_at)
     db.add(entry)
     db.commit()

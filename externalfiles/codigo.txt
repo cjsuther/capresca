@@ -1,0 +1,456 @@
+vl_ncodjue	= 1
+dbf_file = GETFILE('DBF', 'Importar Juegos:', 'Importar',1)
+
+DO CASE
+	CASE EMPTY(dbf_file)
+		= MESSAGEBOX("No eligio ninguna base de Datos",16,"Importa Quiniela")
+	
+	OTHERWISE
+		lcfile	= "IEJUE"+DTOS(lfecha)+".dbf"
+		lnversion = 0
+		DO WHILE .T.
+			IF FILE('w:\juegos\'+lcfile)
+				lnversion	= lnversion + 1
+				lcversion	= PADL(lnversion,1,"0")
+				lcfile	= "IEJUE"+DTOS(lfecha)+lcversion+".dbf"
+			ELSE
+				EXIT
+			ENDIF
+		ENDDO
+
+		! COPY &dbf_file w:\juegos\&lcfile
+		USE w:\juegos\&lcfile IN 0 ALIAS imp EXCLUSIVE
+
+		SELECT jij
+		ZAP
+
+		SELECT imp
+
+		lfproc = lfechahora
+		lfecproc = CTOD(d_operac)
+
+		SCAN ALL
+			ckey		= n_agen+c_juego+n_sorteo
+			lnagencia	= INT(VAL(n_agen))
+			lnjuego		= INT(VAL(c_juego))
+			lnsorteo	= INT(VAL(n_sorteo))
+			lnrecauda	= 0
+			lningbru	= 0
+			lnpremios	= 0
+			lncomi		= 0
+			lnfdogtia	= 0
+			lndebitos	= 0
+			lncreditos	= 0
+			lnmodal		= 0
+			lnrecibo	= INT(VAL(c_resumen))
+			lcjuego		= d_juego
+			lcmoneda	= ALLTRIM(c_moneda)
+			lntotal		= 0
+
+			IF CTOD(d_operac) > lfecproc
+				lfecproc	= CTOD(d_operac)
+			ENDIF
+
+			SCAN WHILE ckey = n_agen+c_juego+n_sorteo
+
+				lnimporte = VAL(importe)
+
+				DO CASE
+					CASE INT(VAL(c_codigo)) = 1					&& VENTAS (RECAUDACION)
+						lnrecauda	= lnrecauda + lnimporte
+						lntotal		= lntotal + lnimporte
+
+					CASE INT(VAL(c_codigo)) = 581				&& ANULACION DE VENTAS MI BINGO CATAMARQUEÑO
+						lnrecauda	= lnrecauda - lnimporte
+						lntotal		= lntotal - lnimporte
+
+					CASE INT(VAL(c_codigo)) = 3					&& INGRESOS BRUTOS
+						lningbru	= lningbru + lnimporte
+						lntotal		= lntotal + lnimporte
+
+					CASE INT(VAL(c_codigo)) = 583				&& ANULACIÓN INGRESOS BRUTOS
+						lningbru	= lningbru - lnimporte
+						lntotal		= lntotal - lnimporte
+
+*!*						CASE INT(VAL(c_codigo)) = 565				&& DEVOLUCIÓN RETENCIONES DGI IMPUESTO A LOS PREMIOS
+*!*							lnrecauda	= lnrecauda - lnimporte
+*!*							lntotal		= lntotal - lnimporte
+
+					CASE INT(VAL(c_codigo)) = 551				&& PREMIOS
+						lnpremios	= lnpremios + lnimporte
+
+					CASE INT(VAL(c_codigo)) = 570				&& PREMIOS MI BINGO CATAMARQUEÑO
+						lnpremios	= lnpremios + lnimporte
+
+					CASE INT(VAL(c_codigo)) = 550				&& COMISIÓN
+						lncomi		= lncomi + lnimporte
+						lntotal		= lntotal - lnimporte
+
+					CASE INT(VAL(c_codigo)) = 30				&& ANULACIÓN COMISIÓN
+						lncomi		= lncomi - lnimporte
+						lntotal		= lntotal + lnimporte
+
+*!*						CASE INT(VAL(c_codigo)) = 35				&& Retención 
+*!*							lncomi		= lncomi - lnimporte
+*!*							lntotal		= lntotal + lnimporte
+
+					CASE INT(VAL(c_codigo)) = 23				&& FONDO DE GARANTIA
+						lnfdogtia	= lnfdogtia + lnimporte
+						lntotal		= lntotal + lnimporte
+
+					CASE INT(VAL(c_codigo)) = 24				&& CAMARA DE AGENCIAS
+						lndebitos	= lndebitos + lnimporte
+						lntotal		= lntotal + lnimporte
+
+					CASE INT(VAL(c_juego)) = 50 AND INT(VAL(c_codigo)) = 43		&& RECAUDACION
+						lnrecauda	= lnrecauda + lnimporte
+						lntotal		= lntotal + lnimporte
+						lcjuego		= d_codigo
+						lnmodal		= INT(VAL(c_codigo))
+
+					OTHERWISE
+						IF INT(VAL(c_codigo)) < 500
+							lndebitos	= lndebitos + lnimporte
+							lntotal		= lntotal + lnimporte
+							lcjuego = d_codigo
+						ELSE
+							lncreditos	= lncreditos + lnimporte
+							lntotal		= lntotal - lnimporte
+							lcjuego = d_codigo
+						ENDIF
+
+				ENDCASE
+
+			ENDSCAN
+
+			SKIP -1
+
+			lck = PADL(lnagencia,4,"0")+"00"
+
+			IF SEEK(lck,"maeagencias","agencia")
+
+				INSERT INTO jij (cod_juego, modalidad, cjuego, no_sorteo, fecha_sort, no_agencia,;
+					moneda, recaudacio, premios, multas, com_agenci, fdo_gtia, ing_brutos, municap, ncreditosv,;
+					ndebitosv, TOTAL, fecha_vto, no_recibo, calta, falta) VALUES (lnjuego, lnmodal, lcjuego, lnsorteo,;
+					CTOD(imp.d_operac), lnagencia, IIF(EMPTY(lcmoneda),"$",lcmoneda), lnrecauda, lnpremios*(-1),;
+					0, lncomi, lnfdogtia, lningbru, 0, lncreditos, lndebitos, lntotal, TTOD(lfproc), lnrecibo, vg_username,;
+					lfproc)
+
+			ENDIF
+
+		ENDSCAN
+
+		USE IN imp
+
+		SELECT jij
+
+		SET RELATION TO PADL(no_agencia,4,'0')+'00' INTO maeagencias
+
+		REPLACE ALL interior WITH maeagencias.interior, cod_agenci WITH maeagencias.cod_age, procesado WITH .F.
+		lctitulo	= "TOTALES DE LIQUIDACIONES"
+		SELECT jij
+
+		SELECT cod_juego, modalidad, cjuego, no_sorteo, fecha_sort, no_agencia, moneda, SUM(recaudacio) AS recaudacio,;
+			SUM(premios) AS premios, SUM(multas) AS multas, SUM(com_agenci) AS com_agenci, SUM(fdo_gtia) AS fdo_gtia,;
+			SUM(ing_brutos) AS ing_brutos, SUM(municap) AS municap, SUM(ncreditosv) AS ncreditosv, SUM(ndebitosv) AS ndebitosv,;
+			SUM(TOTAL) AS TOTAL, fecha_vto, no_recibo, calta, falta ;
+			FROM jij ;
+			ORDER BY cod_juego, no_sorteo ;
+			GROUP BY cod_juego, no_sorteo ;
+			INTO CURSOR jjcontrol READWRITE
+
+		SELECT jjcontrol
+
+		REPLACE ALL TOTAL WITH TOTAL + premios
+
+		REPORT FORM reportes\rptctrlimpo TO PRINTER PROMPT PREVIEW NOCONSOLE
+
+		USE IN jjcontrol
+
+		IF 6 = MESSAGEBOX("El proceso de importación ha finalizado - Es correcto?",4+32,"¡ ATENCION !")
+
+			IF INDEXSEEK(lfecproc,.T.,"paramfer","fecha")
+				SELECT paramfer
+
+				DO WHILE .T.
+					SKIP -1
+					IF domingo OR feriadon
+						LOOP
+					ENDIF
+					EXIT
+				ENDDO
+
+				lfecproci	= fecha
+
+			ELSE
+
+				IF DOW(lfecproc - 1) = 7
+					lfecproc	= lfecproc - 1
+				ENDIF
+				lfecproci	= lfecproc - 1
+
+			ENDIF
+
+			SELECT jij
+
+			SCAN ALL
+
+				SCATTER NAME oj
+				lckey	= DTOS(fecha_sort)+PADL(no_sorteo,8,"0")+PADL(cod_juego,3,"0")+PADL(modalidad,2,"0")+PADL(no_agencia,8,"0")
+
+				IF SEEK(lckey,"jjimpjue","id_mov")
+
+					SELECT jjimpjue
+					GATHER NAME oj
+					SELECT jij
+
+				ELSE
+
+					INSERT INTO jjimpjue FROM NAME oj
+
+				ENDIF
+
+			ENDSCAN
+
+			SELECT jjimpjue
+			SET ORDER TO quinc
+			SET FILTER TO fecha_sort = lfecproc
+
+			SELECT jij
+			ZAP
+
+			SELECT jjimpjue
+			GO TOP
+
+			SCAN ALL
+				SCATTER NAME oo
+				INSERT INTO jij FROM NAME oo
+			ENDSCAN
+
+			SELECT jjimpjue
+			SET FILTER TO
+			SET ORDER TO quini
+			SET FILTER TO fecha_sort = lfecproc		&&lfecproci
+			GO TOP
+
+			SCAN ALL
+				SCATTER NAME oo
+				INSERT INTO jij FROM NAME oo
+			ENDSCAN
+
+			SELECT cod_juego,modalidad,cjuego,no_sorteo,fecha_sort,cod_agenci,no_agencia,interior,moneda,SUM(recaudacio) AS recaudacio,;
+				SUM(premios) AS premios,SUM(multas) AS multas,SUM(com_agenci) AS com_agenci,SUM(fdo_gtia) AS fdo_gtia,SUM(ing_brutos) AS ing_brutos,;
+				SUM(municap) AS municap,SUM(ncreditosv) AS ncreditosv,SUM(ndebitosv) AS ndebitosv,SUM(TOTAL) AS TOTAL,fecha_vto,procesado ;
+				FROM jij ;
+				ORDER BY cod_juego, no_sorteo ;
+				GROUP BY cod_juego, no_sorteo ;
+				INTO CURSOR jjcontrol READWRITE
+
+			REPLACE ALL TOTAL WITH TOTAL+premios
+			GO TOP
+			lctitulo	= "TOTALES DE LIQUIDACIONES CON INTERIOR"
+
+			REPORT FORM reportes\rptctrlimpo TO PRINTER PROMPT PREVIEW NOCONSOLE
+
+			USE IN jjcontrol
+
+			IF 6 = MESSAGEBOX("El listado es correcto? (Suma Capital e Interior)",4+32,"¡** ULTIMA OPORTUNIDAD DE CANCELAR **!")
+
+				USE w:\caja\cajaliq IN 0 EXCLUSIVE
+
+				SELECT jjimpjue
+				SET ORDER TO quinc
+				SET FILTER TO fecha_sort = lfecproc
+				GO TOP
+
+				SCAN ALL
+					INSERT INTO cajaliq ( cod_juego, modalidad, cjuego, no_sorteo, fecha_sorteo, cod_agencia,;
+						no_agencia, no_subagencia, interior, moneda, recaudacion, premios, com_premios, multas,;
+						com_agencia, com_subage, fdo_gtia, ing_brutos, municap, ncreditosv, ndebitosv, t_com_subage,;
+						TOTAL, fecha_vto, pagado, intereses, iva, total_gral, cajero, no_recibo, calta, falta, lscobro) VALUES;
+						(jjimpjue.cod_juego, jjimpjue.modalidad, jjimpjue.cjuego, jjimpjue.no_sorteo, jjimpjue.fecha_sort,;
+						jjimpjue.cod_agenci, jjimpjue.no_agencia, 0, jjimpjue.interior, jjimpjue.moneda,;
+						jjimpjue.recaudacio, jjimpjue.premios, 0, jjimpjue.multas, jjimpjue.com_agenci, 0,;
+						jjimpjue.fdo_gtia, jjimpjue.ing_brutos, jjimpjue.municap, jjimpjue.ncreditosv, jjimpjue.ndebitosv,;
+						0, jjimpjue.TOTAL, jjimpjue.fecha_vto, jjimpjue.procesado, 0, 0, jjimpjue.TOTAL, "",;
+						jjimpjue.no_recibo, jjimpjue.calta, jjimpjue.falta, .T.)
+
+***************************************************
+** POR PANDEMIA DIAS SIN SORTEO VAN SIN INTERES  **
+***************************************************
+					IF lfec1 <= DATE() AND DATE() <= lfec2
+						REPLACE lscim WITH .T. IN cajaliq
+					ELSE
+						REPLACE lscim WITH .F. IN cajaliq
+					ENDIF
+***************************************************
+
+					REPLACE procesado WITH .T., falta WITH lfproc IN jjimpjue
+				ENDSCAN
+
+				SELECT jjimpjue
+				SET FILTER TO
+				SET ORDER TO quini
+				SET FILTER TO fecha_sort = lfecproc		&&lfecproci
+				GO TOP
+
+				SCAN ALL
+					INSERT INTO cajaliq ( cod_juego, modalidad, cjuego, no_sorteo, fecha_sorteo, cod_agencia,;
+						no_agencia, no_subagencia, interior, moneda, recaudacion, premios, com_premios, multas,;
+						com_agencia, com_subage, fdo_gtia, ing_brutos, municap, ncreditosv, ndebitosv, t_com_subage,;
+						TOTAL, fecha_vto, pagado, intereses, iva, total_gral, cajero, no_recibo, calta, falta, lscobro) VALUES;
+						(jjimpjue.cod_juego, jjimpjue.modalidad, jjimpjue.cjuego, jjimpjue.no_sorteo, jjimpjue.fecha_sort,;
+						jjimpjue.cod_agenci, jjimpjue.no_agencia, 0, jjimpjue.interior, jjimpjue.moneda,;
+						jjimpjue.recaudacio, jjimpjue.premios, 0, jjimpjue.multas, jjimpjue.com_agenci, 0,;
+						jjimpjue.fdo_gtia, jjimpjue.ing_brutos, jjimpjue.municap, jjimpjue.ncreditosv, jjimpjue.ndebitosv,;
+						0, jjimpjue.TOTAL, TTOD(lfproc), jjimpjue.procesado, 0, 0, jjimpjue.TOTAL, "",;
+						jjimpjue.no_recibo, jjimpjue.calta, jjimpjue.falta,.T.)
+***************************************************
+** POR PANDEMIA DIAS SIN SORTEO VAN SIN INTERES  **
+***************************************************
+					IF lfec1 <= DATE() AND DATE() <= lfec2
+						REPLACE lscim WITH .T. IN cajaliq
+					ELSE
+						REPLACE lscim WITH .F. IN cajaliq
+					ENDIF
+***************************************************
+					REPLACE procesado WITH .T., falta WITH lfproc IN jjimpjue
+				ENDSCAN
+
+				SELECT jij
+				SELECT *;
+					FROM jij;
+					ORDER BY interior, no_agencia, cod_juego, modalidad;
+					INTO CURSOR ll
+
+				SELECT ll
+				GO TOP
+				a= no_agencia
+				b= cod_agenci
+				REPORT FORM reportes\rptdetliqimp TO PRINTER PROMPT PREVIEW NOCONSOLE
+				USE IN ll
+
+				SELECT jij
+				ZAP
+				
+****************************************************************
+**  GENERACIÓN DE LISTADO CON AGENCIAS QUE TIENEN QUE COBRAR  **
+****************************************************************
+				SELECT cajaliq.*,maeagencias.titular,maeagencias.no_iva,maeagencias.cbu ;
+					FROM cajaliq ;
+					LEFT JOIN maeagencias ;
+					ON cajaliq.cod_agencia = maeagencias.cod_age AND MAEAGENCIAS.NO_SUBAGENCIA = 0 ;
+					WHERE !cajaliq.pagado ;
+					ORDER BY cajaliq.cod_agencia, cajaliq.fecha_vto ;
+					INTO CURSOR tmpliq READWRITE
+					
+				IF _TALLY # 0
+					SELECT tmpliq
+					SCAN ALL
+						IF fecha_vto < DATE() AND TOTAL > 0
+							IF lscim
+								REPLACE intereses	WITH 0,;
+									iva				WITH 0,;
+									total_gral		WITH TOTAL IN tmpliq
+							ELSE
+								vl_dias		= DATE()-fecha_vto
+								vl_interes	= ROUND(TOTAL*vl_dias*vl_porint*.01,2)
+								IF vl_interes < vl_minint
+									vl_interes	= vl_minint
+								ENDIF
+								vl_iva		= ROUND(vl_interes*vl_poriva*.01,2)
+								REPLACE intereses	WITH vl_interes,;
+									iva				WITH vl_iva,;
+									total_gral		WITH TOTAL+vl_interes+vl_iva IN tmpliq
+							ENDIF
+						ENDIF
+					ENDSCAN
+
+					SELECT cod_agencia,titular,no_iva,cbu,SUM(premios) AS premios,SUM(TOTAL) AS TOTAL,SUM(total_gral) AS total_gral;
+						FROM tmpliq ;
+						ORDER BY cod_agencia ;
+						GROUP BY cod_agencia ;
+						INTO CURSOR t_liq READWRITE
+
+					SELECT t_liq
+					REPLACE ALL total_gral WITH total_gral + premios
+
+					SELECT t_liq.* ;
+						FROM t_liq ;
+						WHERE t_liq.total_gral <= 0 ;
+						ORDER BY t_liq.cod_agencia ;
+						INTO CURSOR t_liq1 READWRITE
+
+					SELECT t_liq1
+
+					REPORT FORM reportes\rptcjliqche TO PRINTER PROMPT PREVIEW NOCONSOLE
+				ENDIF
+				
+****************************************
+**  GENERA ARCHIVO PARA INTERBANKING  **
+****************************************
+				IF 6 = MESSAGEBOX("Genera archivo para Transferencias InterBanking?",4+32,"Transferencias InterBanking")
+					SUM ALL ABS(total_gral) TO lntransfer
+					lnregistros = RECCOUNT()
+					USE w:\egresos\lotesib IN 0
+					SELECT lotesib
+					INSERT INTO lotesib (corigen,falta,calta) VALUES ("CJ",DATETIME(),vg_username)
+					lnlote = ID
+					SELECT t_liq1
+					lnh = FCREATE("W:\egresos\LotesIB\CJ"+PADL(lnlote,8,'0')+".txt")
+					lnreg = 0
+					lntra = 0
+					SCAN ALL
+						IF !EMPTY(cbu) AND !EMPTY(no_iva)
+							creg = ""
+							creg = "M"
+							creg = creg+cbu
+							creg = creg+STR(ABS(total_gral)*100,17,0)
+							creg = creg+"FAC"
+							creg = creg+PADR("PAGO PREMIO AGENCIA "+PADL(cod_agencia,6,'0'),60,' ')
+							creg = creg+SPACE(22)
+							creg = creg+SPACE(60)
+							creg = creg+no_iva
+							creg = creg+SPACE(42)
+							IF FPUTS(lnh,creg) # 0
+								lnreg = lnreg + 1
+								lntra = lntra + ABS(total_gral)
+							ENDIF
+						ENDIF
+					ENDSCAN
+					= FCLOSE(lnh)
+					IF lnreg # 0
+						REPLACE nregistros WITH lnreg,;
+							ntransfer WITH lntra,;
+							lgenerado WITH .T. IN lotesib
+					ELSE
+						REPLACE lgenerado WITH .F. IN lotesib
+					ENDIF
+					USE IN lotesib
+				ENDIF
+
+				USE IN jjimpjue
+				USE IN cajaliq
+
+				= MESSAGEBOX("Ha finalizado la lectura de la liquidación de Juegos",0+64)
+
+			ELSE
+
+				SELECT jjimpjue
+				DELETE ALL FOR falta = lfproc
+				USE IN jjimpjue
+
+				USE agjsjuegos!jjimpjue EXCLUSIVE IN 0
+
+				SELECT jjimpjue
+				PACK
+				USE IN jjimpjue
+				USE IN cajaliq
+
+				= MESSAGEBOX("Ha cancelado la lectura de la liquidación de Juegos",0+64)
+
+			ENDIF
+
+		ENDIF
+
+ENDCASE

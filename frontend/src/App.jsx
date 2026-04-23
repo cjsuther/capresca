@@ -7,6 +7,8 @@ import CajerosModule from "./modules/cajeros";
 import ClientesModule from "./modules/clientes";
 import InterbankingModule from "./modules/interbanking";
 import ConciliacionModule from "./modules/conciliacion";
+import LiquidacionesModule from "./modules/liquidaciones";
+import ComunicacionModule from "./modules/comunicacion";
 
 export default function App() {
   return (
@@ -64,6 +66,24 @@ export default function App() {
           element={
             <ModuleRoute moduleCode="conciliacion">
               <ConciliacionModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/liquidaciones/*"
+          element={
+            <ModuleRoute moduleCode="liquidaciones">
+              <LiquidacionesModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/comunicacion/*"
+          element={
+            <ModuleRoute moduleCode="comunicacion">
+              <ComunicacionModule />
             </ModuleRoute>
           }
         />

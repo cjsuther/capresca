@@ -10,7 +10,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 from app.db.base import Base
-from app.models import reconciliation_record, reconciliation_ib_link, reconciliation_status_history, cbu_agency_cache  # noqa
+from app.models import reconciliation_record, reconciliation_ib_link, reconciliation_status_history, cbu_agency_cache, liquidacion_record  # noqa
 
 target_metadata = Base.metadata
 

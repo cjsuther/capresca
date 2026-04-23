@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -43,7 +44,9 @@ def logout(
 
     jti = payload.get("jti")
     if jti and not is_token_blacklisted(db, jti):
-        blacklist_token(db, jti, payload["sub"], str(payload.get("exp", "")))
+        exp = payload.get("exp")
+        expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc) if exp else datetime.now(timezone.utc)
+        blacklist_token(db, jti, payload["sub"], expires_at)
 
     return {"message": "Sesión cerrada exitosamente"}
 

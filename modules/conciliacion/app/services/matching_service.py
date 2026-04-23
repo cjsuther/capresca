@@ -3,6 +3,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from app.models.reconciliation_record import ReconciliationRecord
 from app.models.reconciliation_ib_link import ReconciliationIbLink
+from app.models.liquidacion_record import LiquidacionConciliacionRecord
 from app.services import cbu_cache_service
 from app.services.link_service import get_active_link_for_tx, recalculate_depositado
 from app.services.reconciliation_service import get_or_create_record
@@ -165,6 +166,10 @@ async def load_date(db: Session, rec_date: date) -> tuple[list[ReconciliationRec
     ).all()
     for r in records:
         recalculate_depositado(db, r)
+
+    # Step 7: Apply liquidacion data to matching records
+    _apply_liquidacion_data(db, rec_date, records)
+
     db.commit()
 
     for r in records:
@@ -222,3 +227,67 @@ async def assign_agency(db: Session, tx_type: str, tx_id: int, client_id: int,
     db.refresh(new_record)
 
     return new_record, prev_record
+
+
+def _apply_liquidacion_data(db: Session, rec_date: date, records: list[ReconciliationRecord]):
+    """Apply liquidacion data to matching reconciliation records by agency_number."""
+    liq_records = db.query(LiquidacionConciliacionRecord).filter(
+        LiquidacionConciliacionRecord.operation_date == rec_date
+    ).all()
+
+    if not liq_records:
+        return
+
+    # Aggregate by agency (there can be multiple liq records per agency)
+    from collections import defaultdict
+    agency_liq = defaultdict(lambda: {"adeudado": Decimal("0"), "premios": Decimal("0")})
+    for liq in liq_records:
+        agency_liq[liq.agency_number]["adeudado"] += liq.importe_adeudado or Decimal("0")
+        agency_liq[liq.agency_number]["premios"] += liq.importe_premios or Decimal("0")
+
+    # Build map of records by agency_number
+    records_by_agency = {}
+    for r in records:
+        if r.agency_number:
+            records_by_agency[r.agency_number] = r
+
+    # Apply liquidacion amounts to matching records, creating if needed
+    # Use negative client_ids for agencies that only exist in liquidaciones
+    next_liq_client_id = -1
+    existing_liq_records = db.query(ReconciliationRecord).filter(
+        ReconciliationRecord.reconciliation_date == rec_date,
+        ReconciliationRecord.client_id < 0,
+    ).all()
+    for elr in existing_liq_records:
+        if elr.agency_number:
+            records_by_agency[elr.agency_number] = elr
+            if elr not in records:
+                records.append(elr)
+        if elr.client_id <= next_liq_client_id:
+            next_liq_client_id = elr.client_id - 1
+
+    for agency_number, amounts in agency_liq.items():
+        record = records_by_agency.get(agency_number)
+        if not record:
+            record = ReconciliationRecord(
+                reconciliation_date=rec_date,
+                client_id=next_liq_client_id,
+                agency_number=agency_number,
+                agency_legal_name=f"Agencia {agency_number}",
+                importe_adeudado=Decimal("0"),
+                importe_premios=Decimal("0"),
+                importe_depositado=Decimal("0"),
+                status="A_VERIFICAR",
+                created_by_user_id=0,
+            )
+            db.add(record)
+            db.flush()
+            records.append(record)
+            records_by_agency[agency_number] = record
+            next_liq_client_id -= 1
+
+        record.importe_adeudado = amounts["adeudado"]
+        record.importe_premios = amounts["premios"]
+        for liq in liq_records:
+            if liq.agency_number == agency_number and liq.reconciliation_record_id != record.id:
+                liq.reconciliation_record_id = record.id

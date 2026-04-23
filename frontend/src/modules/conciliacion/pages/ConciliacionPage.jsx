@@ -50,6 +50,14 @@ function MatchTypeBadge({ matchType }) {
   );
 }
 
+function LiqBadge() {
+  return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700" title="Datos cargados desde Liquidaciones">
+      LIQ
+    </span>
+  );
+}
+
 export default function ConciliacionPage() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [records, setRecords] = useState([]);
@@ -272,8 +280,9 @@ export default function ConciliacionPage() {
                         <td className={`px-3 py-2 text-right font-mono text-xs font-semibold ${rec.importe_neto != null && Number(rec.importe_neto) <= 0 ? "text-green-600" : "text-red-600"}`}>
                           {fmt(rec.importe_neto)}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 space-x-1">
                           <StatusBadge status={rec.status} />
+                          {rec.has_liquidacion && <LiqBadge />}
                         </td>
                       </tr>
                     ))
@@ -381,8 +390,18 @@ export default function ConciliacionPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Estado</p>
-                <StatusBadge status={selectedRecord.status} />
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={selectedRecord.status} />
+                  {selectedRecord.has_liquidacion && <LiqBadge />}
+                </div>
               </div>
+              {selectedRecord.has_liquidacion && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-orange-700">
+                    Importes adeudado y premios cargados autom\u00e1ticamente desde el m\u00f3dulo de Liquidaciones.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-gray-500">Adeudado</p>

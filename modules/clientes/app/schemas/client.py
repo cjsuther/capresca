@@ -68,6 +68,7 @@ class LegalProfileCreate(BaseModel):
     incorporation_date: Optional[str] = None
     legal_representative: Optional[str] = None
     industry_sector: Optional[str] = None
+    agency_number: Optional[str] = None
 
 
 class LegalProfileResponse(BaseModel):
@@ -78,6 +79,7 @@ class LegalProfileResponse(BaseModel):
     incorporation_date: Optional[str]
     legal_representative: Optional[str]
     industry_sector: Optional[str]
+    agency_number: Optional[str]
 
     model_config = {"from_attributes": True}
 

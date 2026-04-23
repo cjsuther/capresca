@@ -19,6 +19,8 @@ MODULES = [
     {"code": "clientes", "name": "Clientes", "description": "Gestión de clientes y contactos", "icon": "users"},
     {"code": "interbanking", "name": "Interbanking", "description": "Operaciones bancarias via Interbanking Argentina", "icon": "banknote"},
     {"code": "conciliacion", "name": "Conciliación", "description": "Conciliación de pagos y transferencias", "icon": "scale"},
+    {"code": "liquidaciones", "name": "Liquidaciones", "description": "Procesamiento de liquidaciones de juegos", "icon": "receipt"},
+    {"code": "comunicacion", "name": "Comunicación", "description": "Chat con clientes vía WhatsApp Business", "icon": "message-circle"},
 ]
 
 PERMISSIONS = {
@@ -62,6 +64,17 @@ PERMISSIONS = {
         ("write", "Editar conciliación y gestionar vínculos"),
         ("download", "Descargar boletas PDF"),
     ],
+    "liquidaciones": [
+        ("liq:read", "Ver liquidaciones y lotes"),
+        ("liq:write", "Procesar archivos y enviar a conciliación"),
+        ("liq:download", "Descargar archivos adjuntos"),
+    ],
+    "comunicacion": [
+        ("chat:read", "Ver conversaciones y mensajes"),
+        ("chat:write", "Enviar mensajes y crear conversaciones"),
+        ("chat:config:read", "Ver configuración del menú y WhatsApp"),
+        ("chat:config:write", "Modificar configuración del menú y WhatsApp"),
+    ],
 }
 
 
@@ -100,8 +113,13 @@ def run():
             admin_role = Role(name="admin", description="Administrador del sistema")
             db.add(admin_role)
             db.flush()
-
-        admin_role.permissions = list(perm_map.values())
+            admin_role.permissions = list(perm_map.values())
+        else:
+            # Solo agregar permisos nuevos sin quitar los existentes
+            existing_ids = {p.id for p in admin_role.permissions}
+            for perm in perm_map.values():
+                if perm.id not in existing_ids:
+                    admin_role.permissions.append(perm)
 
         # ── Rol cajero ───────────────────────────────────────────
         cajero_role = db.query(Role).filter(Role.name == "cajero").first()
@@ -109,12 +127,11 @@ def run():
             cajero_role = Role(name="cajero", description="Cajero estándar")
             db.add(cajero_role)
             db.flush()
-
-        cajero_perms = [p for code, p in perm_map.items() if code in (
-            "transactions:read", "transactions:write", "transactions:delete",
-            "clients:read",
-        )]
-        cajero_role.permissions = cajero_perms
+            cajero_perms = [p for code, p in perm_map.items() if code in (
+                "transactions:read", "transactions:write", "transactions:delete",
+                "clients:read",
+            )]
+            cajero_role.permissions = cajero_perms
 
         # ── Rol supervisor ───────────────────────────────────────
         supervisor_role = db.query(Role).filter(Role.name == "supervisor").first()
@@ -122,13 +139,12 @@ def run():
             supervisor_role = Role(name="supervisor", description="Supervisor / Autorizador")
             db.add(supervisor_role)
             db.flush()
-
-        supervisor_perms = [p for code, p in perm_map.items() if code in (
-            "transactions:read", "transactions:read_all", "transactions:authorize",
-            "rules:read", "rules:write",
-            "clients:read",
-        )]
-        supervisor_role.permissions = supervisor_perms
+            supervisor_perms = [p for code, p in perm_map.items() if code in (
+                "transactions:read", "transactions:read_all", "transactions:authorize",
+                "rules:read", "rules:write",
+                "clients:read",
+            )]
+            supervisor_role.permissions = supervisor_perms
 
         # ── Usuario admin ────────────────────────────────────────
         admin_user = db.query(User).filter(User.username == "admin").first()

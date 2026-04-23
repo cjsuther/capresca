@@ -72,6 +72,34 @@ ROUTE_MAP = [
     ("GET",  r"^/api/conciliacion/agencies$",                        settings.conciliacion_service_url, "conciliacion:read"),
     ("GET",  r"^/api/conciliacion$",                                 settings.conciliacion_service_url, "conciliacion:read"),
 
+    # ── Liquidaciones ────────────────────────────────────────────
+    ("POST", r"^/api/liquidaciones/process$",                              settings.liquidaciones_service_url, "liquidaciones:liq:write"),
+    ("POST", r"^/api/liquidaciones/upload$",                               settings.liquidaciones_service_url, "liquidaciones:liq:write"),
+    ("GET",  r"^/api/liquidaciones/batches/\d+/detalle$",                  settings.liquidaciones_service_url, "liquidaciones:liq:read"),
+    ("GET",  r"^/api/liquidaciones/batches/\d+/validaciones$",             settings.liquidaciones_service_url, "liquidaciones:liq:read"),
+    ("GET",  r"^/api/liquidaciones/batches/\d+/archivos/\d+$",             settings.liquidaciones_service_url, "liquidaciones:liq:download"),
+    ("GET",  r"^/api/liquidaciones/batches/\d+/archivos$",                 settings.liquidaciones_service_url, "liquidaciones:liq:read"),
+    ("GET",  r"^/api/liquidaciones/batches/\d+/raw$",                      settings.liquidaciones_service_url, "liquidaciones:liq:read"),
+    ("POST", r"^/api/liquidaciones/batches/\d+/retry-conciliacion$",       settings.liquidaciones_service_url, "liquidaciones:liq:write"),
+    ("GET",  r"^/api/liquidaciones/batches/\d+$",                          settings.liquidaciones_service_url, "liquidaciones:liq:read"),
+    ("GET",  r"^/api/liquidaciones/batches$",                              settings.liquidaciones_service_url, "liquidaciones:liq:read"),
+
+    # ── Comunicación ─────────────────────────────────────────────
+    ("GET",    r"^/api/comunicacion/messages/\d+/media$",               settings.comunicacion_service_url, "comunicacion:chat:read"),
+    ("GET",    r"^/api/comunicacion/conversations$",                    settings.comunicacion_service_url, "comunicacion:chat:read"),
+    ("POST",   r"^/api/comunicacion/conversations$",                    settings.comunicacion_service_url, "comunicacion:chat:write"),
+    ("GET",    r"^/api/comunicacion/conversations/\d+$",                settings.comunicacion_service_url, "comunicacion:chat:read"),
+    ("PUT",    r"^/api/comunicacion/conversations/\d+/link-client$",    settings.comunicacion_service_url, "comunicacion:chat:write"),
+    ("PUT",    r"^/api/comunicacion/conversations/\d+/read$",           settings.comunicacion_service_url, "comunicacion:chat:read"),
+    ("GET",    r"^/api/comunicacion/conversations/\d+/messages$",       settings.comunicacion_service_url, "comunicacion:chat:read"),
+    ("POST",   r"^/api/comunicacion/conversations/\d+/messages$",       settings.comunicacion_service_url, "comunicacion:chat:write"),
+    ("POST",   r"^/api/comunicacion/conversations/\d+/messages/media$", settings.comunicacion_service_url, "comunicacion:chat:write"),
+    ("GET",    r"^/api/comunicacion/menu$",                             settings.comunicacion_service_url, "comunicacion:chat:config:read"),
+    ("PUT",    r"^/api/comunicacion/menu$",                             settings.comunicacion_service_url, "comunicacion:chat:config:write"),
+    ("GET",    r"^/api/comunicacion/whatsapp-config$",                  settings.comunicacion_service_url, "comunicacion:chat:config:read"),
+    ("PUT",    r"^/api/comunicacion/whatsapp-config$",                  settings.comunicacion_service_url, "comunicacion:chat:config:write"),
+    ("GET",    r"^/api/comunicacion/stats$",                            settings.comunicacion_service_url, "comunicacion:chat:read"),
+
     # ── Interbanking ─────────────────────────────────────────────
     ("GET",    r"^/api/interbanking/config/token-status$",          settings.interbanking_service_url, "interbanking:config:read"),
     ("POST",   r"^/api/interbanking/config/test$",                  settings.interbanking_service_url, "interbanking:config:write"),

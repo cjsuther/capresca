@@ -11,6 +11,9 @@ volumes:
   interbanking_data:
   notifications_data:
   conciliacion_data:
+  liquidaciones_data:
+  comunicacion_data:
+  comunicacion_media:
 
 services:
 
@@ -57,6 +60,8 @@ services:
       - INTERBANKING_SERVICE_URL=http://interbanking:8004
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
       - CONCILIACION_SERVICE_URL=http://conciliacion:8006
+      - LIQUIDACIONES_SERVICE_URL=http://liquidaciones:8007
+      - COMUNICACION_SERVICE_URL=http://comunicacion:8008
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -66,6 +71,8 @@ services:
       - interbanking
       - notifications
       - conciliacion
+      - liquidaciones
+      - comunicacion
     networks:
       - app_network
     restart: unless-stopped
@@ -275,6 +282,86 @@ services:
       - app_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U concil_user -d conciliacion_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Liquidaciones
+  # ──────────────────────────────────────────
+  liquidaciones:
+    build:
+      context: ./modules/liquidaciones
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${LIQUIDACIONES_DB_USER}:${LIQUIDACIONES_DB_PASS}@db_liquidaciones:5432/${LIQUIDACIONES_DB_NAME}
+      - CONCILIACION_SERVICE_URL=http://conciliacion:8006
+      - CLIENTES_SERVICE_URL=http://clientes:8003
+      - INTERNAL_API_KEY=${LIQUIDACIONES_INTERNAL_API_KEY}
+    volumes:
+      - ./externalfiles:/data/externalfiles:ro
+    depends_on:
+      db_liquidaciones:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_liquidaciones:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${LIQUIDACIONES_DB_NAME}
+      - POSTGRES_USER=${LIQUIDACIONES_DB_USER}
+      - POSTGRES_PASSWORD=${LIQUIDACIONES_DB_PASS}
+    volumes:
+      - liquidaciones_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LIQUIDACIONES_DB_USER} -d ${LIQUIDACIONES_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Comunicación
+  # ──────────────────────────────────────────
+  comunicacion:
+    build:
+      context: ./modules/comunicacion
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${COMUNICACION_DB_USER}:${COMUNICACION_DB_PASS}@db_comunicacion:5432/${COMUNICACION_DB_NAME}
+      - CLIENTES_SERVICE_URL=http://clientes:8003
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+      - WHATSAPP_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_WEBHOOK_VERIFY_TOKEN}
+      - WHATSAPP_BUSINESS_ACCOUNT_ID=${WHATSAPP_BUSINESS_ACCOUNT_ID}
+      - WHATSAPP_APP_SECRET=${WHATSAPP_APP_SECRET}
+      - MEDIA_STORAGE_PATH=/data/comunicacion/media
+    volumes:
+      - comunicacion_media:/data/comunicacion/media
+    depends_on:
+      db_comunicacion:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_comunicacion:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${COMUNICACION_DB_NAME}
+      - POSTGRES_USER=${COMUNICACION_DB_USER}
+      - POSTGRES_PASSWORD=${COMUNICACION_DB_PASS}
+    volumes:
+      - comunicacion_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COMUNICACION_DB_USER} -d ${COMUNICACION_DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10

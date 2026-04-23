@@ -56,6 +56,7 @@ export default function ClientesListPage() {
               <th className="text-left px-4 py-3 font-medium">Tipo</th>
               <th className="text-left px-4 py-3 font-medium">Código</th>
               <th className="text-left px-4 py-3 font-medium">Nombre</th>
+              <th className="text-left px-4 py-3 font-medium">Nro. Agencia</th>
               <th className="text-left px-4 py-3 font-medium">Email</th>
               <th className="text-left px-4 py-3 font-medium">Ciudad</th>
               <th className="text-left px-4 py-3 font-medium">Estado</th>
@@ -63,9 +64,9 @@ export default function ClientesListPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
             ) : data.data.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Sin resultados</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Sin resultados</td></tr>
             ) : data.data.map((client) => {
               const name = client.human_profile
                 ? `${client.human_profile.first_name} ${client.human_profile.last_name}`
@@ -85,6 +86,7 @@ export default function ClientesListPage() {
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{client.code}</td>
                   <td className="px-4 py-3 font-medium">{name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{client.legal_profile?.agency_number || "—"}</td>
                   <td className="px-4 py-3 text-gray-600">{client.email || "—"}</td>
                   <td className="px-4 py-3 text-gray-600">{client.city || "—"}</td>
                   <td className="px-4 py-3">

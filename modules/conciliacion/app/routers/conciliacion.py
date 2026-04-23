@@ -11,6 +11,7 @@ from app.schemas.reconciliation import (
 from app.schemas.ib_transaction import IbTransactionResponse
 from app.models.reconciliation_record import ReconciliationRecord
 from app.models.reconciliation_status_history import ReconciliationStatusHistory
+from app.models.liquidacion_record import LiquidacionConciliacionRecord
 from app.services import interbanking_client
 
 router = APIRouter(tags=["conciliacion"])
@@ -23,8 +24,15 @@ async def get_conciliacion(
     db: Session = Depends(get_db),
 ):
     records, transactions = await matching_service.load_date(db, date)
+
+    # Find which records have liquidacion data linked
+    liq_records = db.query(LiquidacionConciliacionRecord).filter(
+        LiquidacionConciliacionRecord.operation_date == date
+    ).all()
+    liq_record_ids = {liq.reconciliation_record_id for liq in liq_records if liq.reconciliation_record_id}
+
     return {
-        "reconciliation_records": [_record_to_dict(r) for r in records],
+        "reconciliation_records": [_record_to_dict(r, r.id in liq_record_ids) for r in records],
         "interbanking_transactions": transactions,
     }
 
@@ -121,7 +129,7 @@ async def assign_agency(
     return result
 
 
-def _record_to_dict(r: ReconciliationRecord) -> dict:
+def _record_to_dict(r: ReconciliationRecord, has_liquidacion: bool = False) -> dict:
     from decimal import Decimal
     return {
         "id": r.id,
@@ -135,6 +143,7 @@ def _record_to_dict(r: ReconciliationRecord) -> dict:
         "importe_depositado": float(r.importe_depositado or 0),
         "importe_neto": float(r.importe_neto),
         "status": r.status,
+        "has_liquidacion": has_liquidacion,
         "modified_by_user_id": r.modified_by_user_id,
         "modified_by_username": r.modified_by_username,
         "modified_at": r.modified_at.isoformat() if r.modified_at else None,

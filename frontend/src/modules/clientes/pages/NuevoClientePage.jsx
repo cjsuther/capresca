@@ -11,7 +11,7 @@ export default function NuevoClientePage() {
   const [profile, setProfile] = useState(
     isHuman
       ? { first_name: "", last_name: "", document_type: "DNI", document_number: "", nationality: "" }
-      : { legal_name: "", trade_name: "", tax_id: "", tax_id_type: "CUIT", legal_representative: "", industry_sector: "" }
+      : { legal_name: "", trade_name: "", tax_id: "", tax_id_type: "CUIT", legal_representative: "", industry_sector: "", agency_number: "" }
   );
   const [error, setError] = useState("");
 
@@ -127,6 +127,10 @@ export default function NuevoClientePage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sector / industria</label>
                   <input className="input w-full" value={profile.industry_sector} onChange={(e) => setProfile({ ...profile, industry_sector: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nro. Agencia</label>
+                  <input className="input w-full" placeholder="Ej: 000001" value={profile.agency_number} onChange={(e) => setProfile({ ...profile, agency_number: e.target.value })} />
                 </div>
               </>
             )}
