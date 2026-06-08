@@ -1,0 +1,30 @@
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    database_url: str
+
+    # Acceso al share legacy (montado por SMB/CIFS en el host, bind-mount read-only)
+    smb_mount_root: str = "/data/agjs"
+
+    # Kill switch de la integración. False = no se toca el legacy; las lecturas
+    # se sirven desde el mirror Postgres y las escrituras devuelven 410.
+    integration_enabled: bool = True
+
+    # Modo de escritura. "outbox_only" (default seguro): toda escritura se encola
+    # y se aplica en ventana de mantenimiento (nunca en caliente sobre las DBF).
+    write_mode: str = "outbox_only"
+
+    # Autenticación de endpoints internos (contenedor-a-contenedor)
+    internal_api_key: str = ""
+
+    # Servicios consumidos por este módulo
+    clientes_service_url: str = "http://clientes:8003"
+    conciliacion_service_url: str = "http://conciliacion:8006"
+    interbanking_service_url: str = "http://interbanking:8004"
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()

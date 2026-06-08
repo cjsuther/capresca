@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Response, Depends
 from sqlalchemy.orm import Session
-from app.config import settings
 from app.db.session import get_db
+from app.models.whatsapp_config import WhatsappConfig
 from app.services import (
     conversation_service,
     message_service,
@@ -15,14 +15,15 @@ router = APIRouter(tags=["webhook"])
 
 
 @router.get("/webhook/whatsapp")
-async def verify_webhook(request: Request):
-    """Verificacion del webhook requerida por Meta."""
+async def verify_webhook(request: Request, db: Session = Depends(get_db)):
+    """Verificacion del webhook requerida por Meta. Token leído de DB."""
     params = request.query_params
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
     challenge = params.get("hub.challenge")
 
-    if mode == "subscribe" and token == settings.whatsapp_webhook_verify_token:
+    cfg = db.query(WhatsappConfig).filter(WhatsappConfig.is_active == True).first()
+    if mode == "subscribe" and cfg and token == cfg.webhook_verify_token:
         return Response(content=challenge, media_type="text/plain")
     return Response(status_code=403)
 
@@ -34,7 +35,7 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)):
 
     # Verify signature
     signature = request.headers.get("X-Hub-Signature-256", "")
-    if not whatsapp_service.verify_webhook_signature(body, signature):
+    if not whatsapp_service.verify_webhook_signature(body, signature, db):
         return Response(status_code=403)
 
     payload = await request.json()
@@ -118,7 +119,7 @@ async def _process_incoming_message(db: Session, wa_message: dict, contacts: lis
 
         if media_id:
             media_local_path = await media_service.download_and_store_inbound(
-                media_id, conv.id, wa_message_id, media_filename
+                media_id, conv.id, wa_message_id, media_filename, db=db,
             )
 
     elif msg_type == "interactive":
@@ -161,7 +162,7 @@ async def _process_incoming_message(db: Session, wa_message: dict, contacts: lis
     if interactive_reply_id:
         response_text = await menu_service.process_menu_reply(db, conv, interactive_reply_id)
         if response_text:
-            wa_result = await whatsapp_service.send_text_message(phone, response_text)
+            wa_result = await whatsapp_service.send_text_message(phone, response_text, db=db)
             message_service.create_message(
                 db,
                 conversation_id=conv.id,

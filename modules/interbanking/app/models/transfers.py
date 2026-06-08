@@ -8,9 +8,10 @@ class Transfer(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     audit_log_id = Column(BigInteger, ForeignKey("api_audit_log.id"), nullable=True)
-    cuenta_origen = Column(String(100))
+    cuenta_origen = Column(String(100))  # CBU de la cuenta débito
     cbu_destino = Column(String(22))
     monto = Column(Numeric(15, 2))
+    moneda = Column(String(3), default="ARS", nullable=False)
     concepto = Column(String(255))
     id_operacion_ib = Column(String(100))
     status = Column(String(50), default="INICIADA")

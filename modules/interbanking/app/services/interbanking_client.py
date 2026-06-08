@@ -18,14 +18,26 @@ def call(
     operation: str,
     method: str,
     path: str,
+    scope: str,
     payload: Optional[dict] = None,
     params: Optional[dict] = None,
     username: Optional[str] = None,
     ip_address: Optional[str] = None,
 ) -> Any:
-    access_token, credential_id = token_manager.get_valid_token(db, user_id)
+    access_token, credential_id = token_manager.get_valid_token(db, scope, user_id)
     cred = token_manager.get_active_credential(db)
-    url = f"{cred.base_url}{path}"
+    base = (cred.base_url or "").rstrip("/")
+    rel = path if path.startswith("/") else f"/{path}"
+    url = f"{base}{rel}"
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "client_id": cred.client_id,
+    }
+    if cred.service_url:
+        headers["service"] = cred.service_url
 
     start = time.time()
     success = False
@@ -37,7 +49,7 @@ def call(
         resp = httpx.request(
             method=method,
             url=url,
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+            headers=headers,
             json=payload,
             params=params,
             timeout=30,
@@ -50,6 +62,7 @@ def call(
 
         if resp.is_error:
             error_msg = response_data.get("message") or response_data.get("detail") or resp.text
+            error_msg = f"{error_msg} [url={url}]"
         else:
             success = True
     except Exception as e:

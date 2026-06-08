@@ -105,21 +105,25 @@ ROUTE_MAP = [
     ("POST",   r"^/api/interbanking/config/test$",                  settings.interbanking_service_url, "interbanking:config:write"),
     ("GET",    r"^/api/interbanking/config$",                       settings.interbanking_service_url, "interbanking:config:read"),
     ("POST",   r"^/api/interbanking/config$",                       settings.interbanking_service_url, "interbanking:config:write"),
-    ("GET",    r"^/api/interbanking/cuentas/\w+/saldo$",            settings.interbanking_service_url, "interbanking:cuentas:read"),
+    ("GET",    r"^/api/interbanking/cuentas/saldos$",               settings.interbanking_service_url, "interbanking:cuentas:read"),
     ("GET",    r"^/api/interbanking/cuentas",                       settings.interbanking_service_url, "interbanking:cuentas:read"),
     ("POST",   r"^/api/interbanking/transferencias/validar$",       settings.interbanking_service_url, "interbanking:transferencias:write"),
-    ("POST",   r"^/api/interbanking/transferencias/iniciar$",       settings.interbanking_service_url, "interbanking:transferencias:write"),
+    ("GET",    r"^/api/interbanking/transferencias/local$",         settings.interbanking_service_url, "interbanking:transferencias:read"),
     ("GET",    r"^/api/interbanking/transferencias/\w+/estado$",    settings.interbanking_service_url, "interbanking:transferencias:read"),
+    ("POST",   r"^/api/interbanking/transferencias$",               settings.interbanking_service_url, "interbanking:transferencias:write"),
     ("GET",    r"^/api/interbanking/transferencias",                settings.interbanking_service_url, "interbanking:transferencias:read"),
     ("GET",    r"^/api/interbanking/auditoria/export$",             settings.interbanking_service_url, "interbanking:auditoria:read"),
     ("GET",    r"^/api/interbanking/auditoria/\d+$",                settings.interbanking_service_url, "interbanking:auditoria:read"),
     ("GET",    r"^/api/interbanking/auditoria",                     settings.interbanking_service_url, "interbanking:auditoria:read"),
-    ("GET",    r"^/api/interbanking/pagos/lotes/\d+/items$",        settings.interbanking_service_url, "interbanking:pagos:read"),
-    ("GET",    r"^/api/interbanking/pagos/lotes/\d+/estado$",       settings.interbanking_service_url, "interbanking:pagos:read"),
-    ("POST",   r"^/api/interbanking/pagos/lotes/\d+/procesar$",     settings.interbanking_service_url, "interbanking:pagos:write"),
-    ("GET",    r"^/api/interbanking/pagos/lotes/\d+$",              settings.interbanking_service_url, "interbanking:pagos:read"),
-    ("GET",    r"^/api/interbanking/pagos/lotes$",                  settings.interbanking_service_url, "interbanking:pagos:read"),
-    ("POST",   r"^/api/interbanking/pagos/lotes$",                  settings.interbanking_service_url, "interbanking:pagos:write"),
+
+    # ── Legacy (solo administración/diagnóstico; los /internal nunca se exponen) ──
+    ("GET",    r"^/api/legacy/interactions/\d+$",   settings.legacy_service_url, "legacy:interactions:read"),
+    ("GET",    r"^/api/legacy/interactions$",       settings.legacy_service_url, "legacy:interactions:read"),
+    ("GET",    r"^/api/legacy/databases$",          settings.legacy_service_url, "legacy:interactions:read"),
+    ("GET",    r"^/api/legacy/status$",             settings.legacy_service_url, "legacy:interactions:read"),
+    ("POST",   r"^/api/legacy/sync/\w+$",           settings.legacy_service_url, "legacy:admin:write"),
+    ("GET",    r"^/api/legacy/outbox$",             settings.legacy_service_url, "legacy:admin:read"),
+    ("POST",   r"^/api/legacy/outbox/drain$",       settings.legacy_service_url, "legacy:admin:write"),
 ]
 
 

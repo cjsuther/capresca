@@ -3,30 +3,29 @@ import api from "./client";
 // Config
 export const getConfig = () => api.get("/interbanking/config").then((r) => r.data);
 export const saveConfig = (data) => api.post("/interbanking/config", data).then((r) => r.data);
-export const testConfig = (data) => api.post("/interbanking/config/test", data).then((r) => r.data);
+export const testConfig = (data, scope) =>
+  api.post("/interbanking/config/test", data, { params: scope ? { scope } : {} }).then((r) => r.data);
 export const getTokenStatus = () => api.get("/interbanking/config/token-status").then((r) => r.data);
 
-// Cuentas
-export const getCuentas = () => api.get("/interbanking/cuentas").then((r) => r.data);
-export const getSaldo = (cuentaId) => api.get(`/interbanking/cuentas/${cuentaId}/saldo`).then((r) => r.data);
+// Cuentas (API Interbanking - Información Financiera)
+export const getCuentas = (params = {}) =>
+  api.get("/interbanking/cuentas", { params }).then((r) => r.data);
+export const getCuenta = (accountNumber, params = {}) =>
+  api.get(`/interbanking/cuentas/${accountNumber}`, { params }).then((r) => r.data);
+export const getSaldos = (params = {}) =>
+  api.get("/interbanking/cuentas/saldos", { params }).then((r) => r.data);
 
 // Transferencias
+export const listarTransferencias = (params = {}) =>
+  api.get("/interbanking/transferencias", { params }).then((r) => r.data);
+export const crearTransferencia = (data) =>
+  api.post("/interbanking/transferencias", data).then((r) => r.data);
 export const validarCBU = (cbu_or_alias) =>
   api.post("/interbanking/transferencias/validar", { cbu_or_alias }).then((r) => r.data);
-export const iniciarTransferencia = (data) =>
-  api.post("/interbanking/transferencias/iniciar", data).then((r) => r.data);
 export const getEstadoTransferencia = (id) =>
   api.get(`/interbanking/transferencias/${id}/estado`).then((r) => r.data);
-export const getTransferencias = (params = {}) =>
-  api.get("/interbanking/transferencias", { params }).then((r) => r.data);
-
-// Pagos en lote
-export const getLotes = (params = {}) => api.get("/interbanking/pagos/lotes", { params }).then((r) => r.data);
-export const getLote = (id) => api.get(`/interbanking/pagos/lotes/${id}`).then((r) => r.data);
-export const getLoteItems = (id) => api.get(`/interbanking/pagos/lotes/${id}/items`).then((r) => r.data);
-export const createLote = (data) => api.post("/interbanking/pagos/lotes", data).then((r) => r.data);
-export const procesarLote = (id) => api.post(`/interbanking/pagos/lotes/${id}/procesar`).then((r) => r.data);
-export const getEstadoLote = (id) => api.get(`/interbanking/pagos/lotes/${id}/estado`).then((r) => r.data);
+export const getTransferenciasLocal = (params = {}) =>
+  api.get("/interbanking/transferencias/local", { params }).then((r) => r.data);
 
 // Auditoría
 export const getAuditoria = (params = {}) =>

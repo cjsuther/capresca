@@ -8,6 +8,7 @@ class WhatsappConfigResponse(BaseModel):
     business_account_id: str
     access_token_masked: str
     webhook_verify_token: str
+    has_app_secret: bool = False
     display_phone_number: Optional[str]
     is_active: bool
 
@@ -17,8 +18,9 @@ class WhatsappConfigResponse(BaseModel):
 class WhatsappConfigUpdate(BaseModel):
     phone_number_id: str
     business_account_id: str
-    access_token: str
+    access_token: Optional[str] = None  # vacío => preservar el guardado
     webhook_verify_token: str
+    app_secret: Optional[str] = None    # vacío => preservar el guardado
     display_phone_number: Optional[str] = None
 
 

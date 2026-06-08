@@ -15,6 +15,9 @@ def extract_zip(zip_bytes: bytes) -> dict:
 
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         for name in zf.namelist():
+            basename = name.rsplit("/", 1)[-1]
+            if name.startswith("__MACOSX/") or basename.startswith("._"):
+                continue
             data = zf.read(name)
             upper = name.upper()
 

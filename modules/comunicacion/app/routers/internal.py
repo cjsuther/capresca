@@ -39,7 +39,7 @@ async def internal_send_message(data: InternalSendRequest, db: Session = Depends
     )
 
     # Send via WhatsApp
-    wa_result = await whatsapp_service.send_text_message(phone, data.message)
+    wa_result = await whatsapp_service.send_text_message(phone, data.message, db=db)
     wa_message_id = wa_result.get("wa_message_id") if wa_result else None
     wa_status = wa_result.get("status", "FAILED") if wa_result else "FAILED"
 
@@ -98,14 +98,14 @@ async def internal_send_file(
     local_path = media_service.store_outbound_file(file_bytes, conv.id, file.filename)
 
     # Upload and send via WhatsApp
-    media_id = await whatsapp_service.upload_media(file_bytes, file.content_type, file.filename)
+    media_id = await whatsapp_service.upload_media(file_bytes, file.content_type, file.filename, db=db)
     wa_result = None
     if media_id:
         if file.content_type and file.content_type.startswith("image/"):
-            wa_result = await whatsapp_service.send_image_message(actual_phone, caption=caption, media_id=media_id)
+            wa_result = await whatsapp_service.send_image_message(actual_phone, caption=caption, media_id=media_id, db=db)
         else:
             wa_result = await whatsapp_service.send_document_message(
-                actual_phone, file.filename, caption=caption, media_id=media_id
+                actual_phone, file.filename, caption=caption, media_id=media_id, db=db,
             )
 
     wa_message_id = wa_result.get("wa_message_id") if wa_result else None

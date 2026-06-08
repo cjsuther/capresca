@@ -4,12 +4,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str
     clientes_service_url: str = "http://clientes:8003"
-    whatsapp_phone_number_id: str = ""
-    whatsapp_access_token: str = ""
-    whatsapp_webhook_verify_token: str = ""
-    whatsapp_business_account_id: str = ""
-    whatsapp_app_secret: str = ""
     media_storage_path: str = "/data/comunicacion/media"
+    # Las credenciales de WhatsApp se administran en la tabla whatsapp_config
+    # (Comunicación → Configuración → WhatsApp). Se ignoran las antiguas
+    # WHATSAPP_* env vars si están seteadas.
 
     class Config:
         env_file = ".env"

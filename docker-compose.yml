@@ -14,6 +14,7 @@ volumes:
   liquidaciones_data:
   comunicacion_data:
   comunicacion_media:
+  legacy_data:
 
 services:
 
@@ -62,6 +63,7 @@ services:
       - CONCILIACION_SERVICE_URL=http://conciliacion:8006
       - LIQUIDACIONES_SERVICE_URL=http://liquidaciones:8007
       - COMUNICACION_SERVICE_URL=http://comunicacion:8008
+      - LEGACY_SERVICE_URL=http://legacy:8009
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -73,6 +75,7 @@ services:
       - conciliacion
       - liquidaciones
       - comunicacion
+      - legacy
     networks:
       - app_network
     restart: unless-stopped
@@ -320,6 +323,50 @@ services:
       - app_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${LIQUIDACIONES_DB_USER} -d ${LIQUIDACIONES_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Legacy (integración VFP9 / DBF) — apagable
+  # ──────────────────────────────────────────
+  legacy:
+    build:
+      context: ./modules/legacy
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${LEGACY_DB_USER}:${LEGACY_DB_PASS}@db_legacy:5432/${LEGACY_DB_NAME}
+      - CLIENTES_SERVICE_URL=http://clientes:8003
+      - CONCILIACION_SERVICE_URL=http://conciliacion:8006
+      - INTERBANKING_SERVICE_URL=http://interbanking:8004
+      - INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
+      - SMB_MOUNT_ROOT=/data/agjs
+      - INTEGRATION_ENABLED=${LEGACY_INTEGRATION_ENABLED:-true}
+      - WRITE_MODE=${LEGACY_WRITE_MODE:-outbox_only}
+    volumes:
+      # Montaje SMB/CIFS del share legacy hecho en el HOST, bind-mount read-only.
+      # Ajustar la ruta del host (${LEGACY_SHARE_HOST_PATH}) al punto de montaje real.
+      - ${LEGACY_SHARE_HOST_PATH:-./externalfiles}:/data/agjs:ro
+    depends_on:
+      db_legacy:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_legacy:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${LEGACY_DB_NAME}
+      - POSTGRES_USER=${LEGACY_DB_USER}
+      - POSTGRES_PASSWORD=${LEGACY_DB_PASS}
+    volumes:
+      - legacy_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LEGACY_DB_USER} -d ${LEGACY_DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10

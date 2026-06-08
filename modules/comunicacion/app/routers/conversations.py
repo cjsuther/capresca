@@ -112,7 +112,7 @@ async def send_message(
         raise HTTPException(404, "Conversacion no encontrada")
 
     # Send via WhatsApp
-    wa_result = await whatsapp_service.send_text_message(conv.client_phone, data.content)
+    wa_result = await whatsapp_service.send_text_message(conv.client_phone, data.content, db=db)
     wa_message_id = wa_result.get("wa_message_id") if wa_result else None
     wa_status = wa_result.get("status", "FAILED") if wa_result else "FAILED"
 
@@ -150,14 +150,14 @@ async def send_media_message(
     local_path = media_service.store_outbound_file(file_bytes, conversation_id, file.filename)
 
     # Upload to WhatsApp and send
-    media_id = await whatsapp_service.upload_media(file_bytes, file.content_type, file.filename)
+    media_id = await whatsapp_service.upload_media(file_bytes, file.content_type, file.filename, db=db)
     wa_result = None
     if media_id:
         if file.content_type and file.content_type.startswith("image/"):
-            wa_result = await whatsapp_service.send_image_message(conv.client_phone, caption=caption, media_id=media_id)
+            wa_result = await whatsapp_service.send_image_message(conv.client_phone, caption=caption, media_id=media_id, db=db)
         else:
             wa_result = await whatsapp_service.send_document_message(
-                conv.client_phone, file.filename, caption=caption, media_id=media_id
+                conv.client_phone, file.filename, caption=caption, media_id=media_id, db=db,
             )
 
     wa_message_id = wa_result.get("wa_message_id") if wa_result else None

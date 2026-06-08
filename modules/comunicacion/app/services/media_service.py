@@ -1,5 +1,9 @@
 import os
 from datetime import datetime
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
 from app.config import settings
 from app.services import whatsapp_service
 
@@ -20,10 +24,11 @@ def get_outbound_path(conversation_id: int, filename: str) -> str:
 
 
 async def download_and_store_inbound(
-    media_id: str, conversation_id: int, wa_message_id: str, filename: str
+    media_id: str, conversation_id: int, wa_message_id: str, filename: str,
+    db: Optional[Session] = None,
 ) -> str | None:
     """Descarga un archivo de WhatsApp y lo almacena localmente."""
-    result = await whatsapp_service.download_media(media_id)
+    result = await whatsapp_service.download_media(media_id, db=db)
     if not result:
         return None
     file_bytes, content_type = result

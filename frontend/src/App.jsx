@@ -9,6 +9,7 @@ import InterbankingModule from "./modules/interbanking";
 import ConciliacionModule from "./modules/conciliacion";
 import LiquidacionesModule from "./modules/liquidaciones";
 import ComunicacionModule from "./modules/comunicacion";
+import LegacyModule from "./modules/legacy";
 
 export default function App() {
   return (
@@ -84,6 +85,15 @@ export default function App() {
           element={
             <ModuleRoute moduleCode="comunicacion">
               <ComunicacionModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/legacy/*"
+          element={
+            <ModuleRoute moduleCode="legacy">
+              <LegacyModule />
             </ModuleRoute>
           }
         />

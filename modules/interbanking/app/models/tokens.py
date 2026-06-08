@@ -7,6 +7,7 @@ class InterbankingToken(Base):
 
     id = Column(Integer, primary_key=True)
     credential_id = Column(Integer, ForeignKey("interbanking_credentials.id"), nullable=False)
+    scope = Column(String(64), nullable=True)  # nullable por migración; nuevos rows siempre tienen valor
     access_token = Column(Text, nullable=False)
     token_type = Column(String(50), default="Bearer")
     expires_at = Column(DateTime(timezone=True), nullable=False)

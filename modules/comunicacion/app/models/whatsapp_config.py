@@ -10,6 +10,7 @@ class WhatsappConfig(Base):
     business_account_id = Column(String(50), nullable=False)
     access_token = Column(Text, nullable=False)
     webhook_verify_token = Column(String(255), nullable=False)
+    app_secret = Column(String(255), nullable=True)
     display_phone_number = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

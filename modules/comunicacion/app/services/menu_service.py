@@ -62,6 +62,7 @@ async def send_interactive_menu(db: Session, phone: str, conversation: Conversat
         header_text="Portezuelo",
         body_text=menu.greeting_text,
         sections=sections,
+        db=db,
     )
 
 

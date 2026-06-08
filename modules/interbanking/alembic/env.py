@@ -6,7 +6,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.db.base import Base
-from app.models import credentials, tokens, audit_log, transfers, payment_batches  # noqa: F401
+from app.models import credentials, tokens, audit_log, transfers  # noqa: F401
 
 config = context.config
 

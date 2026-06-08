@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, MessageCircle } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, MessageCircle, Database } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -35,7 +35,7 @@ const ALL_MODULES = [
   {
     code: "interbanking",
     name: "Interbanking",
-    description: "Cuentas, transferencias y pagos en lote via Interbanking Argentina",
+    description: "Cuentas, saldos y transferencias via Interbanking Argentina",
     icon: Building,
     color: "bg-indigo-50 border-indigo-200 text-indigo-700",
     iconColor: "text-indigo-500",
@@ -67,6 +67,15 @@ const ALL_MODULES = [
     color: "bg-emerald-50 border-emerald-200 text-emerald-700",
     iconColor: "text-emerald-500",
     path: "/modules/comunicacion",
+  },
+  {
+    code: "legacy",
+    name: "Legacy",
+    description: "Integración con el sistema legacy (VFP9) — interacciones IN/OUT",
+    icon: Database,
+    color: "bg-slate-50 border-slate-200 text-slate-700",
+    iconColor: "text-slate-500",
+    path: "/modules/legacy",
   },
 ];
 

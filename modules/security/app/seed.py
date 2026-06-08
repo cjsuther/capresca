@@ -21,6 +21,7 @@ MODULES = [
     {"code": "conciliacion", "name": "Conciliación", "description": "Conciliación de pagos y transferencias", "icon": "scale"},
     {"code": "liquidaciones", "name": "Liquidaciones", "description": "Procesamiento de liquidaciones de juegos", "icon": "receipt"},
     {"code": "comunicacion", "name": "Comunicación", "description": "Chat con clientes vía WhatsApp Business", "icon": "message-circle"},
+    {"code": "legacy", "name": "Legacy", "description": "Integración con el sistema legacy (VFP9) — interacciones IN/OUT", "icon": "database"},
 ]
 
 PERMISSIONS = {
@@ -74,6 +75,11 @@ PERMISSIONS = {
         ("chat:write", "Enviar mensajes y crear conversaciones"),
         ("chat:config:read", "Ver configuración del menú y WhatsApp"),
         ("chat:config:write", "Modificar configuración del menú y WhatsApp"),
+    ],
+    "legacy": [
+        ("interactions:read", "Ver interacciones y estado de la integración legacy"),
+        ("admin:read", "Ver outbox de escrituras"),
+        ("admin:write", "Forzar sync y drenar el outbox"),
     ],
 }
 
