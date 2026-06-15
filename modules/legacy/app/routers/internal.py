@@ -24,6 +24,7 @@ from app.models.mirror_caja import (
     MirrorCajaforpag,
     MirrorCajacreseg,
 )
+from app.models.mirror_creditos import MirrorMaeclientes
 from app.schemas.outbox_ops import (
     AplicarPagoRequest,
     AnularPagoRequest,
@@ -149,6 +150,18 @@ def read_agencias(db: Session = Depends(get_db)):
 def read_juegos(db: Session = Depends(get_db)):
     rows = db.query(MirrorMaejuegos).order_by(MirrorMaejuegos.cod_juego).all()
     return [{"cod_juego": r.cod_juego, "descripcion": r.descripcion, "modalidad": r.modalidad} for r in rows]
+
+
+@router.get("/maeclientes")
+def read_maeclientes(
+    db: Session = Depends(get_db),
+    cuil: Optional[str] = Query(None),
+):
+    q = db.query(MirrorMaeclientes)
+    if cuil is not None:
+        q = q.filter(MirrorMaeclientes.cuil == cuil)
+    rows = q.limit(1000).all()
+    return [{"cuil": r.cuil, "nombre": r.nombre, "domicilio": r.domicilio} for r in rows]
 
 
 @router.get("/cajaliq")

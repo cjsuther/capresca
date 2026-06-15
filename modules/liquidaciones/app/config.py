@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     conciliacion_service_url: str = "http://conciliacion:8006"
     clientes_service_url: str = "http://clientes:8003"
     internal_api_key: str = ""
+    legacy_service_url: str = "http://legacy:8009"
+    legacy_internal_api_key: str = ""
 
     class Config:
         env_file = ".env"
