@@ -1,9 +1,9 @@
 """
 Servicio del outbox: encolado idempotente de escrituras y drenado.
 
-Fase 3: el drenado corre en DRY-RUN — NO toca las DBF. Registra en el ledger
-(interaction_log) qué haría cada operación y deja el outbox en PENDING.
-Fase 4 implementará el drenado real (dbf_writer, ventana exclusiva, REINDEX).
+Dry-run: NO toca las DBF; registra en el ledger qué haría y deja el outbox en
+PENDING. Real (Fase 4, sandbox): aplica vía dbf_writer SOLO contra la copia
+sandbox y marca APPLIED/SKIPPED/FAILED.
 """
 import time
 from datetime import datetime, timezone
@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.outbox import LegacyOutbox
 from app.services.interaction_logger import log_interaction
+from app.services import dbf_writer
 
 # operación -> (database, tabla principal afectada) para el ledger
 OPERATION_TARGET = {
@@ -105,3 +106,86 @@ def drain_dry_run(db: Session, *, origin_module: str = "legacy") -> dict:
         "entries": report,
         "note": "DRY-RUN: no se modificó ninguna DBF. El outbox permanece PENDING.",
     }
+
+
+def drain_real(db: Session, *, origin_module: str = "legacy-admin") -> dict:
+    """
+    Drenado REAL (modo sandbox): aplica cada operación PENDING vía dbf_writer
+    SOLO contra la copia sandbox. Marca APPLIED/SKIPPED/FAILED y loguea OUT.
+    """
+    pending = (
+        db.query(LegacyOutbox)
+        .filter(LegacyOutbox.status == "PENDING")
+        .order_by(LegacyOutbox.created_at)
+        .all()
+    )
+
+    applied = skipped = failed = 0
+    report = []
+
+    for entry in pending:
+        database, table = OPERATION_TARGET.get(entry.operation, (entry.database, entry.operation))
+        handler = dbf_writer.HANDLERS.get(entry.operation)
+        start = time.monotonic()
+
+        if handler is None:
+            entry.status = "FAILED"
+            entry.attempts += 1
+            entry.last_error = f"Sin handler de escritura para '{entry.operation}'"
+            db.commit()
+            failed += 1
+            log_interaction(
+                db, direction="OUT", database=database, table_name=table, operation=entry.operation,
+                status="ERROR", latency_ms=int((time.monotonic() - start) * 1000),
+                error_message=entry.last_error, origin_module=origin_module,
+                origin_user_id=entry.origin_user_id, outbox_id=entry.id,
+            )
+            report.append({"outbox_id": entry.id, "operation": entry.operation, "status": "FAILED"})
+            continue
+
+        entry.status = "DRAINING"
+        entry.attempts += 1
+        db.commit()
+
+        try:
+            result = handler(entry.payload)
+            now = datetime.now(timezone.utc)
+            if result.get("status") == "SKIPPED":
+                entry.status = "SKIPPED"
+                entry.applied_at = now
+                entry.last_error = None
+                db.commit()
+                skipped += 1
+                rows = 0
+                ostatus = "SKIPPED"
+            else:
+                entry.status = "APPLIED"
+                entry.applied_at = now
+                entry.last_error = None
+                db.commit()
+                applied += 1
+                rows = sum((result.get("rows") or {}).values())
+                ostatus = "OK"
+            log_interaction(
+                db, direction="OUT", database=database, table_name=table, operation=entry.operation,
+                status=ostatus, rows_affected=rows, latency_ms=int((time.monotonic() - start) * 1000),
+                origin_module=origin_module, origin_user_id=entry.origin_user_id, outbox_id=entry.id,
+                payload_summary={"sandbox": True, **result},
+            )
+            report.append({"outbox_id": entry.id, "operation": entry.operation, "status": entry.status, "result": result})
+        except Exception as e:
+            db.rollback()
+            entry = db.query(LegacyOutbox).filter(LegacyOutbox.id == entry.id).first()
+            entry.status = "FAILED"
+            entry.last_error = str(e)
+            db.commit()
+            failed += 1
+            log_interaction(
+                db, direction="OUT", database=database, table_name=table, operation=entry.operation,
+                status="ERROR", latency_ms=int((time.monotonic() - start) * 1000),
+                error_message=str(e), origin_module=origin_module,
+                origin_user_id=entry.origin_user_id, outbox_id=entry.id,
+            )
+            report.append({"outbox_id": entry.id, "operation": entry.operation, "status": "FAILED", "error": str(e)})
+
+    return {"mode": "real_sandbox", "applied": applied, "skipped": skipped, "failed": failed, "entries": report}

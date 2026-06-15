@@ -135,14 +135,23 @@ def list_outbox(
 
 
 @router.post("/outbox/drain")
-def drain_outbox(db: Session = Depends(get_db)):
+def drain_outbox(
+    db: Session = Depends(get_db),
+    mode: str = Query("dry_run", pattern="^(dry_run|real)$"),
+):
     """
-    Drena el outbox. En la Fase 3 corre en DRY-RUN: registra en el ledger qué
-    aplicaría cada operación SIN tocar las DBF y deja el outbox en PENDING.
-    El drenado real (escritura en DBF + REINDEX) se habilita en la Fase 4.
+    Drena el outbox.
+      - mode=dry_run (default): registra en el ledger qué aplicaría SIN tocar DBF.
+      - mode=real: aplica vía dbf_writer SOLO contra la copia sandbox (requiere
+        ALLOW_REAL_DRAIN=true). El productivo seguirá requiriendo REINDEX en VFP.
     """
-    if settings.write_mode != "outbox_only":
-        raise HTTPException(status_code=409, detail=f"write_mode no soportado: {settings.write_mode}")
+    if mode == "real":
+        if not settings.allow_real_drain:
+            raise HTTPException(
+                status_code=409,
+                detail="Drenado real deshabilitado (ALLOW_REAL_DRAIN=false). Solo sandbox.",
+            )
+        return outbox_service.drain_real(db)
     return outbox_service.drain_dry_run(db)
 
 

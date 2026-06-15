@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # y se aplica en ventana de mantenimiento (nunca en caliente sobre las DBF).
     write_mode: str = "outbox_only"
 
+    # Fase 4 — drenado real, SOLO contra una copia sandbox (nunca el share productivo).
+    # El productivo seguirá requiriendo REINDEX en VFP (no implementado).
+    allow_real_drain: bool = False
+    sandbox_write_root: str = "/data/agjs_sandbox"
+
     # Autenticación de endpoints internos (contenedor-a-contenedor)
     internal_api_key: str = ""
 

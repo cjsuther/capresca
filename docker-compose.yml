@@ -350,10 +350,14 @@ services:
       - SMB_MOUNT_ROOT=/data/agjs
       - INTEGRATION_ENABLED=${LEGACY_INTEGRATION_ENABLED:-true}
       - WRITE_MODE=${LEGACY_WRITE_MODE:-outbox_only}
+      - ALLOW_REAL_DRAIN=${LEGACY_ALLOW_REAL_DRAIN:-false}
+      - SANDBOX_WRITE_ROOT=/data/agjs_sandbox
     volumes:
       # Montaje SMB/CIFS del share legacy hecho en el HOST, bind-mount read-only.
       # Ajustar la ruta del host (${LEGACY_SHARE_HOST_PATH}) al punto de montaje real.
       - ${LEGACY_SHARE_HOST_PATH:-./externalfiles}:/data/agjs:ro
+      # Copia sandbox para drenado real de prueba (Fase 4); NUNCA el share productivo.
+      - ${LEGACY_SANDBOX_HOST_PATH:-./externalfiles/_sandbox}:/data/agjs_sandbox:rw
     depends_on:
       db_legacy:
         condition: service_healthy
