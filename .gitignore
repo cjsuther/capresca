@@ -18,6 +18,10 @@ dist/
 # Env files (sensitive)
 .env
 
+# Documentación y archivos de datos (credenciales de sandbox, DBFs, ZIPs)
+docs/
+externalfiles/
+
 # Docker volumes / data
 *.log
 
