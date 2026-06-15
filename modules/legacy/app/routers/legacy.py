@@ -23,7 +23,8 @@ from app.schemas.legacy import (
     OutboxPage,
     OutboxOut,
 )
-from app.services import smb_health, outbox_service
+from app.services import smb_health, outbox_service, sync_service
+from app.sync_spec import SYNCABLE_TABLES
 
 router = APIRouter()
 
@@ -146,9 +147,10 @@ def drain_outbox(db: Session = Depends(get_db)):
 
 
 @router.post("/sync/{tabla}")
-def trigger_sync(tabla: str):
-    """Fuerza la sincronización de una tabla legacy hacia el mirror. (Se implementa en la Fase 1.)"""
-    raise HTTPException(
-        status_code=501,
-        detail="La sincronización on-demand se implementa en la Fase 1 (lectura/mirror).",
-    )
+def trigger_sync(tabla: str, db: Session = Depends(get_db)):
+    """Fuerza la sincronización on-demand de una tabla legacy hacia el mirror."""
+    if not settings.integration_enabled:
+        raise HTTPException(status_code=410, detail="Integración legacy apagada (INTEGRATION_ENABLED=false)")
+    if tabla not in SYNCABLE_TABLES:
+        raise HTTPException(status_code=404, detail=f"Tabla no sincronizable: {tabla}")
+    return sync_service.sync_table(db, tabla, origin_module="legacy-admin")

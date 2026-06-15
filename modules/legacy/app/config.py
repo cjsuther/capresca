@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     conciliacion_service_url: str = "http://conciliacion:8006"
     interbanking_service_url: str = "http://interbanking:8004"
 
+    # Scheduler de sincronización (minutos). 0 desactiva ese grupo.
+    sync_enabled: bool = True
+    sync_caja_minutes: int = 10          # caja: alta volatilidad
+    sync_creditos_minutes: int = 60      # creditos: media
+    sync_maestros_minutes: int = 1440    # maestros: baja (1/día)
+
     class Config:
         env_file = ".env"
 

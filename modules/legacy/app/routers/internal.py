@@ -6,9 +6,10 @@ Las lecturas concretas se agregan en la Fase 1; las escrituras (outbox) en la Fa
 Toda escritura entra al outbox y devuelve 202 (nunca toca las DBF en caliente).
 El kill switch (INTEGRATION_ENABLED=false) hace que las escrituras devuelvan 410.
 """
+from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -16,6 +17,13 @@ from app.db.session import get_db
 from app.dependencies.auth import verify_api_key
 from app.legacy_catalog import READ_ONLY_TABLES
 from app.models.outbox import LegacyOutbox
+from app.models.mirror_juegos import MirrorMaeagencias, MirrorMaejuegos
+from app.models.mirror_caja import (
+    MirrorCajaliq,
+    MirrorCajapagos,
+    MirrorCajaforpag,
+    MirrorCajacreseg,
+)
 from app.schemas.outbox_ops import (
     AplicarPagoRequest,
     AnularPagoRequest,
@@ -123,6 +131,107 @@ def encolar_consolidar_creditos(
         origin_user_id=x_user_id,
     )
     return _enqueue_response(row, created, response)
+
+
+# ── Lecturas (sirven del mirror; funcionan aunque la integración esté apagada) ──
+
+def _to_float(v):
+    return float(v) if v is not None else None
+
+
+@router.get("/agencias")
+def read_agencias(db: Session = Depends(get_db)):
+    rows = db.query(MirrorMaeagencias).order_by(MirrorMaeagencias.cod_agencia).all()
+    return [{"cod_agencia": r.cod_agencia, "titular": r.titular} for r in rows]
+
+
+@router.get("/juegos")
+def read_juegos(db: Session = Depends(get_db)):
+    rows = db.query(MirrorMaejuegos).order_by(MirrorMaejuegos.cod_juego).all()
+    return [{"cod_juego": r.cod_juego, "descripcion": r.descripcion, "modalidad": r.modalidad} for r in rows]
+
+
+@router.get("/cajaliq")
+def read_cajaliq(
+    db: Session = Depends(get_db),
+    agencia: Optional[str] = Query(None),
+    pagado: Optional[bool] = Query(None),
+):
+    q = db.query(MirrorCajaliq)
+    if agencia is not None:
+        q = q.filter(MirrorCajaliq.cod_agencia == agencia)
+    if pagado is not None:
+        q = q.filter(MirrorCajaliq.pagado.is_(pagado))
+    rows = q.all()
+    return [
+        {
+            "cod_agencia": r.cod_agencia, "cod_juego": r.cod_juego, "no_sorteo": r.no_sorteo,
+            "importe": _to_float(r.importe), "intereses": _to_float(r.intereses),
+            "pagado": r.pagado, "fecha_pago": r.fecha_pago.isoformat() if r.fecha_pago else None,
+            "no_recibo": r.no_recibo,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/pagos")
+def read_pagos(
+    db: Session = Depends(get_db),
+    fecha: Optional[date] = Query(None),
+    agencia: Optional[str] = Query(None),
+):
+    q = db.query(MirrorCajapagos)
+    if fecha is not None:
+        q = q.filter(MirrorCajapagos.fecha_pago == fecha)
+    if agencia is not None:
+        q = q.filter(MirrorCajapagos.cod_agencia == agencia)
+    rows = q.all()
+    return [
+        {
+            "no_recibo": r.no_recibo, "cod_agencia": r.cod_agencia,
+            "fecha_pago": r.fecha_pago.isoformat() if r.fecha_pago else None,
+            "origen": r.origen, "total": _to_float(r.total), "cajero": r.cajero,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/formas-pago")
+def read_formas_pago(
+    db: Session = Depends(get_db),
+    no_recibo: Optional[int] = Query(None),
+):
+    q = db.query(MirrorCajaforpag)
+    if no_recibo is not None:
+        q = q.filter(MirrorCajaforpag.no_recibo == no_recibo)
+    rows = q.all()
+    return [
+        {
+            "no_recibo": r.no_recibo, "sno_recibo": r.sno_recibo, "moneda": r.moneda,
+            "origen": r.origen, "fecha_pago": r.fecha_pago.isoformat() if r.fecha_pago else None,
+            "anulado": r.anulado,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/creditos-seguros")
+def read_creditos_seguros(
+    db: Session = Depends(get_db),
+    fecha: Optional[date] = Query(None),
+):
+    q = db.query(MirrorCajacreseg)
+    if fecha is not None:
+        q = q.filter(MirrorCajacreseg.fecha_pago == fecha)
+    rows = q.all()
+    return [
+        {
+            "nrecibo": r.nrecibo, "recofi": r.recofi, "origen": r.origen,
+            "fecha_pago": r.fecha_pago.isoformat() if r.fecha_pago else None,
+            "via_pago": r.via_pago, "usuario_pago": r.usuario_pago,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/outbox/{outbox_id}")

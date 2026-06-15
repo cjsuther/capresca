@@ -1,10 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import legacy, internal
+from app import scheduler
 
 
-app = FastAPI(title="Legacy Integration Module", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.start()
+    try:
+        yield
+    finally:
+        scheduler.stop()
+
+
+app = FastAPI(title="Legacy Integration Module", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
