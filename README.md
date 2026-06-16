@@ -105,6 +105,7 @@ Abrir el navegador en `http://localhost` e iniciar sesion con las credenciales p
 | **Notificaciones** | 8005 | Servicio transversal de notificaciones (campanita en el menu) |
 | **Conciliacion** | 8006 | Conciliacion de juego: cruza liquidaciones con transacciones IB por CBU |
 | **Liquidaciones** | 8007 | Procesamiento de archivos ZIP con DBFs de liquidacion de juegos |
+| **Legacy** | 8009 | Integracion apagable con el sistema legacy VFP9 (DBF). Ver [modules/legacy/README.md](modules/legacy/README.md) |
 
 ## API interna de Liquidaciones
 
@@ -223,6 +224,7 @@ sistema-modular/
 │   ├── interbanking/      # :8004
 │   ├── notifications/     # :8005
 │   ├── conciliacion/      # :8006
-│   └── liquidaciones/     # :8007
-└── externalfiles/         # Archivos compartidos (montado en liquidaciones)
+│   ├── liquidaciones/     # :8007
+│   └── legacy/            # :8009 (integracion VFP9, apagable)
+└── externalfiles/         # Archivos compartidos (montado en liquidaciones/legacy)
 ```
