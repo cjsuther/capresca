@@ -48,6 +48,7 @@ def send_to_conciliacion(db: Session, batch: LiquidacionBatch):
     payload = {
         "batch_id": batch.id,
         "operation_date": batch.operation_date.isoformat() if batch.operation_date else None,
+        "created_by": batch.created_by,
         "agencies": agencies,
     }
 

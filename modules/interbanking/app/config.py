@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     interbanking_base_url: str = "https://api.interbanking.com.ar"
     interbanking_auth_url: str = "https://preauth.interbanking.com.ar"
     encryption_key: str
-    security_service_url: str = "http://security:8001"
+    notifications_service_url: str = "http://notifications:8005"
     # Mock: cuando no hay credenciales de transferencias-confeccion operativas en este ambiente.
     # Setear en false al pasar a credenciales reales.
     interbanking_mock_transfers: bool = True

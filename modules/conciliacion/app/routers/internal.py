@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.services import cbu_cache_service
+from app.services.notifications_client import notifications_client
 from app.models.liquidacion_record import LiquidacionConciliacionRecord
 
 router = APIRouter(tags=["internal"])
@@ -34,6 +35,7 @@ class LiquidacionAgenciaItem(BaseModel):
 class LiquidacionesPayload(BaseModel):
     batch_id: int
     operation_date: Optional[date]
+    created_by: Optional[int] = None
     agencies: list[LiquidacionAgenciaItem]
 
 
@@ -56,6 +58,20 @@ def receive_liquidaciones(payload: LiquidacionesPayload, db: Session = Depends(g
 
     db.add_all(records)
     db.commit()
+
+    if payload.created_by and records:
+        notifications_client.notify(
+            user_id=payload.created_by,
+            title="Registros en conciliación",
+            message=(
+                f"Se recibieron {len(records)} agencia(s) del lote #{payload.batch_id} "
+                f"en conciliación. Verificá los registros pendientes."
+            ),
+            module="conciliacion",
+            entity_type="liquidacion_batch",
+            entity_id=payload.batch_id,
+            redirect_path="/modules/conciliacion",
+        )
 
     return {
         "received": len(records),

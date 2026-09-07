@@ -24,9 +24,7 @@ class Settings(BaseSettings):
     internal_api_key: str = ""
 
     # Servicios consumidos por este módulo
-    clientes_service_url: str = "http://clientes:8003"
-    conciliacion_service_url: str = "http://conciliacion:8006"
-    interbanking_service_url: str = "http://interbanking:8004"
+    notifications_service_url: str = "http://notifications:8005"
 
     # Scheduler de sincronización (minutos). 0 desactiva ese grupo.
     sync_enabled: bool = True

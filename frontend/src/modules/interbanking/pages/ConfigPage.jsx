@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getConfig, saveConfig, testConfig, getTokenStatus } from "../../../api/interbanking";
+import { getConfig, saveConfig, testConfig, getTokenStatus, getCuentas } from "../../../api/interbanking";
 import { Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
 import { PermissionGate } from "../../../components/PrivateRoute";
 
@@ -13,6 +13,14 @@ const INITIAL_FORM = {
   password: "",
   service_url: "",
   customer_id: "",
+  consolidation_account_number: "",
+  consolidation_account_type: "CC",
+  consolidation_bank_number: "011",
+  consolidation_currency: "ARS",
+  payment_account_number: "",
+  payment_account_type: "CC",
+  payment_bank_number: "011",
+  payment_currency: "ARS",
 };
 
 const SCOPE_LABEL = {
@@ -31,6 +39,9 @@ export default function ConfigPage() {
   const [testResult, setTestResult] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [accounts, setAccounts] = useState([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [accountsError, setAccountsError] = useState("");
 
   const load = async () => {
     try {
@@ -46,6 +57,14 @@ export default function ConfigPage() {
         password: "",
         service_url: data.service_url || "",
         customer_id: data.customer_id || "",
+        consolidation_account_number: data.consolidation_account_number || "",
+        consolidation_account_type: data.consolidation_account_type || "CC",
+        consolidation_bank_number: data.consolidation_bank_number || "011",
+        consolidation_currency: data.consolidation_currency || "ARS",
+        payment_account_number: data.payment_account_number || "",
+        payment_account_type: data.payment_account_type || "CC",
+        payment_bank_number: data.payment_bank_number || "011",
+        payment_currency: data.payment_currency || "ARS",
       });
     } catch {
       // No hay config aún
@@ -97,6 +116,50 @@ export default function ConfigPage() {
     value: form[field],
     onChange: (e) => setForm({ ...form, [field]: e.target.value }),
   });
+
+  const loadAccounts = async () => {
+    setAccountsError("");
+    setLoadingAccounts(true);
+    try {
+      const data = await getCuentas();
+      setAccounts(data?.accounts || []);
+      if (!data?.accounts?.length) setAccountsError("No se obtuvieron cuentas");
+    } catch (err) {
+      setAccountsError(err.response?.data?.detail || "No se pudieron cargar las cuentas (revisá credenciales info-financiera)");
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
+
+  const handleSelectAccount = (e) => {
+    const acc = accounts.find((a) => a.account_number === e.target.value);
+    if (!acc) {
+      setForm({ ...form, consolidation_account_number: "" });
+      return;
+    }
+    setForm({
+      ...form,
+      consolidation_account_number: acc.account_number,
+      consolidation_account_type: acc.account_type || "CC",
+      consolidation_bank_number: acc.bank_number || "011",
+      consolidation_currency: acc.currency || "ARS",
+    });
+  };
+
+  const handleSelectPaymentAccount = (e) => {
+    const acc = accounts.find((a) => a.account_number === e.target.value);
+    if (!acc) {
+      setForm({ ...form, payment_account_number: "" });
+      return;
+    }
+    setForm({
+      ...form,
+      payment_account_number: acc.account_number,
+      payment_account_type: acc.account_type || "CC",
+      payment_bank_number: acc.bank_number || "011",
+      payment_currency: acc.currency || "ARS",
+    });
+  };
 
   return (
     <div className="max-w-2xl">
@@ -155,6 +218,8 @@ export default function ConfigPage() {
                 <div className="flex justify-between"><dt className="text-gray-500">Contraseña</dt><dd>{config.has_password ? "•••• guardada" : "—"}</dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">Customer ID</dt><dd className="font-mono text-xs">{config.customer_id || "—"}</dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">Service URL</dt><dd className="font-mono text-xs">{config.service_url || "—"}</dd></div>
+                <div className="flex justify-between"><dt className="text-gray-500">Cuenta consolidación</dt><dd className="font-mono text-xs">{config.consolidation_account_number || "—"}</dd></div>
+                <div className="flex justify-between"><dt className="text-gray-500">Cuenta pagos salientes</dt><dd className="font-mono text-xs">{config.payment_account_number || "—"}</dd></div>
               </dl>
             </div>
           ) : <p className="text-gray-400 text-sm">Sin configuración</p>
@@ -265,6 +330,99 @@ export default function ConfigPage() {
                 {testing === "transferencias-confeccion" ? "Probando..." : "Probar token transferencias"}
               </button>
             </div>
+          </fieldset>
+
+          {/* Sección Consolidación bancaria */}
+          <fieldset className="border rounded-lg p-4">
+            <legend className="text-xs font-medium text-gray-500 px-2">
+              Consolidación bancaria · cuenta fuente de depósitos
+            </legend>
+            <p className="text-xs text-gray-500 mb-2">
+              Cuenta de la que Conciliación toma los depósitos para consolidar el juego.
+            </p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta de consolidación</label>
+                <select
+                  className="input w-full text-sm"
+                  value={form.consolidation_account_number || ""}
+                  onChange={handleSelectAccount}
+                >
+                  <option value="">
+                    {form.consolidation_account_number
+                      ? `${form.consolidation_account_number} (guardada)`
+                      : "— Sin cuenta seleccionada —"}
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.account_number} value={a.account_number}>
+                      {a.account_number} · {a.bank_name || `Banco ${a.bank_number}`} · {a.currency}
+                      {a.account_label ? ` · ${a.account_label}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={loadAccounts}
+                disabled={loadingAccounts}
+                className="px-3 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
+              >
+                {loadingAccounts ? "Cargando..." : "Cargar cuentas"}
+              </button>
+            </div>
+            {accountsError && <p className="text-xs text-red-600 mt-2">{accountsError}</p>}
+            {form.consolidation_account_number && (
+              <p className="text-xs text-gray-500 mt-2">
+                Seleccionada: {form.consolidation_account_number} · {form.consolidation_account_type} ·
+                banco {form.consolidation_bank_number} · {form.consolidation_currency}
+              </p>
+            )}
+          </fieldset>
+
+          {/* Sección Pagos salientes */}
+          <fieldset className="border rounded-lg p-4">
+            <legend className="text-xs font-medium text-gray-500 px-2">
+              Pagos salientes · cuenta origen (Capresca → agencias)
+            </legend>
+            <p className="text-xs text-gray-500 mb-2">
+              Cuenta de Capresca desde la que salen los pagos a las agencias con saldo a favor.
+            </p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta de pagos salientes</label>
+                <select
+                  className="input w-full text-sm"
+                  value={form.payment_account_number || ""}
+                  onChange={handleSelectPaymentAccount}
+                >
+                  <option value="">
+                    {form.payment_account_number
+                      ? `${form.payment_account_number} (guardada)`
+                      : "— Sin cuenta seleccionada —"}
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.account_number} value={a.account_number}>
+                      {a.account_number} · {a.bank_name || `Banco ${a.bank_number}`} · {a.currency}
+                      {a.account_label ? ` · ${a.account_label}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={loadAccounts}
+                disabled={loadingAccounts}
+                className="px-3 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
+              >
+                {loadingAccounts ? "Cargando..." : "Cargar cuentas"}
+              </button>
+            </div>
+            {form.payment_account_number && (
+              <p className="text-xs text-gray-500 mt-2">
+                Seleccionada: {form.payment_account_number} · {form.payment_account_type} ·
+                banco {form.payment_bank_number} · {form.payment_currency}
+              </p>
+            )}
           </fieldset>
 
           <div className="flex justify-end pt-2">

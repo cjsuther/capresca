@@ -23,6 +23,8 @@ async def get_conciliacion(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
+    # La cuenta fuente de depósitos se toma de la Configuración de Interbanking
+    # (matching_service la resuelve automáticamente cuando no se pasa explícita).
     records, transactions = await matching_service.load_date(db, date)
 
     # Find which records have liquidacion data linked
@@ -161,3 +163,62 @@ def _record_to_dict(r: ReconciliationRecord, has_liquidacion: bool = False) -> d
             for lnk in r.links
         ] if hasattr(r, 'links') else [],
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ajustes manuales (corrigen el saldo; registran usuario/fecha/hora/justificación)
+# ─────────────────────────────────────────────────────────────────────────────
+from pydantic import BaseModel as _AdjBase
+
+
+class AdjustmentCreate(_AdjBase):
+    amount: float          # con signo: + acredita a la agencia, − reduce
+    reason: str
+
+
+@router.get("/records/{record_id}/adjustments")
+def list_adjustments(record_id: int, db: Session = Depends(get_db)):
+    from app.models.reconciliation_adjustment import ReconciliationAdjustment
+    rows = db.query(ReconciliationAdjustment).filter(
+        ReconciliationAdjustment.reconciliation_record_id == record_id
+    ).order_by(ReconciliationAdjustment.created_at.desc()).all()
+    return [
+        {
+            "id": a.id, "amount": float(a.amount), "reason": a.reason,
+            "created_by_user_id": a.created_by_user_id,
+            "created_by_username": a.created_by_username,
+            "created_at": a.created_at,
+        }
+        for a in rows
+    ]
+
+
+@router.post("/records/{record_id}/adjustments", response_model=RecordResponse)
+def add_adjustment(
+    record_id: int,
+    data: AdjustmentCreate,
+    user_id: int = Depends(get_current_user_id),
+    username: Optional[str] = Depends(get_current_username),
+    db: Session = Depends(get_db),
+):
+    from decimal import Decimal
+    from fastapi import HTTPException
+    from app.models.reconciliation_adjustment import ReconciliationAdjustment
+    from app.services.link_service import recalculate_depositado
+    from app.services.matching_service import _auto_consolidate
+    if not (data.reason or "").strip():
+        raise HTTPException(status_code=400, detail="El ajuste requiere una justificación")
+    record = reconciliation_service.get_record(db, record_id)
+    db.add(ReconciliationAdjustment(
+        reconciliation_record_id=record.id,
+        amount=Decimal(str(data.amount)),
+        reason=data.reason.strip(),
+        created_by_user_id=user_id,
+        created_by_username=username,
+    ))
+    db.flush()
+    recalculate_depositado(db, record)
+    _auto_consolidate(db, [record])
+    db.commit()
+    db.refresh(record)
+    return _record_to_dict(record)

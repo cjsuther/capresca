@@ -21,10 +21,25 @@ Sistema de gestión modular basado en microservicios para administración de age
            │  :8000     │           │   :8007        │
            └─────┬──────┘           └────────────────┘
                  │
-    ┌──────┬─────┼──────┬──────┬───────┬──────┐
-    │      │     │      │      │       │      │
- :8001  :8002 :8003  :8004  :8005  :8006   :8007
-Security Cajeros Clientes IB  Notif. Concil. Liquid.
+    ┌──────┬─────┼──────┬──────┬───────┬──────┬──────┬──────┐
+    │      │     │      │      │       │      │      │      │
+ :8001  :8002 :8003  :8004  :8005  :8006  :8007  :8008  :8009
+Security Cajeros Clientes IB  Notif. Concil. Liquid. Comunic. Legacy
+```
+
+Interacciones entre módulos (todas vía endpoints `/internal/*` con API key):
+
+```
+cajeros ───▶ notifications          (avisa al cajero: transacción autorizada/rechazada)
+clientes ──▶ legacy                 (agencias / maeclientes desde el mirror)
+comunicacion ▶ clientes             (identifica cliente por teléfono)
+conciliacion ▶ clientes, interbanking, legacy
+liquidaciones ▶ clientes, conciliacion, legacy
+liquidaciones ▶ notifications       (avisa al que subió el lote: procesado/error)
+interbanking ▶ notifications        (avisa al actor: transferencia registrada)
+conciliacion ▶ notifications        (avisa al uploader: registros a verificar)
+legacy ─────▶ notifications         (avisa al admin: drenado/sync)
+proxy ──────▶ security              (valida JWT y resuelve permisos por usuario)
 ```
 
 Cada módulo tiene su propia base de datos PostgreSQL independiente.
@@ -199,6 +214,46 @@ docker compose down
 # Detener y borrar volumenes (elimina las bases de datos)
 docker compose down -v
 ```
+
+## Acceso remoto (túnel ngrok)
+
+Por defecto el sistema solo escucha en el puerto 80 del host (accesible desde la
+misma red LAN en `http://<IP-del-host>`). Para exponerlo remotamente con una URL
+pública HTTPS se incluye un override opt-in de ngrok.
+
+```bash
+# 1) Cargar el authtoken de ngrok en .env (cuenta gratuita):
+#    https://dashboard.ngrok.com/get-started/your-authtoken
+#    NGROK_AUTHTOKEN=xxxxxxxx
+
+# 2) Levantar el stack + túnel:
+docker compose -f docker-compose.yml -f docker-compose.ngrok.yml up -d
+
+# 3) Ver la URL pública:
+curl -s http://localhost:4040/api/tunnels \
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['tunnels'][0]['public_url'])"
+#    o abrir el inspector en  http://localhost:4040
+
+# Bajar el túnel:
+docker compose -f docker-compose.yml -f docker-compose.ngrok.yml down
+```
+
+Un `docker compose up` sin el archivo `docker-compose.ngrok.yml` **no** levanta el
+túnel: la exposición remota es siempre explícita.
+
+### Notas de seguridad antes de exponer a internet
+
+- **JWT_SECRET**: ya se rotó a un valor aleatorio fuerte en `.env` (reemplazó el
+  placeholder de ejemplo). Si clonás el proyecto en otro entorno, generá uno nuevo:
+  `openssl rand -hex 48`.
+- **TLS**: ngrok termina HTTPS en su borde, así que la URL pública es cifrada aunque
+  nginx internamente hable HTTP. Para un deploy propio (sin ngrok) hace falta
+  configurar certificados en nginx.
+- **Credenciales reales**: Interbanking sigue apuntando al sandbox. Cargar las
+  credenciales de producción desde la UI de Configuración, no en el repo.
+- **Aviso del navegador de ngrok**: el plan gratuito muestra una interstitial la
+  primera vez en el navegador; para llamadas de API se puede saltear con el header
+  `ngrok-skip-browser-warning`. Un dominio propio (plan pago) la elimina.
 
 ## Estructura del proyecto
 

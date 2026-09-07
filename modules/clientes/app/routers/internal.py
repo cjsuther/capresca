@@ -31,7 +31,8 @@ def list_agencies(db: Session = Depends(get_db)):
             "legal_name": lc.legal_name,
             "tax_id": lc.tax_id,
             "cbus": [
-                {"id": c.id, "cbu": c.cbu, "alias": c.alias, "bank_name": c.bank_name, "account_type": c.account_type}
+                {"id": c.id, "cbu": c.cbu, "alias": c.alias, "bank_name": c.bank_name,
+                 "account_type": c.account_type, "is_payment_account": c.is_payment_account}
                 for c in cbus
             ],
         })

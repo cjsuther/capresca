@@ -9,6 +9,7 @@ from app.config import settings
 from app.models.transfers import Transfer
 from app.scopes import TRANSFERENCIAS_CONFECCION, INFO_FINANCIERA
 from app.services import interbanking_client, mock_transfers, token_manager
+from app.services.notifications_client import notifications_client
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -150,6 +151,19 @@ def crear_transferencia(
     db.add(transfer)
     db.commit()
     db.refresh(transfer)
+
+    notifications_client.notify(
+        user_id=user_id,
+        title="Transferencia registrada",
+        message=(
+            f"Tu transferencia por {monto} {moneda} a {cbu_destino} quedó en "
+            f"estado {transfer.status}."
+        ),
+        module="interbanking",
+        entity_type="transfer",
+        entity_id=transfer.id,
+        redirect_path="/modules/interbanking/transferencias",
+    )
     return transfer
 
 

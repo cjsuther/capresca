@@ -5,7 +5,7 @@ Alimenta el frontend del módulo: registro de interacciones y panel de estado.
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -24,6 +24,7 @@ from app.schemas.legacy import (
     OutboxOut,
 )
 from app.services import smb_health, outbox_service, sync_service
+from app.services.notifications_client import notifications_client
 from app.sync_spec import SYNCABLE_TABLES
 
 router = APIRouter()
@@ -138,6 +139,7 @@ def list_outbox(
 def drain_outbox(
     db: Session = Depends(get_db),
     mode: str = Query("dry_run", pattern="^(dry_run|real)$"),
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id"),
 ):
     """
     Drena el outbox.
@@ -151,15 +153,48 @@ def drain_outbox(
                 status_code=409,
                 detail="Drenado real deshabilitado (ALLOW_REAL_DRAIN=false). Solo sandbox.",
             )
-        return outbox_service.drain_real(db)
-    return outbox_service.drain_dry_run(db)
+        result = outbox_service.drain_real(db)
+    else:
+        result = outbox_service.drain_dry_run(db)
+
+    if x_user_id:
+        notifications_client.notify(
+            user_id=x_user_id,
+            title="Drenado de outbox legacy",
+            message=(
+                f"Modo {result.get('mode')}: {result.get('applied', 0)} aplicado(s), "
+                f"{result.get('would_apply', 0)} pendiente(s), {result.get('failed', 0)} con error."
+            ),
+            module="legacy",
+            entity_type="outbox",
+            redirect_path="/modules/legacy",
+        )
+    return result
 
 
 @router.post("/sync/{tabla}")
-def trigger_sync(tabla: str, db: Session = Depends(get_db)):
+def trigger_sync(
+    tabla: str,
+    db: Session = Depends(get_db),
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id"),
+):
     """Fuerza la sincronización on-demand de una tabla legacy hacia el mirror."""
     if not settings.integration_enabled:
         raise HTTPException(status_code=410, detail="Integración legacy apagada (INTEGRATION_ENABLED=false)")
     if tabla not in SYNCABLE_TABLES:
         raise HTTPException(status_code=404, detail=f"Tabla no sincronizable: {tabla}")
-    return sync_service.sync_table(db, tabla, origin_module="legacy-admin")
+    result = sync_service.sync_table(db, tabla, origin_module="legacy-admin")
+
+    if x_user_id:
+        notifications_client.notify(
+            user_id=x_user_id,
+            title="Sincronización legacy",
+            message=(
+                f"Tabla {tabla}: {result.get('status')} "
+                f"({result.get('rows_changed', 0)} fila(s) actualizada(s))."
+            ),
+            module="legacy",
+            entity_type="sync",
+            redirect_path="/modules/legacy",
+        )
+    return result

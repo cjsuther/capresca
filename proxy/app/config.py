@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     notifications_service_url: str = "http://notifications:8005"
     conciliacion_service_url: str = "http://conciliacion:8006"
     liquidaciones_service_url: str = "http://liquidaciones:8007"
-    comunicacion_service_url: str = "http://comunicacion:8008"
     legacy_service_url: str = "http://legacy:8009"
     jwt_secret: str
     jwt_algorithm: str = "HS256"

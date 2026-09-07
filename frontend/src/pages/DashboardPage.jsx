@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, MessageCircle, Database } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, Database } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -58,15 +58,6 @@ const ALL_MODULES = [
     color: "bg-amber-50 border-amber-200 text-amber-700",
     iconColor: "text-amber-500",
     path: "/modules/liquidaciones",
-  },
-  {
-    code: "comunicacion",
-    name: "Comunicación",
-    description: "Chat con clientes vía WhatsApp Business",
-    icon: MessageCircle,
-    color: "bg-emerald-50 border-emerald-200 text-emerald-700",
-    iconColor: "text-emerald-500",
-    path: "/modules/comunicacion",
   },
   {
     code: "legacy",

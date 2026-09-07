@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import conciliacion, links, boleta, internal
 from app.services import cbu_cache_service
 from app.db.session import SessionLocal
+from app import scheduler
 
 
 @asynccontextmanager
@@ -16,7 +17,13 @@ async def lifespan(app: FastAPI):
         print(f"[startup] Warning: could not rebuild CBU cache: {e}")
     finally:
         db.close()
+    # Cruce automático horario
+    try:
+        scheduler.start()
+    except Exception as e:
+        print(f"[startup] Warning: no se pudo iniciar el scheduler: {e}")
     yield
+    scheduler.stop()
 
 
 app = FastAPI(title="Conciliacion Module", version="1.0.0", lifespan=lifespan)

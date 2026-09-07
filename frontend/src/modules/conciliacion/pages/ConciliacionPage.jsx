@@ -7,7 +7,8 @@ import {
   updateRecord,
   assignAgency,
   removeLink,
-  getBoletaUrl,
+  downloadBoleta,
+  addAdjustment,
 } from "../../../api/conciliacion";
 import { PermissionGate } from "../../../components/PrivateRoute";
 
@@ -74,6 +75,12 @@ export default function ConciliacionPage() {
   const [editImportePremios, setEditImportePremios] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
+  const [adjAmount, setAdjAmount] = useState("");
+  const [adjReason, setAdjReason] = useState("");
+  const [adjLoading, setAdjLoading] = useState(false);
+  const [adjError, setAdjError] = useState("");
+  const [boletaLoading, setBoletaLoading] = useState(false);
+  const [boletaError, setBoletaError] = useState("");
 
   // Assign agency form state
   const [selectedAgencyId, setSelectedAgencyId] = useState("");
@@ -103,7 +110,9 @@ export default function ConciliacionPage() {
 
   useEffect(() => {
     load();
-  }, []);
+    // Recarga automática al cambiar la fecha
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
   const handleSelectRecord = (rec) => {
     setSelectedRecord(rec);
@@ -145,6 +154,38 @@ export default function ConciliacionPage() {
       setEditError(e.response?.data?.detail || "Error al actualizar");
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleAddAdjustment = async () => {
+    if (!selectedRecord) return;
+    if (!adjReason.trim()) { setAdjError("Ingresá una justificación"); return; }
+    if (adjAmount === "" || isNaN(Number(adjAmount))) { setAdjError("Ingresá un importe válido"); return; }
+    setAdjLoading(true);
+    setAdjError("");
+    try {
+      await addAdjustment(selectedRecord.id, Number(adjAmount), adjReason.trim());
+      setAdjAmount("");
+      setAdjReason("");
+      await load();
+      setSelectedRecord(null);
+    } catch (e) {
+      setAdjError(e.response?.data?.detail || "Error al cargar el ajuste");
+    } finally {
+      setAdjLoading(false);
+    }
+  };
+
+  const handleDownloadBoleta = async () => {
+    if (!selectedRecord) return;
+    setBoletaLoading(true);
+    setBoletaError("");
+    try {
+      await downloadBoleta(selectedRecord.id);
+    } catch (e) {
+      setBoletaError(e.response?.data?.detail || "No se pudo descargar la boleta");
+    } finally {
+      setBoletaLoading(false);
     }
   };
 
@@ -398,7 +439,7 @@ export default function ConciliacionPage() {
               {selectedRecord.has_liquidacion && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
                   <p className="text-xs text-orange-700">
-                    Importes adeudado y premios cargados autom\u00e1ticamente desde el m\u00f3dulo de Liquidaciones.
+                    Importes adeudado y premios cargados automáticamente desde el módulo de Liquidaciones.
                   </p>
                 </div>
               )}
@@ -460,6 +501,44 @@ export default function ConciliacionPage() {
                 </div>
               </PermissionGate>
 
+              {/* Ajuste manual */}
+              <PermissionGate moduleCode="conciliacion" action="write">
+                <div className="border rounded-lg p-3 space-y-3 bg-amber-50">
+                  <p className="text-xs font-semibold text-gray-700">Ajuste manual</p>
+                  <p className="text-[11px] text-gray-500 -mt-1">
+                    Importe con signo: positivo acredita a la agencia, negativo reduce. Queda registrado con tu usuario, fecha y hora.
+                  </p>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Importe del ajuste</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={adjAmount}
+                      onChange={(e) => setAdjAmount(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Justificación</label>
+                    <textarea
+                      rows={2}
+                      value={adjReason}
+                      onChange={(e) => setAdjReason(e.target.value)}
+                      placeholder="Motivo del ajuste"
+                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  {adjError && <p className="text-xs text-red-600">{adjError}</p>}
+                  <button
+                    onClick={handleAddAdjustment}
+                    disabled={adjLoading}
+                    className="w-full px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {adjLoading ? "Cargando..." : "Cargar ajuste"}
+                  </button>
+                </div>
+              </PermissionGate>
+
               {/* Linked IB transactions */}
               {selectedRecord.links && selectedRecord.links.length > 0 && (
                 <div className="space-y-2">
@@ -489,15 +568,18 @@ export default function ConciliacionPage() {
 
               {/* Download boleta */}
               {selectedRecord.status !== "A_VERIFICAR" && (
-                <a
-                  href={getBoletaUrl(selectedRecord.id)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  <Download size={14} />
-                  Descargar Boleta
-                </a>
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadBoleta}
+                    disabled={boletaLoading}
+                    className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Download size={14} />
+                    {boletaLoading ? "Descargando..." : "Descargar Boleta"}
+                  </button>
+                  {boletaError && <p className="text-xs text-red-600 mt-1">{boletaError}</p>}
+                </div>
               )}
             </div>
           )}

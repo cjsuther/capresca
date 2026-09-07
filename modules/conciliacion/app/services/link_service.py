@@ -7,11 +7,17 @@ from app.models.reconciliation_record import ReconciliationRecord
 
 
 def recalculate_depositado(db: Session, record: ReconciliationRecord) -> Decimal:
+    from app.models.reconciliation_adjustment import ReconciliationAdjustment
     total = db.query(ReconciliationIbLink).filter(
         ReconciliationIbLink.reconciliation_record_id == record.id,
         ReconciliationIbLink.unlinked_at == None,
     ).all()
-    amount = sum(lnk.ib_amount for lnk in total) if total else Decimal("0")
+    amount = sum((lnk.ib_amount for lnk in total), Decimal("0"))
+    # Los ajustes manuales se suman al depositado (con signo), para que impacten el saldo
+    ajustes = db.query(ReconciliationAdjustment).filter(
+        ReconciliationAdjustment.reconciliation_record_id == record.id
+    ).all()
+    amount += sum((a.amount for a in ajustes), Decimal("0"))
     record.importe_depositado = amount
     db.flush()
     return amount

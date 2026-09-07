@@ -14,6 +14,37 @@ from app.services.dbf_parser import parse_dbf, parse_importe
 from app.services.validation import validate_batch
 from app.services.conciliacion_client import send_to_conciliacion
 from app.services.clientes_client import get_registered_agency_numbers
+from app.services.notifications_client import notifications_client
+
+
+def _notify_batch_outcome(batch: LiquidacionBatch) -> None:
+    """Avisa al usuario que subió el lote sobre el resultado del procesamiento."""
+    if batch.created_by is None:
+        return
+    if batch.status == "ENVIADO_CONCILIACION":
+        title = "Liquidación procesada"
+        message = (
+            f"El lote {batch.zip_filename} se validó y envió a conciliación "
+            f"({batch.total_agencies or 0} agencias)."
+        )
+    elif batch.status == "VALIDADO":
+        title = "Liquidación validada"
+        message = (
+            f"El lote {batch.zip_filename} se validó, pero no pudo enviarse a "
+            f"conciliación: {batch.error_message or 'ver detalle'}."
+        )
+    else:  # ERROR u otros
+        title = "Liquidación con errores"
+        message = f"El lote {batch.zip_filename} no pudo procesarse: {batch.error_message or 'ver detalle'}."
+    notifications_client.notify(
+        user_id=batch.created_by,
+        title=title,
+        message=message,
+        module="liquidaciones",
+        entity_type="batch",
+        entity_id=batch.id,
+        redirect_path=f"/modules/liquidaciones/batches/{batch.id}",
+    )
 
 
 def process_batch(db: Session, zip_bytes: bytes, zip_filename: str, user_id: int) -> LiquidacionBatch:
@@ -91,6 +122,7 @@ def process_batch(db: Session, zip_bytes: bytes, zip_filename: str, user_id: int
             batch.error_message = f"{len(failed)} validación(es) fallida(s)"
 
         db.commit()
+        _notify_batch_outcome(batch)
         return batch
 
     except Exception as e:
@@ -105,6 +137,7 @@ def process_batch(db: Session, zip_bytes: bytes, zip_filename: str, user_id: int
         )
         db.add(batch)
         db.commit()
+        _notify_batch_outcome(batch)
         return batch
 
 

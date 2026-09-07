@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
@@ -10,16 +11,21 @@ from app.services.reconciliation_service import get_or_create_record
 from app.services import clientes_client, interbanking_client
 
 
-async def load_date(db: Session, rec_date: date) -> tuple[list[ReconciliationRecord], list[dict]]:
+async def load_date(db: Session, rec_date: date,
+                    account: dict | None = None) -> tuple[list[ReconciliationRecord], list[dict]]:
     """
     Main orchestration:
     1. Rebuild CBU cache
-    2. Get IB transactions for date
+    2. Get IB transactions for date (+ movimientos de la cuenta elegida si se pasa `account`)
     3. Auto-match by CBU
     4. Ensure records for all agencies
     5. Sync AUTO links
     6. Recalculate importe_depositado
     Returns (records, enriched_transactions)
+
+    `account` (opcional): cuenta bancaria elegida como fuente de depósitos para la
+    consolidación bancaria — {account_number, account_type, bank_number, currency}.
+    Sus movimientos se suman a las transferencias y se matchean por CBU igual que ellas.
     """
     date_str = rec_date.isoformat()
 
@@ -40,8 +46,28 @@ async def load_date(db: Session, rec_date: date) -> tuple[list[ReconciliationRec
             db.merge(entry)
     db.flush()
 
-    # Step 2: Get IB transactions
+    # Step 2: Get IB transactions (transferencias) + movimientos de la cuenta elegida
     ib_txs = await interbanking_client.get_transactions(date_str)
+    # La cuenta de consolidación se define en la Configuración de Interbanking. Si el
+    # caller no la pasa explícitamente, usamos la configurada.
+    if account is None:
+        account = await interbanking_client.get_consolidation_account()
+    if account:
+        movements = await interbanking_client.get_movements(date_str, account)
+        # Los movimientos bancarios identifican al depositante por CUIT (no por CBU).
+        # Resolvemos CUIT -> agencia -> uno de sus CBUs para que el matcheo por CBU
+        # existente los enlace con el registro de la agencia.
+        cuit_to_cbu: dict[str, str] = {}
+        for ag in agencies:
+            tax = re.sub(r"\D", "", str(ag.get("tax_id") or ""))
+            cbus = ag.get("cbus") or []
+            if tax and cbus:
+                cuit_to_cbu[tax] = cbus[0]["cbu"]
+        for mv in movements:
+            tax = re.sub(r"\D", "", str(mv.get("cuit") or ""))
+            if not mv.get("cbu") and tax in cuit_to_cbu:
+                mv["cbu"] = cuit_to_cbu[tax]
+        ib_txs = ib_txs + movements
 
     # Step 3 & 4: Match and ensure records
     agency_map = {e.cbu: e for e in db.query(CbuAgencyCache).all()}
@@ -170,12 +196,42 @@ async def load_date(db: Session, rec_date: date) -> tuple[list[ReconciliationRec
     # Step 7: Apply liquidacion data to matching records
     _apply_liquidacion_data(db, rec_date, records)
 
+    # Step 8: Auto-consolidar las agencias que quedaron con saldo 0
+    _auto_consolidate(db, records)
+
     db.commit()
 
     for r in records:
         db.refresh(r)
 
     return records, enriched
+
+
+def _auto_consolidate(db: Session, records: list[ReconciliationRecord]) -> None:
+    """Marca CONSOLIDADO las agencias que quedaron con saldo 0 (adeudado − premios −
+    depositado == 0) y que todavía están en A_VERIFICAR. Deja intactas las que ya
+    tienen estado manual y las que tienen saldo distinto de cero. Registra historial.
+    """
+    from app.models.reconciliation_status_history import ReconciliationStatusHistory
+    for r in records:
+        ade = r.importe_adeudado or Decimal("0")
+        pre = r.importe_premios or Decimal("0")
+        dep = r.importe_depositado or Decimal("0")
+        neto = ade - pre - dep
+        # Solo si hubo actividad real (evita consolidar registros vacíos 0/0/0)
+        if r.status == "A_VERIFICAR" and neto == 0 and (ade != 0 or dep != 0):
+            db.add(ReconciliationStatusHistory(
+                reconciliation_record_id=r.id,
+                previous_status="A_VERIFICAR", new_status="CONSOLIDADO",
+                previous_importe_adeudado=ade, previous_importe_premios=pre, previous_importe_depositado=dep,
+                new_importe_adeudado=ade, new_importe_premios=pre, new_importe_depositado=dep,
+                changed_by_user_id=0, changed_by_username="auto",
+                notes="Auto-consolidado: saldo 0",
+            ))
+            r.status = "CONSOLIDADO"
+            r.modified_by_user_id = 0
+            r.modified_by_username = "auto"
+            r.modified_at = datetime.now(timezone.utc)
 
 
 async def assign_agency(db: Session, tx_type: str, tx_id: int, client_id: int,

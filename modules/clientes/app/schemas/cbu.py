@@ -9,6 +9,7 @@ class ClientCbuCreate(BaseModel):
     bank_name: Optional[str] = None
     account_type: Optional[str] = None
     description: Optional[str] = None
+    is_payment_account: Optional[bool] = False
 
     @field_validator("cbu")
     @classmethod
@@ -24,6 +25,7 @@ class ClientCbuUpdate(BaseModel):
     bank_name: Optional[str] = None
     account_type: Optional[str] = None
     description: Optional[str] = None
+    is_payment_account: Optional[bool] = None
 
 
 class ClientCbuResponse(BaseModel):
@@ -35,6 +37,7 @@ class ClientCbuResponse(BaseModel):
     account_type: Optional[str]
     description: Optional[str]
     is_active: bool
+    is_payment_account: bool = False
     created_at: datetime
     created_by: int
 

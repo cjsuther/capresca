@@ -1,0 +1,35 @@
+# Override opt-in para exponer el sistema remotamente vía ngrok (túnel HTTPS público).
+#
+# Uso:
+#   1) Cargá tu authtoken en .env  ->  NGROK_AUTHTOKEN=xxxxx
+#      (se obtiene gratis en https://dashboard.ngrok.com/get-started/your-authtoken)
+#   2) Levantá el stack con este override además del base:
+#        docker compose -f docker-compose.yml -f docker-compose.ngrok.yml up -d
+#   3) Obtené la URL pública:
+#        curl -s http://localhost:4040/api/tunnels | python3 -c "import sys,json;print(json.load(sys.stdin)['tunnels'][0]['public_url'])"
+#      o abrí el inspector en  http://localhost:4040
+#
+# Para dejar de exponerlo:  docker compose -f docker-compose.yml -f docker-compose.ngrok.yml down
+# Un `docker compose up` SIN este archivo no levanta el túnel.
+
+services:
+  # El puerto 80 del host puede estar ocupado por otro proyecto. ngrok llega a nginx
+  # por la red interna de Docker (nginx:80), así que remapeamos el publish del host a un
+  # puerto libre solo para acceso local/LAN. El túnel no depende de esto.
+  nginx:
+    ports: !override
+      - "8090:80"
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    # Túnel HTTP hacia el nginx interno (nombre de servicio en la red del stack).
+    command: ["http", "http://nginx:80", "--log=stdout"]
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"   # inspector web local (ver URL pública y tráfico)
+    depends_on:
+      - nginx
+    networks:
+      - app_network
+    restart: unless-stopped

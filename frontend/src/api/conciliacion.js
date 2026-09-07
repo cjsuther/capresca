@@ -24,5 +24,27 @@ export const assignAgency = (txType, txId, clientId) =>
 export const removeLink = (linkId) =>
   api.delete(`/conciliacion/links/${linkId}`).then((r) => r.data);
 
-export const getBoletaUrl = (recordId) =>
-  `/api/conciliacion/records/${recordId}/boleta`;
+// Descarga la boleta usando el cliente axios (que agrega el token) como blob,
+// y dispara la descarga en el navegador. Un <a href> directo no lleva el JWT.
+export const downloadBoleta = async (recordId) => {
+  const res = await api.get(`/conciliacion/records/${recordId}/boleta`, {
+    responseType: "blob",
+  });
+  const disposition = res.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `boleta_${recordId}.pdf`;
+  const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+export const getAdjustments = (id) =>
+  api.get(`/conciliacion/records/${id}/adjustments`).then((r) => r.data);
+
+export const addAdjustment = (id, amount, reason) =>
+  api.post(`/conciliacion/records/${id}/adjustments`, { amount, reason }).then((r) => r.data);

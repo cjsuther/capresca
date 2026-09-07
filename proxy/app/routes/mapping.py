@@ -64,6 +64,8 @@ ROUTE_MAP = [
     # ── Conciliación ─────────────────────────────────────────────
     ("GET",  r"^/api/conciliacion/records/\d+/boleta$",              settings.conciliacion_service_url, "conciliacion:download"),
     ("GET",  r"^/api/conciliacion/records/\d+/history$",             settings.conciliacion_service_url, "conciliacion:read"),
+    ("GET",  r"^/api/conciliacion/records/\d+/adjustments$",         settings.conciliacion_service_url, "conciliacion:read"),
+    ("POST", r"^/api/conciliacion/records/\d+/adjustments$",         settings.conciliacion_service_url, "conciliacion:write"),
     ("GET",  r"^/api/conciliacion/records/\d+$",                     settings.conciliacion_service_url, "conciliacion:read"),
     ("PUT",  r"^/api/conciliacion/records/\d+$",                     settings.conciliacion_service_url, "conciliacion:write"),
     ("PUT",  r"^/api/conciliacion/interbanking/\w+/\d+/agency$",     settings.conciliacion_service_url, "conciliacion:write"),
@@ -84,21 +86,6 @@ ROUTE_MAP = [
     ("GET",  r"^/api/liquidaciones/batches/\d+$",                          settings.liquidaciones_service_url, "liquidaciones:liq:read"),
     ("GET",  r"^/api/liquidaciones/batches$",                              settings.liquidaciones_service_url, "liquidaciones:liq:read"),
 
-    # ── Comunicación ─────────────────────────────────────────────
-    ("GET",    r"^/api/comunicacion/messages/\d+/media$",               settings.comunicacion_service_url, "comunicacion:chat:read"),
-    ("GET",    r"^/api/comunicacion/conversations$",                    settings.comunicacion_service_url, "comunicacion:chat:read"),
-    ("POST",   r"^/api/comunicacion/conversations$",                    settings.comunicacion_service_url, "comunicacion:chat:write"),
-    ("GET",    r"^/api/comunicacion/conversations/\d+$",                settings.comunicacion_service_url, "comunicacion:chat:read"),
-    ("PUT",    r"^/api/comunicacion/conversations/\d+/link-client$",    settings.comunicacion_service_url, "comunicacion:chat:write"),
-    ("PUT",    r"^/api/comunicacion/conversations/\d+/read$",           settings.comunicacion_service_url, "comunicacion:chat:read"),
-    ("GET",    r"^/api/comunicacion/conversations/\d+/messages$",       settings.comunicacion_service_url, "comunicacion:chat:read"),
-    ("POST",   r"^/api/comunicacion/conversations/\d+/messages$",       settings.comunicacion_service_url, "comunicacion:chat:write"),
-    ("POST",   r"^/api/comunicacion/conversations/\d+/messages/media$", settings.comunicacion_service_url, "comunicacion:chat:write"),
-    ("GET",    r"^/api/comunicacion/menu$",                             settings.comunicacion_service_url, "comunicacion:chat:config:read"),
-    ("PUT",    r"^/api/comunicacion/menu$",                             settings.comunicacion_service_url, "comunicacion:chat:config:write"),
-    ("GET",    r"^/api/comunicacion/whatsapp-config$",                  settings.comunicacion_service_url, "comunicacion:chat:config:read"),
-    ("PUT",    r"^/api/comunicacion/whatsapp-config$",                  settings.comunicacion_service_url, "comunicacion:chat:config:write"),
-    ("GET",    r"^/api/comunicacion/stats$",                            settings.comunicacion_service_url, "comunicacion:chat:read"),
 
     # ── Interbanking ─────────────────────────────────────────────
     ("GET",    r"^/api/interbanking/config/token-status$",          settings.interbanking_service_url, "interbanking:config:read"),
@@ -106,6 +93,7 @@ ROUTE_MAP = [
     ("GET",    r"^/api/interbanking/config$",                       settings.interbanking_service_url, "interbanking:config:read"),
     ("POST",   r"^/api/interbanking/config$",                       settings.interbanking_service_url, "interbanking:config:write"),
     ("GET",    r"^/api/interbanking/cuentas/saldos$",               settings.interbanking_service_url, "interbanking:cuentas:read"),
+    ("GET",    r"^/api/interbanking/cuentas/[^/]+/movimientos$",     settings.interbanking_service_url, "interbanking:cuentas:read"),
     ("GET",    r"^/api/interbanking/cuentas",                       settings.interbanking_service_url, "interbanking:cuentas:read"),
     ("POST",   r"^/api/interbanking/transferencias/validar$",       settings.interbanking_service_url, "interbanking:transferencias:write"),
     ("GET",    r"^/api/interbanking/transferencias/local$",         settings.interbanking_service_url, "interbanking:transferencias:read"),

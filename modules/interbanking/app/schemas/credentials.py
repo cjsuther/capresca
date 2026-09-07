@@ -16,6 +16,16 @@ class CredentialCreate(BaseModel):
     # Comunes
     service_url: str = ""
     customer_id: Optional[str] = ""
+    # Cuenta elegida para la consolidación bancaria (conciliación)
+    consolidation_account_number: Optional[str] = ""
+    consolidation_account_type: Optional[str] = "CC"
+    consolidation_bank_number: Optional[str] = "011"
+    consolidation_currency: Optional[str] = "ARS"
+    # Cuenta de pagos salientes (Capresca → agencias)
+    payment_account_number: Optional[str] = ""
+    payment_account_type: Optional[str] = "CC"
+    payment_bank_number: Optional[str] = "011"
+    payment_currency: Optional[str] = "ARS"
 
 
 class CredentialResponse(BaseModel):
@@ -27,6 +37,14 @@ class CredentialResponse(BaseModel):
     username: Optional[str] = None
     service_url: Optional[str] = None
     customer_id: Optional[str] = None
+    consolidation_account_number: Optional[str] = None
+    consolidation_account_type: Optional[str] = None
+    consolidation_bank_number: Optional[str] = None
+    consolidation_currency: Optional[str] = None
+    payment_account_number: Optional[str] = None
+    payment_account_type: Optional[str] = None
+    payment_bank_number: Optional[str] = None
+    payment_currency: Optional[str] = None
     has_client_secret: bool = False
     has_password: bool = False
     is_active: bool

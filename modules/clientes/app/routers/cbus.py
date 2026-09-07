@@ -53,7 +53,13 @@ def update_cbu(
     cbu = db.query(ClientCbu).filter(ClientCbu.id == cbu_id, ClientCbu.client_id == client_id).first()
     if not cbu:
         raise HTTPException(404, "CBU no encontrado")
-    for k, v in data.model_dump(exclude_none=True).items():
+    fields = data.model_dump(exclude_none=True)
+    # Solo un CBU por cliente puede ser cuenta de cobro
+    if fields.get("is_payment_account"):
+        db.query(ClientCbu).filter(
+            ClientCbu.client_id == client_id, ClientCbu.id != cbu_id
+        ).update({"is_payment_account": False})
+    for k, v in fields.items():
         setattr(cbu, k, v)
     db.commit()
     db.refresh(cbu)
