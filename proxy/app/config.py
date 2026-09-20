@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     conciliacion_service_url: str = "http://conciliacion:8006"
     liquidaciones_service_url: str = "http://liquidaciones:8007"
     legacy_service_url: str = "http://legacy:8009"
+    creditos_service_url: str = "http://creditos:8010"
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     permissions_cache_ttl: int = 60  # segundos

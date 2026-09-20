@@ -1,0 +1,7769 @@
+[
+{
+"cred": 93809,
+"cuo": 5,
+"dias": 1644,
+"interes_pu": "723.91",
+"iva_puni": "152.02",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110705,
+"cuo": 32,
+"dias": 91,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110705,
+"cuo": 33,
+"dias": 60,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110705,
+"cuo": 34,
+"dias": 29,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113910,
+"cuo": 28,
+"dias": 117,
+"interes_pu": "106.25",
+"iva_puni": "22.31",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113910,
+"cuo": 31,
+"dias": 25,
+"interes_pu": "22.70",
+"iva_puni": "4.77",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116274,
+"cuo": 28,
+"dias": 2,
+"interes_pu": "1.82",
+"iva_puni": "0.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120020,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "23.32",
+"iva_puni": "4.90",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121700,
+"cuo": 19,
+"dias": 52,
+"interes_pu": "47.21",
+"iva_puni": "9.91",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121700,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "19.07",
+"iva_puni": "4.00",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122041,
+"cuo": 20,
+"dias": 25,
+"interes_pu": "29.41",
+"iva_puni": "6.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129990,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "30.05",
+"iva_puni": "6.31",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 93097,
+"cuo": 27,
+"dias": 1059,
+"interes_pu": "344.07",
+"iva_puni": "72.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 93816,
+"cuo": 13,
+"dias": 1392,
+"interes_pu": "616.55",
+"iva_puni": "129.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 103584,
+"cuo": 36,
+"dias": 266,
+"interes_pu": "124.47",
+"iva_puni": "26.14",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 104414,
+"cuo": 25,
+"dias": 571,
+"interes_pu": "262.41",
+"iva_puni": "55.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 106471,
+"cuo": 36,
+"dias": 146,
+"interes_pu": "69.05",
+"iva_puni": "14.50",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 106844,
+"cuo": 34,
+"dias": 146,
+"interes_pu": "69.03",
+"iva_puni": "14.50",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 107141,
+"cuo": 36,
+"dias": 115,
+"interes_pu": "54.97",
+"iva_puni": "11.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 107594,
+"cuo": 33,
+"dias": 207,
+"interes_pu": "96.73",
+"iva_puni": "20.31",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 107892,
+"cuo": 35,
+"dias": 117,
+"interes_pu": "54.95",
+"iva_puni": "11.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108483,
+"cuo": 30,
+"dias": 268,
+"interes_pu": "249.62",
+"iva_puni": "52.42",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108563,
+"cuo": 34,
+"dias": 113,
+"interes_pu": "110.19",
+"iva_puni": "23.14",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108641,
+"cuo": 35,
+"dias": 115,
+"interes_pu": "92.32",
+"iva_puni": "19.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108650,
+"cuo": 34,
+"dias": 146,
+"interes_pu": "138.21",
+"iva_puni": "29.02",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108684,
+"cuo": 34,
+"dias": 113,
+"interes_pu": "109.90",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108693,
+"cuo": 36,
+"dias": 53,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108797,
+"cuo": 20,
+"dias": 539,
+"interes_pu": "496.61",
+"iva_puni": "104.29",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108952,
+"cuo": 35,
+"dias": 85,
+"interes_pu": "82.87",
+"iva_puni": "17.40",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 108977,
+"cuo": 35,
+"dias": 87,
+"interes_pu": "82.77",
+"iva_puni": "17.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109004,
+"cuo": 36,
+"dias": 53,
+"interes_pu": "50.97",
+"iva_puni": "10.70",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109023,
+"cuo": 35,
+"dias": 87,
+"interes_pu": "82.87",
+"iva_puni": "17.40",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109243,
+"cuo": 34,
+"dias": 115,
+"interes_pu": "109.90",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109269,
+"cuo": 35,
+"dias": 85,
+"interes_pu": "82.77",
+"iva_puni": "17.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109270,
+"cuo": 34,
+"dias": 115,
+"interes_pu": "110.06",
+"iva_puni": "23.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109303,
+"cuo": 35,
+"dias": 85,
+"interes_pu": "82.66",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109356,
+"cuo": 36,
+"dias": 52,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109381,
+"cuo": 32,
+"dias": 176,
+"interes_pu": "165.30",
+"iva_puni": "34.71",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109410,
+"cuo": 36,
+"dias": 52,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109470,
+"cuo": 35,
+"dias": 85,
+"interes_pu": "82.66",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109506,
+"cuo": 36,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109564,
+"cuo": 36,
+"dias": 53,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109592,
+"cuo": 36,
+"dias": 53,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109626,
+"cuo": 35,
+"dias": 84,
+"interes_pu": "82.66",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109648,
+"cuo": 34,
+"dias": 113,
+"interes_pu": "109.90",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109684,
+"cuo": 29,
+"dias": 270,
+"interes_pu": "248.83",
+"iva_puni": "52.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109775,
+"cuo": 32,
+"dias": 115,
+"interes_pu": "109.89",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109798,
+"cuo": 34,
+"dias": 54,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109810,
+"cuo": 35,
+"dias": 23,
+"interes_pu": "19.98",
+"iva_puni": "4.20",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109846,
+"cuo": 31,
+"dias": 52,
+"interes_pu": "54.54",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109880,
+"cuo": 33,
+"dias": 83,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109909,
+"cuo": 35,
+"dias": 22,
+"interes_pu": "21.07",
+"iva_puni": "4.42",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109948,
+"cuo": 32,
+"dias": 115,
+"interes_pu": "109.89",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109968,
+"cuo": 35,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 109998,
+"cuo": 35,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110018,
+"cuo": 32,
+"dias": 117,
+"interes_pu": "109.89",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110043,
+"cuo": 35,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110114,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110130,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110155,
+"cuo": 34,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110225,
+"cuo": 33,
+"dias": 56,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110242,
+"cuo": 32,
+"dias": 85,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110267,
+"cuo": 34,
+"dias": 21,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110285,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110306,
+"cuo": 33,
+"dias": 54,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110309,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110321,
+"cuo": 34,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110376,
+"cuo": 32,
+"dias": 84,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110389,
+"cuo": 34,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110392,
+"cuo": 31,
+"dias": 117,
+"interes_pu": "109.89",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110392,
+"cuo": 33,
+"dias": 52,
+"interes_pu": "47.23",
+"iva_puni": "9.92",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110416,
+"cuo": 33,
+"dias": 54,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110420,
+"cuo": 33,
+"dias": 54,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110455,
+"cuo": 33,
+"dias": 54,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110467,
+"cuo": 34,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110490,
+"cuo": 30,
+"dias": 146,
+"interes_pu": "138.04",
+"iva_puni": "28.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110564,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110578,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110619,
+"cuo": 32,
+"dias": 87,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110633,
+"cuo": 34,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110644,
+"cuo": 34,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110706,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110707,
+"cuo": 32,
+"dias": 87,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110720,
+"cuo": 31,
+"dias": 115,
+"interes_pu": "109.89",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110723,
+"cuo": 32,
+"dias": 87,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110788,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110789,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110826,
+"cuo": 33,
+"dias": 52,
+"interes_pu": "54.50",
+"iva_puni": "11.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110853,
+"cuo": 34,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110901,
+"cuo": 31,
+"dias": 115,
+"interes_pu": "109.89",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110919,
+"cuo": 32,
+"dias": 87,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 110985,
+"cuo": 22,
+"dias": 388,
+"interes_pu": "357.72",
+"iva_puni": "75.12",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111086,
+"cuo": 32,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111149,
+"cuo": 32,
+"dias": 85,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111156,
+"cuo": 29,
+"dias": 144,
+"interes_pu": "138.04",
+"iva_puni": "28.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111249,
+"cuo": 29,
+"dias": 146,
+"interes_pu": "138.06",
+"iva_puni": "28.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111342,
+"cuo": 29,
+"dias": 146,
+"interes_pu": "138.04",
+"iva_puni": "28.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111386,
+"cuo": 32,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111390,
+"cuo": 28,
+"dias": 176,
+"interes_pu": "165.27",
+"iva_puni": "34.71",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111434,
+"cuo": 30,
+"dias": 115,
+"interes_pu": "109.89",
+"iva_puni": "23.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111494,
+"cuo": 33,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111538,
+"cuo": 33,
+"dias": 25,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111595,
+"cuo": 33,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111720,
+"cuo": 29,
+"dias": 145,
+"interes_pu": "138.04",
+"iva_puni": "28.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111725,
+"cuo": 33,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111748,
+"cuo": 31,
+"dias": 85,
+"interes_pu": "82.75",
+"iva_puni": "17.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111850,
+"cuo": 33,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111868,
+"cuo": 33,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111876,
+"cuo": 31,
+"dias": 85,
+"interes_pu": "82.65",
+"iva_puni": "17.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111913,
+"cuo": 32,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111940,
+"cuo": 33,
+"dias": 23,
+"interes_pu": "13.17",
+"iva_puni": "2.77",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112073,
+"cuo": 30,
+"dias": 85,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112177,
+"cuo": 30,
+"dias": 87,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112210,
+"cuo": 32,
+"dias": 56,
+"interes_pu": "49.95",
+"iva_puni": "10.49",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112415,
+"cuo": 32,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112496,
+"cuo": 32,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112501,
+"cuo": 30,
+"dias": 85,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112607,
+"cuo": 32,
+"dias": 23,
+"interes_pu": "26.36",
+"iva_puni": "5.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112660,
+"cuo": 32,
+"dias": 21,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112800,
+"cuo": 32,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112818,
+"cuo": 31,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112846,
+"cuo": 31,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112856,
+"cuo": 30,
+"dias": 85,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112857,
+"cuo": 30,
+"dias": 85,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112891,
+"cuo": 32,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112918,
+"cuo": 30,
+"dias": 85,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112942,
+"cuo": 27,
+"dias": 176,
+"interes_pu": "165.27",
+"iva_puni": "34.71",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113009,
+"cuo": 32,
+"dias": 21,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113101,
+"cuo": 32,
+"dias": 21,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113394,
+"cuo": 30,
+"dias": 52,
+"interes_pu": "45.41",
+"iva_puni": "9.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113526,
+"cuo": 31,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113618,
+"cuo": 30,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113881,
+"cuo": 30,
+"dias": 54,
+"interes_pu": "60.85",
+"iva_puni": "12.78",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113894,
+"cuo": 29,
+"dias": 83,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113914,
+"cuo": 30,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114007,
+"cuo": 24,
+"dias": 205,
+"interes_pu": "193.40",
+"iva_puni": "40.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114126,
+"cuo": 30,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114127,
+"cuo": 28,
+"dias": 85,
+"interes_pu": "82.64",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114161,
+"cuo": 24,
+"dias": 205,
+"interes_pu": "250.63",
+"iva_puni": "52.63",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114209,
+"cuo": 30,
+"dias": 25,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114402,
+"cuo": 29,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114493,
+"cuo": 29,
+"dias": 25,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114527,
+"cuo": 27,
+"dias": 83,
+"interes_pu": "92.28",
+"iva_puni": "19.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114546,
+"cuo": 28,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114550,
+"cuo": 27,
+"dias": 87,
+"interes_pu": "92.28",
+"iva_puni": "19.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114595,
+"cuo": 29,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114642,
+"cuo": 26,
+"dias": 115,
+"interes_pu": "109.87",
+"iva_puni": "23.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114674,
+"cuo": 29,
+"dias": 25,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114803,
+"cuo": 28,
+"dias": 54,
+"interes_pu": "54.49",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114909,
+"cuo": 29,
+"dias": 23,
+"interes_pu": "29.41",
+"iva_puni": "6.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114950,
+"cuo": 29,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114954,
+"cuo": 29,
+"dias": 21,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115089,
+"cuo": 29,
+"dias": 23,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115092,
+"cuo": 29,
+"dias": 22,
+"interes_pu": "26.34",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115137,
+"cuo": 11,
+"dias": 570,
+"interes_pu": "524.65",
+"iva_puni": "110.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115139,
+"cuo": 28,
+"dias": 54,
+"interes_pu": "60.84",
+"iva_puni": "12.78",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115303,
+"cuo": 26,
+"dias": 85,
+"interes_pu": "82.63",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115411,
+"cuo": 28,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115416,
+"cuo": 24,
+"dias": 146,
+"interes_pu": "138.01",
+"iva_puni": "28.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115457,
+"cuo": 24,
+"dias": 146,
+"interes_pu": "138.01",
+"iva_puni": "28.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115520,
+"cuo": 28,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115644,
+"cuo": 27,
+"dias": 56,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115664,
+"cuo": 28,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115745,
+"cuo": 28,
+"dias": 23,
+"interes_pu": "29.41",
+"iva_puni": "6.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115826,
+"cuo": 28,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115892,
+"cuo": 28,
+"dias": 25,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115907,
+"cuo": 27,
+"dias": 54,
+"interes_pu": "60.84",
+"iva_puni": "12.78",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116066,
+"cuo": 27,
+"dias": 56,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116178,
+"cuo": 27,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116473,
+"cuo": 25,
+"dias": 84,
+"interes_pu": "82.63",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116554,
+"cuo": 27,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116611,
+"cuo": 23,
+"dias": 148,
+"interes_pu": "178.85",
+"iva_puni": "37.56",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116621,
+"cuo": 23,
+"dias": 148,
+"interes_pu": "178.85",
+"iva_puni": "37.56",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116689,
+"cuo": 23,
+"dias": 146,
+"interes_pu": "138.01",
+"iva_puni": "28.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116697,
+"cuo": 25,
+"dias": 85,
+"interes_pu": "82.63",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116703,
+"cuo": 25,
+"dias": 85,
+"interes_pu": "82.63",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116746,
+"cuo": 22,
+"dias": 178,
+"interes_pu": "165.24",
+"iva_puni": "34.70",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116817,
+"cuo": 26,
+"dias": 52,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116876,
+"cuo": 22,
+"dias": 174,
+"interes_pu": "165.24",
+"iva_puni": "34.70",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116912,
+"cuo": 26,
+"dias": 54,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116925,
+"cuo": 27,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117134,
+"cuo": 18,
+"dias": 266,
+"interes_pu": "248.75",
+"iva_puni": "52.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117160,
+"cuo": 24,
+"dias": 83,
+"interes_pu": "82.63",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117227,
+"cuo": 25,
+"dias": 54,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117255,
+"cuo": 23,
+"dias": 117,
+"interes_pu": "109.86",
+"iva_puni": "23.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117260,
+"cuo": 26,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117389,
+"cuo": 26,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117502,
+"cuo": 26,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117529,
+"cuo": 25,
+"dias": 54,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117650,
+"cuo": 26,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117671,
+"cuo": 24,
+"dias": 84,
+"interes_pu": "82.63",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117731,
+"cuo": 25,
+"dias": 52,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117901,
+"cuo": 25,
+"dias": 54,
+"interes_pu": "60.84",
+"iva_puni": "12.78",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117926,
+"cuo": 25,
+"dias": 54,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117997,
+"cuo": 25,
+"dias": 54,
+"interes_pu": "54.48",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118233,
+"cuo": 25,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118293,
+"cuo": 25,
+"dias": 25,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118378,
+"cuo": 25,
+"dias": 25,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118614,
+"cuo": 23,
+"dias": 85,
+"interes_pu": "82.62",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118658,
+"cuo": 24,
+"dias": 52,
+"interes_pu": "60.84",
+"iva_puni": "12.78",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118686,
+"cuo": 25,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118737,
+"cuo": 17,
+"dias": 267,
+"interes_pu": "248.74",
+"iva_puni": "52.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118967,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119075,
+"cuo": 21,
+"dias": 54,
+"interes_pu": "54.47",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119211,
+"cuo": 19,
+"dias": 115,
+"interes_pu": "109.85",
+"iva_puni": "23.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119272,
+"cuo": 21,
+"dias": 54,
+"interes_pu": "60.83",
+"iva_puni": "12.77",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119288,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119450,
+"cuo": 21,
+"dias": 54,
+"interes_pu": "54.47",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119586,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "29.40",
+"iva_puni": "6.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119621,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119649,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119663,
+"cuo": 21,
+"dias": 54,
+"interes_pu": "54.47",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119674,
+"cuo": 18,
+"dias": 113,
+"interes_pu": "109.85",
+"iva_puni": "23.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119689,
+"cuo": 19,
+"dias": 83,
+"interes_pu": "82.62",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119717,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119775,
+"cuo": 21,
+"dias": 52,
+"interes_pu": "70.59",
+"iva_puni": "14.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119776,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "60.83",
+"iva_puni": "12.77",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119781,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119802,
+"cuo": 18,
+"dias": 85,
+"interes_pu": "82.61",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120063,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120096,
+"cuo": 19,
+"dias": 85,
+"interes_pu": "107.06",
+"iva_puni": "22.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120121,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120126,
+"cuo": 21,
+"dias": 25,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120266,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120276,
+"cuo": 21,
+"dias": 25,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120430,
+"cuo": 19,
+"dias": 85,
+"interes_pu": "107.06",
+"iva_puni": "22.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120626,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120694,
+"cuo": 18,
+"dias": 115,
+"interes_pu": "142.35",
+"iva_puni": "29.89",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120997,
+"cuo": 18,
+"dias": 115,
+"interes_pu": "109.85",
+"iva_puni": "23.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121044,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121185,
+"cuo": 17,
+"dias": 115,
+"interes_pu": "122.66",
+"iva_puni": "25.76",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121267,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121309,
+"cuo": 18,
+"dias": 83,
+"interes_pu": "107.05",
+"iva_puni": "22.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121326,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121467,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121487,
+"cuo": 18,
+"dias": 85,
+"interes_pu": "107.05",
+"iva_puni": "22.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121700,
+"cuo": 18,
+"dias": 85,
+"interes_pu": "82.61",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121816,
+"cuo": 13,
+"dias": 238,
+"interes_pu": "247.32",
+"iva_puni": "51.94",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121822,
+"cuo": 13,
+"dias": 238,
+"interes_pu": "247.32",
+"iva_puni": "51.94",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121879,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121906,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122010,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "19.97",
+"iva_puni": "4.19",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122015,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122033,
+"cuo": 19,
+"dias": 54,
+"interes_pu": "54.47",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122046,
+"cuo": 19,
+"dias": 54,
+"interes_pu": "80.51",
+"iva_puni": "16.91",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122048,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122108,
+"cuo": 19,
+"dias": 54,
+"interes_pu": "54.47",
+"iva_puni": "11.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122169,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "29.40",
+"iva_puni": "6.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122186,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122195,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122196,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122199,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122200,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122204,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122206,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122207,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122208,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122209,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122214,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122217,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122220,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122227,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122246,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122269,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122279,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122289,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122290,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "29.40",
+"iva_puni": "6.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122292,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122301,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122307,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122311,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122314,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122317,
+"cuo": 21,
+"dias": 25,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122319,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122330,
+"cuo": 21,
+"dias": 25,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122332,
+"cuo": 21,
+"dias": 25,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122336,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "22.47",
+"iva_puni": "4.72",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122345,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122368,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122372,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122378,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122380,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "29.40",
+"iva_puni": "6.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122405,
+"cuo": 17,
+"dias": 85,
+"interes_pu": "82.61",
+"iva_puni": "17.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122409,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122421,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122428,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122435,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122437,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122438,
+"cuo": 21,
+"dias": 25,
+"interes_pu": "29.40",
+"iva_puni": "6.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122444,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122445,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122601,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122772,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122818,
+"cuo": 19,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122948,
+"cuo": 19,
+"dias": 25,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122950,
+"cuo": 19,
+"dias": 25,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123150,
+"cuo": 18,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123328,
+"cuo": 18,
+"dias": 25,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123387,
+"cuo": 18,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123667,
+"cuo": 18,
+"dias": 23,
+"interes_pu": "34.12",
+"iva_puni": "7.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123691,
+"cuo": 17,
+"dias": 54,
+"interes_pu": "70.58",
+"iva_puni": "14.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123792,
+"cuo": 16,
+"dias": 87,
+"interes_pu": "92.24",
+"iva_puni": "19.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123849,
+"cuo": 12,
+"dias": 207,
+"interes_pu": "250.53",
+"iva_puni": "52.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123901,
+"cuo": 18,
+"dias": 23,
+"interes_pu": "26.33",
+"iva_puni": "5.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124161,
+"cuo": 12,
+"dias": 174,
+"interes_pu": "165.21",
+"iva_puni": "34.69",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124372,
+"cuo": 17,
+"dias": 23,
+"interes_pu": "34.11",
+"iva_puni": "7.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124473,
+"cuo": 17,
+"dias": 22,
+"interes_pu": "34.11",
+"iva_puni": "7.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124500,
+"cuo": 14,
+"dias": 117,
+"interes_pu": "162.33",
+"iva_puni": "34.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124512,
+"cuo": 7,
+"dias": 329,
+"interes_pu": "304.06",
+"iva_puni": "63.85",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124539,
+"cuo": 16,
+"dias": 54,
+"interes_pu": "70.58",
+"iva_puni": "14.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124582,
+"cuo": 17,
+"dias": 23,
+"interes_pu": "29.40",
+"iva_puni": "6.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124594,
+"cuo": 14,
+"dias": 115,
+"interes_pu": "142.33",
+"iva_puni": "29.89",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125208,
+"cuo": 14,
+"dias": 83,
+"interes_pu": "75.34",
+"iva_puni": "15.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125277,
+"cuo": 15,
+"dias": 54,
+"interes_pu": "70.58",
+"iva_puni": "14.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125522,
+"cuo": 16,
+"dias": 23,
+"interes_pu": "30.41",
+"iva_puni": "6.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125526,
+"cuo": 13,
+"dias": 115,
+"interes_pu": "126.86",
+"iva_puni": "26.64",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125678,
+"cuo": 16,
+"dias": 23,
+"interes_pu": "45.77",
+"iva_puni": "9.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125977,
+"cuo": 8,
+"dias": 238,
+"interes_pu": "255.80",
+"iva_puni": "53.72",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125992,
+"cuo": 15,
+"dias": 23,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126183,
+"cuo": 15,
+"dias": 25,
+"interes_pu": "30.41",
+"iva_puni": "6.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126232,
+"cuo": 14,
+"dias": 52,
+"interes_pu": "62.91",
+"iva_puni": "13.21",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126233,
+"cuo": 15,
+"dias": 23,
+"interes_pu": "30.41",
+"iva_puni": "6.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126473,
+"cuo": 13,
+"dias": 87,
+"interes_pu": "143.59",
+"iva_puni": "30.15",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126509,
+"cuo": 13,
+"dias": 85,
+"interes_pu": "118.88",
+"iva_puni": "24.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126600,
+"cuo": 12,
+"dias": 115,
+"interes_pu": "158.07",
+"iva_puni": "33.19",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126704,
+"cuo": 15,
+"dias": 23,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126723,
+"cuo": 12,
+"dias": 117,
+"interes_pu": "258.33",
+"iva_puni": "54.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127278,
+"cuo": 14,
+"dias": 23,
+"interes_pu": "30.41",
+"iva_puni": "6.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127350,
+"cuo": 14,
+"dias": 25,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127732,
+"cuo": 12,
+"dias": 85,
+"interes_pu": "118.88",
+"iva_puni": "24.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128090,
+"cuo": 14,
+"dias": 23,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128815,
+"cuo": 12,
+"dias": 54,
+"interes_pu": "62.91",
+"iva_puni": "13.21",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128824,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128848,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "33.32",
+"iva_puni": "7.00",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128872,
+"cuo": 13,
+"dias": 25,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128889,
+"cuo": 6,
+"dias": 236,
+"interes_pu": "255.79",
+"iva_puni": "53.72",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129091,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "26.05",
+"iva_puni": "5.47",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129178,
+"cuo": 11,
+"dias": 85,
+"interes_pu": "104.55",
+"iva_puni": "21.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129244,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "33.32",
+"iva_puni": "7.00",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129644,
+"cuo": 5,
+"dias": 174,
+"interes_pu": "209.08",
+"iva_puni": "43.91",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129648,
+"cuo": 12,
+"dias": 54,
+"interes_pu": "45.29",
+"iva_puni": "9.51",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130093,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130101,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130102,
+"cuo": 13,
+"dias": 25,
+"interes_pu": "37.89",
+"iva_puni": "7.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130418,
+"cuo": 10,
+"dias": 25,
+"interes_pu": "45.75",
+"iva_puni": "9.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130508,
+"cuo": 11,
+"dias": 23,
+"interes_pu": "30.40",
+"iva_puni": "6.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130587,
+"cuo": 9,
+"dias": 85,
+"interes_pu": "118.87",
+"iva_puni": "24.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130828,
+"cuo": 5,
+"dias": 176,
+"interes_pu": "237.71",
+"iva_puni": "49.92",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130894,
+"cuo": 6,
+"dias": 146,
+"interes_pu": "198.53",
+"iva_puni": "41.69",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131407,
+"cuo": 10,
+"dias": 23,
+"interes_pu": "28.74",
+"iva_puni": "6.04",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131482,
+"cuo": 5,
+"dias": 146,
+"interes_pu": "198.53",
+"iva_puni": "41.69",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131603,
+"cuo": 8,
+"dias": 85,
+"interes_pu": "118.87",
+"iva_puni": "24.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131609,
+"cuo": 10,
+"dias": 23,
+"interes_pu": "45.75",
+"iva_puni": "9.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131636,
+"cuo": 9,
+"dias": 52,
+"interes_pu": "41.93",
+"iva_puni": "8.81",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131823,
+"cuo": 8,
+"dias": 54,
+"interes_pu": "78.37",
+"iva_puni": "16.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132349,
+"cuo": 5,
+"dias": 146,
+"interes_pu": "198.53",
+"iva_puni": "41.69",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132350,
+"cuo": 7,
+"dias": 85,
+"interes_pu": "118.86",
+"iva_puni": "24.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132520,
+"cuo": 8,
+"dias": 25,
+"interes_pu": "37.88",
+"iva_puni": "7.95",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 138193,
+"cuo": 4,
+"dias": 56,
+"interes_pu": "93.05",
+"iva_puni": "19.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 138482,
+"cuo": 3,
+"dias": 52,
+"interes_pu": "119.98",
+"iva_puni": "25.20",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 139343,
+"cuo": 3,
+"dias": 54,
+"interes_pu": "100.86",
+"iva_puni": "21.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 142915,
+"cuo": 1,
+"dias": 23,
+"interes_pu": "57.99",
+"iva_puni": "12.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 74501,
+"cuo": 17,
+"dias": 2157,
+"interes_pu": "367.25",
+"iva_puni": "77.12",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 74501,
+"cuo": 19,
+"dias": 2096,
+"interes_pu": "356.86",
+"iva_puni": "74.94",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 74501,
+"cuo": 20,
+"dias": 2066,
+"interes_pu": "351.75",
+"iva_puni": "73.87",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 86609,
+"cuo": 16,
+"dias": 1674,
+"interes_pu": "260.11",
+"iva_puni": "54.62",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 86609,
+"cuo": 17,
+"dias": 1643,
+"interes_pu": "255.29",
+"iva_puni": "53.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 86609,
+"cuo": 18,
+"dias": 1613,
+"interes_pu": "250.63",
+"iva_puni": "52.63",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 86609,
+"cuo": 19,
+"dias": 1582,
+"interes_pu": "245.81",
+"iva_puni": "51.62",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 86609,
+"cuo": 20,
+"dias": 1552,
+"interes_pu": "241.15",
+"iva_puni": "50.64",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101582,
+"cuo": 22,
+"dias": 723,
+"interes_pu": "334.98",
+"iva_puni": "70.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101582,
+"cuo": 25,
+"dias": 631,
+"interes_pu": "292.36",
+"iva_puni": "61.40",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101582,
+"cuo": 26,
+"dias": 601,
+"interes_pu": "278.46",
+"iva_puni": "58.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101582,
+"cuo": 27,
+"dias": 570,
+"interes_pu": "264.10",
+"iva_puni": "55.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101582,
+"cuo": 28,
+"dias": 539,
+"interes_pu": "249.73",
+"iva_puni": "52.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101582,
+"cuo": 29,
+"dias": 509,
+"interes_pu": "235.83",
+"iva_puni": "49.52",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101582,
+"cuo": 30,
+"dias": 478,
+"interes_pu": "221.42",
+"iva_puni": "46.50",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101777,
+"cuo": 19,
+"dias": 851,
+"interes_pu": "394.29",
+"iva_puni": "82.80",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 101777,
+"cuo": 20,
+"dias": 821,
+"interes_pu": "380.39",
+"iva_puni": "79.88",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120564,
+"cuo": 21,
+"dias": 24,
+"interes_pu": "12.18",
+"iva_puni": "2.56",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131839,
+"cuo": 10,
+"dias": 23,
+"interes_pu": "28.14",
+"iva_puni": "5.91",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131997,
+"cuo": 9,
+"dias": 21,
+"interes_pu": "22.25",
+"iva_puni": "4.67",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132666,
+"cuo": 8,
+"dias": 38,
+"interes_pu": "130.66",
+"iva_puni": "27.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132730,
+"cuo": 9,
+"dias": 1,
+"interes_pu": "1.84",
+"iva_puni": "0.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135196,
+"cuo": 7,
+"dias": 25,
+"interes_pu": "37.58",
+"iva_puni": "7.89",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 136506,
+"cuo": 4,
+"dias": 25,
+"interes_pu": "51.78",
+"iva_puni": "10.87",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 138704,
+"cuo": 4,
+"dias": 25,
+"interes_pu": "30.58",
+"iva_puni": "6.42",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 140046,
+"cuo": 1,
+"dias": 85,
+"interes_pu": "100.19",
+"iva_puni": "21.04",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 89014,
+"cuo": 23,
+"dias": 1363,
+"interes_pu": "508.27",
+"iva_puni": "106.74",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 90854,
+"cuo": 29,
+"dias": 1092,
+"interes_pu": "364.69",
+"iva_puni": "76.58",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 103289,
+"cuo": 30,
+"dias": 452,
+"interes_pu": "221.61",
+"iva_puni": "46.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 105397,
+"cuo": 14,
+"dias": 844,
+"interes_pu": "413.63",
+"iva_puni": "86.86",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 105896,
+"cuo": 26,
+"dias": 449,
+"interes_pu": "236.84",
+"iva_puni": "49.74",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 106148,
+"cuo": 28,
+"dias": 386,
+"interes_pu": "300.29",
+"iva_puni": "63.06",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 106856,
+"cuo": 22,
+"dias": 539,
+"interes_pu": "284.00",
+"iva_puni": "59.64",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 107105,
+"cuo": 30,
+"dias": 297,
+"interes_pu": "158.06",
+"iva_puni": "33.19",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111183,
+"cuo": 29,
+"dias": 176,
+"interes_pu": "94.32",
+"iva_puni": "19.81",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 111550,
+"cuo": 30,
+"dias": 115,
+"interes_pu": "125.74",
+"iva_puni": "26.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112020,
+"cuo": 28,
+"dias": 145,
+"interes_pu": "161.30",
+"iva_puni": "33.87",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112237,
+"cuo": 30,
+"dias": 114,
+"interes_pu": "125.74",
+"iva_puni": "26.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 112600,
+"cuo": 12,
+"dias": 631,
+"interes_pu": "704.18",
+"iva_puni": "147.88",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113045,
+"cuo": 30,
+"dias": 84,
+"interes_pu": "94.57",
+"iva_puni": "19.86",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113048,
+"cuo": 25,
+"dias": 237,
+"interes_pu": "236.54",
+"iva_puni": "49.67",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113091,
+"cuo": 22,
+"dias": 329,
+"interes_pu": "141.15",
+"iva_puni": "29.64",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113481,
+"cuo": 30,
+"dias": 22,
+"interes_pu": "30.14",
+"iva_puni": "6.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113592,
+"cuo": 29,
+"dias": 85,
+"interes_pu": "96.58",
+"iva_puni": "20.28",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113714,
+"cuo": 24,
+"dias": 144,
+"interes_pu": "157.86",
+"iva_puni": "33.15",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113740,
+"cuo": 29,
+"dias": 83,
+"interes_pu": "96.58",
+"iva_puni": "20.28",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113845,
+"cuo": 30,
+"dias": 53,
+"interes_pu": "63.68",
+"iva_puni": "13.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113869,
+"cuo": 27,
+"dias": 114,
+"interes_pu": "128.39",
+"iva_puni": "26.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 113996,
+"cuo": 29,
+"dias": 84,
+"interes_pu": "94.56",
+"iva_puni": "19.86",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114027,
+"cuo": 30,
+"dias": 22,
+"interes_pu": "14.09",
+"iva_puni": "2.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114033,
+"cuo": 29,
+"dias": 54,
+"interes_pu": "62.35",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114054,
+"cuo": 29,
+"dias": 52,
+"interes_pu": "62.35",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114114,
+"cuo": 27,
+"dias": 113,
+"interes_pu": "128.39",
+"iva_puni": "26.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114192,
+"cuo": 29,
+"dias": 54,
+"interes_pu": "75.77",
+"iva_puni": "15.91",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114234,
+"cuo": 30,
+"dias": 23,
+"interes_pu": "30.78",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114241,
+"cuo": 30,
+"dias": 22,
+"interes_pu": "30.14",
+"iva_puni": "6.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114244,
+"cuo": 30,
+"dias": 22,
+"interes_pu": "15.07",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114434,
+"cuo": 30,
+"dias": 22,
+"interes_pu": "30.78",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114538,
+"cuo": 30,
+"dias": 23,
+"interes_pu": "30.78",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114613,
+"cuo": 29,
+"dias": 23,
+"interes_pu": "30.13",
+"iva_puni": "6.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114743,
+"cuo": 23,
+"dias": 209,
+"interes_pu": "89.75",
+"iva_puni": "18.85",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114786,
+"cuo": 26,
+"dias": 115,
+"interes_pu": "64.19",
+"iva_puni": "13.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114805,
+"cuo": 23,
+"dias": 207,
+"interes_pu": "110.39",
+"iva_puni": "23.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114835,
+"cuo": 25,
+"dias": 146,
+"interes_pu": "78.94",
+"iva_puni": "16.58",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114941,
+"cuo": 29,
+"dias": 22,
+"interes_pu": "30.13",
+"iva_puni": "6.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 114990,
+"cuo": 17,
+"dias": 388,
+"interes_pu": "552.33",
+"iva_puni": "115.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115090,
+"cuo": 29,
+"dias": 22,
+"interes_pu": "30.78",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115177,
+"cuo": 28,
+"dias": 53,
+"interes_pu": "69.89",
+"iva_puni": "14.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115296,
+"cuo": 28,
+"dias": 54,
+"interes_pu": "62.34",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115354,
+"cuo": 27,
+"dias": 85,
+"interes_pu": "96.56",
+"iva_puni": "20.28",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115383,
+"cuo": 26,
+"dias": 115,
+"interes_pu": "144.73",
+"iva_puni": "30.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115446,
+"cuo": 27,
+"dias": 53,
+"interes_pu": "76.53",
+"iva_puni": "16.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115472,
+"cuo": 28,
+"dias": 23,
+"interes_pu": "30.78",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115695,
+"cuo": 28,
+"dias": 21,
+"interes_pu": "39.11",
+"iva_puni": "8.21",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115702,
+"cuo": 27,
+"dias": 53,
+"interes_pu": "62.33",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115755,
+"cuo": 23,
+"dias": 175,
+"interes_pu": "189.00",
+"iva_puni": "39.69",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115800,
+"cuo": 27,
+"dias": 54,
+"interes_pu": "73.52",
+"iva_puni": "15.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115875,
+"cuo": 26,
+"dias": 84,
+"interes_pu": "96.55",
+"iva_puni": "20.28",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115959,
+"cuo": 17,
+"dias": 359,
+"interes_pu": "253.25",
+"iva_puni": "53.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 115960,
+"cuo": 21,
+"dias": 237,
+"interes_pu": "168.89",
+"iva_puni": "35.47",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116052,
+"cuo": 22,
+"dias": 207,
+"interes_pu": "221.17",
+"iva_puni": "46.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116116,
+"cuo": 26,
+"dias": 85,
+"interes_pu": "48.27",
+"iva_puni": "10.14",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116137,
+"cuo": 28,
+"dias": 22,
+"interes_pu": "34.34",
+"iva_puni": "7.21",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116687,
+"cuo": 24,
+"dias": 115,
+"interes_pu": "146.86",
+"iva_puni": "30.84",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116752,
+"cuo": 23,
+"dias": 145,
+"interes_pu": "198.60",
+"iva_puni": "41.71",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116781,
+"cuo": 21,
+"dias": 206,
+"interes_pu": "221.15",
+"iva_puni": "46.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116822,
+"cuo": 26,
+"dias": 56,
+"interes_pu": "31.16",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116859,
+"cuo": 17,
+"dias": 298,
+"interes_pu": "316.57",
+"iva_puni": "66.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116862,
+"cuo": 26,
+"dias": 53,
+"interes_pu": "69.55",
+"iva_puni": "14.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116881,
+"cuo": 27,
+"dias": 22,
+"interes_pu": "30.77",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116892,
+"cuo": 27,
+"dias": 22,
+"interes_pu": "30.13",
+"iva_puni": "6.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 116928,
+"cuo": 24,
+"dias": 113,
+"interes_pu": "62.83",
+"iva_puni": "13.19",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117045,
+"cuo": 25,
+"dias": 87,
+"interes_pu": "48.27",
+"iva_puni": "10.14",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117046,
+"cuo": 27,
+"dias": 23,
+"interes_pu": "30.77",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117066,
+"cuo": 27,
+"dias": 22,
+"interes_pu": "15.39",
+"iva_puni": "3.23",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117144,
+"cuo": 24,
+"dias": 84,
+"interes_pu": "96.53",
+"iva_puni": "20.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117184,
+"cuo": 26,
+"dias": 52,
+"interes_pu": "31.83",
+"iva_puni": "6.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117189,
+"cuo": 24,
+"dias": 84,
+"interes_pu": "94.51",
+"iva_puni": "19.85",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117323,
+"cuo": 22,
+"dias": 145,
+"interes_pu": "157.83",
+"iva_puni": "33.14",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117437,
+"cuo": 23,
+"dias": 115,
+"interes_pu": "62.83",
+"iva_puni": "13.19",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117474,
+"cuo": 5,
+"dias": 631,
+"interes_pu": "324.23",
+"iva_puni": "68.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117620,
+"cuo": 26,
+"dias": 23,
+"interes_pu": "11.18",
+"iva_puni": "2.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117649,
+"cuo": 26,
+"dias": 22,
+"interes_pu": "19.52",
+"iva_puni": "4.10",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117735,
+"cuo": 24,
+"dias": 84,
+"interes_pu": "96.53",
+"iva_puni": "20.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117736,
+"cuo": 23,
+"dias": 114,
+"interes_pu": "128.34",
+"iva_puni": "26.95",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117835,
+"cuo": 26,
+"dias": 23,
+"interes_pu": "15.06",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117929,
+"cuo": 19,
+"dias": 237,
+"interes_pu": "297.88",
+"iva_puni": "62.55",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117938,
+"cuo": 23,
+"dias": 113,
+"interes_pu": "128.34",
+"iva_puni": "26.95",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117969,
+"cuo": 22,
+"dias": 148,
+"interes_pu": "93.11",
+"iva_puni": "19.55",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117976,
+"cuo": 24,
+"dias": 84,
+"interes_pu": "94.51",
+"iva_puni": "19.85",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117977,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "62.31",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 117986,
+"cuo": 25,
+"dias": 54,
+"interes_pu": "69.86",
+"iva_puni": "14.67",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118036,
+"cuo": 25,
+"dias": 53,
+"interes_pu": "64.83",
+"iva_puni": "13.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118053,
+"cuo": 19,
+"dias": 238,
+"interes_pu": "129.35",
+"iva_puni": "27.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118103,
+"cuo": 21,
+"dias": 176,
+"interes_pu": "193.00",
+"iva_puni": "40.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118126,
+"cuo": 26,
+"dias": 23,
+"interes_pu": "40.81",
+"iva_puni": "8.57",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118132,
+"cuo": 26,
+"dias": 22,
+"interes_pu": "37.08",
+"iva_puni": "7.79",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118157,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "63.65",
+"iva_puni": "13.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118158,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "63.65",
+"iva_puni": "13.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118168,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "62.31",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118173,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "63.65",
+"iva_puni": "13.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118200,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "63.65",
+"iva_puni": "13.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118201,
+"cuo": 25,
+"dias": 22,
+"interes_pu": "30.76",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118210,
+"cuo": 25,
+"dias": 22,
+"interes_pu": "32.50",
+"iva_puni": "6.83",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118271,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "63.65",
+"iva_puni": "13.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118415,
+"cuo": 23,
+"dias": 85,
+"interes_pu": "96.52",
+"iva_puni": "20.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118430,
+"cuo": 25,
+"dias": 23,
+"interes_pu": "30.76",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118501,
+"cuo": 25,
+"dias": 23,
+"interes_pu": "37.63",
+"iva_puni": "7.90",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118585,
+"cuo": 25,
+"dias": 23,
+"interes_pu": "30.76",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118600,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "48.79",
+"iva_puni": "10.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118603,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "63.18",
+"iva_puni": "13.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118611,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "62.31",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118617,
+"cuo": 25,
+"dias": 22,
+"interes_pu": "30.12",
+"iva_puni": "6.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118622,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "49.85",
+"iva_puni": "10.47",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118623,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "49.85",
+"iva_puni": "10.47",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118625,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "48.79",
+"iva_puni": "10.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118626,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "47.77",
+"iva_puni": "10.03",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118630,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "62.31",
+"iva_puni": "13.09",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118631,
+"cuo": 23,
+"dias": 84,
+"interes_pu": "94.50",
+"iva_puni": "19.85",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118634,
+"cuo": 23,
+"dias": 84,
+"interes_pu": "96.52",
+"iva_puni": "20.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118636,
+"cuo": 23,
+"dias": 84,
+"interes_pu": "96.52",
+"iva_puni": "20.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118749,
+"cuo": 24,
+"dias": 56,
+"interes_pu": "31.82",
+"iva_puni": "6.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118756,
+"cuo": 25,
+"dias": 22,
+"interes_pu": "31.98",
+"iva_puni": "6.72",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118757,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "78.80",
+"iva_puni": "16.55",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118834,
+"cuo": 22,
+"dias": 114,
+"interes_pu": "71.20",
+"iva_puni": "14.95",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118835,
+"cuo": 22,
+"dias": 114,
+"interes_pu": "71.20",
+"iva_puni": "14.95",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118837,
+"cuo": 19,
+"dias": 206,
+"interes_pu": "81.20",
+"iva_puni": "17.05",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118838,
+"cuo": 19,
+"dias": 206,
+"interes_pu": "84.76",
+"iva_puni": "17.80",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118852,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "33.23",
+"iva_puni": "6.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118853,
+"cuo": 24,
+"dias": 53,
+"interes_pu": "33.23",
+"iva_puni": "6.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118871,
+"cuo": 23,
+"dias": 85,
+"interes_pu": "104.06",
+"iva_puni": "21.85",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118957,
+"cuo": 20,
+"dias": 85,
+"interes_pu": "48.25",
+"iva_puni": "10.13",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 118999,
+"cuo": 22,
+"dias": 22,
+"interes_pu": "35.53",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119074,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "15.38",
+"iva_puni": "3.23",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119076,
+"cuo": 20,
+"dias": 85,
+"interes_pu": "47.24",
+"iva_puni": "9.92",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119148,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "14.10",
+"iva_puni": "2.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119230,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "30.76",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119308,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "41.50",
+"iva_puni": "8.72",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119309,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "41.06",
+"iva_puni": "8.62",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119332,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "15.06",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119356,
+"cuo": 21,
+"dias": 54,
+"interes_pu": "60.92",
+"iva_puni": "12.79",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119426,
+"cuo": 21,
+"dias": 54,
+"interes_pu": "73.50",
+"iva_puni": "15.44",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119575,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "30.76",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119578,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "40.55",
+"iva_puni": "8.52",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119596,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "15.06",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119686,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "40.32",
+"iva_puni": "8.47",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119690,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "30.76",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119764,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "14.42",
+"iva_puni": "3.03",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119766,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "15.06",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119768,
+"cuo": 22,
+"dias": 22,
+"interes_pu": "30.11",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119779,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "14.10",
+"iva_puni": "2.96",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119783,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119784,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119785,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119786,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.81",
+"iva_puni": "6.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119788,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119789,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.81",
+"iva_puni": "6.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119790,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.81",
+"iva_puni": "6.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119791,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119792,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119793,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119794,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119795,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119796,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.81",
+"iva_puni": "6.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119797,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119800,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119803,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119804,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119805,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119806,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "31.15",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119808,
+"cuo": 22,
+"dias": 22,
+"interes_pu": "22.59",
+"iva_puni": "4.74",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119812,
+"cuo": 21,
+"dias": 52,
+"interes_pu": "29.16",
+"iva_puni": "6.12",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119847,
+"cuo": 18,
+"dias": 146,
+"interes_pu": "114.37",
+"iva_puni": "24.02",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119913,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "39.93",
+"iva_puni": "8.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119918,
+"cuo": 22,
+"dias": 23,
+"interes_pu": "17.45",
+"iva_puni": "3.66",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119961,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "41.16",
+"iva_puni": "8.64",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 119962,
+"cuo": 22,
+"dias": 21,
+"interes_pu": "31.38",
+"iva_puni": "6.59",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120029,
+"cuo": 17,
+"dias": 146,
+"interes_pu": "40.56",
+"iva_puni": "8.52",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120054,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "40.22",
+"iva_puni": "8.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120059,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120151,
+"cuo": 19,
+"dias": 85,
+"interes_pu": "47.16",
+"iva_puni": "9.90",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120252,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120379,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120674,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "44.66",
+"iva_puni": "9.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120683,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120705,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120724,
+"cuo": 20,
+"dias": 54,
+"interes_pu": "63.62",
+"iva_puni": "13.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120751,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "18.95",
+"iva_puni": "3.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120778,
+"cuo": 19,
+"dias": 85,
+"interes_pu": "96.48",
+"iva_puni": "20.26",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120907,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120917,
+"cuo": 18,
+"dias": 114,
+"interes_pu": "125.60",
+"iva_puni": "26.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120944,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120964,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120965,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121038,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121162,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "30.11",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121164,
+"cuo": 20,
+"dias": 52,
+"interes_pu": "76.94",
+"iva_puni": "16.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121200,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121228,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "43.36",
+"iva_puni": "9.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121231,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "38.63",
+"iva_puni": "8.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121232,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "41.01",
+"iva_puni": "8.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121233,
+"cuo": 21,
+"dias": 21,
+"interes_pu": "43.36",
+"iva_puni": "9.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121417,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "32.66",
+"iva_puni": "6.86",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121474,
+"cuo": 16,
+"dias": 144,
+"interes_pu": "89.60",
+"iva_puni": "18.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121483,
+"cuo": 20,
+"dias": 22,
+"interes_pu": "30.11",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121550,
+"cuo": 19,
+"dias": 23,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121592,
+"cuo": 20,
+"dias": 22,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121655,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "33.98",
+"iva_puni": "7.14",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121658,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "39.31",
+"iva_puni": "8.26",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121820,
+"cuo": 6,
+"dias": 450,
+"interes_pu": "236.47",
+"iva_puni": "49.66",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121867,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "40.45",
+"iva_puni": "8.49",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121869,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "40.45",
+"iva_puni": "8.49",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121895,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121896,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121905,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 121921,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "35.69",
+"iva_puni": "7.49",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122009,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "11.66",
+"iva_puni": "2.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122073,
+"cuo": 19,
+"dias": 54,
+"interes_pu": "193.62",
+"iva_puni": "40.66",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122099,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "40.38",
+"iva_puni": "8.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122109,
+"cuo": 20,
+"dias": 23,
+"interes_pu": "36.55",
+"iva_puni": "7.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122256,
+"cuo": 19,
+"dias": 53,
+"interes_pu": "81.44",
+"iva_puni": "17.10",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122299,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122300,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122392,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122393,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122446,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122461,
+"cuo": 17,
+"dias": 113,
+"interes_pu": "128.27",
+"iva_puni": "26.94",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122533,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122544,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122545,
+"cuo": 20,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122602,
+"cuo": 21,
+"dias": 22,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122604,
+"cuo": 21,
+"dias": 23,
+"interes_pu": "15.38",
+"iva_puni": "3.23",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122629,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "40.38",
+"iva_puni": "8.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122630,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "40.38",
+"iva_puni": "8.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122719,
+"cuo": 19,
+"dias": 22,
+"interes_pu": "30.10",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122790,
+"cuo": 19,
+"dias": 23,
+"interes_pu": "40.38",
+"iva_puni": "8.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122904,
+"cuo": 19,
+"dias": 25,
+"interes_pu": "15.37",
+"iva_puni": "3.23",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122908,
+"cuo": 16,
+"dias": 115,
+"interes_pu": "416.06",
+"iva_puni": "87.37",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122957,
+"cuo": 19,
+"dias": 25,
+"interes_pu": "20.19",
+"iva_puni": "4.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122983,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122986,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 122988,
+"cuo": 18,
+"dias": 53,
+"interes_pu": "62.28",
+"iva_puni": "13.08",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123053,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "37.50",
+"iva_puni": "7.88",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123055,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123121,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123162,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123163,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123218,
+"cuo": 19,
+"dias": 23,
+"interes_pu": "19.88",
+"iva_puni": "4.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123267,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "30.75",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123299,
+"cuo": 18,
+"dias": 54,
+"interes_pu": "28.20",
+"iva_puni": "5.92",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123392,
+"cuo": 17,
+"dias": 22,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123431,
+"cuo": 19,
+"dias": 21,
+"interes_pu": "35.52",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123483,
+"cuo": 19,
+"dias": 22,
+"interes_pu": "36.83",
+"iva_puni": "7.73",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123504,
+"cuo": 16,
+"dias": 85,
+"interes_pu": "162.43",
+"iva_puni": "34.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123637,
+"cuo": 18,
+"dias": 23,
+"interes_pu": "99.72",
+"iva_puni": "20.94",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123894,
+"cuo": 18,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 123971,
+"cuo": 18,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124015,
+"cuo": 18,
+"dias": 21,
+"interes_pu": "39.23",
+"iva_puni": "8.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124024,
+"cuo": 17,
+"dias": 52,
+"interes_pu": "63.60",
+"iva_puni": "13.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124181,
+"cuo": 17,
+"dias": 56,
+"interes_pu": "31.14",
+"iva_puni": "6.54",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124244,
+"cuo": 17,
+"dias": 22,
+"interes_pu": "30.10",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124340,
+"cuo": 13,
+"dias": 145,
+"interes_pu": "211.48",
+"iva_puni": "44.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124364,
+"cuo": 15,
+"dias": 87,
+"interes_pu": "48.22",
+"iva_puni": "10.13",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124401,
+"cuo": 17,
+"dias": 21,
+"interes_pu": "35.51",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124412,
+"cuo": 17,
+"dias": 21,
+"interes_pu": "35.51",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124413,
+"cuo": 17,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124414,
+"cuo": 17,
+"dias": 21,
+"interes_pu": "46.11",
+"iva_puni": "9.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124417,
+"cuo": 17,
+"dias": 22,
+"interes_pu": "38.45",
+"iva_puni": "8.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124508,
+"cuo": 10,
+"dias": 237,
+"interes_pu": "315.29",
+"iva_puni": "66.21",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124701,
+"cuo": 17,
+"dias": 22,
+"interes_pu": "34.38",
+"iva_puni": "7.22",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124805,
+"cuo": 17,
+"dias": 23,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124832,
+"cuo": 16,
+"dias": 52,
+"interes_pu": "68.00",
+"iva_puni": "14.28",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124836,
+"cuo": 17,
+"dias": 23,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 124847,
+"cuo": 17,
+"dias": 22,
+"interes_pu": "43.63",
+"iva_puni": "9.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125012,
+"cuo": 13,
+"dias": 146,
+"interes_pu": "157.72",
+"iva_puni": "33.12",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125042,
+"cuo": 16,
+"dias": 53,
+"interes_pu": "93.73",
+"iva_puni": "19.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125171,
+"cuo": 16,
+"dias": 22,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125173,
+"cuo": 17,
+"dias": 21,
+"interes_pu": "37.95",
+"iva_puni": "7.97",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125176,
+"cuo": 17,
+"dias": 21,
+"interes_pu": "43.81",
+"iva_puni": "9.20",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125183,
+"cuo": 16,
+"dias": 22,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125283,
+"cuo": 14,
+"dias": 85,
+"interes_pu": "96.44",
+"iva_puni": "20.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125356,
+"cuo": 16,
+"dias": 23,
+"interes_pu": "35.51",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125358,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "44.24",
+"iva_puni": "9.29",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125374,
+"cuo": 16,
+"dias": 23,
+"interes_pu": "35.51",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125426,
+"cuo": 16,
+"dias": 22,
+"interes_pu": "30.10",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125450,
+"cuo": 11,
+"dias": 176,
+"interes_pu": "92.35",
+"iva_puni": "19.39",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125532,
+"cuo": 15,
+"dias": 54,
+"interes_pu": "36.09",
+"iva_puni": "7.58",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125623,
+"cuo": 16,
+"dias": 23,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125718,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125720,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125847,
+"cuo": 16,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125848,
+"cuo": 16,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125877,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "35.51",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125885,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125886,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "34.03",
+"iva_puni": "7.15",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 125934,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126052,
+"cuo": 16,
+"dias": 21,
+"interes_pu": "35.51",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126054,
+"cuo": 16,
+"dias": 23,
+"interes_pu": "15.37",
+"iva_puni": "3.23",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126073,
+"cuo": 16,
+"dias": 23,
+"interes_pu": "43.63",
+"iva_puni": "9.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126081,
+"cuo": 16,
+"dias": 22,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126109,
+"cuo": 16,
+"dias": 22,
+"interes_pu": "35.47",
+"iva_puni": "7.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126275,
+"cuo": 15,
+"dias": 23,
+"interes_pu": "36.31",
+"iva_puni": "7.63",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126277,
+"cuo": 12,
+"dias": 113,
+"interes_pu": "151.44",
+"iva_puni": "31.80",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126432,
+"cuo": 13,
+"dias": 113,
+"interes_pu": "128.23",
+"iva_puni": "26.93",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126635,
+"cuo": 15,
+"dias": 21,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126658,
+"cuo": 13,
+"dias": 84,
+"interes_pu": "96.44",
+"iva_puni": "20.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126734,
+"cuo": 15,
+"dias": 21,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126737,
+"cuo": 15,
+"dias": 22,
+"interes_pu": "30.74",
+"iva_puni": "6.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126775,
+"cuo": 15,
+"dias": 23,
+"interes_pu": "43.62",
+"iva_puni": "9.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126821,
+"cuo": 15,
+"dias": 22,
+"interes_pu": "15.05",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126822,
+"cuo": 15,
+"dias": 22,
+"interes_pu": "15.05",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 126864,
+"cuo": 15,
+"dias": 23,
+"interes_pu": "10.25",
+"iva_puni": "2.15",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127274,
+"cuo": 15,
+"dias": 21,
+"interes_pu": "34.60",
+"iva_puni": "7.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127284,
+"cuo": 13,
+"dias": 85,
+"interes_pu": "109.44",
+"iva_puni": "22.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127321,
+"cuo": 14,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127324,
+"cuo": 15,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127428,
+"cuo": 15,
+"dias": 21,
+"interes_pu": "31.46",
+"iva_puni": "6.61",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127468,
+"cuo": 14,
+"dias": 22,
+"interes_pu": "27.08",
+"iva_puni": "5.69",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127510,
+"cuo": 14,
+"dias": 23,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127711,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127750,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "38.05",
+"iva_puni": "7.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127822,
+"cuo": 14,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127825,
+"cuo": 12,
+"dias": 84,
+"interes_pu": "64.29",
+"iva_puni": "13.50",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 127826,
+"cuo": 12,
+"dias": 84,
+"interes_pu": "62.94",
+"iva_puni": "13.22",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128020,
+"cuo": 13,
+"dias": 53,
+"interes_pu": "83.14",
+"iva_puni": "17.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128021,
+"cuo": 11,
+"dias": 114,
+"interes_pu": "164.26",
+"iva_puni": "34.49",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128074,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128076,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128247,
+"cuo": 12,
+"dias": 84,
+"interes_pu": "94.42",
+"iva_puni": "19.83",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128432,
+"cuo": 13,
+"dias": 54,
+"interes_pu": "45.12",
+"iva_puni": "9.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128470,
+"cuo": 13,
+"dias": 53,
+"interes_pu": "73.44",
+"iva_puni": "15.42",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128623,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "17.75",
+"iva_puni": "3.73",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128741,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128763,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "91.50",
+"iva_puni": "19.22",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128768,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128850,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "33.63",
+"iva_puni": "7.06",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128851,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "35.03",
+"iva_puni": "7.36",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128852,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128853,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128862,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "51.88",
+"iva_puni": "10.89",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128866,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "61.84",
+"iva_puni": "12.99",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128869,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "62.25",
+"iva_puni": "13.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128870,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "12.04",
+"iva_puni": "2.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128956,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128957,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128960,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 128964,
+"cuo": 14,
+"dias": 23,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129002,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "28.59",
+"iva_puni": "6.00",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129011,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "28.08",
+"iva_puni": "5.90",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129012,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "28.68",
+"iva_puni": "6.02",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129016,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129018,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129056,
+"cuo": 13,
+"dias": 52,
+"interes_pu": "15.26",
+"iva_puni": "3.20",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129063,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129066,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129074,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129080,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129089,
+"cuo": 14,
+"dias": 21,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129097,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "40.35",
+"iva_puni": "8.47",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129109,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "48.76",
+"iva_puni": "10.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129110,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.61",
+"iva_puni": "5.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129111,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.61",
+"iva_puni": "5.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129112,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "51.08",
+"iva_puni": "10.73",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129115,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "22.02",
+"iva_puni": "4.62",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129116,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129118,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129127,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "20.49",
+"iva_puni": "4.30",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129128,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "20.18",
+"iva_puni": "4.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129135,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "34.89",
+"iva_puni": "7.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129137,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "35.33",
+"iva_puni": "7.42",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129143,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "43.61",
+"iva_puni": "9.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129150,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129156,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "63.58",
+"iva_puni": "13.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129158,
+"cuo": 11,
+"dias": 84,
+"interes_pu": "136.83",
+"iva_puni": "28.73",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129173,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "46.10",
+"iva_puni": "9.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129175,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "33.88",
+"iva_puni": "7.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129196,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129197,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129298,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129327,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129328,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129405,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "27.34",
+"iva_puni": "5.74",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129406,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "39.10",
+"iva_puni": "8.21",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129409,
+"cuo": 12,
+"dias": 54,
+"interes_pu": "31.79",
+"iva_puni": "6.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129450,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129457,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "76.07",
+"iva_puni": "15.97",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129460,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "35.50",
+"iva_puni": "7.46",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129535,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129538,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129649,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "21.81",
+"iva_puni": "4.58",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129683,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129691,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129693,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129719,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "46.05",
+"iva_puni": "9.67",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129742,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "21.81",
+"iva_puni": "4.58",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129780,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "36.57",
+"iva_puni": "7.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129786,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129787,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129788,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "25.08",
+"iva_puni": "5.27",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129790,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "29.08",
+"iva_puni": "6.11",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129799,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129801,
+"cuo": 13,
+"dias": 21,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129864,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "63.58",
+"iva_puni": "13.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129878,
+"cuo": 12,
+"dias": 53,
+"interes_pu": "53.33",
+"iva_puni": "11.20",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129880,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.09",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129882,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "30.73",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129900,
+"cuo": 9,
+"dias": 146,
+"interes_pu": "161.04",
+"iva_puni": "33.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 129977,
+"cuo": 11,
+"dias": 84,
+"interes_pu": "142.75",
+"iva_puni": "29.98",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130091,
+"cuo": 13,
+"dias": 23,
+"interes_pu": "15.37",
+"iva_puni": "3.23",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130106,
+"cuo": 13,
+"dias": 22,
+"interes_pu": "15.05",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130168,
+"cuo": 11,
+"dias": 85,
+"interes_pu": "126.59",
+"iva_puni": "26.58",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130210,
+"cuo": 11,
+"dias": 23,
+"interes_pu": "46.09",
+"iva_puni": "9.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130221,
+"cuo": 9,
+"dias": 83,
+"interes_pu": "96.41",
+"iva_puni": "20.25",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130236,
+"cuo": 5,
+"dias": 205,
+"interes_pu": "103.53",
+"iva_puni": "21.74",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130238,
+"cuo": 5,
+"dias": 205,
+"interes_pu": "103.53",
+"iva_puni": "21.74",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130356,
+"cuo": 11,
+"dias": 22,
+"interes_pu": "17.74",
+"iva_puni": "3.73",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130417,
+"cuo": 10,
+"dias": 54,
+"interes_pu": "63.57",
+"iva_puni": "13.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130643,
+"cuo": 5,
+"dias": 206,
+"interes_pu": "127.44",
+"iva_puni": "26.76",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 130699,
+"cuo": 9,
+"dias": 54,
+"interes_pu": "36.71",
+"iva_puni": "7.71",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131211,
+"cuo": 10,
+"dias": 25,
+"interes_pu": "43.00",
+"iva_puni": "9.03",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131399,
+"cuo": 10,
+"dias": 23,
+"interes_pu": "43.60",
+"iva_puni": "9.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131435,
+"cuo": 10,
+"dias": 22,
+"interes_pu": "17.05",
+"iva_puni": "3.58",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131466,
+"cuo": 8,
+"dias": 84,
+"interes_pu": "94.39",
+"iva_puni": "19.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131502,
+"cuo": 9,
+"dias": 54,
+"interes_pu": "73.42",
+"iva_puni": "15.42",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131538,
+"cuo": 10,
+"dias": 23,
+"interes_pu": "32.22",
+"iva_puni": "6.77",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131679,
+"cuo": 10,
+"dias": 22,
+"interes_pu": "25.07",
+"iva_puni": "5.26",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131684,
+"cuo": 10,
+"dias": 22,
+"interes_pu": "30.08",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 131766,
+"cuo": 10,
+"dias": 22,
+"interes_pu": "30.08",
+"iva_puni": "6.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132085,
+"cuo": 9,
+"dias": 22,
+"interes_pu": "30.72",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132262,
+"cuo": 5,
+"dias": 144,
+"interes_pu": "91.35",
+"iva_puni": "19.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132281,
+"cuo": 9,
+"dias": 25,
+"interes_pu": "30.05",
+"iva_puni": "6.31",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132329,
+"cuo": 9,
+"dias": 22,
+"interes_pu": "30.72",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132381,
+"cuo": 9,
+"dias": 22,
+"interes_pu": "46.09",
+"iva_puni": "9.68",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132478,
+"cuo": 5,
+"dias": 145,
+"interes_pu": "185.93",
+"iva_puni": "39.05",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 132565,
+"cuo": 9,
+"dias": 21,
+"interes_pu": "43.60",
+"iva_puni": "9.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 133048,
+"cuo": 5,
+"dias": 117,
+"interes_pu": "72.39",
+"iva_puni": "15.20",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 133247,
+"cuo": 5,
+"dias": 115,
+"interes_pu": "68.63",
+"iva_puni": "14.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 133307,
+"cuo": 6,
+"dias": 84,
+"interes_pu": "96.39",
+"iva_puni": "20.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 133632,
+"cuo": 7,
+"dias": 23,
+"interes_pu": "35.48",
+"iva_puni": "7.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 134088,
+"cuo": 6,
+"dias": 85,
+"interes_pu": "96.39",
+"iva_puni": "20.24",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 134149,
+"cuo": 7,
+"dias": 54,
+"interes_pu": "73.40",
+"iva_puni": "15.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 134338,
+"cuo": 7,
+"dias": 54,
+"interes_pu": "90.19",
+"iva_puni": "18.94",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 134717,
+"cuo": 7,
+"dias": 25,
+"interes_pu": "36.07",
+"iva_puni": "7.57",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 134771,
+"cuo": 7,
+"dias": 23,
+"interes_pu": "30.72",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 134912,
+"cuo": 7,
+"dias": 23,
+"interes_pu": "30.72",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135034,
+"cuo": 6,
+"dias": 56,
+"interes_pu": "63.56",
+"iva_puni": "13.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135156,
+"cuo": 5,
+"dias": 23,
+"interes_pu": "60.08",
+"iva_puni": "12.62",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135541,
+"cuo": 7,
+"dias": 21,
+"interes_pu": "35.48",
+"iva_puni": "7.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135680,
+"cuo": 4,
+"dias": 22,
+"interes_pu": "30.71",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135863,
+"cuo": 4,
+"dias": 22,
+"interes_pu": "30.71",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135922,
+"cuo": 4,
+"dias": 23,
+"interes_pu": "111.35",
+"iva_puni": "23.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 135942,
+"cuo": 3,
+"dias": 84,
+"interes_pu": "205.10",
+"iva_puni": "43.07",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 136032,
+"cuo": 4,
+"dias": 56,
+"interes_pu": "73.39",
+"iva_puni": "15.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 136474,
+"cuo": 3,
+"dias": 54,
+"interes_pu": "63.54",
+"iva_puni": "13.34",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 136651,
+"cuo": 4,
+"dias": 23,
+"interes_pu": "25.60",
+"iva_puni": "5.38",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 136816,
+"cuo": 5,
+"dias": 23,
+"interes_pu": "30.72",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 136866,
+"cuo": 5,
+"dias": 22,
+"interes_pu": "53.21",
+"iva_puni": "11.17",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 136875,
+"cuo": 3,
+"dias": 85,
+"interes_pu": "469.36",
+"iva_puni": "98.57",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 137495,
+"cuo": 5,
+"dias": 23,
+"interes_pu": "21.31",
+"iva_puni": "4.48",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 137544,
+"cuo": 5,
+"dias": 25,
+"interes_pu": "35.47",
+"iva_puni": "7.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 137612,
+"cuo": 5,
+"dias": 25,
+"interes_pu": "15.03",
+"iva_puni": "3.16",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 137676,
+"cuo": 4,
+"dias": 54,
+"interes_pu": "63.55",
+"iva_puni": "13.35",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 137936,
+"cuo": 3,
+"dias": 87,
+"interes_pu": "136.74",
+"iva_puni": "28.72",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 138052,
+"cuo": 5,
+"dias": 23,
+"interes_pu": "30.72",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 138336,
+"cuo": 5,
+"dias": 23,
+"interes_pu": "26.91",
+"iva_puni": "5.65",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 138649,
+"cuo": 4,
+"dias": 25,
+"interes_pu": "50.15",
+"iva_puni": "10.53",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 138715,
+"cuo": 4,
+"dias": 22,
+"interes_pu": "46.07",
+"iva_puni": "9.67",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 139012,
+"cuo": 3,
+"dias": 56,
+"interes_pu": "83.41",
+"iva_puni": "17.52",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 139480,
+"cuo": 3,
+"dias": 52,
+"interes_pu": "73.38",
+"iva_puni": "15.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 139718,
+"cuo": 3,
+"dias": 54,
+"interes_pu": "90.16",
+"iva_puni": "18.93",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 139732,
+"cuo": 3,
+"dias": 52,
+"interes_pu": "73.38",
+"iva_puni": "15.41",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 139737,
+"cuo": 3,
+"dias": 52,
+"interes_pu": "63.54",
+"iva_puni": "13.34",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 139863,
+"cuo": 4,
+"dias": 21,
+"interes_pu": "30.71",
+"iva_puni": "6.45",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 140913,
+"cuo": 2,
+"dias": 52,
+"interes_pu": "96.77",
+"iva_puni": "20.32",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 141031,
+"cuo": 3,
+"dias": 23,
+"interes_pu": "46.78",
+"iva_puni": "9.82",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 142176,
+"cuo": 2,
+"dias": 25,
+"interes_pu": "34.18",
+"iva_puni": "7.18",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 142375,
+"cuo": 2,
+"dias": 23,
+"interes_pu": "64.98",
+"iva_puni": "13.65",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 142509,
+"cuo": 2,
+"dias": 23,
+"interes_pu": "36.27",
+"iva_puni": "7.62",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 142633,
+"cuo": 2,
+"dias": 23,
+"interes_pu": "60.65",
+"iva_puni": "12.74",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 142743,
+"cuo": 2,
+"dias": 22,
+"interes_pu": "73.01",
+"iva_puni": "15.33",
+"interes_re": "0",
+"iva_resar": "0"
+},
+{
+"cred": 120564,
+"cuo": 20,
+"dias": 63,
+"interes_pu": "296.53",
+"iva_puni": "62.27",
+"interes_re": "0",
+"iva_resar": "0"
+}
+]

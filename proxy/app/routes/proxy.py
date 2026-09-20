@@ -27,15 +27,21 @@ async def proxy_request(path: str, request: Request):
     if request.url.query:
         target_url += f"?{request.url.query}"
 
-    # Copiar headers (excluir host)
+    # Copiar headers (excluir host y cualquier identidad que mande el cliente: sólo la inyecta el gateway).
+    # Las claves llegan en minúscula y las nuestras no: si no se descartan, httpx manda AMBAS y el módulo
+    # lee la primera (la del cliente) → suplantación de X-User-Id / X-Username.
     headers = {
         k: v for k, v in request.headers.items()
-        if k.lower() not in ("host", "content-length")
+        if k.lower() not in ("host", "content-length") and not k.lower().startswith("x-user")
     }
-    # Inyectar usuario autenticado
+    # Inyectar usuario autenticado y sus permisos efectivos ("modulo:accion" separados por coma)
     if hasattr(request.state, "user_id"):
         headers["X-User-Id"] = str(request.state.user_id)
         headers["X-Username"] = request.state.username
+        actions = request.state.permissions.get("actions", {})
+        headers["X-User-Permissions"] = ",".join(
+            f"{module}:{action}" for module, codes in sorted(actions.items()) for action in sorted(codes)
+        )
 
     body = await request.body()
 

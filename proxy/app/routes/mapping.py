@@ -4,6 +4,47 @@ Mapeo de rutas del gateway a microservicios y permisos requeridos.
 import re
 from app.config import settings
 
+
+def _creditos_area(path_regex: str, area: str) -> list:
+    return [
+        ("GET", path_regex, settings.creditos_service_url, f"creditos:{area}:read"),
+        (None,  path_regex, settings.creditos_service_url, f"creditos:{area}:write"),
+    ]
+
+
+def _creditos_rutas() -> list:
+    url = settings.creditos_service_url
+    base = r"^/api/creditos"
+    catalogos_general = r"(lineas|organismos|proveedores|companias|parametros|requisitos|gasistas|montos-periodo)"
+    return [
+        ("GET",  base + r"/auth/mis-permisos$",                            url, "creditos:*"),
+        # Aprobaciones: el módulo exige el rol de aprobación que pide cada nivel del workflow.
+        ("GET",  base + r"/aprobaciones/(inbox|count)$",                   url, "creditos:*"),
+        ("POST", base + r"/aprobaciones/pendientes/[^/]+/(aprobar|rechazar)$", url, "creditos:*"),
+        # Cambios de estado: mezclan acciones de edición y de aprobación; el módulo las gatea por acción.
+        ("POST", base + r"/productos/[^/]+/estado$",                       url, "creditos:*"),
+        ("POST", base + r"/solicitudes/[^/]+/estado$",                     url, "creditos:*"),
+        # Catálogos compartidos: los lee cualquier pantalla del módulo; se editan desde su área.
+        ("GET",  base + r"/(impuestos|indices|feriados)(/|$)",             url, "creditos:*"),
+        ("GET",  base + r"/admin/" + catalogos_general + r"(/|$)",         url, "creditos:*"),
+        *_creditos_area(base + r"/(impuestos|indices|feriados)(/|$)",      "contabilidad"),
+        *_creditos_area(base + r"/admin/" + catalogos_general + r"(/|$)",  "general"),
+        # Seguridad del módulo: auditoría y workflow.
+        *_creditos_area(base + r"/admin/(auditoria|auditoria-cambios)(/|$)", "seguridad"),
+        *_creditos_area(base + r"/(workflow|controles-version|migradores)(/|$)", "seguridad"),
+        # Áreas funcionales.
+        *_creditos_area(base + r"/(creditos|solicitudes|productos|contratos|sistema-calculos)(/|$)", "creditos"),
+        *_creditos_area(base + r"/clientes(/|$)",     "clientes"),
+        *_creditos_area(base + r"/caja(/|$)",         "caja"),
+        *_creditos_area(base + r"/egresos(/|$)",      "tesoreria"),
+        *_creditos_area(base + r"/contabilidad(/|$)", "contabilidad"),
+        *_creditos_area(base + r"/seguros(/|$)",      "seguros"),
+        *_creditos_area(base + r"/despacho(/|$)",     "despacho"),
+        *_creditos_area(base + r"/mesa(/|$)",         "mesa"),
+        *_creditos_area(base + r"/juegos(/|$)",       "juegos"),
+    ]
+
+
 # (method, pattern_regex) → (service_base_url, required_permission | None)
 ROUTE_MAP = [
     # ── Auth (sin permiso requerido) ────────────────────────────
@@ -112,6 +153,13 @@ ROUTE_MAP = [
     ("POST",   r"^/api/legacy/sync/\w+$",           settings.legacy_service_url, "legacy:admin:write"),
     ("GET",    r"^/api/legacy/outbox$",             settings.legacy_service_url, "legacy:admin:read"),
     ("POST",   r"^/api/legacy/outbox/drain$",       settings.legacy_service_url, "legacy:admin:write"),
+
+    # ── Créditos (CCyPP) ─────────────────────────────────────────
+    # Permisos por área: GET exige <area>:read y el resto de los métodos <area>:write.
+    # "creditos:*" = cualquier permiso del módulo; lo usan las rutas cuya autorización fina
+    # decide el módulo (aprobaciones, catálogos compartidos). El portal ciudadano NO pasa por
+    # acá: nginx lo manda directo al módulo (realm propio). Las rutas no listadas dan 404.
+    *_creditos_rutas(),
 ]
 
 

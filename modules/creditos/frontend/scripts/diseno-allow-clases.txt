@@ -1,0 +1,3 @@
+# Páginas exentas del candado «CSS scopeado por pantalla» (clases genéricas bare).
+# VACÍO: toda la app prefija sus clases por pantalla (.fer-…, .pa-…, .tcar-…). La regla es preventiva.
+# Si una página necesita una clase genérica global legítima, sumá su ruta acá (o comentario 'diseño-ok').

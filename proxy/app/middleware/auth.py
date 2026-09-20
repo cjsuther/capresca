@@ -62,12 +62,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             logger.warning("Acceso denegado user_id=%s ruta=%s permiso=%s", user_id, path, required)
             return JSONResponse(status_code=403, content={"detail": "Acceso denegado", "required": required})
 
-        # ── Inyectar user_id en headers para los microservicios ───
-        headers = dict(request.headers)
-        headers["X-User-Id"] = str(user_id)
-        headers["X-Username"] = payload.get("username", "")
-
-        # Continuar al router de proxy (lo maneja routes/proxy.py)
+        # Continuar al router de proxy (routes/proxy.py inyecta la identidad en los headers)
         request.state.user_id = user_id
         request.state.username = payload.get("username", "")
         request.state.permissions = permissions
@@ -102,9 +97,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """
         required tiene formato 'module:action' ej: 'cajeros:requests:read'
         permissions["actions"] es { "cajeros": ["requests:read", ...] }
+        'module:*' = cualquier permiso del módulo (la autorización fina la hace el módulo).
         """
         parts = required.split(":", 1)
         if len(parts) != 2:
             return False
         module, action = parts
+        if action == "*":
+            return bool(permissions.get("actions", {}).get(module))
         return action in permissions.get("actions", {}).get(module, [])

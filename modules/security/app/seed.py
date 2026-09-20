@@ -22,6 +22,23 @@ MODULES = [
     {"code": "liquidaciones", "name": "Liquidaciones", "description": "Procesamiento de liquidaciones de juegos", "icon": "receipt"},
     {"code": "comunicacion", "name": "Comunicación", "description": "Chat con clientes vía WhatsApp Business", "icon": "message-circle"},
     {"code": "legacy", "name": "Legacy", "description": "Integración con el sistema legacy (VFP9) — interacciones IN/OUT", "icon": "database"},
+    {"code": "creditos", "name": "Créditos", "description": "CCyPP: créditos, caja, contabilidad, tesorería y portal ciudadano", "icon": "landmark"},
+]
+
+# Créditos: permisos por área (<area>:read / <area>:write). Debe coincidir con
+# modules/creditos/backend/app/core/gateway.py y con proxy/app/routes/mapping.py.
+CREDITOS_AREAS = [
+    ("clientes", "clientes"),
+    ("creditos", "créditos"),
+    ("caja", "caja"),
+    ("tesoreria", "tesorería"),
+    ("contabilidad", "contabilidad"),
+    ("seguros", "seguros"),
+    ("despacho", "despacho"),
+    ("mesa", "mesa de entradas"),
+    ("juegos", "juegos / quiniela"),
+    ("general", "tablas generales"),
+    ("seguridad", "auditoría, workflow y controles"),
 ]
 
 PERMISSIONS = {
@@ -80,6 +97,14 @@ PERMISSIONS = {
         ("interactions:read", "Ver interacciones y estado de la integración legacy"),
         ("admin:read", "Ver outbox de escrituras"),
         ("admin:write", "Forzar sync y drenar el outbox"),
+    ],
+    "creditos": [
+        *[perm for area, label in CREDITOS_AREAS for perm in (
+            (f"{area}:read", f"Créditos · ver {label}"),
+            (f"{area}:write", f"Créditos · operar {label}"),
+        )],
+        ("aprobaciones:aprobar", "Créditos · aprobar (workflow, rol APROBAR)"),
+        ("aprobaciones:supervisar", "Créditos · aprobar niveles de supervisión (workflow, rol SUPERVISAR)"),
     ],
 }
 

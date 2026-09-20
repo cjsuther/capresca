@@ -1,0 +1,4 @@
+# Páginas exentas del candado «color por variable de tema» (hex cromático grandfathered).
+# VACÍO: toda la app usa variables de tema. Las paletas de data-viz migraron a tokens --dv-* (H-105).
+# Referencia: src/pages/seguridad/WorkflowAprobaciones.tsx (semántico) · Feriados/TableroCartera (paleta --dv-*).
+# Si en el futuro una página necesita una excepción legítima, sumá su ruta acá (o comentario 'diseño-ok').

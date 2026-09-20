@@ -1,0 +1,616 @@
+erDiagram
+    solicitud {
+        bool linea
+        number no_solicitud
+        int estado
+        datetime fecha_soli
+        text montosol
+        number no_credpp
+        int isellado
+        int iquebranto
+        number no_resol
+        datetime fecha_resol
+        datetime fecha_pago
+        number nivaqeb
+        int importepp
+        number no_op
+    }
+    lineacred {
+        date denominacion
+        number no_linea
+        string cartera
+        string ctactble
+        datetime tasa
+        bool lhabilitada
+        blob gas_adm
+        number nmoradia
+        datetime tna
+        blob gracia
+        string capital_max
+        blob gas_qeb
+        number ncan_apor
+        number npor_apor1
+    }
+    maecuotas {
+        datetime fecha_vto
+        number no_cuota
+        number no_credito
+        int estado
+        string capital
+        int iva_interes
+        int interes
+        datetime total_vdo
+        int interes_puni
+        int iva_puni
+        int interes_resar
+        int iva_resar
+        datetime total
+        number ngadm
+    }
+    egresos {
+        number no_credito
+        number no_liquida
+        datetime fecha_liquida
+        string cuil
+        datetime total
+        datetime fecha_op
+        number no_op
+        datetime fec_res
+        number nro_res
+        int importe
+        datetime fechapago
+        number no_recibo
+        date detalle
+        bool lanulada
+    }
+    cajacreseg {
+        datetime fecha_pago
+        bool lrevertida
+        datetime fecha_alta
+        number no_credito
+        string cualcuo
+        datetime total_gral
+        datetime total
+        text moncuo
+        int interes
+        int ivain
+        string cajero
+        string consor
+        string cuil
+        date dni
+    }
+    paramgral {
+        string cdescripcion
+        int etabla
+        int ecodigo
+        bool lvalor
+        string cvalor
+        string cdesred
+        int evalor1
+        int evalor3
+        datetime fvalor
+        int evalor2
+        number nvalor2
+        number nvalor3
+        number nvalor1
+        string cdenominacion
+    }
+    resoluciones {
+        int importe
+        datetime fec_res
+        number nro_res
+        datetime fec_real
+        datetime tipo_res
+        int id_letra
+        int id_nro
+        int id_ano
+        int id_tramite
+        number nro_real
+        text modelo
+        datetime texto
+        int i_d
+        string cod_mot
+    }
+    cajaliq {
+        string cod_agencia
+        number no_agencia
+        string cod_juego
+        number no_subagencia
+        datetime fecha_vto
+        datetime fecha_pago
+        datetime total_gral
+        number no_recibo
+        text moneda
+        int intereses
+        int iva
+        datetime total
+        bool lanula
+        number no_sorteo
+    }
+    organismos {
+        number nombre
+        string capresca
+        date debauto
+        number nagrupa
+        number nagrupa1
+        number nombreagrupa1
+        date domicilio
+    }
+    maeagencias {
+        datetime titular
+        string cod_age
+        number no_subagencia
+        number no_agencia
+        number no_iva
+        int interior
+        datetime fdogtia
+        int ingbru
+        string cbu
+        bool lanulada
+        string cod_iva
+        string calle
+        datetime telefonos
+        number ntipodoctit
+    }
+    maeclientes {
+        string capenom
+        number norgano
+        int eagente
+        string cidcliente
+        string ccuil
+        number nsueldo
+        string csexo
+        bool lcapre
+        datetime fnacim
+        string cdomicilio
+        string clocalidad
+        string corga
+        string cbarrio
+        string cdepto
+    }
+    crcliact {
+        number nlinea
+        string cuil
+        number nocred
+        string caracter
+        number nctacan
+        number norgano
+        string corga
+        number npzotot
+        bool lagjs
+        bool lgarcapre
+        number nagente
+        number ncartera
+        number nhaberes
+        bool lgargar
+    }
+    tramites {
+        int id_tramite
+        int id_nro
+        int id_ano
+        int i_d
+        int id_letra
+        number nombre_ini
+        datetime fecha_alta
+        int id_nro_ini
+        number nombre_aseg
+        date destino
+        int id_nro_aseg
+        int estado
+        int iniciador
+        int id_tipo_ini
+    }
+    cajaforpag {
+        text moneda
+        datetime fecha_pago
+        string cheque
+        string cajero
+        number no_recibo
+        int importe
+    }
+    cajapagos {
+        float bonos
+        string cobrado_total
+        string cobrado_bonos
+        string cobrado_pesos
+        datetime fecha_pago
+        string cajero
+        number no_recibo
+        string cod_agencia
+        datetime total
+    }
+    turnos {
+        datetime fecha
+        string ctipo
+        number nturno
+        bool lusado
+        string capenoms
+        number nlinea
+        string cmodi
+        string cuilsol
+        number nsueldos
+        number nmargens
+        number norganos
+        number nagentes
+        bool lvigente
+        bool lautoriza
+    }
+    liquidaciones {
+        number no_sorteo
+        number no_agencia
+        string cod_juego
+        string cod_agencia
+        number no_subagencia
+        text modalidad
+        string com_agencia
+        int ing_brutos
+        datetime fdo_gtia
+        datetime total
+        text moneda
+        string com_subage
+        datetime t_com_subage
+        datetime fecha
+    }
+    liqsegur {
+        string cuil
+        date d_sc
+        date d_svca
+        date d_svco
+        date d_ss
+        number nro_agente
+        string codorigen
+        string codigo
+        string claseycar
+    }
+    sol_jubi {
+        number no_solicitud
+        string cuil
+        int expediente
+        number no_beneficio
+        number no_resolucion
+        float baja_mes
+        datetime fecha_resolucion
+        bool liquidada
+        datetime fecha_alta
+        date depto
+        string cancelada
+        date domicilio
+        bool localidad
+        datetime telefono
+    }
+    hisolicitud {
+        bool linea
+        text montosol
+        int igastos
+        int isellado
+        int iquebranto
+        int estado
+        number no_resol
+        datetime fecha_resol
+        number no_op
+        datetime fecha_op
+        datetime fecha_pago
+        string cant_cuotas
+        datetime tna
+        datetime tasa
+    }
+    maedio {
+        number no_agente
+        datetime fnacim
+        string cuil
+        datetime tdoc
+        number ndoc
+        string ccuil
+        date domicilio
+        string clasecargo
+        datetime fingre
+        int estciv
+        datetime fecha_actual
+        bool localidad
+        date departamen
+        string categ
+    }
+    envios {
+        number no_cuota
+        bool linea
+        datetime total_vdo
+        number no_cuil
+        number no_agente
+        datetime fecha_vto
+        date descontada
+        string cobra
+        string cancelada
+        datetime fecha_envi
+        string codigo
+        string cperiodo
+        number no_soli
+        string capital
+    }
+    pases {
+        int id_letra
+        int id_nro
+        int id_ano
+        int id_tramite
+        datetime fecha_pase
+        int i_d
+        datetime texto
+        datetime falta
+        string calta
+        int ico
+    }
+    saf {
+        date descripcio
+        number nsaf
+        string corgano
+        string csaf
+        number norgano
+    }
+    titulares {
+        string cuil
+        number no_doc
+        datetime fecha_nacim
+        datetime tipo_doc
+        number no_agente
+        date domicilio
+        bool localidad
+        float beneficio
+        datetime tipo_titular
+        date dbf
+    }
+    jub_ctas {
+        number no_solicitud
+        number no_cuota
+        number no_resolucion
+        datetime fecha_vto
+        datetime fecha_pago
+        datetime fecha_resolucion
+        number no_op
+        datetime fecha_op
+        string cuil
+        datetime fecha_alta
+        string codban
+        number no_cheque
+    }
+    cj_crsghis {
+        bool lrevertida
+        datetime total
+        datetime total_gral
+        datetime fecha_pago
+        int id_ingreso
+        int intereses
+        int iva
+        date dni
+        text moncuo
+        int interes
+        int ivain
+        datetime fecha
+        string coding
+        datetime fecha_carga
+    }
+    usuarios {
+        number nombre
+        number no_cajero
+        bool lautoriza
+        string clave
+        datetime telefono
+        datetime fecult
+        string cperfil
+        datetime fecha_modi
+    }
+    himaecuotas {
+        datetime fecha_vto
+        number no_cuota
+        datetime fecha_pago
+        number no_credito
+        int estado
+        number nitna
+        string capital
+        int interes
+        int iva_interes
+        datetime total
+        int interes_puni
+        int iva_puni
+        int interes_resar
+        int iva_resar
+    }
+    cj_liqhis {
+        datetime total_gral
+        bool lanula
+        string cod_juego
+        text modalidad
+        string cjuego
+        number no_sorteo
+        datetime fecha_sorteo
+        number no_agencia
+        number no_subagencia
+        text moneda
+        string com_agencia
+        datetime fdo_gtia
+        int ing_brutos
+        text municap
+    }
+    benefici {
+        date documento
+        number nombre
+        date domicilio
+        datetime fichanro
+        datetime fichero
+        string cajon
+        blob grupo
+        datetime fecha_naci
+        string cuil_docu
+        string codigo
+        date dbf
+    }
+    seguros {
+        string codigo
+        number no_agente
+        string cuil
+        int estado
+        number no_poliza
+        datetime fecha
+        float baja
+        datetime fecha_modi
+        date dbf
+    }
+    jjimpjue {
+        datetime total
+        string cod_juego
+        text modalidad
+        string cjuego
+        number no_sorteo
+        datetime fecha_sort
+        string cod_agenci
+        number no_agencia
+        int interior
+        text moneda
+        text multas
+        string com_agenci
+        datetime fdo_gtia
+        int ing_brutos
+    }
+    liquid_dat {
+        datetime tipo_id_cobra
+        datetime tipo_seg
+        int id_letra
+        int id_nro
+        int id_ano
+        int id_nro_aseg
+        string cobra
+    }
+    personas {
+        string ccbucta
+        number nsuccta
+        number nnrocta
+        number norgano
+        number nentidad
+        string cnombre
+        number nagente
+        string ccuil
+    }
+    maestrodio {
+        string ccuil
+        string capenom
+        string cidcliente
+        number ndoc
+        number no_agente
+        datetime fnacim
+        number norgano
+        string corgaorigina
+        number nhaberbruto
+        date domicilio
+        string clasecargo
+        string csexo
+        bool lagjs
+        bool ldebauto
+    }
+    maejuegos {
+        date denominacion
+        string codigo
+        text modalidad
+        string com_agencia
+        string com_subage
+    }
+    maeprestamos {
+        number no_credito
+        string cantidad_cuotas
+        datetime fecha_pago
+        text monto_otorgado
+        number no_liquida
+        datetime fecha_resol
+        number no_resol
+        string capcta
+        int intcta
+        datetime fecha_liquida
+        number no_op
+        number no_recibo
+        int impprepag
+        datetime fecha_op
+    }
+    maeclientes ||--o{ cajacreseg : "cuil"
+    maeagencias ||--o{ cajacreseg : "no_agencia"
+    crcliact ||--o{ cajacreseg : "no_credito"
+    cajaliq ||--o{ cajacreseg : "no_liquida"
+    cajapagos ||--o{ cajaforpag : "no_recibo"
+    maeagencias ||--o{ cajaliq : "cod_agencia"
+    maejuegos ||--o{ cajaliq : "cod_juego"
+    cajapagos ||--o{ cajaliq : "no_recibo"
+    cajacreseg ||--o{ cajaliq : "no_subagencia"
+    maeagencias ||--o{ cajapagos : "cod_agencia"
+    maeclientes ||--o{ cj_crsghis : "cuil"
+    cajacreseg ||--o{ cj_crsghis : "dni"
+    maeagencias ||--o{ cj_crsghis : "no_agencia"
+    crcliact ||--o{ cj_crsghis : "no_credito"
+    cajaliq ||--o{ cj_crsghis : "no_liquida"
+    maejuegos ||--o{ cj_liqhis : "cod_juego"
+    maeagencias ||--o{ cj_liqhis : "no_agencia"
+    cajapagos ||--o{ cj_liqhis : "no_recibo"
+    cajaliq ||--o{ cj_liqhis : "no_sorteo"
+    cajacreseg ||--o{ cj_liqhis : "no_subagencia"
+    organismos ||--o{ crcliact : "corga"
+    maeclientes ||--o{ crcliact : "cuil"
+    maeclientes ||--o{ egresos : "cuil"
+    crcliact ||--o{ egresos : "no_credito"
+    cajaliq ||--o{ egresos : "no_liquida"
+    cajapagos ||--o{ egresos : "no_recibo"
+    solicitud ||--o{ egresos : "no_solicitud"
+    lineacred ||--o{ envios : "linea"
+    egresos ||--o{ envios : "no_cuota"
+    crcliact ||--o{ himaecuotas : "no_credito"
+    egresos ||--o{ himaecuotas : "no_cuota"
+    lineacred ||--o{ hisolicitud : "linea"
+    egresos ||--o{ hisolicitud : "no_cheque"
+    cajapagos ||--o{ hisolicitud : "no_recibo"
+    resoluciones ||--o{ hisolicitud : "no_resol"
+    solicitud ||--o{ hisolicitud : "no_solicitud"
+    maejuegos ||--o{ jjimpjue : "cod_juego"
+    maeagencias ||--o{ jjimpjue : "no_agencia"
+    cajapagos ||--o{ jjimpjue : "no_recibo"
+    cajaliq ||--o{ jjimpjue : "no_sorteo"
+    maeclientes ||--o{ jub_ctas : "cuil"
+    egresos ||--o{ jub_ctas : "no_cheque"
+    solicitud ||--o{ jub_ctas : "no_solicitud"
+    maeclientes ||--o{ liqsegur : "cuil"
+    egresos ||--o{ liquid_dat : "id_ano"
+    maeagencias ||--o{ liquidaciones : "cod_agencia"
+    maejuegos ||--o{ liquidaciones : "cod_juego"
+    cajaliq ||--o{ liquidaciones : "no_sorteo"
+    cajacreseg ||--o{ liquidaciones : "no_subagencia"
+    cajacreseg ||--o{ maeagencias : "no_subagencia"
+    organismos ||--o{ maeclientes : "corga"
+    crcliact ||--o{ maecuotas : "no_credito"
+    egresos ||--o{ maecuotas : "no_cuota"
+    maeclientes ||--o{ maedio : "ccuil"
+    envios ||--o{ maedio : "no_agente"
+    lineacred ||--o{ maeprestamos : "linea"
+    egresos ||--o{ maeprestamos : "no_cheque"
+    crcliact ||--o{ maeprestamos : "no_credito"
+    cajaliq ||--o{ maeprestamos : "no_liquida"
+    cajapagos ||--o{ maeprestamos : "no_recibo"
+    resoluciones ||--o{ maeprestamos : "no_resol"
+    solicitud ||--o{ maeprestamos : "no_solicitud"
+    maeclientes ||--o{ maestrodio : "ccuil"
+    maedio ||--o{ maestrodio : "ndoc"
+    envios ||--o{ maestrodio : "no_agente"
+    organismos ||--o{ maestrodio : "norgano"
+    egresos ||--o{ pases : "id_ano"
+    maeclientes ||--o{ personas : "ccuil"
+    organismos ||--o{ personas : "norgano"
+    egresos ||--o{ resoluciones : "id_ano"
+    organismos ||--o{ saf : "norgano"
+    maeclientes ||--o{ seguros : "cuil"
+    envios ||--o{ seguros : "no_agente"
+    maeclientes ||--o{ sol_jubi : "cuil"
+    jub_ctas ||--o{ sol_jubi : "no_resolucion"
+    solicitud ||--o{ sol_jubi : "no_solicitud"
+    maeclientes ||--o{ solicitud : "ga_idcli"
+    lineacred ||--o{ solicitud : "linea"
+    hisolicitud ||--o{ solicitud : "no_banco"
+    egresos ||--o{ solicitud : "no_cheque"
+    cajaliq ||--o{ solicitud : "no_liquida"
+    cajapagos ||--o{ solicitud : "no_recibo"
+    resoluciones ||--o{ solicitud : "no_resol"
+    maeclientes ||--o{ titulares : "cuil"
+    envios ||--o{ titulares : "no_agente"
+    maeagencias ||--o{ titulares : "no_doc"
+    egresos ||--o{ tramites : "id_ano"

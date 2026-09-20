@@ -1,0 +1,2582 @@
+{
+ "por_modulo": {
+  "Sistema/Login": {
+   "total": 2,
+   "construido": 0,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 2,
+   "items": [
+    {
+     "form": "0001crsc",
+     "titulo": "Solicitudes de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "0101huellas",
+     "titulo": "Huella",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Despacho/Resoluciones": {
+   "total": 5,
+   "construido": 2,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 3,
+   "items": [
+    {
+     "form": "105050000modelos",
+     "titulo": "Modelos de Resoluciones/Disposiciones",
+     "estado": "construido",
+     "botones": [
+      "Word",
+      "Importa",
+      "Exporta"
+     ]
+    },
+    {
+     "form": "120050000reso_disp",
+     "titulo": "CAJA DE CRÉDITO Y PRESTACIONES PROVINCIAL. - Resoluciones",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "120100000anexo_res_dis",
+     "titulo": "C.C. y P.P. - Anexo Resolución",
+     "estado": "pendiente",
+     "botones": [
+      "Vista Previa",
+      "Confirmar Anexo",
+      "Imprimir Anexo"
+     ]
+    },
+    {
+     "form": "frm120050004rtf",
+     "titulo": "C.C. y P.P. - Creación de Modelo de Resolución",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm130050000rptreso",
+     "titulo": "C.C. y P.P. - Sistema de Impresión por múltiples campos",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Créditos": {
+   "total": 145,
+   "construido": 35,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 110,
+   "items": [
+    {
+     "form": "320050001pagacred",
+     "titulo": "Form2",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "330100000reimpliq",
+     "titulo": "Liquidaciones de Fecha",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "330100000reimpliq_esp",
+     "titulo": "Liquidaciones de Fecha",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm305050000lineas",
+     "titulo": "Administración de Lineas de Créditos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm305150000requisitos",
+     "titulo": "C.C. y P.P. - Requisitos para Créditos",
+     "estado": "construido",
+     "botones": [
+      "Grabar",
+      "Borrar",
+      "Imprimir"
+     ]
+    },
+    {
+     "form": "frm305250000gasistas",
+     "titulo": "Administracion de Gasistas/Institutos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm305300000montosperiodos",
+     "titulo": "Monto máximo a Prestar por Mes",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm310100000lineas",
+     "titulo": "C.C. y P.P. - Listado de Lineas de Créditos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315050000consoli",
+     "titulo": "Consulta de Solicitudes",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315150000consjub",
+     "titulo": "C.C. y P.P. - Consulta Préstamos Jubilados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315200000datoscontrol",
+     "titulo": "C.C. y P.P. - Datos de control (Creditos solicitados)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm315250000organismos",
+     "titulo": "Consulta de Organismos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315300000consenvios",
+     "titulo": "Consulta envios de cuotas",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315350000estadvar",
+     "titulo": "Estadísticas",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315400000sitmar",
+     "titulo": "Consulta situación de Margen de Cliente",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315450500solsindeb",
+     "titulo": "Solicitudes sin marca de Débito",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm315451000solsindeb25",
+     "titulo": "Solicitudes sin marca de Débito de Linea 25",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm315451500solactivas",
+     "titulo": "Consulta Solicitudes Activas",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315550000pagcrecaja",
+     "titulo": "Consulta Pagos de Creditos en Caja",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm315600000consturno",
+     "titulo": "Consulta de turnos generados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315620000consturno",
+     "titulo": "Listado de Turnos entregados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm315650000hiscre",
+     "titulo": "Informe Situación de un Cliente",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm320050001pagacred",
+     "titulo": "C.C. y P.P. - COBRANZA DE CREDITOS P/Caja",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm320070000bpatcancela",
+     "titulo": "Cancelación Cuotas Previo Pago - Bco. Patagonia",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100000solcre",
+     "titulo": "Administración de Créditos",
+     "estado": "construido",
+     "botones": [
+      "Disposicion"
+     ]
+    },
+    {
+     "form": "frm320100000solcreturno",
+     "titulo": "Control de Turno",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100000solcreturnoOLD",
+     "titulo": "Control de Turno",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100001linea",
+     "titulo": "Administración de Créditos - Selección de Línea",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100002cliente",
+     "titulo": "Administración de Créditos - Selección de Solicitante",
+     "estado": "pendiente",
+     "botones": [
+      "Datos Ecosistema"
+     ]
+    },
+    {
+     "form": "frm320100002cliente_api",
+     "titulo": "Datos de RENAPER y RRHH",
+     "estado": "pendiente",
+     "botones": [
+      "RENAPER",
+      "Empleado/a   RRHH"
+     ]
+    },
+    {
+     "form": "frm320100002clienteagap",
+     "titulo": "Administración de Créditos - Selección de Solicitante AGAP",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100002clienteg",
+     "titulo": "Apellido y nombres",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100002clientesadop",
+     "titulo": "Administración de Créditos - Selección de Solicitante SADOP",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100002clientesproductivos",
+     "titulo": "Administración de Créditos Productivos - Solicitante",
+     "estado": "pendiente",
+     "botones": [
+      "...",
+      "..."
+     ]
+    },
+    {
+     "form": "frm320100003garante",
+     "titulo": "Administración de Créditos - Selección de Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100003garanteagap",
+     "titulo": "Administración de Créditos - Selección de Garante AGAP",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100003garanteg",
+     "titulo": "Apellido y nombres",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100003garantesproductivos",
+     "titulo": "Administración de Créditos Productivos - Garantes",
+     "estado": "pendiente",
+     "botones": [
+      "...",
+      "...",
+      "...",
+      "..."
+     ]
+    },
+    {
+     "form": "frm320100003gtegasnopublico",
+     "titulo": "Garantes GAS que NO Pertenecen a la Adm. Pública",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100004garante2",
+     "titulo": "Administración de Créditos - Selección 2do. Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100005garante3",
+     "titulo": "Administración de Créditos - Selección 3er. Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100006intendente",
+     "titulo": "\u0006",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100007credito",
+     "titulo": "Administración de Créditos - Selección de Crédito",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100007creditoagap",
+     "titulo": "Administración de Créditos - Selección de Crédito ESPECIALES",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100007creditog",
+     "titulo": "Administración de Créditos - Selección de Crédito ESPECIALES",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100007creditosproductivos",
+     "titulo": "Créditos Productivos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100008prenda_hipoteca",
+     "titulo": "Administración de Créditos Productivos - Solicitante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320100500solcreturno",
+     "titulo": "Control de Turno",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320150000pagctaman1",
+     "titulo": "C.C. y P.P. - Pago manual de cuotas creditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320150001ctaactual",
+     "titulo": "Cuota actualizada",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320160000cancuo",
+     "titulo": "Cancela cuotas creditos Producir/Productivos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320160001ctaactual",
+     "titulo": "Cuota actualizada",
+     "estado": "pendiente",
+     "botones": [
+      "Cobra",
+      "No Cobra"
+     ]
+    },
+    {
+     "form": "frm320180000cancuotransf",
+     "titulo": "Cancelación de Cuotas por Trasferencias",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320180001cancuotransf",
+     "titulo": "Cuota actualizada",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320200000lc-ccvh",
+     "titulo": "C.C. y P.P. - Liquidación Aportes Vivienda",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320200000lc-new",
+     "titulo": "C.C. y P.P. - Liquidación de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320200000lc",
+     "titulo": "C.C. y P.P. - Liquidación de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320200000lc_especiales",
+     "titulo": "C.C. y P.P. - Liquidación de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320200000lc_nomal",
+     "titulo": "C.C. y P.P. - Liquidación de Créditos - Noteboock",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320250500soljub",
+     "titulo": "C.C. y P.P. - Solicitud de crédito Jubilados",
+     "estado": "construido",
+     "botones": [
+      "Agregar",
+      "Modificar",
+      "Eliminar",
+      "Buscar",
+      "Liquidar",
+      "Imprimir"
+     ]
+    },
+    {
+     "form": "frm320251000soljubpro",
+     "titulo": "C.C. y P.P. - Prorroga de Jubilados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm320251500solpagjub",
+     "titulo": "Generación de Pagare Jubilados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm320350000reintegros",
+     "titulo": "Reintegro de Cuotas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320350000reintegroscta",
+     "titulo": "Reintegros Cuotas de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320400000alternadto",
+     "titulo": "Alternar descuento entre Solicitante y Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320450000cancre",
+     "titulo": "Cancelación de Creditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320450001quebfall",
+     "titulo": "Qebranto por Fallecimiento",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320500000iu",
+     "titulo": "Informe de ubicacion de creditos",
+     "estado": "pendiente",
+     "botones": [
+      "Reimpresión"
+     ]
+    },
+    {
+     "form": "frm320550000subjub",
+     "titulo": "Subsidios a Jubilados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm320600000liqsub",
+     "titulo": "C.C. y P.P. - Liquidación de Subsidios",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320680000turnos_e",
+     "titulo": "Turnos Excepcionales",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320700000turnosnuevo",
+     "titulo": "Turnos para Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm320720000clienteturno",
+     "titulo": "Asignación Turnos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm321111autoriza_pp",
+     "titulo": "Autoriza",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325020000cambiosg",
+     "titulo": "Cambio automático de Solicitante a Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325030000chkctaspend",
+     "titulo": "Control de Cuotas a descontar",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325040000bcopat",
+     "titulo": "Procesar archivo recibido del Patagonia",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325050000gendtos-1",
+     "titulo": "Genera Descuentos para organismos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325050000gendtos",
+     "titulo": "Genera Descuentos p/Org. Liq.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325250000maecli",
+     "titulo": "Actualiza Maestro DIO",
+     "estado": "pendiente",
+     "botones": [
+      "Procesar",
+      "Buscar Archivo"
+     ]
+    },
+    {
+     "form": "frm325270000maeorg",
+     "titulo": "Actualiza Maestro de Organismos",
+     "estado": "pendiente",
+     "botones": [
+      "Procesar",
+      "Buscar Archivo"
+     ]
+    },
+    {
+     "form": "frm325350000reca",
+     "titulo": "Recalculo de Cuotas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325500000aplica",
+     "titulo": "Aplica descuentos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325550000ccrepro",
+     "titulo": "Cancelacion de Ctas. Producir con D.Automatico",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325650000bajacre",
+     "titulo": "Créditos - Baja de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325670000listagap",
+     "titulo": "Generacion Planilla para AGAP",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325700000devenga",
+     "titulo": "Datos p/Asiento de Otrorgamiento",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325750000devenga",
+     "titulo": "Datos p/Asiento de Devengamiento",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm325800000situacion_cr",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330050000solcar",
+     "titulo": "C.C. y P.P. - Listado de Solicitudes cargadas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330150000rptcobcre",
+     "titulo": "Resumen de Cobros de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330170000envaud",
+     "titulo": "C.C. y P.P. - Créditos enviados a Auditoría",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330200000infodeuda",
+     "titulo": "C.C. y P.P. - Informe de deuda",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330250500soljub",
+     "titulo": "Listado de Créditos Ley 5094",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330251000soljubdpto",
+     "titulo": "Listado de Créditos Ley 5094 por Departamento",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330251500cli5094",
+     "titulo": "Reporte de Clientes Ley 5094",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330252000totpag",
+     "titulo": "Totales pagados Créditos Ley 5094",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm3302600cntrlcreditos",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": [
+      "Imprimir",
+      "Ver"
+     ]
+    },
+    {
+     "form": "frm330300500tdc_cre_pag",
+     "titulo": "Tribunal de Cuentas - Créditos Pagados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330301000tdc_cre_can",
+     "titulo": "Informe de Créditos Cancelados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330350000liscre",
+     "titulo": "Listado de Créditos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330400000lisrecupera",
+     "titulo": "Reporte de Recuperacion de Cartera",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330450500lisiva",
+     "titulo": "Reporte de I.V.A.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330500000crepag",
+     "titulo": "Reporte de Créditos pagados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330550000crepart",
+     "titulo": "Listado de Cuotas a vencer de Particulares",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330600000ctasmora1",
+     "titulo": "Reporte de cuotas en Mora",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330650000creditoslinea",
+     "titulo": "Informe de créditos por Linea",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330670000ctrlda",
+     "titulo": "Control Marca Débito Automático",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330680000ctrlcrpa",
+     "titulo": "Control Creditos Pagados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330700500jub5094",
+     "titulo": "Reimpresión de pagaré Créditos ley 5094",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330701000reimpaplidio",
+     "titulo": "Reimpresión de Aplicaciones",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330701500reimpenvios",
+     "titulo": "Reimpresion de Envios",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330702000resumen_envios_agap",
+     "titulo": "Resumen Envios A.G.A.P.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330750000ctactejub",
+     "titulo": "Informe de Cta.Cte. de Jubilados",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330800000cuotaspagadas",
+     "titulo": "Cuotas pagadas en una fecha",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330850500infoestado",
+     "titulo": "Informe de estado de creditos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330851000infosaldos",
+     "titulo": "Informe de Saldos de Créditos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm330851500ui",
+     "titulo": "Informe de Ubicación de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330852000creactdpto",
+     "titulo": "Creditos activos por Dpto.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330853500informe_gas",
+     "titulo": "Informe Instalaciones de GAS",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330853700informe_gas2",
+     "titulo": "Informe Instalaciones de GAS",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330854000cr_mora_sin_cobros",
+     "titulo": "Creditos en Mora sin Cobros",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330854500cr_pagos_caja",
+     "titulo": "Créditos pagados por Caja",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330855000informe_aplicaciones",
+     "titulo": "Informe de Aplicaciones",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330855500info_fallecidos",
+     "titulo": "Reporte de Fallecimientos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330920000marbaj",
+     "titulo": "Creditos con Marca de Baja",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330950000noenv",
+     "titulo": "Reporte de cuotas NO enviadas o en mora",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330970000futvto",
+     "titulo": "Reporte de Créditos a Cobrar",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330980000devengados",
+     "titulo": "Devengados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm330990000cr_razon_salud",
+     "titulo": "Listado de Créditos Por Salud Ingresados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm331000000info_cr_cancelados",
+     "titulo": "Informe de Créditos Cancelados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335050000modgen",
+     "titulo": "Modificacion General",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335060000modspc",
+     "titulo": "C.C. y P.P. - Modificación Solicitud-Cuotas-Clientes",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335060001modspc1",
+     "titulo": "Datos Solicitud y Prestamo",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335060002modspc4",
+     "titulo": "Datos de Cuotas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335060003modspc2",
+     "titulo": "Datos Cliente",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335060004modspc3",
+     "titulo": "Datos Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335100000cambiavto",
+     "titulo": "Cambiar fecha de vencimiento de cuotas",
+     "estado": "pendiente",
+     "botones": [
+      "Cambiar"
+     ]
+    },
+    {
+     "form": "frm335150000controldio",
+     "titulo": "Control Solicitudes contra DIO (SOLICITANTE)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335150001controldiog1",
+     "titulo": "Control Solicitudes contra DIO (GARANTE 1)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335150002controldiog2",
+     "titulo": "Control Solicitudes contra DIO (GARANTE 2)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335200000modgenjubi",
+     "titulo": "Modificación general Jubilados Ley 5094",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335260000controlcuotascaja",
+     "titulo": "Control de Cuotas en Caja",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335350000parcre",
+     "titulo": "Administra parámetros de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm335400000crcliact",
+     "titulo": "Control CRCLIACT",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Otros/Utilidades": {
+   "total": 57,
+   "construido": 1,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 56,
+   "items": [
+    {
+     "form": "ag_gral_buspar",
+     "titulo": "Busca parámetro",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "consulta_solicitudes",
+     "titulo": "Consulta de Solicitudes",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "estadisticasseguros",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm14enexo_dis",
+     "titulo": "C.C. y P.P. - Anexo Disposicion",
+     "estado": "pendiente",
+     "botones": [
+      "Vista Previa",
+      "Confirmar Anexo",
+      "Imprimir Anexo"
+     ]
+    },
+    {
+     "form": "frm14enexo_res",
+     "titulo": "C.C. y P.P. - Anexo Resolución",
+     "estado": "pendiente",
+     "botones": [
+      "Vista Previa",
+      "Confirmar Anexo",
+      "Imprimir Anexo"
+     ]
+    },
+    {
+     "form": "frm14reimpanexo_res",
+     "titulo": "C.C. y P.P. - Reimpresion de Anexo Resolucion",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm78cuotasdesubsidioteso",
+     "titulo": "Cuotas de Subsidio de Proteccion a la Familia",
+     "estado": "pendiente",
+     "botones": [
+      "Informe",
+      "Resolucion",
+      "O.P.",
+      "Expte"
+     ]
+    },
+    {
+     "form": "frm_agrega_seguro_alcredito",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_autoriza",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_bus_cargos01c",
+     "titulo": "Seleccionar Cargo",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_bus_cargos01d",
+     "titulo": "Seleccionar Cargo",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_bus_dio",
+     "titulo": "Busca Cliente en Maestro Clientes",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_bus_linea",
+     "titulo": "Busqueda de Linea de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_bus_maestro",
+     "titulo": "Busqueda de Agente en Maestro DIO",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_bus_org",
+     "titulo": "Busqueda de Organismo",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_bus_par",
+     "titulo": "Busca parámetro",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_carga_nuevo_desembolso",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_cr_hisclin",
+     "titulo": "Integrantes Grupo Fliar.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_detcta",
+     "titulo": "Determinación de Cuota de Crédito",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_detctamp",
+     "titulo": "Determinación de Cuota de Crédito",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_genera_cuotas_index",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_genera_hipotecarios",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_genera_hipotecarios_suma",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_genera_plan_multa",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_mod_egre",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm_vergarante",
+     "titulo": "Chequear Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmbus_creditos",
+     "titulo": "Historial de Creditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmbusca_organismo",
+     "titulo": "Buscar Organismo",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmbuscagencia",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmcarga_cheque_tranf",
+     "titulo": "Paga Transacciones",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmcierrecajahistoricos",
+     "titulo": "C.C. y P.P. - Cierre de Caja (Supervisor)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmcontrolcajahistoricos",
+     "titulo": "C.C. y P.P. - Control de Caja Históricos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmcuotaplat",
+     "titulo": "Genera Cuotas Plataforma",
+     "estado": "pendiente",
+     "botones": [
+      "Generar"
+     ]
+    },
+    {
+     "form": "frmdetcuil",
+     "titulo": "Determina C.U.I.L./C.U.I.T.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmeditperfiles",
+     "titulo": "",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmgralmotbaja",
+     "titulo": "Informacion de baja",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmimpres",
+     "titulo": "",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frminformecobros",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmlooksol",
+     "titulo": "Busca Cédito",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmpagostesoreria_1",
+     "titulo": "C.C. y P.P. - Pagos de Seguros",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmpagostesoreria_2",
+     "titulo": "Carga O.P. a transacción de SEGUROS",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmpersonacta",
+     "titulo": "Administracion de Datos de Cuentas Bancarias",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmpremioshistoricos",
+     "titulo": "C.C. y P.P. - Control de Premios (Egresos)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmreimpresion_recibos_egresos",
+     "titulo": "Reimpresion de Recibos de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frmsolicitud",
+     "titulo": "Administración de Créditos",
+     "estado": "pendiente",
+     "botones": [
+      "Disposicion"
+     ]
+    },
+    {
+     "form": "frmsolicitudcliente",
+     "titulo": "Administración de Créditos Productivos - Solicitante",
+     "estado": "pendiente",
+     "botones": [
+      "...",
+      "..."
+     ]
+    },
+    {
+     "form": "frmsolicitudgarantes",
+     "titulo": "Administración de Créditos Productivos - Garantes",
+     "estado": "pendiente",
+     "botones": [
+      "...",
+      "...",
+      "...",
+      "..."
+     ]
+    },
+    {
+     "form": "frmsolicitudlinea",
+     "titulo": "Administración de Créditos - Selección de Línea",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "login",
+     "titulo": "Iniciar Sesion",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "loginold",
+     "titulo": "Control de Acceso",
+     "estado": "pendiente",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "lyc905100000admprov",
+     "titulo": "C.C. y P.P. - Administración de Proveedores",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "lyc920050000ingresos",
+     "titulo": "Transacciones de Administración (Ingresos)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "lyc920100000egresos",
+     "titulo": "Transacciones de Administración (Egresos)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "modgen_egresos",
+     "titulo": "Modificacion General Egresos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "modop",
+     "titulo": "Modificaciones de O.P.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "pagos-de-juegos",
+     "titulo": "C.C. y P.P. - Pagos de Juegos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "reso_dispo_0",
+     "titulo": "CAJA DE CRÉDITO Y PRESTACIONES PROVINCIAL. - Resoluciones",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Contabilidad": {
+   "total": 11,
+   "construido": 11,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 0,
+   "items": [
+    {
+     "form": "cb-cjcreditoscobrados",
+     "titulo": "C.C. y P.P. - IVA cobranza de Créditos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-crasientodevenga",
+     "titulo": "C.C. y P.P. - Datos p/Asiento de Devengamiento",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-crasientootorga",
+     "titulo": "C.C. y P.P. - Datos p/Asiento de Otrorgamiento",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-crevicredborra",
+     "titulo": "C.C. y P.P. - Revisión de Créditos BORRADOS",
+     "estado": "construido",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "cb-egivaegresos",
+     "titulo": "C.C. y P.P. - Reporte de IVA de Egresos de Créditos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-egreviegresos",
+     "titulo": "C.C. y P.P. - Revisa Transacciones de Egresos",
+     "estado": "construido",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "cb-iva-a-pagar-periodo",
+     "titulo": "C.C. y P.P. - Informe de IVA a pagar por Periodo",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-iva-gsoq-periodo",
+     "titulo": "C.C. y P.P. - Reporte de IVA de Gs. Orig. y Quebranto",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-op-dev-periodo",
+     "titulo": "C.C. y P.P. - Reporte de Ordenes de Pago devengadas",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-prepag-linea-1",
+     "titulo": "C.C. y P.P. - Informe Previo Pago A.G.A.P.",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "cb-prepag-linea",
+     "titulo": "C.C. y P.P. - Informe Previo Pago A.G.A.P.",
+     "estado": "construido",
+     "botones": []
+    }
+   ]
+  },
+  "Caja": {
+   "total": 17,
+   "construido": 6,
+   "variante": 2,
+   "datos": 0,
+   "pendiente": 9,
+   "items": [
+    {
+     "form": "frm220050000leedisknew",
+     "titulo": "C.C. y P.P. - Lee diskettes de Quiniela",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm220100000anulaintmora",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm225050000aplicaj-a medias",
+     "titulo": "C.C. y P.P. - Aplicativo de Caja",
+     "estado": "variante",
+     "botones": [
+      "Cr.-Seg.-Ext."
+     ]
+    },
+    {
+     "form": "frm225050000aplicaj",
+     "titulo": "C.C. y P.P. - Aplicativo de Caja",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm225050000aplicaj_s_interes",
+     "titulo": "C.C. y P.P. - Aplicativo de Caja Sin Interes",
+     "estado": "variante",
+     "botones": []
+    },
+    {
+     "form": "frm225050000aplicativodeCaja",
+     "titulo": "C.C. y P.P. - Aplicativo de Caja",
+     "estado": "construido",
+     "botones": [
+      "Cr.-Seg.-Ext."
+     ]
+    },
+    {
+     "form": "frm225050001funcob1",
+     "titulo": "C.C. y P.P. - Sistema de Caja (Formas de Pago)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm225100000pagos_ag_transferidas",
+     "titulo": "Agencias Transferidas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm225150000cresegu1",
+     "titulo": "Créditos, Seguros y Juegos Extraordinarios",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm225150001pagcsj",
+     "titulo": "C.C. y P.P. - Cobranzas",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm225250000anupago",
+     "titulo": "C.C. y P.P. - Anula Pagos/Cobros",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm225300000ctrlcaj",
+     "titulo": "C.C. y P.P. - Control de Caja",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm225350000cierrec",
+     "titulo": "C.C. y P.P. - Cierre de Caja (Supervisor)",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm225420000pagos_ag_transferidas",
+     "titulo": "Agencias Transferidas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm225450000pagapremios",
+     "titulo": "C.C. y P.P. - Emisión de Recibos p/Agencias Ganadoras",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm225500000pagainterior",
+     "titulo": "Emisión de Recibos p/Agencias del Interior",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm225550000infdeuage",
+     "titulo": "Informe Deuda Agencia",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Caja (listados)": {
+   "total": 14,
+   "construido": 3,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 11,
+   "items": [
+    {
+     "form": "frm230050000rptpend",
+     "titulo": "C.C. y P.P. - Emisión de Pendientes/Ingresos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm230100000rptreci",
+     "titulo": "C.C. y P.P. - Reimpresión de Recibos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm230100000rptrecihis",
+     "titulo": "C.C. y P.P. - Reimpresión de Recibos Históricos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm230150000rptinte",
+     "titulo": "C.C. y P.P. - Reporte mensual de Intereses e I.V.A.",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230200000prequi",
+     "titulo": "C.C. y P.P. - Control de Premios (Egresos)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230250000lispag",
+     "titulo": "C.C. y P.P. - Listado de Pagos realizados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230300000reca",
+     "titulo": "Totales de recaudación",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230350000infingbru",
+     "titulo": "Informe de Ingresos Brutos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230400000reimpcie",
+     "titulo": "Reimpresión Cierre de Caja (Supervisor)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230450000rciecre",
+     "titulo": "Fecha:",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230500000liqcob",
+     "titulo": "Reporte de Liquidaciones Cobradas/Pagadas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230550000premioscompensados",
+     "titulo": "Informe de Premios compensados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230570000listado_cheques",
+     "titulo": "Reimpresión Listado para Cheques",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm230600000reimpresion_control_caja",
+     "titulo": "Reimpresión Contol Caja Cajero",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Juegos/Quiniela": {
+   "total": 32,
+   "construido": 5,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 27,
+   "items": [
+    {
+     "form": "frm405050001maeagencias",
+     "titulo": "C.C. y P.P. - Administración de Agencias",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm405100000maejuegos",
+     "titulo": "C.C. y P.P. - Mantenimiento del Maestro de Juegos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm405150000maejugadas",
+     "titulo": "A.G.de J. y S. - Maestro de Jugadas",
+     "estado": "pendiente",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "frm410050000rptagencias",
+     "titulo": "C.C. y P.P. - Listados del Maestro de Agencias",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm415050000prealt",
+     "titulo": "Consulta premios de Juegos Alternativos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm420050000cargaprode",
+     "titulo": "C.C. y P.P. - Carga jugadas PRODE",
+     "estado": "pendiente",
+     "botones": [
+      "Agregar",
+      "Borrar"
+     ]
+    },
+    {
+     "form": "frm420100000pagajuex",
+     "titulo": "C.C. y P.P. - Transacciones de Pagos Extraordinarios (Caja)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm420150000pagavalor",
+     "titulo": "C.C. y P.P. - Valor Llave (Caja)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm420150001nuevovalor",
+     "titulo": "C.C. y P.P. - Valor Llave (Caja) Nueva Cuota",
+     "estado": "pendiente",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "frm420200000pagosjuegos",
+     "titulo": "C.C. y P.P. - Pagos de Juegos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm420250000impremios",
+     "titulo": "Importa premios juegos alternativos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm420300000carpre",
+     "titulo": "Cupones Premiados Juegos Alternativos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm420300001addpre",
+     "titulo": "Agrega Premio",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm425050000importa",
+     "titulo": "C.C. y P.P. - Importa Jugadas",
+     "estado": "pendiente",
+     "botones": [
+      "Importar",
+      "Revisar Datos",
+      "Premios",
+      "Re-Procesar"
+     ]
+    },
+    {
+     "form": "frm425050001maejugadas",
+     "titulo": "C.C. y P.P. - Maestro de Jugadas",
+     "estado": "pendiente",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "frm425050002altaage",
+     "titulo": "C.C. y P.P. - Alta de Agencia",
+     "estado": "construido",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "frm425050003revliq",
+     "titulo": "C.C. y P.P. - Revisión de Liquidación",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm425050003revliq1",
+     "titulo": "C.C. y P.P. - Modifica liquidación de Agencia",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm425050004premios",
+     "titulo": "C.C. y P.P. - Ingreso de Premios",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm425050005cargapremio",
+     "titulo": "C.C. y P.P. - Carga Premios p/Agencia",
+     "estado": "pendiente",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "frm425100000exporta",
+     "titulo": "C.C. y P.P. - Exporta juegos para Caja",
+     "estado": "pendiente",
+     "botones": [
+      "Exportar"
+     ]
+    },
+    {
+     "form": "frm425200000gencomafip",
+     "titulo": "Genera Comisiones para AFIP",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430050000rptaviso",
+     "titulo": "C.C. y P.P. - Impresión de Boletas de Vencimiento",
+     "estado": "pendiente",
+     "botones": [
+      "Imprimir"
+     ]
+    },
+    {
+     "form": "frm430100000rptexporta",
+     "titulo": "C.C. y P.P. - Listado de Totales para Caja",
+     "estado": "pendiente",
+     "botones": [
+      "Emitir"
+     ]
+    },
+    {
+     "form": "frm430150000rptingbru",
+     "titulo": "C.C. y P.P. - Reporte de Ingresos Brutos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430200000rptcobext",
+     "titulo": "C.C. y P.P. - Resumen de Juegos Extra. cobrados de un día",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430250000infor_f_gara",
+     "titulo": "Informe de Fdo. de Garantía",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430300000resrec",
+     "titulo": "Resumen de Recaudacion",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430350000chkagedio",
+     "titulo": "Controla Titulares con Agentes",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430400000infomibingo",
+     "titulo": "Resumen MI BINGO CATAMARQUEÑO p/periodo",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430450000inf_ingresos_jueg",
+     "titulo": "Informe de Ingresos de Juegos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm430500000premios_quini6",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Despacho/Notas": {
+   "total": 13,
+   "construido": 5,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 8,
+   "items": [
+    {
+     "form": "frm515050000trampend",
+     "titulo": "C.C. y P.P. - Consulta de Trámites Pendientes",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm515100000historial",
+     "titulo": "C.C. y P.P. - Historia de un Expediente",
+     "estado": "construido",
+     "botones": [
+      "Buscar"
+     ]
+    },
+    {
+     "form": "frm520050000cargatramite",
+     "titulo": "C.C. y P.P. - Mesa de Entradas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm520050001agregatramite",
+     "titulo": "C.C. y P.P. - Mesa de Entradas - Mantenimiento",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm520050002busca_tramite",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm520050003carga_pase",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm520100000pasesexptes",
+     "titulo": "C.C. y P.P. - Pases en Expedientes",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm520100001auxagregartram1",
+     "titulo": "Atencion",
+     "estado": "pendiente",
+     "botones": [
+      "Aceptar"
+     ]
+    },
+    {
+     "form": "frm520100003cons_exptes",
+     "titulo": "C.C. y P.P. - Consulta de Tramites",
+     "estado": "construido",
+     "botones": [
+      "Buscar",
+      "Buscar",
+      "Buscar",
+      "Buscar"
+     ]
+    },
+    {
+     "form": "frm520100003constram",
+     "titulo": "C.C. y P.P. - Consulta de Trámites",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm520100004imprimeparte",
+     "titulo": "C.C. y P.P. - Imprimir Parte Diario",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm530050000tramitesdiarios",
+     "titulo": "C.C. y P.P. - Informe de Támites ingresados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm530100000lista_tram_pend_ofi",
+     "titulo": "C.C. y P.P. - Tramites pendientes por Oficina",
+     "estado": "construido",
+     "botones": []
+    }
+   ]
+  },
+  "Mesa/Trámites": {
+   "total": 3,
+   "construido": 0,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 3,
+   "items": [
+    {
+     "form": "frm605000000admper",
+     "titulo": "Administración del Maestro de Personal",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm625050000reloj",
+     "titulo": "C.C. y P.P. - Reloj de Marcado de Personal",
+     "estado": "pendiente",
+     "botones": [
+      "Reloj de Personal"
+     ]
+    },
+    {
+     "form": "frm625050001reloj",
+     "titulo": "Ingreso/Egreso Personal",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Seguros": {
+   "total": 18,
+   "construido": 10,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 8,
+   "items": [
+    {
+     "form": "frm705050000maetit",
+     "titulo": "Titulares RENTA VITALICIA HEROES DE MALVINAS",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm715100000cons_primas",
+     "titulo": "Consulta de Primas Devengadas",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm720050000cobrasegu",
+     "titulo": "C.C. y P.P. - Cobro de Seguros por Caja",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm720100000altatitular-1",
+     "titulo": "Alta de Titulares",
+     "estado": "construido",
+     "botones": [
+      "Ver Consulta",
+      "Volver",
+      "Agregar",
+      "Eliminar",
+      "Modificar",
+      "Grabar"
+     ]
+    },
+    {
+     "form": "frm720100000altatitular-2",
+     "titulo": "Alta de Titulares",
+     "estado": "construido",
+     "botones": [
+      "Ver Consulta",
+      "Volver",
+      "Agregar",
+      "Eliminar",
+      "Modificar",
+      "Grabar"
+     ]
+    },
+    {
+     "form": "frm720150000pagosseguros",
+     "titulo": "C.C. y P.P. - Pagos de Seguros",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm720200000excombatientes",
+     "titulo": "Excombatientes de Malvinas",
+     "estado": "construido",
+     "botones": [
+      "Inciar Cuotas",
+      "Imprimir Informe",
+      "Generar Cuotas Tesoreria",
+      "Otro Beneficiario",
+      "Generar Cuotas",
+      "Volver"
+     ]
+    },
+    {
+     "form": "frm725050000importardatosdecontrolprevisional",
+     "titulo": "Importar Informacion de Control Previsional",
+     "estado": "pendiente",
+     "botones": [
+      "Importar Informacion de Control Previsional"
+     ]
+    },
+    {
+     "form": "frm725070000controlprevagap",
+     "titulo": "Control datos Previsional - AGAP",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm725100000exptesdeseguros-1",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": [
+      "Ver",
+      "Generar Pago",
+      "Reimprimir Liq.",
+      "Borrar Benefi.",
+      "Leer nuevos beneficiarios",
+      "Graba"
+     ]
+    },
+    {
+     "form": "frm725100000exptesdeseguros",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": [
+      "Elimnar Beneficiario",
+      "Agregar",
+      "Borrar",
+      "Grabar",
+      "Informe Devengado",
+      "Generar Pago"
+     ]
+    },
+    {
+     "form": "frm725150000cuotasdesubsidio",
+     "titulo": "Cuotas de Subsidio de Proteccion a la Familia",
+     "estado": "construido",
+     "botones": [
+      "Informe",
+      "Resolucion",
+      "O.P.",
+      "Expte"
+     ]
+    },
+    {
+     "form": "frm730050000rptcobseg",
+     "titulo": "C.C. y P.P.- Resumen de Seguros cobrados de un día",
+     "estado": "construido",
+     "botones": [
+      "Emitir"
+     ]
+    },
+    {
+     "form": "frm730100000informededeudapororganismos",
+     "titulo": "Informe de Liquidacion de Primas",
+     "estado": "construido",
+     "botones": [
+      "Imprimir Informe"
+     ]
+    },
+    {
+     "form": "frm730150000informeagentessinseguroadicional",
+     "titulo": "Informe de Agentes Sin Seguro Adicional",
+     "estado": "pendiente",
+     "botones": [
+      "Imprimir Informe"
+     ]
+    },
+    {
+     "form": "frm730200000inf_seg_egre",
+     "titulo": "Form1",
+     "estado": "pendiente",
+     "botones": [
+      "Ver",
+      "Exportar a Excel"
+     ]
+    },
+    {
+     "form": "frm730200000inf_seg_egre1",
+     "titulo": "8",
+     "estado": "pendiente",
+     "botones": [
+      "Ver",
+      "Exportar a Excel"
+     ]
+    },
+    {
+     "form": "frm730250000infsegadicional",
+     "titulo": "Informe de Seguros de Vida Adicional",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Tesorería/Egresos": {
+   "total": 32,
+   "construido": 8,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 24,
+   "items": [
+    {
+     "form": "frm805050000altachequeras",
+     "titulo": "Administración de Chequeras",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm805100000altaop",
+     "titulo": "Administración del Maestro de ordenes de Pago",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm815050000buscaegresos",
+     "titulo": "Busca transacciones de Egresos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm815050001buscamuestra",
+     "titulo": "Muestra datos de transacción de Egresos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm820050000apriseg",
+     "titulo": "C.C. y P.P. - (Tesoreria) Cobro Primas de Seguros (Caja)",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm820100000pagostesoreria",
+     "titulo": "Carga O.P. a transacción de SEGUROS",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm820100000pagostesoreria_1",
+     "titulo": "C.C. y P.P. - Pagos de Seguros",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm820100000recibos",
+     "titulo": "C.C. y P.P. - Licitaciones y Compras (Pagos)",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm820150000cargachetra",
+     "titulo": "Paga Transacciones",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm820500000opresol",
+     "titulo": "Carga datos OP a una resolución",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm825050000depurapendientes",
+     "titulo": "Depuración de Pagos Pendientes",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm825100000opcero",
+     "titulo": "Pagos incompletos (c/OP = Ceros)",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm82510op0muestra",
+     "titulo": "Muestra datos de transacción de Egresos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm825150000gendkt",
+     "titulo": "Generación diskette de Acreditaciones",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm825200000anupago",
+     "titulo": "Anulación de Pagos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm825250000recanu",
+     "titulo": "Recupera transacciones Anuladas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830050000rptliqcre",
+     "titulo": "C.C. y P.P. - Reportes de Créditos a Jubilados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830100000rptsegpen",
+     "titulo": "Ca.Pes.Ca. - Reporte de Seguros pendientes",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830150500rptoprb",
+     "titulo": "C.C. y P.P. - Reporte de Ordenes de Pago",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830151000rptop",
+     "titulo": "Reporte de Ordenes de Pago por N°",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830200000rptuti",
+     "titulo": "Reporte de distribución de Utilidades",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830251000reimpsubs",
+     "titulo": "Reimpresion de Recibos de Jubilados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830251500reimpro",
+     "titulo": "C.C. y P.P. - Reimpresión de recibos de Administración",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830252000reimpcreditos",
+     "titulo": "Reimpresion de Recibos de Créditos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830252500reimpseguros",
+     "titulo": "C.C. y P.P. - Reimpresión de recibos de Seguros",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830253000reimpvarios",
+     "titulo": "C.C. y P.P. - Reimpresión de recibos de Varios",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830253500reimppremios",
+     "titulo": "C.C. y P.P. - Reimpresión de recibos de Premios de Juegos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830254000reimpacred-old",
+     "titulo": "Reimpresión de envios a Acreditar",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830254000reimpacred",
+     "titulo": "Reimpresión de envios a Acreditar",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830300000rptsellos",
+     "titulo": "C.C. y P.P. - Reporte de Sellados",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm830350000arptestado5094",
+     "titulo": "Informe estado Subsidios Ley 5094",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm835050000modgenjubi",
+     "titulo": "Modificación general Jubilados Ley 5094",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  },
+  "Utilidades/Tablas": {
+   "total": 28,
+   "construido": 10,
+   "variante": 0,
+   "datos": 0,
+   "pendiente": 18,
+   "items": [
+    {
+     "form": "frm905050000abmusu-1",
+     "titulo": "Administración de Usuarios",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm9050501camcla",
+     "titulo": "Cambio de Clave de Usuario",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm90505abmusu",
+     "titulo": "Mantenimiento de Usuarios",
+     "estado": "construido",
+     "botones": [
+      "Primero",
+      "Siguiente",
+      "Anterior",
+      "Ultimo",
+      "Nuevo",
+      "Modifica"
+     ]
+    },
+    {
+     "form": "frm905100000abmper",
+     "titulo": "",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm90510admperfil",
+     "titulo": "Administración de Perfiles de Usuarios",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm905150000abmfer",
+     "titulo": "C.C. y P.P. - Administración de días feriados",
+     "estado": "pendiente",
+     "botones": [
+      "Aceptar",
+      "Eliminar",
+      "Generar Año"
+     ]
+    },
+    {
+     "form": "frm905200000abmpar",
+     "titulo": "Administración de parámetros generales",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm905250000abmorg",
+     "titulo": "Administracion de Organismos",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm905350000abmenu",
+     "titulo": "Administración de opciones del menú general",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm905450000admofi",
+     "titulo": "Administración de Oficinas",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm910050000lisper",
+     "titulo": "Listado de Perfiles de Usuarios",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm91010lisusu",
+     "titulo": "Listado de Usuarios",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm915050000condio",
+     "titulo": "Consulta Maestro DIO",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm915100000condio",
+     "titulo": "[C.C. y P.P.] Administracion de Clientes",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit001",
+     "titulo": "Auditoría - Solicitudes",
+     "estado": "construido",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit002",
+     "titulo": "Datos Solicitante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit003",
+     "titulo": "Datos Garante",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit004",
+     "titulo": "Datos Prestamo",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit005",
+     "titulo": "Muestra datos Cuotas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit006",
+     "titulo": "Muestra Datos del Cliente",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit007",
+     "titulo": "Muestra datos Tesoreria",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920050000audit008",
+     "titulo": "Muestra Datos Cobros por Caja",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm920100000adminv",
+     "titulo": "Movimientos de Hardware",
+     "estado": "pendiente",
+     "botones": [
+      "Informe",
+      "Movimientos",
+      "Mantenimiento",
+      "Nuevo Movimiento",
+      "Volver",
+      "Confirma"
+     ]
+    },
+    {
+     "form": "frm925050000actorg",
+     "titulo": "C.C. y P.P. - Actualizacion Organismos",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm925100000admtareas",
+     "titulo": "Administración de Tareas",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm930050000audusu",
+     "titulo": "C.C. y P.P. - Reporte de Auditoría",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm930100000audmaq",
+     "titulo": "C.C. y P.P. - Reporte de Auditoría por PC",
+     "estado": "pendiente",
+     "botones": []
+    },
+    {
+     "form": "frm930150000tranvda",
+     "titulo": "Transacciones Revertidas",
+     "estado": "pendiente",
+     "botones": []
+    }
+   ]
+  }
+ },
+ "totales": {
+  "total": 377,
+  "construido": 96,
+  "variante": 2,
+  "datos": 0,
+  "pendiente": 279
+ }
+}

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, Database } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -68,6 +68,17 @@ const ALL_MODULES = [
     iconColor: "text-slate-500",
     path: "/modules/legacy",
   },
+  {
+    code: "creditos",
+    name: "Créditos",
+    description: "CCyPP: créditos, caja, contabilidad y tesorería",
+    icon: Landmark,
+    color: "bg-rose-50 border-rose-200 text-rose-700",
+    iconColor: "text-rose-500",
+    path: "/creditos/",
+    // SPA propia del módulo (misma sesión): navegación completa, no del router de React.
+    external: true,
+  },
 ];
 
 export default function DashboardPage() {
@@ -93,7 +104,7 @@ export default function DashboardPage() {
             {visibleModules.map((mod) => (
               <button
                 key={mod.code}
-                onClick={() => navigate(mod.path)}
+                onClick={() => (mod.external ? window.location.assign(mod.path) : navigate(mod.path))}
                 className={clsx(
                   "border rounded-2xl p-6 text-left hover:shadow-md transition-shadow cursor-pointer",
                   mod.color

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { login } from "../api/auth";
 import { useAuthStore } from "../context/authStore";
 import { useIsAuthenticated } from "../context/usePermissions";
@@ -13,8 +13,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+  // ?next=/creditos/... : volver a la app de un módulo externo (p.ej. Créditos) tras el login.
+  // Sólo rutas locales absolutas ("/x"; no "//host" ni "/\host", que el navegador trata como otro
+  // origen) para no abrir un open redirect.
+  const [params] = useSearchParams();
+  const next = params.get("next") || "";
+  const nextExterno = /^\/(?![\/\\])/.test(next) ? next : null;
 
-  if (isAuth) return <Navigate to="/dashboard" replace />;
+  if (isAuth) {
+    if (nextExterno) {
+      window.location.assign(nextExterno);
+      return null;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,7 +35,8 @@ export default function LoginPage() {
     try {
       const data = await login(username, password);
       setAuth(data.access_token, data.user, data.permissions);
-      navigate("/dashboard");
+      if (nextExterno) window.location.assign(nextExterno);
+      else navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.detail || "Error al iniciar sesión");
     } finally {
