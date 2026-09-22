@@ -5,6 +5,7 @@ from app.routers import conciliacion, links, boleta, internal
 from app.services import cbu_cache_service
 from app.db.session import SessionLocal
 from app import scheduler
+from app.services import auditoria_central as central
 
 
 @asynccontextmanager
@@ -41,6 +42,10 @@ app.include_router(conciliacion.router, prefix=PREFIX)
 app.include_router(links.router, prefix=PREFIX)
 app.include_router(boleta.router, prefix=PREFIX)
 app.include_router(internal.router)
+
+# Auditoría central: ajustes manuales, estados y pagos de la conciliación. Se excluyen el caché de CBUs
+# y el historial de estados (que ya es su propio registro).
+central.instalar(app, excluir={"cbu_agency_cache", "reconciliation_status_history"})
 
 
 @app.get("/health")

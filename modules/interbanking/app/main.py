@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.routers import config, cuentas, transferencias, auditoria
 from app.routers import internal as internal_router
+from app.services import auditoria_central as central
 
 logger = logging.getLogger("interbanking")
 
@@ -42,6 +43,10 @@ app.include_router(cuentas.router,         prefix="/api/interbanking/cuentas")
 app.include_router(transferencias.router,  prefix="/api/interbanking/transferencias")
 app.include_router(auditoria.router,       prefix="/api/interbanking/auditoria")
 app.include_router(internal_router.router)
+
+# Auditoría central: credenciales, cuentas y transferencias. Se excluyen el log propio de llamadas a
+# la API del banco y los tokens (rotan solos: no son información del sistema).
+central.instalar(app, excluir={"api_audit_log", "interbanking_tokens"})
 
 
 @app.get("/health")

@@ -13,6 +13,9 @@ os.environ["ENVIRONMENT"] = "development"
 # a Tesorería y los contratos quedarían A_LIQUIDAR). Los tests de esa integración lo activan aparte.
 os.environ["DESEMBOLSO_VIA_TESORERIA"] = "false"
 os.environ["TESORERIA_INTERNAL_API_KEY"] = ""
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import pytest
 

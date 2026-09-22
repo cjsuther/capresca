@@ -18,12 +18,17 @@
   registro tocado.
 - La integración por módulo no toca endpoint por endpoint: un middleware guarda quién opera y un
   **listener de SQLAlchemy** anota las filas insertadas/modificadas/borradas de cada transacción. Sólo
-  dentro de una request HTTP, así los ETL y seeds no generan ruido. Integrado en Seguridad, Clientes,
-  Configuraciones, Tesorería y Créditos (que además espeja su auditoría propia).
+  dentro de una request HTTP, así los ETL y seeds no generan ruido. Integrado en **todos** los módulos:
+  Seguridad, Clientes, Configuraciones, Tesorería, Créditos (que además espeja su auditoría propia),
+  Cajeros, Interbanking, Conciliación, Liquidaciones, Legacy y Notificaciones. Se excluyen las tablas
+  que son copia o registro de otra cosa (espejos del legacy, caché de CBUs, detalle crudo de los ZIP de
+  liquidaciones, log de llamadas al banco, tokens).
 - **Datos sensibles**: las claves no se guardan y CBU/CUIL/DNI quedan parciales (`•••5201`).
 - **Retención 5 años**, con purga automática de madrugada.
 - Nunca frena ni voltea una operación: los eventos van a una cola en memoria y los manda un hilo/tarea
   aparte; si Auditoría está caída, se pierde el evento y queda en el log.
+- Los tests de cada módulo fijan `AUDITORIA_INTERNAL_API_KEY=""`: el contenedor hereda la clave del
+  compose y el hilo de auditoría saldría a la red en cada flush (rompía la "red falsa" de interbanking).
 - QA en local: alta, edición y baja de un grupo quedaron registradas con sus campos
   (`description: ["prueba", "descripción cambiada"]`) y cruzadas con lo que registró el gateway.
 

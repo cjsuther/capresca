@@ -140,6 +140,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${CAJEROS_DB_USER}:${CAJEROS_DB_PASS}@db_cajeros:5432/${CAJEROS_DB_NAME}
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_cajeros:
         condition: service_healthy
@@ -214,6 +216,8 @@ services:
       - INTERBANKING_AUTH_URL=${INTERBANKING_AUTH_URL}
       - ENCRYPTION_KEY=${INTERBANKING_ENCRYPTION_KEY}
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_interbanking:
         condition: service_healthy
@@ -247,6 +251,8 @@ services:
       dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql://notif_user:notif_pass@db_notifications:5432/notifications_db
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_notifications:
         condition: service_healthy
@@ -285,6 +291,8 @@ services:
       - LEGACY_SERVICE_URL=http://legacy:8009
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       # Pagos salientes automáticos. Arrancan seguros: apagados y en simulación.
       # Poné AUTO_PAYMENTS_ENABLED=true y PAYMENTS_DRY_RUN=false para pagar de verdad.
       - AUTO_PAYMENTS_ENABLED=${CONCILIACION_AUTO_PAYMENTS_ENABLED:-false}
@@ -334,6 +342,8 @@ services:
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
       - INBOX_DIR=/data/liquidaciones/inbox
       - INBOX_CRON_HOUR=${LIQUIDACIONES_INBOX_CRON_HOUR:-7}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     volumes:
       - ./externalfiles:/data/externalfiles:ro
       # Carpeta de entrada del archivo diario de liquidación. Apuntar
@@ -379,6 +389,8 @@ services:
       - WRITE_MODE=${LEGACY_WRITE_MODE:-outbox_only}
       - ALLOW_REAL_DRAIN=${LEGACY_ALLOW_REAL_DRAIN:-false}
       - SANDBOX_WRITE_ROOT=/data/agjs_sandbox
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     volumes:
       # Montaje SMB/CIFS del share legacy hecho en el HOST, bind-mount read-only.
       # Ajustar la ruta del host (${LEGACY_SHARE_HOST_PATH}) al punto de montaje real.

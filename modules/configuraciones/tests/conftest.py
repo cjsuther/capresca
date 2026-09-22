@@ -5,6 +5,9 @@ import os
 # setdefault): el contenedor de tests hereda las del compose y los tests usan las suyas.
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 os.environ["INTERNAL_API_KEY"] = "clave-de-test"
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

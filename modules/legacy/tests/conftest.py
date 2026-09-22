@@ -21,6 +21,9 @@ os.environ.setdefault("WRITE_MODE", "outbox_only")
 os.environ.setdefault("ALLOW_REAL_DRAIN", "false")
 # El scheduler sólo arranca en el lifespan; igual lo dejamos apagado por defecto.
 os.environ.setdefault("SYNC_ENABLED", "false")
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import dbf as dbflib  # noqa: E402
 import pytest  # noqa: E402

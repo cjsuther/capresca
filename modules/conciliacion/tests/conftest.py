@@ -21,6 +21,11 @@ os.environ.setdefault("LEGACY_INTERNAL_API_KEY", "clave-de-test")
 os.environ.setdefault("NOTIFICATIONS_SERVICE_URL", "http://notifications-test:8005")
 os.environ.setdefault("AUTO_PAYMENTS_ENABLED", "false")
 os.environ.setdefault("PAYMENTS_DRY_RUN", "true")
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
+# El envío por Tesorería lo encienden los tests que lo prueban (el compose lo trae en true).
+os.environ["PAYMENTS_VIA_TESORERIA"] = "false"
 
 from datetime import date  # noqa: E402
 from decimal import Decimal  # noqa: E402

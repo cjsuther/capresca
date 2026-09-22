@@ -4,6 +4,9 @@ import os
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 os.environ["INTERNAL_API_KEY"] = "clave-de-test"
 os.environ["ENVIO_SIMULADO"] = "true"
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

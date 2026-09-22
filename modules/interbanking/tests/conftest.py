@@ -12,6 +12,9 @@ os.environ.setdefault("INTERBANKING_AUTH_URL", "https://preauth.test.interbankin
 # Cualquier string sirve: config.get_fernet() deriva los 32 bytes con sha256.
 os.environ.setdefault("ENCRYPTION_KEY", "clave-de-test-interbanking")
 os.environ.setdefault("NOTIFICATIONS_SERVICE_URL", "http://notifications-test:8005")
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import httpx
 import pytest
