@@ -28,12 +28,24 @@ def _url(path: str) -> str:
     return f"{settings.interbanking_service_url.rstrip('/')}{path}"
 
 
-def enviar(cbu: str, monto: float, concepto: str) -> dict:
-    """Crea la transferencia. Devuelve {id, status, id_operacion_ib}."""
+def cuentas() -> dict:
+    """Cuentas desde las que se puede pagar, para elegir el origen del lote."""
     try:
-        r = httpx.post(_url("/internal/interbanking/payments"),
-                       json={"cbu_destino": cbu, "monto": monto, "moneda": "ARS", "concepto": concepto},
-                       timeout=TIMEOUT)
+        r = httpx.get(_url("/internal/interbanking/payment-accounts"), timeout=TIMEOUT)
+        r.raise_for_status()
+    except httpx.HTTPError as e:
+        return {"items": [], "error": f"No se pudo consultar Interbanking: {e}"[:200]}
+    return r.json()
+
+
+def enviar(cbu: str, monto: float, concepto: str, cuenta: dict | None = None) -> dict:
+    """Crea la transferencia desde `cuenta` (o la configurada). Devuelve {id, status, id_operacion_ib}."""
+    cuerpo = {"cbu_destino": cbu, "monto": monto, "moneda": "ARS", "concepto": concepto}
+    if cuenta and cuenta.get("account_number"):
+        cuerpo |= {"cuenta_origen": cuenta["account_number"], "cuenta_origen_tipo": cuenta.get("account_type") or "CC",
+                   "cuenta_origen_banco": cuenta.get("bank_number") or "011"}
+    try:
+        r = httpx.post(_url("/internal/interbanking/payments"), json=cuerpo, timeout=TIMEOUT)
     except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError) as e:
         raise EnvioIncierto(f"Sin respuesta de Interbanking: {e}") from e
     if r.status_code >= 500:

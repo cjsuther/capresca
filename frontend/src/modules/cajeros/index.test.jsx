@@ -108,7 +108,7 @@ describe("CajerosModule — sidebar por permisos", () => {
   it("sin permisos del módulo el sidebar queda vacío pero la ruta se resuelve igual", () => {
     sesion([]);
     montar("/modules/cajeros/rules");
-    expect(screen.queryAllByRole("link")).toHaveLength(0);
+    expect(screen.queryAllByRole("link").map((a) => a.textContent)).toEqual(["Inicio"]);  // sólo la salida del módulo
     // OJO: el menú se filtra, pero la ruta NO: entrando por URL la pantalla igual se monta.
     expect(screen.getByText("pantalla de reglas")).toBeInTheDocument();
   });

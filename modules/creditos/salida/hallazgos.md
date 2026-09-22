@@ -7,6 +7,17 @@
 
 ---
 
+## H-217 · Tesorería: elegir la cuenta de origen del pago, y botón "Inicio" en toda la plataforma
+**Fecha:** 2026-09-22 · **Módulo:** Tesorería / Interbanking / UI común · **Alcance:** pedido del usuario
+- Al enviar un lote, el tesorero **elige desde qué cuenta sale la transferencia**. Interbanking expone
+  `/internal/interbanking/payment-accounts` (las cuentas del banco + la "cuenta de pagos" configurada,
+  marcada como predeterminada) y `/internal/interbanking/payments` acepta `cuenta_origen`. La cuenta
+  elegida se valida contra esa lista (no se envía a una cuenta arbitraria), queda guardada en el lote y
+  se ve en el historial y en la pantalla. En modo real sin cuentas no se envía; en simulación sí, para
+  poder probar el circuito. Si el banco no responde, igual se puede usar la configurada.
+- **Botón "Inicio"** en la barra superior (salvo estando en el tablero) y arriba del menú lateral: hasta
+  ahora sólo se volvía haciendo clic en el logo y los usuarios no lo descubrían.
+
 ## H-216 · Desembolsos por Tesorería: el contrato se activa cuando se acredita la transferencia
 **Fecha:** 2026-09-22 · **Módulo:** Créditos / Tesorería (nuevo) · **Alcance:** pedido del usuario
 - Nuevo módulo **Tesorería** (:8012): recibe lotes de pagos de Créditos, Conciliación o carga manual; el

@@ -30,5 +30,9 @@ export const fechaHora = (v) => {
   return isNaN(d) ? String(v) : d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
 };
 
+/** "011/99900011122/CC · Cuenta de pagos" */
+export const cuentaLegible = (c) =>
+  (!c ? "—" : [`${c.bank_number || "011"}/${c.account_number}/${c.account_type || "CC"}`, c.nombre].filter(Boolean).join(" · "));
+
 /** CBU con separadores para leerlo (banco-sucursal · cuenta). */
 export const cbuLegible = (c) => (c && c.length === 22 ? `${c.slice(0, 8)} ${c.slice(8)}` : c || "—");

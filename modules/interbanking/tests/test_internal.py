@@ -211,3 +211,54 @@ def test_movimientos_tolera_importes_y_fechas_ausentes(client, cred, red):
 def test_movimientos_sin_credenciales_es_503(client):
     r = client.get(f"{BASE}/movements?date=2026-03-15&account_number=1")
     assert r.status_code == 503
+
+
+# ───────────────────── Cuenta de origen elegible (Tesorería) ────────────────────
+
+def test_pago_saliente_desde_la_cuenta_elegida(client, db, cred):
+    """Tesorería elige desde qué cuenta sale el lote; sin elección, la configurada."""
+    r = client.post(f"{BASE}/payments", json={"cbu_destino": "0" * 22, "monto": 10, "cuenta_origen": "12345678901",
+                                              "cuenta_origen_tipo": "CA", "cuenta_origen_banco": "017"})
+    assert r.status_code == 200, r.text
+    assert db.query(Transfer).filter_by(id=r.json()["id"]).one().cuenta_origen == "017/12345678901/CA"
+
+    r2 = client.post(f"{BASE}/payments", json={"cbu_destino": "0" * 22, "monto": 10, "cuenta_origen": "12345678901"})
+    assert db.query(Transfer).filter_by(id=r2.json()["id"]).one().cuenta_origen == "011/12345678901/CC"  # defaults
+
+
+def test_cuentas_para_pagar_sin_credenciales(client):
+    assert client.get(f"{BASE}/payment-accounts").json() == {
+        "items": [], "error": "No hay credenciales de Interbanking configuradas"}
+
+
+def test_cuentas_para_pagar_marca_la_configurada(client, cred, red):
+    """Sin customer-id no se consulta al banco, pero la configurada siempre está."""
+    cred.customer_id = None
+    r = client.get(f"{BASE}/payment-accounts").json()
+    assert r["items"] == [{"account_number": "99900011122", "account_type": "CC", "bank_number": "011",
+                           "currency": "ARS", "nombre": "Cuenta de pagos configurada", "predeterminada": True}]
+
+
+def test_cuentas_para_pagar_lista_las_del_banco(client, cred, red):
+    red.token()
+    red.ruta("/accounts", body={"accounts": [
+        {"account_number": "99900011122", "account_type": "CC", "bank_number": "011", "currency": "ARS",
+         "description": "Cuenta pagos"},
+        {"account_number": "46600513539", "account_type": "CA", "bank_number": "011", "currency": "USD"},
+        {"description": "sin número: se ignora"},
+    ]})
+
+    r = client.get(f"{BASE}/payment-accounts").json()
+
+    assert r["error"] == ""
+    assert [(c["account_number"], c["predeterminada"]) for c in r["items"]] == [("99900011122", True), ("46600513539", False)]
+
+
+def test_si_el_banco_no_responde_igual_se_puede_elegir_la_configurada(client, cred, red):
+    red.token()
+    red.ruta("/accounts", status=500)
+
+    r = client.get(f"{BASE}/payment-accounts").json()
+
+    assert [c["account_number"] for c in r["items"]] == ["99900011122"]
+    assert "No se pudieron listar las cuentas" in r["error"]

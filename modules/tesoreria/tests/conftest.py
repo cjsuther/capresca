@@ -76,13 +76,21 @@ def simulado(monkeypatch):
     monkeypatch.setattr(settings, "envio_simulado", True)
 
 
+CUENTAS = [
+    {"account_number": "99900011122", "account_type": "CC", "bank_number": "011", "currency": "ARS",
+     "nombre": "Cuenta de pagos", "predeterminada": True},
+    {"account_number": "46600513539", "account_type": "CA", "bank_number": "017", "currency": "ARS",
+     "nombre": "Recaudación", "predeterminada": False},
+]
+
+
 class Banco:
     """Interbanking simulado para el modo real: se programa qué responde cada envío."""
     def __init__(self):
         self.enviados, self.respuestas, self.estados = [], [], {}
 
-    def enviar(self, cbu, monto, concepto):
-        self.enviados.append((cbu, monto, concepto))
+    def enviar(self, cbu, monto, concepto, cuenta=None):
+        self.enviados.append((cbu, monto, concepto, cuenta))
         r = self.respuestas.pop(0) if self.respuestas else {"status": "INICIADA"}
         if isinstance(r, Exception):
             raise r
@@ -91,6 +99,14 @@ class Banco:
 
     def estado(self, transfer_id):
         return self.estados.get(transfer_id, "INICIADA")
+
+
+@pytest.fixture(autouse=True)
+def cuentas_banco(monkeypatch):
+    """Cuentas que ofrece Interbanking para elegir el origen del pago."""
+    estado = {"items": list(CUENTAS), "error": ""}
+    monkeypatch.setattr(interbanking, "cuentas", lambda: {"items": list(estado["items"]), "error": estado["error"]})
+    return estado
 
 
 @pytest.fixture

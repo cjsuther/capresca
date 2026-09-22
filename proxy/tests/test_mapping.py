@@ -131,6 +131,7 @@ def test_la_copia_interna_de_documentos_no_se_publica():
 @pytest.mark.parametrize("metodo,ruta,permiso", [
     ("GET", "/api/tesoreria/lotes", "tesoreria:lotes:read"),
     ("GET", "/api/tesoreria/lotes/12", "tesoreria:lotes:read"),
+    ("GET", "/api/tesoreria/lotes/cuentas-origen", "tesoreria:lotes:read"),
     ("POST", "/api/tesoreria/lotes", "tesoreria:lotes:write"),
     ("POST", "/api/tesoreria/lotes/12/pagos/3/excluir", "tesoreria:lotes:write"),
     ("POST", "/api/tesoreria/lotes/12/aprobar", "tesoreria:*"),

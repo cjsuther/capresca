@@ -180,6 +180,7 @@ ROUTE_MAP = [
     # ── Tesorería: ver lotes pide lectura; aprobar/rechazar y enviar los valida el módulo (workflow y
     #    permiso de envío), así el gateway sólo exige ser del módulo para esas acciones. ──
     ("GET",  r"^/api/tesoreria/lotes(/\d+)?$",                          settings.tesoreria_service_url, "tesoreria:lotes:read"),
+    ("GET",  r"^/api/tesoreria/lotes/cuentas-origen$",                  settings.tesoreria_service_url, "tesoreria:lotes:read"),
     ("POST", r"^/api/tesoreria/lotes$",                                  settings.tesoreria_service_url, "tesoreria:lotes:write"),
     ("POST", r"^/api/tesoreria/lotes/\d+/pagos/\d+/(excluir|incluir)$",  settings.tesoreria_service_url, "tesoreria:lotes:write"),
     ("POST", r"^/api/tesoreria/lotes/\d+/(aprobar|rechazar)$",           settings.tesoreria_service_url, "tesoreria:*"),

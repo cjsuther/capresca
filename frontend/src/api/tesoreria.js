@@ -11,7 +11,8 @@ export const excluirPago = (id, pid, motivo) => data(api.post(`${B}/${id}/pagos/
 export const incluirPago = (id, pid) => data(api.post(`${B}/${id}/pagos/${pid}/incluir`));
 export const aprobarLote = (id) => data(api.post(`${B}/${id}/aprobar`));
 export const rechazarLote = (id, motivo) => data(api.post(`${B}/${id}/rechazar`, { motivo }));
-export const enviarLote = (id) => data(api.post(`${B}/${id}/enviar`));
+export const cuentasOrigen = () => data(api.get(`${B}/cuentas-origen`));
+export const enviarLote = (id, cuentaOrigen) => data(api.post(`${B}/${id}/enviar`, { cuenta_origen: cuentaOrigen || null }));
 export const actualizarLote = (id) => data(api.post(`${B}/${id}/actualizar`));
 export const reintentarPago = (id, pid) => data(api.post(`${B}/${id}/pagos/${pid}/reintentar`));
 export const resolverPago = (id, pid, resultado, observacion) =>

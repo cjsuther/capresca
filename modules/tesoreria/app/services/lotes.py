@@ -57,6 +57,9 @@ def resumen(lote: models.Lote) -> dict:
         "motivo_rechazo": lote.motivo_rechazo, "simulado": lote.simulado,
         "cantidad": len(activos), "total": float(sum((p.monto for p in activos), Decimal(0))),
         "excluidos": sum(1 for p in lote.pagos if p.estado == "EXCLUIDO"), "por_estado": por_estado,
+        "cuenta_origen": ({"account_number": lote.cuenta_origen, "account_type": lote.cuenta_origen_tipo,
+                           "bank_number": lote.cuenta_origen_banco, "nombre": lote.cuenta_origen_nombre}
+                          if lote.cuenta_origen else None),
         "creado_por": lote.creado_por, "creado_en": lote.creado_en.isoformat() if lote.creado_en else None,
         "enviado_por": lote.enviado_por, "enviado_en": lote.enviado_en.isoformat() if lote.enviado_en else None,
     }
@@ -291,7 +294,9 @@ def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str) -> 
         return
     concepto = f"{lote.codigo} {p.concepto}".strip()[:120]
     try:
-        r = interbanking.enviar(p.cbu, float(p.monto), concepto)
+        cuenta = {"account_number": lote.cuenta_origen, "account_type": lote.cuenta_origen_tipo,
+                  "bank_number": lote.cuenta_origen_banco} if lote.cuenta_origen else None
+        r = interbanking.enviar(p.cbu, float(p.monto), concepto, cuenta)
         p.transfer_id, p.id_operacion_ib = r.get("id"), str(r.get("id_operacion_ib") or "")
         p.estado_banco = str(r.get("status") or "")
         p.estado = interbanking.clasificar(p.estado_banco)
@@ -318,18 +323,51 @@ def recalcular(lote: models.Lote) -> None:
         lote.estado = "ENVIADO"
 
 
-def enviar(db: Session, lote: models.Lote, user: Usuario) -> None:
+def cuentas_para_pagar() -> dict:
+    """Cuentas disponibles como origen del pago (las de Interbanking)."""
+    return interbanking.cuentas()
+
+
+def _elegir_cuenta(elegida: str | None) -> dict:
+    """Valida la cuenta elegida contra las que ofrece Interbanking. Sin elección, la predeterminada.
+    Con dinero de por medio no se envía a ciegas: sin cuenta, no sale. En simulación sí, para poder
+    probar el circuito aunque Interbanking todavía no tenga cuentas configuradas."""
+    disponibles = interbanking.cuentas().get("items") or []
+    if elegida:
+        cuenta = next((c for c in disponibles if str(c["account_number"]) == str(elegida)), None)
+        if cuenta is None:
+            raise HTTPException(422, "La cuenta de origen elegida no está entre las cuentas disponibles.")
+        return cuenta
+    cuenta = next((c for c in disponibles if c.get("predeterminada")), None)
+    if cuenta is None:
+        if settings.envio_simulado:
+            return {}
+        raise HTTPException(422, "Elegí desde qué cuenta sale el pago (no hay cuenta de pagos configurada "
+                                 "en Interbanking).")
+    return cuenta
+
+
+def enviar(db: Session, lote: models.Lote, user: Usuario, cuenta_origen: str | None = None) -> None:
     if not user.puede("lotes:enviar"):
         raise HTTPException(403, "Falta el permiso tesoreria:lotes:enviar (Seguridad).")
+    if lote.estado != "APROBADO":
+        raise HTTPException(409, "El lote no está aprobado para enviar (o ya se está enviando).")
+    cuenta = _elegir_cuenta(cuenta_origen)      # antes de tomar el lote: si falla, queda APROBADO
     tomado = (db.query(models.Lote).filter(models.Lote.id == lote.id, models.Lote.estado == "APROBADO")
               .update({"estado": "ENVIADO", "enviado_por": user.username, "enviado_en": _ahora(),
-                       "simulado": settings.envio_simulado}, synchronize_session=False))
+                       "simulado": settings.envio_simulado,
+                       "cuenta_origen": str(cuenta.get("account_number") or "")[:50],
+                       "cuenta_origen_tipo": (cuenta.get("account_type") or "CC")[:5],
+                       "cuenta_origen_banco": (cuenta.get("bank_number") or "011")[:5],
+                       "cuenta_origen_nombre": (cuenta.get("nombre") or "")[:120]}, synchronize_session=False))
     db.commit()
     if not tomado:
         raise HTTPException(409, "El lote no está aprobado para enviar (o ya se está enviando).")
     db.refresh(lote)
-    evento(db, lote, user.username, "ENVIO", "Modo simulación: no se movió dinero" if settings.envio_simulado
-           else "Enviado por Interbanking")
+    desde = (f"desde la cuenta {lote.cuenta_origen_banco}/{lote.cuenta_origen}/{lote.cuenta_origen_tipo}"
+             if lote.cuenta_origen else "sin cuenta de origen configurada")
+    evento(db, lote, user.username, "ENVIO", f"Modo simulación: no se movió dinero ({desde})" if settings.envio_simulado
+           else f"Enviado por Interbanking {desde}")
     db.commit()
     for p in list(lote.pagos):
         if p.estado == "PENDIENTE":

@@ -36,6 +36,11 @@ class Lote(Base):
     creado_por: Mapped[str] = mapped_column(String(60), default="")
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     aprobado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Cuenta desde la que salieron las transferencias (la elige el tesorero al enviar).
+    cuenta_origen: Mapped[str] = mapped_column(String(50), default="")
+    cuenta_origen_tipo: Mapped[str] = mapped_column(String(5), default="")
+    cuenta_origen_banco: Mapped[str] = mapped_column(String(5), default="")
+    cuenta_origen_nombre: Mapped[str] = mapped_column(String(120), default="")
     enviado_por: Mapped[str] = mapped_column(String(60), default="")
     enviado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     pagos: Mapped[list["Pago"]] = relationship(back_populates="lote", cascade="all, delete-orphan",

@@ -15,6 +15,7 @@ vi.mock("../api/notifications", () => ({
 import { logout as apiLogout } from "../api/auth";
 import { changeMyPassword } from "../api/security";
 import { Layout } from "./Layout";
+import { Sidebar } from "./Sidebar";
 import { useAuthStore } from "../context/authStore";
 
 function montar({ sidebar } = {}) {
@@ -66,6 +67,30 @@ describe("Layout", () => {
     montar();
     await user.click(screen.getByAltText("Portezuelo"));
     expect(screen.getByText("tablero")).toBeInTheDocument();
+  });
+
+  it("hay un botón Inicio que vuelve al tablero", async () => {
+    montar();
+    const boton = screen.getByRole("link", { name: "Inicio" });
+    expect(boton).toHaveAttribute("href", "/dashboard");
+    await userEvent.click(boton);
+    expect(await screen.findByText("tablero")).toBeInTheDocument();
+  });
+
+  it("estando en el inicio no se muestra el botón Inicio", () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<Layout><p>tablero</p></Layout>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
+  });
+
+  it("el menú lateral también ofrece volver al inicio", () => {
+    montar({ sidebar: <Sidebar menuItems={[]} moduleCode="security" /> });
+    expect(screen.getAllByRole("link", { name: "Inicio" }).length).toBeGreaterThan(1);
   });
 
   it("el menú de usuario se abre y se cierra con el overlay", async () => {

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../api/tesoreria", async (orig) => ({
   ...(await orig()),
   verLote: vi.fn(), aprobarLote: vi.fn(), rechazarLote: vi.fn(), excluirPago: vi.fn(), incluirPago: vi.fn(),
+  cuentasOrigen: vi.fn(),
   enviarLote: vi.fn(), actualizarLote: vi.fn(), reintentarPago: vi.fn(), resolverPago: vi.fn(),
 }));
 
@@ -23,8 +24,17 @@ const BASE = {
   eventos: [{ fecha: "2026-09-22T10:00:00", usuario: "ana", accion: "ALTA", detalle: "2 pago(s)" }],
 };
 
-function montar(lote) {
+const CUENTAS = {
+  items: [
+    { account_number: "99900011122", account_type: "CC", bank_number: "011", nombre: "Cuenta de pagos", predeterminada: true },
+    { account_number: "46600513539", account_type: "CA", bank_number: "017", nombre: "Recaudación", predeterminada: false },
+  ],
+  error: "",
+};
+
+function montar(lote, cuentas = CUENTAS) {
   api.verLote.mockResolvedValue(lote);
+  api.cuentasOrigen.mockResolvedValue(cuentas);
   render(
     <MemoryRouter initialEntries={["/lotes/3"]}>
       <Routes><Route path="/lotes/:id" element={<LotePage />} /></Routes>
@@ -73,16 +83,43 @@ describe("LotePage", () => {
     expect(screen.queryByRole("button", { name: /Aprobar/ })).not.toBeInTheDocument();
   });
 
-  it("enviar un lote aprobado", async () => {
+  it("enviar un lote aprobado desde la cuenta predeterminada", async () => {
     api.enviarLote.mockResolvedValue({ ...BASE, estado: "CONFIRMADO", simulado: true, por_estado: { CONFIRMADO: 2 },
                                        pagos: [{ ...P1, estado: "CONFIRMADO" }, { ...P2, estado: "CONFIRMADO" }] });
     montar({ ...BASE, estado: "APROBADO" });
-    await userEvent.click(await screen.findByRole("button", { name: /Enviar por Interbanking/ }));
+    const select = await screen.findByLabelText("Cuenta desde la que se paga");
+    await waitFor(() => expect(select).toHaveValue("99900011122"));
+    await userEvent.click(screen.getByRole("button", { name: /Enviar por Interbanking/ }));
     const conf = screen.getByRole("dialog", { name: "Enviar por Interbanking" });
+    expect(conf).toHaveTextContent("011/99900011122/CC · Cuenta de pagos");
     expect(conf).toHaveTextContent("no se mueve dinero");
     await userEvent.click(within(conf).getByRole("button", { name: "Enviar" }));
-    expect(api.enviarLote).toHaveBeenCalledWith(3);
+    expect(api.enviarLote).toHaveBeenCalledWith(3, "99900011122");
     expect(await screen.findByText(/se envió en modo simulación/)).toBeInTheDocument();
+  });
+
+  it("se puede elegir otra cuenta de origen", async () => {
+    api.enviarLote.mockResolvedValue({ ...BASE, estado: "ENVIADO" });
+    montar({ ...BASE, estado: "APROBADO" });
+    const select = await screen.findByLabelText("Cuenta desde la que se paga");
+    await waitFor(() => expect(select).toHaveValue("99900011122"));
+    await userEvent.selectOptions(select, "46600513539");
+    await userEvent.click(screen.getByRole("button", { name: /Enviar por Interbanking/ }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Enviar" }));
+    expect(api.enviarLote).toHaveBeenCalledWith(3, "46600513539");
+  });
+
+  it("avisa si el banco no devolvió las cuentas", async () => {
+    montar({ ...BASE, estado: "APROBADO" }, { items: [], error: "No se pudieron listar las cuentas del banco" });
+    expect(await screen.findByText("No se pudieron listar las cuentas del banco")).toBeInTheDocument();
+    expect(screen.getByLabelText("Cuenta desde la que se paga")).toHaveTextContent("Sin cuentas disponibles");
+  });
+
+  it("un lote en curso muestra desde qué cuenta se pagó", async () => {
+    montar({ ...BASE, estado: "ENVIADO", enviado_por: "teso", enviado_en: "2026-09-22T11:00:00",
+             cuenta_origen: { account_number: "46600513539", account_type: "CA", bank_number: "017", nombre: "Recaudación" } });
+    expect(await screen.findByText(/desde 017\/46600513539\/CA · Recaudación/)).toBeInTheDocument();
+    expect(api.cuentasOrigen).not.toHaveBeenCalled();     // sólo se consultan si hay que enviar
   });
 
   it("un pago incierto se resuelve indicando qué se verificó", async () => {

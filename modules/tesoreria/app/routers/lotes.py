@@ -29,6 +29,10 @@ class MotivoIn(BaseModel):
     motivo: str = ""
 
 
+class EnviarIn(BaseModel):
+    cuenta_origen: str | None = None      # número de cuenta desde la que sale el pago
+
+
 class ResolverIn(BaseModel):
     resultado: str
     observacion: str = ""
@@ -53,6 +57,12 @@ def listar(estado: str | None = Query(None), origen: str | None = Query(None), d
     pendientes = db.query(models.Lote).filter(models.Lote.estado.in_(["PENDIENTE_APROBACION", "APROBADO"])).count()
     return {"items": [svc.resumen(l) for l in lotes], "pendientes": pendientes,
             "envio_simulado": svc.settings.envio_simulado}
+
+
+@router.get("/cuentas-origen")
+def cuentas_origen(_u: Usuario = Depends(usuario_actual)):
+    """Cuentas desde las que se puede pagar (Interbanking); el tesorero elige una al enviar el lote."""
+    return svc.cuentas_para_pagar()
 
 
 @router.get("/{lote_id}")
@@ -108,9 +118,10 @@ def rechazar(lote_id: int, data: MotivoIn, db: Session = Depends(get_db), user: 
 
 
 @router.post("/{lote_id}/enviar")
-def enviar(lote_id: int, db: Session = Depends(get_db), user: Usuario = Depends(usuario_actual)):
+def enviar(lote_id: int, data: EnviarIn | None = None, db: Session = Depends(get_db),
+           user: Usuario = Depends(usuario_actual)):
     lote = _lote(db, lote_id)
-    svc.enviar(db, lote, user)
+    svc.enviar(db, lote, user, (data.cuenta_origen if data else None))
     return svc.detalle(db, lote, user)
 
 

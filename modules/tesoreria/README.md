@@ -19,6 +19,10 @@ PENDIENTE_APROBACION ──aprobar (workflow LOTE_PAGO)──▶ APROBADO ──
 - **Aprobación:** regla `tesoreria / LOTE_PAGO` en Configuraciones → Workflow (niveles, roles APROBAR /
   SUPERVISAR = permisos `tesoreria:aprobaciones:aprobar|supervisar`, cuatro ojos). Quien armó el lote no
   lo aprueba. Si la regla está inactiva, alcanza con el permiso `aprobaciones:aprobar`.
+- **Cuenta de origen:** al enviar, el tesorero elige desde qué cuenta sale el lote. Las cuentas salen de
+  Interbanking (`/internal/interbanking/payment-accounts`: las del banco más la "cuenta de pagos"
+  configurada, marcada como predeterminada). Sólo se acepta una cuenta de esa lista y queda guardada en el
+  lote y en su historial. En modo real, sin cuenta no se envía; en simulación se permite para poder probar.
 - **Envío:** permiso `tesoreria:lotes:enviar`. Cada pago se toma con un `UPDATE … WHERE estado` atómico:
   dos envíos simultáneos no pagan dos veces.
 - **Pagos inciertos:** si se corta la comunicación con Interbanking (timeout, 5xx) no se sabe si la

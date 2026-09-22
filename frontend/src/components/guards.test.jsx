@@ -99,6 +99,7 @@ describe("Sidebar", () => {
         <Sidebar menuItems={menu} moduleCode="cajeros" />
       </MemoryRouter>
     );
-    expect(screen.getAllByRole("link")).toHaveLength(2);
+    // Las dos del módulo + "Inicio", que el sidebar ofrece siempre para salir del módulo.
+    expect(screen.getAllByRole("link").map((a) => a.textContent)).toEqual(["Inicio", "Transacciones", "Reglas"]);
   });
 });

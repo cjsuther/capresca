@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, RefreshCw, Send, XCircle } from "lucide-react";
 import {
-  actualizarLote, aprobarLote, enviarLote, excluirPago, incluirPago, mensajeDeError, rechazarLote, reintentarPago,
-  resolverPago, verLote,
+  actualizarLote, aprobarLote, cuentasOrigen, enviarLote, excluirPago, incluirPago, mensajeDeError, rechazarLote,
+  reintentarPago, resolverPago, verLote,
 } from "../../../api/tesoreria";
 import { Alerta, Boton, Card, Field, Kpis, Modal, PageHeader } from "../../../components/ui";
 import { Confirmacion } from "../../../components/ui/Confirmacion";
 import { DataTable } from "../../../components/ui/DataTable";
 import { Pill } from "../../../components/ui/Pill";
-import { ESTADO_LOTE, ESTADO_PAGO, ORIGENES, cbuLegible, fechaHora, money } from "../estados";
+import { ESTADO_LOTE, ESTADO_PAGO, ORIGENES, cbuLegible, cuentaLegible, fechaHora, money } from "../estados";
 
 /** Pide un texto obligatorio (motivo de exclusión/rechazo, observación de lo verificado en el banco). */
 function PedirTexto({ titulo, ayuda, etiqueta, confirmar, danger, opciones, onConfirmar, onCancelar, ocupado }) {
@@ -49,10 +49,23 @@ export default function LotePage() {
   const [ok, setOk] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [dialogo, setDialogo] = useState(null);   // {tipo, pago?}
+  const [cuentas, setCuentas] = useState(null);   // {items, error} | null mientras carga
+  const [cuentaElegida, setCuentaElegida] = useState("");   // cuenta de origen elegida para enviar
 
   useEffect(() => {
     verLote(id).then(setLote).catch((e) => setError(mensajeDeError(e, "No se pudo cargar el lote")));
   }, [id]);
+
+  // Cuentas desde las que se puede pagar: se piden cuando el lote está listo para enviarse.
+  useEffect(() => {
+    if (!lote || lote.estado !== "APROBADO" || !lote.puede_enviar || cuentas) return;
+    cuentasOrigen()
+      .then((r) => {
+        setCuentas(r);
+        setCuentaElegida((c) => c || (r.items.find((x) => x.predeterminada) || r.items[0])?.account_number || "");
+      })
+      .catch((e) => setCuentas({ items: [], error: mensajeDeError(e, "No se pudieron consultar las cuentas") }));
+  }, [lote, cuentas]);
 
   const correr = async (fn, exito) => {
     setOcupado(true); setError(""); setOk("");
@@ -178,24 +191,40 @@ export default function LotePage() {
       )}
       {lote.estado === "APROBADO" && (
         <Card>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <p className="text-sm text-gray-600 mr-auto">
               Aprobado. {lote.puede_enviar ? `Al enviar salen ${lote.cantidad} transferencia(s) por ${money(lote.total)}.`
                                            : "Lo envía quien tenga el permiso tesoreria:lotes:enviar."}
             </p>
             {lote.puede_enviar && (
-              <Boton disabled={ocupado} onClick={() => setDialogo({ tipo: "enviar" })} className="flex items-center gap-1">
-                <Send size={15} /> Enviar por Interbanking
-              </Boton>
+              <>
+                <Field label="Cuenta desde la que se paga">
+                  <select className="input min-w-[18rem]" value={cuentaElegida} disabled={!cuentas}
+                          onChange={(e) => setCuentaElegida(e.target.value)}>
+                    {!cuentas && <option value="">Cargando cuentas…</option>}
+                    {cuentas?.items.length === 0 && <option value="">Sin cuentas disponibles</option>}
+                    {cuentas?.items.map((c) => (
+                      <option key={c.account_number} value={c.account_number}>
+                        {cuentaLegible(c)}{c.predeterminada ? " (predeterminada)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Boton disabled={ocupado || !cuentas} onClick={() => setDialogo({ tipo: "enviar" })} className="flex items-center gap-1">
+                  <Send size={15} /> Enviar por Interbanking
+                </Boton>
+              </>
             )}
           </div>
+          {cuentas?.error && <p className="text-xs text-yellow-700 mt-2">{cuentas.error}</p>}
         </Card>
       )}
       {enCurso && (
         <Card>
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-gray-600 mr-auto">
-              Enviado {fechaHora(lote.enviado_en)}{lote.enviado_por ? ` por ${lote.enviado_por}` : ""}.
+              Enviado {fechaHora(lote.enviado_en)}{lote.enviado_por ? ` por ${lote.enviado_por}` : ""}
+              {lote.cuenta_origen ? ` desde ${cuentaLegible(lote.cuenta_origen)}` : ""}.
               {cuenta("ENVIADO") ? ` ${cuenta("ENVIADO")} pago(s) esperando la acreditación.` : ""}
             </p>
             <Boton variante="secundario" disabled={ocupado} className="flex items-center gap-1"
@@ -204,6 +233,10 @@ export default function LotePage() {
             </Boton>
           </div>
         </Card>
+      )}
+
+      {lote.cuenta_origen && !enCurso && lote.estado !== "APROBADO" && (
+        <p className="text-sm text-gray-500">Pagado desde {cuentaLegible(lote.cuenta_origen)}</p>
       )}
 
       <Card padding={false}>
@@ -252,8 +285,10 @@ export default function LotePage() {
       )}
       {dialogo?.tipo === "enviar" && (
         <Confirmacion titulo="Enviar por Interbanking" confirmar="Enviar" ocupado={ocupado}
-                      mensaje={`Salen ${lote.cantidad} transferencia(s) por ${money(lote.total)} desde la cuenta de pagos.${lote.envio_simulado ? "\n(Modo simulación: no se mueve dinero.)" : "\nEsta acción mueve dinero y no se puede deshacer."}`}
-                      onConfirmar={() => correr(() => enviarLote(lote.id), "Lote enviado.")} onCancelar={() => setDialogo(null)} />
+                      mensaje={`Salen ${lote.cantidad} transferencia(s) por ${money(lote.total)} desde la cuenta ${
+                        cuentaLegible(cuentas?.items.find((c) => c.account_number === cuentaElegida)) }.${
+                        lote.envio_simulado ? "\n(Modo simulación: no se mueve dinero.)" : "\nEsta acción mueve dinero y no se puede deshacer."}`}
+                      onConfirmar={() => correr(() => enviarLote(lote.id, cuentaElegida), "Lote enviado.")} onCancelar={() => setDialogo(null)} />
       )}
       {dialogo?.tipo === "reintentar" && (
         <Confirmacion titulo={`Reintentar el pago a ${dialogo.pago.beneficiario}`} confirmar="Reintentar" ocupado={ocupado}

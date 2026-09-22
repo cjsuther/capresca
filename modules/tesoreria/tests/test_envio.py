@@ -39,8 +39,9 @@ def test_modo_real_envia_y_confirma(client, lote_creditos, teso, banco, origen):
     lid = _aprobado(client, lote_creditos, teso)
     d = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso).json()
     assert d["simulado"] is False and len(banco.enviados) == 2
-    cbu, monto, concepto = banco.enviados[0]
+    cbu, monto, concepto, cuenta = banco.enviados[0]
     assert cbu == "2850590940090418135201" and monto == 500000.0 and concepto.startswith(d["codigo"])
+    assert cuenta["account_number"] == "99900011122"        # la cuenta de pagos predeterminada
     assert [p["estado"] for p in d["pagos"]] == ["ENVIADO", "ENVIADO"]
     banco.estados = {1: "ACREDITADA"}
     d = client.post(f"/api/tesoreria/lotes/{lid}/actualizar", headers=teso).json()
@@ -106,3 +107,52 @@ def test_clasificacion_de_estados_del_banco():
     assert interbanking.clasificar("RECHAZADA") == "FALLIDO"
     assert interbanking.clasificar("INICIADA") == "ENVIADO"
     assert interbanking.clasificar("") == "ENVIADO"
+
+
+# ───────────────────────── Cuenta desde la que sale el pago ────────────────────────
+
+def test_el_tesorero_elige_la_cuenta_de_origen(client, lote_creditos, teso, banco, origen):
+    lid = _aprobado(client, lote_creditos, teso)
+
+    d = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso, json={"cuenta_origen": "46600513539"}).json()
+
+    assert d["cuenta_origen"] == {"account_number": "46600513539", "account_type": "CA", "bank_number": "017",
+                                  "nombre": "Recaudación"}
+    assert {c["account_number"] for *_, c in banco.enviados} == {"46600513539"}
+    assert any("46600513539" in e["detalle"] for e in d["eventos"] if e["accion"] == "ENVIO")
+
+
+def test_sin_elegir_usa_la_cuenta_de_pagos_configurada(client, lote_creditos, teso, banco, origen):
+    lid = _aprobado(client, lote_creditos, teso)
+    d = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso).json()
+    assert d["cuenta_origen"]["account_number"] == "99900011122"
+
+
+def test_una_cuenta_que_no_esta_disponible_no_se_envia(client, lote_creditos, teso, banco):
+    lid = _aprobado(client, lote_creditos, teso)
+    r = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso, json={"cuenta_origen": "99999999999"})
+    assert r.status_code == 422 and "no está entre las cuentas disponibles" in r.json()["detail"]
+    assert banco.enviados == []
+    assert client.get(f"/api/tesoreria/lotes/{lid}", headers=teso).json()["estado"] == "APROBADO"
+
+
+def test_en_modo_real_sin_cuentas_no_sale_a_ciegas(client, lote_creditos, teso, banco, cuentas_banco):
+    cuentas_banco["items"] = []
+    lid = _aprobado(client, lote_creditos, teso)
+    r = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso)
+    assert r.status_code == 422 and "Elegí desde qué cuenta" in r.json()["detail"]
+    assert banco.enviados == []
+
+
+def test_en_simulacion_sin_cuentas_igual_se_puede_probar(client, lote_creditos, teso, cuentas_banco):
+    cuentas_banco["items"] = []
+    lid = _aprobado(client, lote_creditos, teso)
+    d = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso).json()
+    assert d["estado"] == "ENVIADO" and d["cuenta_origen"] is None
+
+
+def test_las_cuentas_disponibles_se_consultan_desde_la_pantalla(client, teso, cuentas_banco):
+    r = client.get("/api/tesoreria/lotes/cuentas-origen", headers=teso)
+    assert r.status_code == 200
+    assert [c["account_number"] for c in r.json()["items"]] == ["99900011122", "46600513539"]
+
