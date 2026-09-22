@@ -57,11 +57,28 @@ beforeEach(() => sesion(["creditos:read", "creditos:write"]));
 
 describe("módulo Créditos · menú", () => {
   it("muestra sólo pantallas de créditos, agrupadas", async () => {
+    sesion(["creditos:read", "creditos:write", "heredadas:read"]);
     montar();
     expect(await screen.findByText("Consultas")).toBeInTheDocument();
     expect(screen.getByText("Reportes")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Cuotas en mora" })).toHaveAttribute(
       "href", "/modules/creditos/mora");
+  });
+
+  it("las pantallas heredadas del sistema viejo quedan ocultas sin su permiso", async () => {
+    montar();
+    expect(await screen.findByRole("link", { name: "Tablero de cartera" })).toBeInTheDocument();
+    ["Cuotas en mora", "Simulador", "Líneas de crédito", "Cuenta corriente"].forEach((t) =>
+      expect(screen.queryByRole("link", { name: t })).toBeNull());
+    // Las creadas en la migración siguen visibles (las que el menú original marcaba como nuevas).
+    ["Solicitudes de crédito", "Configurar Créditos", "Sistema de cálculos", "Liquidación por lote",
+     "Caja de créditos", "Resumen de cobros", "Parámetros de créditos"].forEach((t) =>
+      expect(screen.getByRole("link", { name: t })).toBeInTheDocument());
+  });
+
+  it("entrar por URL a una heredada sin permiso no abre la pantalla", async () => {
+    montar("/modules/creditos/mora");
+    expect(await screen.findByText("Pantalla heredada del sistema anterior")).toBeInTheDocument();
   });
 
   it("todas las opciones del menú llevan a una pantalla que existe", async () => {
@@ -87,6 +104,7 @@ describe("módulo Créditos · ruteo y permisos", () => {
   });
 
   it("entra a una pantalla por su ruta", async () => {
+    sesion(["creditos:read", "creditos:write", "heredadas:read"]);
     montar("/modules/creditos/estadisticas");
     expect(await screen.findByRole("heading", { name: "Estadísticas de cartera" })).toBeInTheDocument();
   });

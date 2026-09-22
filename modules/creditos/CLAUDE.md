@@ -42,6 +42,9 @@ reintroducir pantallas fuera del frontend del sistema. El portal ciudadano (`por
   (`Boton variante="danger"`).
 - **Permisos**: `usePuedeVer` / `usePuedeEscribir` / `useSoloLectura` (`permisos.js`); toda pantalla
   nueva se registra en `menu.js` + `rutas.jsx`.
+- **Pantallas heredadas** (las que vienen del VFP, `heredada: true` en `menu.js`): ocultas salvo que el
+  rol tenga `creditos:heredadas:read`, que no se asigna por defecto (H-218). Las pantallas creadas en la
+  migración van sin la marca.
 
 ## Antes de decidir algo estructural — Principios de arquitectura (obligatorio)
 - **Unicidad concurrente**: los IDs únicos se generan con "primer libre" + **reintento sobre SAVEPOINT**

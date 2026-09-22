@@ -123,8 +123,13 @@ PERMISSIONS = {
         )],
         ("aprobaciones:aprobar", "Créditos · aprobar (workflow, rol APROBAR)"),
         ("aprobaciones:supervisar", "Créditos · aprobar niveles de supervisión (workflow, rol SUPERVISAR)"),
+        ("heredadas:read", "Créditos · ver las pantallas heredadas del sistema anterior (ocultas por defecto)"),
     ],
 }
+
+# Permisos que existen para poder asignarlos a mano, pero que NO se le dan al rol admin: habilitan
+# pantallas heredadas del sistema viejo que por defecto están ocultas (ver el menú de Créditos).
+FUERA_DEL_ADMIN = {("creditos", "heredadas:read")}
 
 
 def run():
@@ -175,12 +180,12 @@ def run():
             admin_role = Role(name="admin", description="Administrador del sistema")
             db.add(admin_role)
             db.flush()
-            admin_role.permissions = list(perm_map.values())
+            admin_role.permissions = [p for k, p in perm_map.items() if k not in FUERA_DEL_ADMIN]
         else:
             # Solo agregar permisos nuevos sin quitar los existentes
             existing_ids = {p.id for p in admin_role.permissions}
-            for perm in perm_map.values():
-                if perm.id not in existing_ids:
+            for clave, perm in perm_map.items():
+                if perm.id not in existing_ids and clave not in FUERA_DEL_ADMIN:
                     admin_role.permissions.append(perm)
 
         # ── Rol cajero ───────────────────────────────────────────

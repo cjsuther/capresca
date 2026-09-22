@@ -7,6 +7,22 @@
 
 ---
 
+## H-218 · El menú muestra sólo las pantallas creadas en la migración
+**Fecha:** 2026-09-22 · **Módulo:** Créditos · **Alcance:** pedido del usuario
+- El menú del sistema viejo (`menu.ts` de la SPA retirada) marcaba con `nuevo: true` las opciones
+  creadas en la migración. En Créditos eran 9: Tablero de cartera, Solicitudes de crédito, Situación
+  del cliente (línea nueva), Liquidación por lote, Caja de créditos, Resumen de cobros, Sistema de
+  cálculos, Configurar Créditos y Parámetros de créditos. Ésas quedan visibles (más el Inbox de
+  aprobaciones, que nació con el workflow nuevo).
+- Las **20 pantallas heredadas** del VFP (Líneas, Situación del cliente, Cuenta corriente,
+  Estadísticas, Créditos por cartera, Sin débito, Pagos en caja, Envíos, Jubilados, Turnos,
+  Solicitudes, Cancelación, Baja, Recálculo, Simulador, Turnos admin, Informe, Listado, Mora y
+  Pendientes) se ocultan **por permiso**, no borrándolas: exigen `creditos:heredadas:read`, que el seed
+  crea pero **no** le asigna al rol admin (`FUERA_DEL_ADMIN`). Entrar por URL tampoco las abre.
+- Para volver a habilitarlas, en Seguridad se le asigna ese permiso al rol (o a un grupo).
+- Nota: es una restricción de pantalla. Los endpoints de esas consultas siguen respondiendo con
+  `creditos:read`; si hace falta cerrarlas también en el backend, es un cambio aparte.
+
 ## H-217 · Tesorería: elegir la cuenta de origen del pago, y botón "Inicio" en toda la plataforma
 **Fecha:** 2026-09-22 · **Módulo:** Tesorería / Interbanking / UI común · **Alcance:** pedido del usuario
 - Al enviar un lote, el tesorero **elige desde qué cuenta sale la transferencia**. Interbanking expone

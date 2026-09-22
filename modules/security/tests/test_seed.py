@@ -48,7 +48,8 @@ def test_creditos_publica_una_sola_area(correr_seed, db):
     correr_seed()
     creditos = db.query(Module).filter_by(code="creditos").one()
     codigos = {p.code for p in db.query(Permission).filter_by(module_id=creditos.id).all()}
-    assert codigos == {"creditos:read", "creditos:write", "aprobaciones:aprobar", "aprobaciones:supervisar"}
+    assert codigos == {"creditos:read", "creditos:write", "aprobaciones:aprobar", "aprobaciones:supervisar",
+                       "heredadas:read"}
 
 
 def test_el_seed_retira_los_permisos_de_areas_de_creditos_descartadas(correr_seed, db):
@@ -97,15 +98,26 @@ def test_seguridad_tiene_permisos_para_grupos(correr_seed, db):
     assert {"groups:read", "groups:write"} <= codigos
 
 
+def test_creditos_tiene_el_permiso_de_pantallas_heredadas_pero_admin_no_lo_recibe(correr_seed, db):
+    """Las pantallas viejas quedan ocultas: el permiso existe para asignarlo a mano, no viene puesto."""
+    correr_seed()
+    mod = db.query(Module).filter_by(code="creditos").one()
+    heredadas = db.query(Permission).filter_by(module_id=mod.id, code="heredadas:read").one()
+    admin = db.query(Role).filter_by(name="admin").one()
+    assert heredadas not in admin.permissions
+    assert any(p.code == "creditos:read" for p in admin.permissions)      # el resto sí
+
+
 def test_seed_crea_los_tres_roles(correr_seed, db):
     correr_seed()
     assert {r.name for r in db.query(Role).all()} == {"admin", "cajero", "supervisor"}
 
 
 def test_el_rol_admin_recibe_todos_los_permisos(correr_seed, db):
+    """Todos menos los que se dejan fuera a propósito (pantallas heredadas de Créditos)."""
     correr_seed()
     admin = db.query(Role).filter_by(name="admin").one()
-    assert len(admin.permissions) == db.query(Permission).count()
+    assert len(admin.permissions) == db.query(Permission).count() - len(seed_mod.FUERA_DEL_ADMIN)
 
 
 def test_los_roles_operativos_reciben_su_subconjunto(correr_seed, db):
@@ -149,7 +161,7 @@ def test_el_seed_agrega_permisos_nuevos_a_un_rol_admin_preexistente(correr_seed,
     correr_seed()
     admin = db.query(Role).filter_by(name="admin").one()
     assert admin.description == "preexistente"
-    assert len(admin.permissions) == db.query(Permission).count()
+    assert len(admin.permissions) == db.query(Permission).count() - len(seed_mod.FUERA_DEL_ADMIN)
 
 
 def test_el_codigo_de_permiso_es_unico_por_modulo(correr_seed, db):
