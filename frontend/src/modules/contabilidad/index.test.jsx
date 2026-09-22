@@ -6,6 +6,7 @@ describe("módulo Contabilidad", () => {
     expect(contabilidadMenu.map((i) => [i.path, i.permission])).toEqual([
       ["/modules/contabilidad/transacciones", "asientos:read"],
       ["/modules/contabilidad/libros", "asientos:read"],
+      ["/modules/contabilidad/conciliacion", "asientos:read"],
       ["/modules/contabilidad/plan", "asientos:read"],
     ]);
   });

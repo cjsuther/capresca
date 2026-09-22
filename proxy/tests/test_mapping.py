@@ -205,3 +205,23 @@ def test_las_transacciones_contables_solo_entran_por_la_api_interna():
     """Ningún módulo manda asientos ni transacciones por el gateway: van por la red interna."""
     assert get_service_url("POST", "/internal/contabilidad/transacciones") is None
 
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/contabilidad/conciliacion", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/libros/flujo-efectivo", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/reportes/por-centro", "contabilidad:asientos:read"),
+    ("POST", "/api/contabilidad/asientos/4/publicar", "contabilidad:asientos:write"),
+    ("DELETE", "/api/contabilidad/asientos/4", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/conciliacion/extracto", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/conciliacion/automatica", "contabilidad:asientos:write"),
+    ("DELETE", "/api/contabilidad/conciliacion/extracto/4", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/empresas", "contabilidad:definiciones:write"),
+    ("PUT", "/api/contabilidad/centros/4", "contabilidad:definiciones:write"),
+    ("DELETE", "/api/contabilidad/cuentas/4", "contabilidad:definiciones:write"),
+    ("POST", "/api/contabilidad/ejercicios/4/reabrir", "contabilidad:ejercicios:write"),
+    ("POST", "/api/contabilidad/ejercicios/4/apertura", "contabilidad:ejercicios:write"),
+])
+def test_rutas_nuevas_de_contabilidad(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.contabilidad_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+

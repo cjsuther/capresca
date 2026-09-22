@@ -28,7 +28,7 @@ PATRIMONIALES = ("ACTIVO", "PASIVO", "PATRIMONIO")
 RESULTADO = ("INGRESO", "EGRESO")
 
 ESTADOS_TRANSACCION = ("PENDIENTE_CONFIGURACION", "CONTABILIZADA", "ERROR", "ANULADA")
-ESTADOS_ASIENTO = ("REGISTRADO", "ANULADO")
+ESTADOS_ASIENTO = ("BORRADOR", "REGISTRADO", "ANULADO")
 ORIGENES_ASIENTO = ("TRANSACCION", "MANUAL", "APERTURA", "CIERRE", "REVERSA")
 
 
@@ -212,3 +212,23 @@ class ComprobanteIva(Base):
     transaccion_id: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
     asiento_id: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
     detalle: Mapped[str] = mapped_column(Text, default="")
+
+
+class LineaExtracto(Base):
+    """Línea del extracto del banco, para conciliar contra el mayor de la cuenta bancaria.
+
+    `asiento_linea_id` es el movimiento contable con el que quedó conciliada (None = pendiente).
+    """
+    __tablename__ = "extracto_bancario"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cuenta_codigo: Mapped[str] = mapped_column(String(20), index=True)
+    fecha: Mapped[date] = mapped_column(Date, index=True)
+    descripcion: Mapped[str] = mapped_column(String(200), default="")
+    referencia: Mapped[str] = mapped_column(String(80), default="")
+    importe: Mapped[Decimal] = mapped_column(Numeric(16, 2))      # + entrada / − salida, como el banco
+    asiento_linea_id: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
+    conciliada_por: Mapped[str] = mapped_column(String(60), default="")
+    conciliada_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    creada_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+

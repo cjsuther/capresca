@@ -306,3 +306,72 @@ def anular(db: Session, asiento: models.Asiento, usuario: str, motivo: str = "")
             t.estado, t.motivo = "ANULADA", motivo[:300] or f"Asiento {asiento.numero} anulado"
     db.commit()
     return reversa
+
+
+def asiento_apertura(db: Session, ejercicio, usuario: str):
+    """Asiento de apertura: arranca el ejercicio con los saldos patrimoniales del anterior.
+
+    Se arma con los saldos de las cuentas de activo, pasivo y patrimonio al cierre del ejercicio
+    previo. Los resultados no se arrastran: ya se refundieron al cerrar.
+    """
+    from app.services import libros
+    if ejercicio.estado != "ABIERTO":
+        raise ErrorContable("El ejercicio está cerrado.")
+    ya = db.scalar(select(models.Asiento).where(models.Asiento.ejercicio_id == ejercicio.id,
+                                                 models.Asiento.origen == "APERTURA"))
+    if ya:
+        raise ErrorContable(f"El ejercicio {ejercicio.numero} ya tiene su asiento de apertura (N° {ya.numero}).")
+    anterior = db.scalar(select(models.Ejercicio).where(models.Ejercicio.hasta < ejercicio.desde)
+                         .order_by(models.Ejercicio.hasta.desc()))
+    if anterior is None:
+        raise ErrorContable("No hay un ejercicio anterior del que tomar los saldos.")
+    saldos = libros.sumas_y_saldos(db, desde=anterior.desde, hasta=anterior.hasta)["items"]
+    cuentas = {c.codigo: c for c in db.scalars(select(models.Cuenta)).all()}
+    lineas = []
+    for f in saldos:
+        cuenta = cuentas.get(f["cuenta"])
+        if cuenta is None or cuenta.rubro not in models.PATRIMONIALES:
+            continue
+        deudor = Decimal(str(f["saldoDeudor"]))
+        acreedor = Decimal(str(f["saldoAcreedor"]))
+        if deudor == 0 and acreedor == 0:
+            continue
+        lineas.append({"cuenta_codigo": cuenta.codigo, "cuenta_nombre": cuenta.nombre,
+                       "debe": deudor, "haber": acreedor, "centro_codigo": "",
+                       "detalle": f"Saldo al cierre del ejercicio {anterior.numero}"})
+    if not lineas:
+        raise ErrorContable("El ejercicio anterior no dejó saldos patrimoniales para abrir.")
+    return registrar_asiento(db, fecha=ejercicio.desde,
+                             concepto=f"Apertura del ejercicio {ejercicio.numero}", lineas=lineas,
+                             diario="VAR", origen="APERTURA", usuario=usuario)
+
+
+def reabrir_ejercicio(db: Session, ejercicio, usuario: str) -> dict:
+    """Vuelve a abrir un ejercicio cerrado y anula su asiento de cierre (queda el rastro de los dos)."""
+    if ejercicio.estado != "CERRADO":
+        raise ErrorContable("El ejercicio ya está abierto.")
+    cierre = db.scalar(select(models.Asiento).where(models.Asiento.ejercicio_id == ejercicio.id,
+                                                     models.Asiento.origen == "CIERRE",
+                                                     models.Asiento.estado == "REGISTRADO"))
+    ejercicio.estado = "ABIERTO"
+    ejercicio.cerrado_por, ejercicio.cerrado_en = "", None
+    db.flush()
+    reversa = anular(db, cierre, usuario, f"Reapertura del ejercicio {ejercicio.numero}") if cierre else None
+    db.commit()
+    return {"ejercicio": ejercicio.numero, "estado": ejercicio.estado,
+            "cierreAnulado": cierre.numero if cierre else None,
+            "contraAsiento": reversa.numero if reversa else None}
+
+
+def publicar_borrador(db: Session, asiento, usuario: str):
+    """Un borrador no existe para los libros hasta que se publica (ahí toma su número definitivo)."""
+    if asiento.estado != "BORRADOR":
+        raise ErrorContable("El asiento ya está registrado.")
+    lineas = [{"debe": l.debe, "haber": l.haber} for l in asiento.lineas]
+    validar_partida_doble(lineas)
+    ejercicio_de(db, asiento.fecha)          # el ejercicio tiene que seguir abierto
+    asiento.estado = "REGISTRADO"
+    asiento.usuario = asiento.usuario or usuario
+    db.commit()
+    return asiento
+

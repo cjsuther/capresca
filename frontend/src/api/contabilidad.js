@@ -40,6 +40,38 @@ export const sumasYSaldos = (params = {}) => data(api.get(`${B}/libros/sumas-y-s
 export const estadosContables = (params = {}) => data(api.get(`${B}/libros/estados`, { params }));
 export const libroIva = (libro, params = {}) => data(api.get(`${B}/libros/iva/${libro}`, { params }));
 
+// Entes contables
+export const listarEmpresas = () => data(api.get(`${B}/empresas`));
+export const crearEmpresa = (d) => data(api.post(`${B}/empresas`, d));
+export const editarEmpresa = (id, d) => data(api.put(`${B}/empresas/${id}`, d));
+
+// Plan y centros
+export const borrarCuenta = (id) => data(api.delete(`${B}/cuentas/${id}`));
+export const crearCentro = (d) => data(api.post(`${B}/centros`, d));
+export const editarCentro = (id, d) => data(api.put(`${B}/centros/${id}`, d));
+
+// Ejercicios
+export const reabrirEjercicio = (id) => data(api.post(`${B}/ejercicios/${id}/reabrir`));
+export const aperturaEjercicio = (id) => data(api.post(`${B}/ejercicios/${id}/apertura`));
+
+// Asientos en borrador
+export const publicarAsiento = (id) => data(api.post(`${B}/asientos/${id}/publicar`));
+export const borrarAsiento = (id) => data(api.delete(`${B}/asientos/${id}`));
+
+// Reportes
+export const flujoEfectivo = (params = {}) => data(api.get(`${B}/libros/flujo-efectivo`, { params }));
+export const posicionIva = (params = {}) => data(api.get(`${B}/libros/iva/posicion/periodo`, { params }));
+export const porCentro = (params = {}) => data(api.get(`${B}/reportes/por-centro`, { params }));
+
+// Conciliación bancaria
+export const verConciliacion = (params = {}) => data(api.get(`${B}/conciliacion`, { params }));
+export const cargarExtracto = (d) => data(api.post(`${B}/conciliacion/extracto`, d));
+export const borrarExtracto = (id) => data(api.delete(`${B}/conciliacion/extracto/${id}`));
+export const conciliar = (extracto_id, asiento_linea_id) =>
+  data(api.post(`${B}/conciliacion/conciliar`, { extracto_id, asiento_linea_id }));
+export const desconciliar = (id) => data(api.post(`${B}/conciliacion/desconciliar/${id}`));
+export const conciliarAutomatica = (cuenta) => data(api.post(`${B}/conciliacion/automatica`, null, { params: { cuenta } }));
+
 export function mensajeDeError(err, porDefecto = "No se pudo completar la operación") {
   const d = err?.response?.data?.detail;
   if (typeof d === "string" && d.trim()) return d;

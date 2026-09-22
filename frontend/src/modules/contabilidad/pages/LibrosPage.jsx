@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  anularAsiento, crearAsiento, estadosContables, libroIva, libroMayor, listarAsientos, listarCuentas,
-  mensajeDeError, sumasYSaldos, verAsiento,
+  anularAsiento, borrarAsiento, crearAsiento, estadosContables, flujoEfectivo, libroIva, libroMayor,
+  listarAsientos, listarCuentas, mensajeDeError, porCentro, posicionIva, publicarAsiento, sumasYSaldos,
+  verAsiento,
 } from "../../../api/contabilidad";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { Alerta, Boton, Card, Field, Modal, PageHeader, Toolbar } from "../../../components/ui";
@@ -11,7 +12,8 @@ import { Pill } from "../../../components/ui/Pill";
 import { fecha, hoy, money } from "../formato";
 
 const VISTAS = [["diario", "Libro diario"], ["mayor", "Mayor"], ["sumas", "Sumas y saldos"],
-                ["estados", "Estados contables"], ["iva", "Libro IVA"]];
+                ["estados", "Estados contables"], ["iva", "Libro IVA"], ["posicion", "Posición de IVA"],
+                ["flujo", "Flujo de efectivo"], ["centros", "Por centro de costo"]];
 
 export default function LibrosPage() {
   const [vista, setVista] = useState("diario");
@@ -37,6 +39,9 @@ export default function LibrosPage() {
       : vista === "mayor" ? (cuenta ? libroMayor(cuenta, params) : Promise.resolve(null))
       : vista === "sumas" ? sumasYSaldos(params)
       : vista === "estados" ? estadosContables(params)
+      : vista === "posicion" ? posicionIva(params)
+      : vista === "flujo" ? flujoEfectivo(params)
+      : vista === "centros" ? porCentro(params)
       : libroIva(libro, params);
     pedido.then(setDatos).catch((e) => setError(mensajeDeError(e))).finally(() => setCargando(false));
   };
@@ -48,6 +53,18 @@ export default function LibrosPage() {
       await crearAsiento(asiento);
       setNuevo(null); setOk("Asiento registrado."); cargar();
     } catch (e) { setError(mensajeDeError(e)); }
+  };
+
+  const publicar = async (id) => {
+    setError("");
+    try { await publicarAsiento(id); setDetalle(null); setOk("Borrador publicado: ya está en los libros."); cargar(); }
+    catch (e) { setError(mensajeDeError(e)); }
+  };
+
+  const descartar = async (id) => {
+    setError("");
+    try { await borrarAsiento(id); setDetalle(null); setOk("Borrador descartado."); cargar(); }
+    catch (e) { setError(mensajeDeError(e)); }
   };
 
   const confirmarAnulacion = async () => {
@@ -110,6 +127,7 @@ export default function LibrosPage() {
                   <div className="flex flex-wrap gap-1">
                     <Pill tono={a.origen === "TRANSACCION" ? "brand" : "neutral"}>{a.origen.toLowerCase()}</Pill>
                     {a.estado === "ANULADO" && <Pill tono="crit">anulado</Pill>}
+                    {a.estado === "BORRADOR" && <Pill tono="warn">borrador</Pill>}
                   </div>) },
                 { key: "debe", label: "Debe", align: "right", render: (a) => money(a.debe) },
                 { key: "haber", label: "Haber", align: "right", render: (a) => money(a.haber) },
@@ -185,6 +203,86 @@ export default function LibrosPage() {
             </div>
           )}
 
+          {!cargando && vista === "posicion" && datos && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="border border-gray-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-2">Posición del período</h3>
+                <dl className="text-sm space-y-1">
+                  {[["Débito fiscal (ventas)", datos.debitoFiscal], ["Crédito fiscal (compras)", datos.creditoFiscal],
+                    ["Percepciones sufridas", datos.percepcionesSufridas], ["Retenciones sufridas", datos.retencionesSufridas]]
+                    .map(([t, v]) => (
+                    <div key={t} className="flex justify-between gap-2 tabular-nums"><dt>{t}</dt><dd>{money(v)}</dd></div>
+                  ))}
+                </dl>
+                <p className="mt-3 font-semibold text-gray-800">
+                  {datos.aPagar > 0 ? `A pagar: ${money(datos.aPagar)}` : `Saldo a favor: ${money(datos.aFavor)}`}
+                </p>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-2">Por alícuota</h3>
+                {[["Ventas", datos.ventas], ["Compras", datos.compras]].map(([t, b]) => (
+                  <div key={t} className="mb-2">
+                    <p className="text-sm font-medium text-gray-700">{t} · {b.comprobantes} comprobante(s) · neto {money(b.neto)}</p>
+                    <ul className="text-sm text-gray-600">
+                      {b.porAlicuota.map((a) => (
+                        <li key={a.alicuota} className="tabular-nums">{a.alicuota}%: neto {money(a.neto)} · IVA {money(a.iva)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!cargando && vista === "flujo" && datos && (
+            <>
+              <div className="flex flex-wrap gap-4 mb-3 text-sm">
+                <p>Entradas <b className="tabular-nums">{money(datos.entradas)}</b></p>
+                <p>Salidas <b className="tabular-nums">{money(datos.salidas)}</b></p>
+                <p>Neto <b className="tabular-nums">{money(datos.neto)}</b></p>
+                {Object.entries(datos.saldosPorCuenta).map(([c, s]) => (
+                  <p key={c} className="text-gray-500">{c}: <span className="tabular-nums">{money(s)}</span></p>
+                ))}
+              </div>
+              <DataTable rowKey={(m, i) => `${m.numero}-${i}`} rows={datos.movimientos} pageSize={50}
+                columns={[
+                  { key: "fecha", label: "Fecha", render: (m) => fecha(m.fecha) },
+                  { key: "numero", label: "Asiento", align: "right" },
+                  { key: "concepto", label: "Concepto" },
+                  { key: "cuenta", label: "Cuenta" },
+                  { key: "contrapartida", label: "Contrapartida" },
+                  { key: "importe", label: "Importe", align: "right", render: (m) => money(m.importe) },
+                ]} emptyText="Sin movimientos de fondos en el período" />
+            </>
+          )}
+
+          {!cargando && vista === "centros" && datos && (
+            datos.items.length === 0
+              ? <p className="py-8 text-center text-sm text-gray-400">Todavía no hay asientos con centro de costo.</p>
+              : <div className="space-y-3">
+                  {datos.items.map((c) => (
+                    <div key={c.centro} className="border border-gray-200 rounded-xl p-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="font-semibold text-gray-800 mr-auto">{c.centro} · {c.nombre}</h3>
+                        <span className="text-sm text-gray-600 tabular-nums">Ingresos {money(c.ingresos)}</span>
+                        <span className="text-sm text-gray-600 tabular-nums">Egresos {money(c.egresos)}</span>
+                        <span className={`text-sm font-semibold tabular-nums ${c.resultado >= 0 ? "text-green-700" : "text-red-600"}`}>
+                          Resultado {money(c.resultado)}
+                        </span>
+                      </div>
+                      <ul className="text-sm text-gray-600 mt-2">
+                        {c.cuentas.map((x) => (
+                          <li key={x.cuenta} className="flex justify-between gap-2 tabular-nums">
+                            <span>{x.cuenta} {x.nombre}</span>
+                            <span>debe {money(x.debe)} · haber {money(x.haber)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+          )}
+
           {!cargando && vista === "iva" && datos && (
             <>
               <DataTable rowKey={(c) => c.id} rows={datos.items} pageSize={50}
@@ -213,7 +311,13 @@ export default function LibrosPage() {
         <Modal titulo={`Asiento N° ${detalle.numero}`} eyebrow={`${fecha(detalle.fecha)} · ${detalle.origen.toLowerCase()}`}
                onClose={() => setDetalle(null)}
                footer={<>
-                 {detalle.estado !== "ANULADO" && detalle.origen !== "REVERSA" && (
+                 {detalle.estado === "BORRADOR" && (
+                   <PermissionGate moduleCode="contabilidad" action="asientos:write">
+                     <Boton onClick={() => publicar(detalle.id)}>Publicar</Boton>
+                     <Boton variante="secundario" onClick={() => descartar(detalle.id)}>Descartar</Boton>
+                   </PermissionGate>
+                 )}
+                 {detalle.estado === "REGISTRADO" && detalle.origen !== "REVERSA" && (
                    <PermissionGate moduleCode="contabilidad" action="asientos:write">
                      <Boton variante="danger" onClick={() => setAnulando({ id: detalle.id, motivo: "" })}>Anular</Boton>
                    </PermissionGate>
@@ -273,12 +377,10 @@ function AsientoManual({ asiento, cuentas, onCerrar, onGuardar }) {
                Debe {money(debe)} · Haber {money(haber)}
              </span>
              <Boton variante="secundario" onClick={onCerrar}>Cancelar</Boton>
+             <Boton variante="secundario" disabled={!(debe === haber && debe > 0 && datos.concepto.trim())}
+                    onClick={() => onGuardar(armar(datos, n, true))}>Guardar borrador</Boton>
              <Boton disabled={!(debe === haber && debe > 0 && datos.concepto.trim())}
-                    onClick={() => onGuardar({ fecha: datos.fecha, concepto: datos.concepto.trim(),
-                                               lineas: datos.lineas.filter((l) => l.cuenta).map((l) => ({
-                                                 cuenta: l.cuenta, debe: n(l.debe), haber: n(l.haber), detalle: l.detalle || "" })) })}>
-               Registrar
-             </Boton>
+                    onClick={() => onGuardar(armar(datos, n, false))}>Registrar</Boton>
            </>}>
       <div className="grid sm:grid-cols-2 gap-3 mb-3">
         <Field label="Fecha"><input type="date" className="input w-full" value={datos.fecha} onChange={(e) => setDatos({ ...datos, fecha: e.target.value })} /></Field>
@@ -309,3 +411,13 @@ function AsientoManual({ asiento, cuentas, onCerrar, onGuardar }) {
     </Modal>
   );
 }
+
+/** Payload del asiento manual (publicado o en borrador). */
+function armar(datos, n, borrador) {
+  return {
+    fecha: datos.fecha, concepto: datos.concepto.trim(), borrador,
+    lineas: datos.lineas.filter((l) => l.cuenta).map((l) => ({
+      cuenta: l.cuenta, debe: n(l.debe), haber: n(l.haber), detalle: l.detalle || "" })),
+  };
+}
+

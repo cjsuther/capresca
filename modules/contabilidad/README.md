@@ -49,6 +49,25 @@ transacción real antes de aplicarla.
 - **Centros de costo** y **diarios** (Caja, Banco, Ventas, Compras, Varios).
 - Ente contable con **CUIT y condición frente al IVA**.
 
+## Además (paridad con el sistema anterior)
+
+- **Conciliación bancaria**: se carga el extracto del banco y se coteja contra el mayor de la cuenta,
+  a mano o **automáticamente** (empareja por importe y fecha, con tolerancia de 5 días). La pantalla
+  muestra saldo del extracto, saldo del mayor y la **diferencia a explicar**.
+- **Asientos en borrador**: se guardan sin entrar en los libros, se revisan y después se publican (o
+  se descartan). Un asiento ya registrado no se borra: se anula.
+- **Apertura y reapertura de ejercicio**: el ejercicio nuevo se abre con los **saldos patrimoniales**
+  del anterior (los resultados no se arrastran: se refundieron al cerrar), y un ejercicio cerrado se
+  puede reabrir, lo que anula su asiento de cierre dejando el rastro.
+- **Flujo de efectivo**: entradas y salidas por caja y bancos, con la contrapartida de cada
+  movimiento y el saldo por cuenta.
+- **Posición de IVA del período**: débito contra crédito fiscal, percepciones y retenciones, y cuánto
+  queda a pagar o a favor, con el detalle por alícuota.
+- **Análisis por centro de costo**: ingresos, egresos y resultado de cada centro.
+- **Entes contables**: razón social, CUIT, condición frente al IVA y domicilio.
+- **Plan de cuentas**: alta, edición y baja; una cuenta con movimientos o usada por una definición no
+  se borra (se da de baja y queda en los libros).
+
 ## Permisos
 
 `contabilidad:asientos:read` (libros y consulta) · `asientos:write` (asiento manual y anulación) ·

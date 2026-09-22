@@ -29,6 +29,15 @@
 - QA de punta a punta en local: contrato → Tesorería → pago acreditado → Créditos desembolsa → llegaron
   las dos transacciones; la de Créditos ya tenía definición y salió el asiento (1.1.04 a 1.1.02 por
   $300.000), la de Tesorería quedó esperando y se contabilizó al definirla. Sumas y saldos balanceado.
+- **Paridad con el sistema anterior** (segunda vuelta, a pedido del usuario): conciliación bancaria
+  (extracto vs. mayor, manual y automática por importe/fecha), asientos en **borrador** con publicación
+  y descarte, **apertura** del ejercicio con los saldos patrimoniales del anterior y **reapertura** (que
+  anula el asiento de cierre), **flujo de efectivo**, **posición de IVA** del período (débito vs.
+  crédito, a pagar o a favor), **análisis por centro de costo**, ABM de **entes contables** (CUIT y
+  condición frente al IVA) y baja de cuentas del plan (una cuenta con movimientos no se borra).
+- Detalle contable: los **borradores no figuran** en los libros hasta publicarse; los **anulados sí**,
+  junto a su contra-asiento (si se ocultara sólo el anulado, la reversa quedaría suelta y descuadraría
+  el mayor).
 - Pendiente: el motor de ajuste por inflación (la marca en el plan y la cuenta RECPAM ya están).
 
 ## H-221 · Módulo Auditoría: qué hace cada usuario con la información del sistema

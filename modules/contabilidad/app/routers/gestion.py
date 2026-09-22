@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.db.session import get_db
 from app.dependencies.auth import Usuario, requiere, usuario_actual
-from app.services import libros, motor
+from app.services import conciliacion, libros, motor
 
 # Todo el módulo pide, como mínimo, el permiso de consulta (el gateway ya lo exige; acá se revalida
 # por si una request no pasó por él).
@@ -86,6 +86,46 @@ def editar_cuenta(cuenta_id: int, data: CuentaIn, db: Session = Depends(get_db))
     return _serial_cuenta(c)
 
 
+# ── Entes contables (razón social, CUIT, condición frente al IVA) ───────────────────────────────
+class EmpresaIn(BaseModel):
+    razon_social: str = Field(min_length=1, max_length=120)
+    cuit: str = ""
+    condicion_iva: str = "RESPONSABLE_INSCRIPTO"
+    domicilio: str = ""
+    inicio_actividades: date | None = None
+
+
+def _serial_empresa(e: models.Empresa) -> dict:
+    return {"id": e.id, "razonSocial": e.razon_social, "cuit": e.cuit, "condicionIva": e.condicion_iva,
+            "domicilio": e.domicilio, "predeterminada": e.predeterminada,
+            "inicioActividades": e.inicio_actividades.isoformat() if e.inicio_actividades else None}
+
+
+@router.get("/empresas")
+def listar_empresas(db: Session = Depends(get_db)):
+    items = [_serial_empresa(e) for e in db.scalars(select(models.Empresa).order_by(models.Empresa.id)).all()]
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/empresas", status_code=201, dependencies=[Depends(_configura)])
+def crear_empresa(data: EmpresaIn, db: Session = Depends(get_db)):
+    e = models.Empresa(**{**data.model_dump(), "cuit": "".join(ch for ch in data.cuit if ch.isdigit())[:11]},
+                       predeterminada=not db.scalar(select(models.Empresa).limit(1)))
+    db.add(e); db.commit(); db.refresh(e)
+    return _serial_empresa(e)
+
+
+@router.put("/empresas/{empresa_id}", dependencies=[Depends(_configura)])
+def editar_empresa(empresa_id: int, data: EmpresaIn, db: Session = Depends(get_db)):
+    e = db.get(models.Empresa, empresa_id)
+    if not e:
+        raise HTTPException(404, "Ente contable no encontrado")
+    for k, v in data.model_dump().items():
+        setattr(e, k, "".join(ch for ch in v if ch.isdigit())[:11] if k == "cuit" else v)
+    db.commit(); db.refresh(e)
+    return _serial_empresa(e)
+
+
 # ── Centros de costo y diarios ───────────────────────────────────────────────────────────────────
 class CentroIn(BaseModel):
     codigo: str = Field(min_length=1, max_length=12)
@@ -114,6 +154,34 @@ def listar_diarios(db: Session = Depends(get_db)):
     items = [{"id": d.id, "codigo": d.codigo, "nombre": d.nombre, "activo": d.activo}
              for d in db.scalars(select(models.Diario).order_by(models.Diario.codigo)).all()]
     return {"items": items, "total": len(items)}
+
+
+@router.delete("/cuentas/{cuenta_id}", status_code=204, dependencies=[Depends(_configura)])
+def borrar_cuenta(cuenta_id: int, db: Session = Depends(get_db)):
+    """Sólo se borra una cuenta que nunca se usó; si tiene asientos, se da de baja (queda en los libros)."""
+    c = db.get(models.Cuenta, cuenta_id)
+    if not c:
+        raise HTTPException(404, "Cuenta no encontrada")
+    usada = db.scalar(select(func.count()).select_from(models.AsientoLinea)
+                      .where(models.AsientoLinea.cuenta_codigo == c.codigo)) or 0
+    if usada:
+        raise HTTPException(409, f"La cuenta tiene {usada} movimiento(s): dala de baja en vez de borrarla.")
+    en_definiciones = [d.nombre for d in db.scalars(select(models.DefinicionAsiento)).all()
+                       if any(l.get("cuenta") == c.codigo for l in (d.lineas or []))]
+    if en_definiciones:
+        raise HTTPException(409, f"La usa la definición «{en_definiciones[0]}».")
+    db.delete(c); db.commit()
+
+
+@router.put("/centros/{centro_id}", dependencies=[Depends(_configura)])
+def editar_centro(centro_id: int, data: CentroIn, db: Session = Depends(get_db)):
+    c = db.get(models.CentroCosto, centro_id)
+    if not c:
+        raise HTTPException(404, "Centro no encontrado")
+    for k, v in data.model_dump().items():
+        setattr(c, k, v)
+    db.commit(); db.refresh(c)
+    return {"id": c.id, "codigo": c.codigo, "nombre": c.nombre, "activo": c.activo}
 
 
 # ── Ejercicios ───────────────────────────────────────────────────────────────────────────────────
@@ -161,6 +229,33 @@ def cerrar_ejercicio(ejercicio_id: int, db: Session = Depends(get_db), user: Usu
         return libros.cerrar_ejercicio(db, e, user.username)
     except motor.ErrorContable as err:
         raise _error(err)
+
+
+@router.post("/ejercicios/{ejercicio_id}/reabrir", dependencies=[Depends(_cierra)])
+def reabrir_ejercicio(ejercicio_id: int, db: Session = Depends(get_db), user: Usuario = Depends(usuario_actual)):
+    """Vuelve a abrirlo y anula su asiento de cierre (los dos quedan en el libro)."""
+    e = db.get(models.Ejercicio, ejercicio_id)
+    if not e:
+        raise HTTPException(404, "Ejercicio no encontrado")
+    try:
+        return motor.reabrir_ejercicio(db, e, user.username)
+    except motor.ErrorContable as err:
+        raise _error(err)
+
+
+@router.post("/ejercicios/{ejercicio_id}/apertura", dependencies=[Depends(_cierra)])
+def apertura_ejercicio(ejercicio_id: int, db: Session = Depends(get_db), user: Usuario = Depends(usuario_actual)):
+    """Asiento de apertura con los saldos patrimoniales del ejercicio anterior."""
+    e = db.get(models.Ejercicio, ejercicio_id)
+    if not e:
+        raise HTTPException(404, "Ejercicio no encontrado")
+    try:
+        a = motor.asiento_apertura(db, e, user.username)
+        db.commit()
+    except motor.ErrorContable as err:
+        db.rollback()
+        raise _error(err)
+    return libros.serial_asiento(a)
 
 
 # ── Definiciones (cómo se contabiliza cada transacción) ──────────────────────────────────────────
@@ -350,6 +445,7 @@ class AsientoManualIn(BaseModel):
     concepto: str = Field(min_length=1, max_length=200)
     diario_codigo: str = "VAR"
     lineas: list[LineaManualIn] = Field(min_length=2)
+    borrador: bool = False           # se guarda sin publicar (todavía no entra en los libros)
 
 
 @router.get("/asientos")
@@ -377,11 +473,37 @@ def crear_asiento_manual(data: AsientoManualIn, db: Session = Depends(get_db),
     try:
         a = motor.registrar_asiento(db, fecha=data.fecha, concepto=data.concepto, lineas=lineas,
                                     diario=data.diario_codigo, origen="MANUAL", usuario=user.username)
+        if data.borrador:
+            a.estado = "BORRADOR"
         db.commit()
     except motor.ErrorContable as e:
         db.rollback()
         raise _error(e)
     return libros.serial_asiento(a)
+
+
+@router.post("/asientos/{asiento_id}/publicar", dependencies=[Depends(_escribe)])
+def publicar_asiento(asiento_id: int, db: Session = Depends(get_db), user: Usuario = Depends(usuario_actual)):
+    """Publica un borrador: recién ahí entra en los libros."""
+    a = db.get(models.Asiento, asiento_id)
+    if not a:
+        raise HTTPException(404, "Asiento no encontrado")
+    try:
+        motor.publicar_borrador(db, a, user.username)
+    except motor.ErrorContable as e:
+        raise _error(e)
+    return libros.serial_asiento(a)
+
+
+@router.delete("/asientos/{asiento_id}", status_code=204, dependencies=[Depends(_escribe)])
+def borrar_borrador(asiento_id: int, db: Session = Depends(get_db)):
+    """Un borrador se puede borrar; uno registrado, no (se anula)."""
+    a = db.get(models.Asiento, asiento_id)
+    if not a:
+        raise HTTPException(404, "Asiento no encontrado")
+    if a.estado != "BORRADOR":
+        raise HTTPException(409, "Un asiento registrado no se borra: se anula con su contra-asiento.")
+    db.delete(a); db.commit()
 
 
 @router.get("/asientos/{asiento_id}")
@@ -443,6 +565,94 @@ def libro_iva(libro: str, desde: date | None = None, hasta: date | None = None,
     if libro.upper() not in ("VENTAS", "COMPRAS"):
         raise HTTPException(422, "El libro IVA es VENTAS o COMPRAS.")
     return libros.libro_iva(db, libro, desde=desde, hasta=hasta)
+
+
+@router.get("/libros/flujo-efectivo")
+def flujo_efectivo(desde: date | None = None, hasta: date | None = None, db: Session = Depends(get_db)):
+    return libros.flujo_efectivo(db, desde=desde, hasta=hasta)
+
+
+@router.get("/libros/iva/posicion/periodo")
+def posicion_iva(desde: date | None = None, hasta: date | None = None, db: Session = Depends(get_db)):
+    """Débito contra crédito fiscal: cuánto hay que pagar (o queda a favor) en el período."""
+    return libros.posicion_iva(db, desde=desde, hasta=hasta)
+
+
+@router.get("/reportes/por-centro")
+def por_centro(desde: date | None = None, hasta: date | None = None, db: Session = Depends(get_db)):
+    return libros.por_centro(db, desde=desde, hasta=hasta)
+
+
+# ── Conciliación bancaria ────────────────────────────────────────────────────────────────────────
+class ExtractoIn(BaseModel):
+    cuenta_codigo: str
+    fecha: date
+    importe: float
+    descripcion: str = ""
+    referencia: str = ""
+
+
+class ConciliarIn(BaseModel):
+    extracto_id: int
+    asiento_linea_id: int
+
+
+@router.get("/conciliacion")
+def ver_conciliacion(cuenta: str = "1.1.02", desde: date | None = None, hasta: date | None = None,
+                     db: Session = Depends(get_db)):
+    try:
+        return conciliacion.estado(db, cuenta, desde=desde, hasta=hasta)
+    except motor.ErrorContable as e:
+        raise _error(e)
+
+
+@router.post("/conciliacion/extracto", status_code=201, dependencies=[Depends(_escribe)])
+def cargar_extracto(data: ExtractoIn, db: Session = Depends(get_db)):
+    """Carga una línea del extracto del banco (+ entrada / − salida, como viene del banco)."""
+    if not db.scalar(select(models.Cuenta).where(models.Cuenta.codigo == data.cuenta_codigo)):
+        raise HTTPException(422, f"La cuenta {data.cuenta_codigo} no existe.")
+    if not data.importe:
+        raise HTTPException(422, "El importe no puede ser cero.")
+    e = models.LineaExtracto(cuenta_codigo=data.cuenta_codigo, fecha=data.fecha,
+                             importe=Decimal(str(data.importe)), descripcion=data.descripcion[:200],
+                             referencia=data.referencia[:80])
+    db.add(e); db.commit(); db.refresh(e)
+    return {"id": e.id, "fecha": e.fecha.isoformat(), "importe": float(e.importe),
+            "descripcion": e.descripcion, "conciliada": False}
+
+
+@router.delete("/conciliacion/extracto/{extracto_id}", status_code=204, dependencies=[Depends(_escribe)])
+def borrar_extracto(extracto_id: int, db: Session = Depends(get_db)):
+    e = db.get(models.LineaExtracto, extracto_id)
+    if not e:
+        raise HTTPException(404, "Línea del extracto no encontrada")
+    db.delete(e); db.commit()
+
+
+@router.post("/conciliacion/conciliar", dependencies=[Depends(_escribe)])
+def conciliar(data: ConciliarIn, db: Session = Depends(get_db), user: Usuario = Depends(usuario_actual)):
+    try:
+        return conciliacion.conciliar(db, data.extracto_id, data.asiento_linea_id, user.username)
+    except motor.ErrorContable as e:
+        raise _error(e)
+
+
+@router.post("/conciliacion/desconciliar/{extracto_id}", dependencies=[Depends(_escribe)])
+def desconciliar(extracto_id: int, db: Session = Depends(get_db)):
+    try:
+        return conciliacion.desconciliar(db, extracto_id)
+    except motor.ErrorContable as e:
+        raise _error(e)
+
+
+@router.post("/conciliacion/automatica", dependencies=[Depends(_escribe)])
+def conciliar_automatica(cuenta: str = "1.1.02", db: Session = Depends(get_db),
+                         user: Usuario = Depends(usuario_actual)):
+    """Empareja lo pendiente por importe y fecha (misma fecha y, si no, hasta 5 días)."""
+    try:
+        return conciliacion.automatica(db, cuenta, user.username)
+    except motor.ErrorContable as e:
+        raise _error(e)
 
 
 @router.get("/resumen")

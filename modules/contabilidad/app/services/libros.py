@@ -3,6 +3,7 @@ libro IVA (ventas y compras). Y el cierre del ejercicio.
 
 Los libros son inalterables: un asiento anulado **sigue figurando**, junto a su contra-asiento, que es
 el que lo neutraliza. Ocultar sólo el anulado dejaría la reversa suelta y descuadraría el mayor.
+Los BORRADORES, en cambio, todavía no son asientos: no aparecen hasta que se publican.
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ def diario(db: Session, *, desde: date | None = None, hasta: date | None = None,
         q = q.where(models.Asiento.fecha <= hasta)
     if diario_codigo:
         q = q.where(models.Asiento.diario_codigo == diario_codigo)
+    q = q.where(models.Asiento.estado != "BORRADOR")     # un borrador todavía no es un asiento
     if solo_vigentes:            # para mirar "lo que quedó", no para los libros
         q = q.where(models.Asiento.estado != "ANULADO")
     total = db.scalar(select(func.count()).select_from(q.subquery())) or 0
@@ -61,7 +63,8 @@ def mayor(db: Session, cuenta_codigo: str, *, desde: date | None = None, hasta: 
         raise motor.ErrorContable(f"La cuenta {cuenta_codigo} no existe.")
     base = (select(models.AsientoLinea, models.Asiento)
             .join(models.Asiento, models.AsientoLinea.asiento_id == models.Asiento.id)
-            .where(models.AsientoLinea.cuenta_codigo == cuenta_codigo))
+            .where(models.AsientoLinea.cuenta_codigo == cuenta_codigo,
+                   models.Asiento.estado != "BORRADOR"))
     anterior = CERO
     if desde:
         for linea, _a in db.execute(base.where(models.Asiento.fecha < desde)).all():
@@ -90,6 +93,7 @@ def sumas_y_saldos(db: Session, *, desde: date | None = None, hasta: date | None
     q = (select(models.AsientoLinea.cuenta_codigo, func.sum(models.AsientoLinea.debe),
                 func.sum(models.AsientoLinea.haber))
          .join(models.Asiento, models.AsientoLinea.asiento_id == models.Asiento.id)
+         .where(models.Asiento.estado != "BORRADOR")
          .group_by(models.AsientoLinea.cuenta_codigo))
     if desde:
         q = q.where(models.Asiento.fecha >= desde)
@@ -223,3 +227,105 @@ def cerrar_ejercicio(db: Session, ejercicio: models.Ejercicio, usuario: str) -> 
     db.commit()
     return {"ejercicio": ejercicio.numero, "resultado": _f(resultado),
             "asientoCierre": asiento.numero if asiento else None}
+
+
+# ── Flujo de efectivo ────────────────────────────────────────────────────────────────────────────
+def flujo_efectivo(db: Session, *, desde: date | None = None, hasta: date | None = None) -> dict:
+    """Qué entró y qué salió por las cuentas de disponibilidades (caja y bancos), y contra qué.
+
+    No es el estado de flujo de efectivo de las RT (que clasifica por actividades): es el movimiento
+    real de los fondos, que es lo que se mira todos los días.
+    """
+    disponibilidades = [c.codigo for c in db.scalars(
+        select(models.Cuenta).where(models.Cuenta.codigo.in_(_cuentas_de_fondos(db)))).all()]
+    q = (select(models.AsientoLinea, models.Asiento)
+         .join(models.Asiento, models.AsientoLinea.asiento_id == models.Asiento.id)
+         .where(models.AsientoLinea.cuenta_codigo.in_(disponibilidades),
+                models.Asiento.estado != "BORRADOR"))
+    if desde:
+        q = q.where(models.Asiento.fecha >= desde)
+    if hasta:
+        q = q.where(models.Asiento.fecha <= hasta)
+    movimientos, entradas, salidas = [], CERO, CERO
+    for linea, a in db.execute(q.order_by(models.Asiento.fecha, models.Asiento.numero)).all():
+        importe = linea.debe - linea.haber
+        entradas += linea.debe
+        salidas += linea.haber
+        contra = [l.cuenta_nombre for l in a.lineas if l.id != linea.id][:3]
+        movimientos.append({"fecha": a.fecha.isoformat(), "numero": a.numero, "concepto": a.concepto,
+                            "cuenta": linea.cuenta_codigo, "importe": _f(importe),
+                            "contrapartida": ", ".join(contra)})
+    por_cuenta = {}
+    for c in disponibilidades:
+        saldo = sum((l.debe - l.haber for l, _a in db.execute(
+            select(models.AsientoLinea, models.Asiento)
+            .join(models.Asiento, models.AsientoLinea.asiento_id == models.Asiento.id)
+            .where(models.AsientoLinea.cuenta_codigo == c, models.Asiento.estado != "BORRADOR")).all()), CERO)
+        por_cuenta[c] = _f(saldo)
+    return {"movimientos": movimientos, "entradas": _f(entradas), "salidas": _f(salidas),
+            "neto": _f(entradas - salidas), "saldosPorCuenta": por_cuenta,
+            "cuentas": disponibilidades}
+
+
+def _cuentas_de_fondos(db: Session) -> list[str]:
+    """Caja y bancos: las cuentas de activo cuyo nombre o código las identifica como disponibilidades."""
+    codigos = []
+    for c in db.scalars(select(models.Cuenta).where(models.Cuenta.rubro == "ACTIVO",
+                                                     models.Cuenta.imputable.is_(True))).all():
+        nombre = c.nombre.lower()
+        if "caja" in nombre or "banco" in nombre or "efectivo" in nombre:
+            codigos.append(c.codigo)
+    return codigos
+
+
+# ── Posición de IVA del período ──────────────────────────────────────────────────────────────────
+def posicion_iva(db: Session, *, desde: date | None = None, hasta: date | None = None) -> dict:
+    """Débito fiscal (ventas) contra crédito fiscal (compras): cuánto hay que pagar o queda a favor."""
+    ventas = libro_iva(db, "VENTAS", desde=desde, hasta=hasta)
+    compras = libro_iva(db, "COMPRAS", desde=desde, hasta=hasta)
+    debito = ventas["totales"]["iva"]
+    credito = compras["totales"]["iva"]
+    percepciones = compras["totales"]["percepciones"]
+    retenciones = ventas["totales"]["retenciones"]
+    saldo = round(debito - credito - percepciones - retenciones, 2)
+    return {"periodo": {"desde": desde.isoformat() if desde else None,
+                        "hasta": hasta.isoformat() if hasta else None},
+            "debitoFiscal": debito, "creditoFiscal": credito,
+            "percepcionesSufridas": percepciones, "retencionesSufridas": retenciones,
+            "saldo": saldo, "aPagar": saldo if saldo > 0 else 0.0,
+            "aFavor": -saldo if saldo < 0 else 0.0,
+            "ventas": {"comprobantes": len(ventas["items"]), "neto": ventas["totales"]["netoGravado"],
+                       "porAlicuota": ventas["porAlicuota"]},
+            "compras": {"comprobantes": len(compras["items"]), "neto": compras["totales"]["netoGravado"],
+                        "porAlicuota": compras["porAlicuota"]}}
+
+
+# ── Por centro de costo ──────────────────────────────────────────────────────────────────────────
+def por_centro(db: Session, *, desde: date | None = None, hasta: date | None = None) -> dict:
+    q = (select(models.AsientoLinea.centro_codigo, models.AsientoLinea.cuenta_codigo,
+                func.sum(models.AsientoLinea.debe), func.sum(models.AsientoLinea.haber))
+         .join(models.Asiento, models.AsientoLinea.asiento_id == models.Asiento.id)
+         .where(models.Asiento.estado != "BORRADOR", models.AsientoLinea.centro_codigo != "")
+         .group_by(models.AsientoLinea.centro_codigo, models.AsientoLinea.cuenta_codigo))
+    if desde:
+        q = q.where(models.Asiento.fecha >= desde)
+    if hasta:
+        q = q.where(models.Asiento.fecha <= hasta)
+    nombres = {c.codigo: c.nombre for c in db.scalars(select(models.CentroCosto)).all()}
+    cuentas = {c.codigo: c for c in db.scalars(select(models.Cuenta)).all()}
+    centros: dict[str, dict] = {}
+    for centro, cuenta, debe, haber in db.execute(q).all():
+        c = centros.setdefault(centro, {"centro": centro, "nombre": nombres.get(centro, centro),
+                                        "cuentas": [], "ingresos": 0.0, "egresos": 0.0})
+        debe, haber = Decimal(str(debe or 0)), Decimal(str(haber or 0))
+        cta = cuentas.get(cuenta)
+        c["cuentas"].append({"cuenta": cuenta, "nombre": cta.nombre if cta else "",
+                             "rubro": cta.rubro if cta else "", "debe": _f(debe), "haber": _f(haber)})
+        if cta and cta.rubro == "INGRESO":
+            c["ingresos"] = round(c["ingresos"] + _f(haber - debe), 2)
+        elif cta and cta.rubro == "EGRESO":
+            c["egresos"] = round(c["egresos"] + _f(debe - haber), 2)
+    for c in centros.values():
+        c["resultado"] = round(c["ingresos"] - c["egresos"], 2)
+    return {"items": sorted(centros.values(), key=lambda x: x["centro"])}
+
