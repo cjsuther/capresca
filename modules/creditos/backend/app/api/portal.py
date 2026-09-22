@@ -476,15 +476,20 @@ async def subir_documento(numero: str, request: Request, tipo: str = Form("OTRO"
     s = _solicitud_propia(db, numero, c)
     if s.estado not in ("EN_EVALUACION", "BORRADOR"):
         raise HTTPException(409, "No se pueden adjuntar documentos a una solicitud ya resuelta.")
-    if db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id).count() >= documentos.MAX_POR_SOLICITUD:
-        raise HTTPException(409, f"Máximo {documentos.MAX_POR_SOLICITUD} documentos por solicitud.")
+    # El ciudadano adjunta exactamente un archivo de cada documento pedido (DNI frente, DNI dorso y recibo
+    # de sueldo): ni otros tipos, ni un segundo del mismo. Para cambiarlo, el asesor lo gestiona.
+    tipo = (tipo or "").upper()
+    if tipo not in documentos.TIPOS_PORTAL:
+        raise HTTPException(422, "Sólo se adjuntan el DNI (frente y dorso) y el recibo de sueldo.")
+    if db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id, tipo=tipo).first():
+        raise HTTPException(409, f"Ya adjuntaste {documentos.ETIQUETAS[tipo]} en esta solicitud.")
     contenido = await archivo.read()
     try:
         documentos.validar(archivo.content_type, len(contenido))
     except ValueError as e:
         raise HTTPException(422, str(e))
     doc = m.PPSolicitudDocumento(
-        solicitud_id=s.id, tipo=documentos.normalizar_tipo(tipo), nombre=(archivo.filename or "documento")[:200],
+        solicitud_id=s.id, tipo=tipo, nombre=(archivo.filename or "documento")[:200],
         content_type=archivo.content_type, tamano=len(contenido), contenido=contenido, subido_por=_marca(c))
     db.add(doc); db.commit(); db.refresh(doc)
     audit.registrar_cambio(db, usuario=c.email or c.sub, ip=audit.ip_de(request), entidad="Documento",

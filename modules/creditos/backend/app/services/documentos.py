@@ -7,12 +7,9 @@ from __future__ import annotations
 MAX_BYTES = 5 * 1024 * 1024   # 5 MB por archivo
 ALLOWED = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 TIPOS = {"DNI_FRENTE", "DNI_DORSO", "RECIBO", "OTRO"}
-MAX_POR_SOLICITUD = 10
-
-
-def normalizar_tipo(tipo: str | None) -> str:
-    t = (tipo or "OTRO").upper()
-    return t if t in TIPOS else "OTRO"
+# Lo que adjunta el ciudadano desde el portal: uno de cada uno, y nada más.
+TIPOS_PORTAL = ("DNI_FRENTE", "DNI_DORSO", "RECIBO")
+ETIQUETAS = {"DNI_FRENTE": "el DNI (frente)", "DNI_DORSO": "el DNI (dorso)", "RECIBO": "el recibo de sueldo", "OTRO": "otro documento"}
 
 
 def validar(content_type: str | None, tamano: int) -> None:

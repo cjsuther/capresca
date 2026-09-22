@@ -7,6 +7,14 @@
 
 ---
 
+## H-215 · Portal: un solo archivo por documento pedido
+**Fecha:** 2026-09-22 · **Módulo:** Portal del ciudadano · **Alcance:** pedido del usuario
+- El paso 3 pasa de "elegí el tipo y adjuntá (hasta 10, incluido Otro)" a **tres casilleros fijos**:
+  DNI frente, DNI dorso y recibo de sueldo, con **un único archivo cada uno**. Adjuntar de nuevo en un
+  casillero reemplaza el anterior; se puede quitar. Sin "Otro".
+- El backend del portal exige lo mismo aunque se llame a la API salteando el portal: sólo esos tres
+  tipos (422 para cualquier otro) y uno de cada uno por solicitud (409 si ya está).
+
 ## H-214 · Crear el cliente desde la solicitud y documentos en la ficha del cliente
 **Fecha:** 2026-09-22 · **Módulo:** Créditos / Clientes · **Alcance:** pedido del usuario
 - **Crear cliente desde la solicitud:** el backend ya daba de alta la persona en el módulo Clientes

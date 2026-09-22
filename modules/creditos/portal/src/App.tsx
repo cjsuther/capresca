@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTema, Tema } from "./tema";
 import { PasoVideos, guardarVistos, leerVistos, olvidarVistos } from "./videos";
 import { api, nuevoId, token, Video, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
@@ -184,61 +184,54 @@ const DESTINOS: [string, string][] = [
 const DESTINO_LABEL = Object.fromEntries(DESTINOS);
 
 const TIPO_DOC: Record<string, string> = {
-  DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo", OTRO: "Otro",
+  DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo",
 };
-// Documentación que se pide en el paso 3 para poder seguir (OTRO es opcional).
+// Documentación del paso 3: exactamente un archivo por cada uno de estos (ni más, ni otros).
 const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "RECIBO"];
 const PASOS = ["Tus datos", "Simulación", "Documentación", "Videos", "Confirmación"];
 type Paso = 1 | 2 | 3 | 4 | 5;
+type DocElegido = { file: File; tipo: string };
 const fmtBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
-// Selector de documentos del paso 3: se eligen en el cliente y se suben al ENVIAR la solicitud (todavía
-// no existe el número). Valida formato/tamaño localmente. H-162.
+// Documentos del paso 3: un casillero por documento pedido, con un único archivo cada uno (adjuntar de
+// nuevo lo reemplaza). Se eligen en el cliente y se suben al ENVIAR la solicitud (todavía no existe el
+// número). Valida formato/tamaño localmente; el backend exige lo mismo. H-162.
 const DOC_MAX = 5 * 1024 * 1024;
 const DOC_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-function DocsPicker({ docs, onChange }: { docs: { file: File; tipo: string }[]; onChange: (d: { file: File; tipo: string }[]) => void }) {
-  const [tipo, setTipo] = useState("DNI_FRENTE");
+function DocsPicker({ docs, onChange }: { docs: DocElegido[]; onChange: (d: DocElegido[]) => void }) {
   const [err, setErr] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-  const agregar = (file?: File) => {
+  const elegir = (tipo: string, file?: File, input?: HTMLInputElement) => {
+    if (input) input.value = "";          // permite volver a elegir el mismo archivo
     if (!file) return;
     setErr("");
-    if (!DOC_TYPES.includes(file.type)) { setErr("Formato no permitido (JPG, PNG o PDF)."); return; }
-    if (file.size > DOC_MAX) { setErr("El archivo supera los 5 MB."); return; }
-    if (docs.length >= 10) { setErr("Máximo 10 documentos."); return; }
-    onChange([...docs, { file, tipo }]);
-    if (fileRef.current) fileRef.current.value = "";
+    if (!DOC_TYPES.includes(file.type)) { setErr(`${TIPO_DOC[tipo]}: formato no permitido (JPG, PNG o PDF).`); return; }
+    if (file.size > DOC_MAX) { setErr(`${TIPO_DOC[tipo]}: el archivo supera los 5 MB.`); return; }
+    onChange([...docs.filter((d) => d.tipo !== tipo), { file, tipo }]);
   };
+  const quitar = (tipo: string) => onChange(docs.filter((d) => d.tipo !== tipo));
   return (
     <div className="p-docs">
-      <ul className="p-docs-req" aria-label="Documentación requerida">
+      <ul className="p-docs-slots" aria-label="Documentación requerida">
         {DOCS_REQUERIDOS.map((t) => {
-          const ok = docs.some((d) => d.tipo === t);
-          return <li key={t} className={ok ? "ok" : ""}><span aria-hidden>{ok ? "✓" : "○"}</span>{TIPO_DOC[t]}</li>;
+          const d = docs.find((x) => x.tipo === t);
+          const esPdf = d?.file.type === "application/pdf";
+          return (
+            <li key={t} className={`p-doc-slot${d ? " ok" : ""}`}>
+              <span className={"p-doc-ic" + (esPdf ? " pdf" : "")} aria-hidden>{d ? (esPdf ? "PDF" : "IMG") : "○"}</span>
+              <div className="p-doc-meta">
+                <b>{TIPO_DOC[t]}</b>
+                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : "Falta adjuntar"}</span>
+              </div>
+              <label className={`p-btn-file${d ? " sec" : ""}`}>{d ? "Cambiar" : "＋ Adjuntar"}
+                <input type="file" accept={DOC_TYPES.join(",")} hidden aria-label={`Adjuntar ${TIPO_DOC[t]}`}
+                       onChange={(e) => elegir(t, e.target.files?.[0], e.target)} />
+              </label>
+              {d && <button type="button" className="p-doc-del" onClick={() => quitar(t)} aria-label={`Quitar ${TIPO_DOC[t]}`}>✕</button>}
+            </li>
+          );
         })}
       </ul>
-      {docs.length > 0 && (
-        <ul className="p-docs-list">
-          {docs.map((d, i) => (
-            <li key={i} className="p-doc">
-              <span className={"p-doc-ic" + (d.file.type === "application/pdf" ? " pdf" : "")} aria-hidden>{d.file.type === "application/pdf" ? "PDF" : "IMG"}</span>
-              <div className="p-doc-meta"><b>{TIPO_DOC[d.tipo] || d.tipo}</b><span>{d.file.name} · {fmtBytes(d.file.size)}</span></div>
-              <button type="button" className="p-doc-del" onClick={() => onChange(docs.filter((_, idx) => idx !== i))} aria-label="Quitar documento">✕</button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {docs.length < 10 && (
-        <div className="p-docs-up">
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)} aria-label="Tipo de documento">
-            {Object.entries(TIPO_DOC).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-          <label className="p-btn-file">＋ Adjuntar archivo
-            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden onChange={(e) => agregar(e.target.files?.[0])} />
-          </label>
-          <span className="p-fine">JPG/PNG/PDF · máx 5 MB</span>
-        </div>
-      )}
+      <p className="p-fine" style={{ margin: "8px 0 0" }}>Un archivo por documento · JPG, PNG o PDF · máx 5 MB</p>
       {err && <div className="p-alert" style={{ marginTop: 8 }}>{err}</div>}
     </div>
   );
@@ -275,7 +268,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [edad, setEdad] = useState("");
   const [antiguedad, setAntiguedad] = useState("");
   const [sueldo, setSueldo] = useState("");
-  const [pendingDocs, setPendingDocs] = useState<{ file: File; tipo: string }[]>([]);   // adjuntos elegidos (se suben al enviar)
+  const [pendingDocs, setPendingDocs] = useState<DocElegido[]>([]);   // adjuntos elegidos (se suben al enviar)
   const [docsErr, setDocsErr] = useState("");
   const docsFaltantes = DOCS_REQUERIDOS.filter((t) => !pendingDocs.some((d) => d.tipo === t));
   // Paso 4: videos obligatorios (la lista la da el backend) y los que ya vio completos.
@@ -704,7 +697,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
           <section className="p-result">
             <div className="p-card" style={{ padding: "18px 20px" }}>
               <div className="p-subtitle" style={{ borderTop: "none", paddingTop: 0 }}>Documentación <span>(obligatoria para continuar)</span></div>
-              <p className="p-fine" style={{ margin: "6px 0 12px" }}>Adjuntá tu DNI (frente y dorso) y tu último recibo de sueldo. Podés sumar otros comprobantes.</p>
+              <p className="p-fine" style={{ margin: "6px 0 12px" }}>Adjuntá una imagen o PDF de cada uno: DNI frente, DNI dorso y tu último recibo de sueldo.</p>
               <DocsPicker docs={pendingDocs} onChange={(d) => { setPendingDocs(d); setDocsErr(""); }} />
               {docsErr && <div className="p-alert">{docsErr}</div>}
             </div>
@@ -994,6 +987,12 @@ function Estilos() {
     .p-docs-up select { padding:8px 10px; border:1px solid var(--p-border); border-radius:9px; background:var(--p-surface); color:var(--p-ink); font-size:.82rem; }
     .p-btn-file { display:inline-flex; align-items:center; gap:6px; background:var(--p-brand,#2f6df6); color:#fff; border-radius:9px; padding:8px 14px; font-size:.82rem; font-weight:700; cursor:pointer; }
     .p-btn-file.off { opacity:.6; cursor:default; }
+    .p-btn-file.sec { background:transparent; color:var(--p-brand); border:1px solid var(--p-border); }
+    .p-docs-slots { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+    .p-doc-slot { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px dashed var(--p-border); border-radius:12px; }
+    .p-doc-slot.ok { border-style:solid; border-color:var(--p-ok); }
+    .p-doc-slot .p-doc-meta { flex:1; min-width:0; }
+    .p-doc-slot .p-doc-meta span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
     @media (max-width:680px){
       .p-header{ padding:12px 14px; gap:10px 14px; }
       .p-nav{ order:3; width:100%; overflow-x:auto; }

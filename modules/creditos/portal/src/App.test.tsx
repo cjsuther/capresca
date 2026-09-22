@@ -79,12 +79,12 @@ const archivo = (nombre: string, tipo: string, tam = 1000) => {
   Object.defineProperty(f, "size", { value: tam });
   return f;
 };
-const inputArchivo = () => document.querySelector('input[type="file"]') as HTMLInputElement;
+const ETIQUETA: Record<string, string> = { DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo" };
+const casillero = (tipo: string) => screen.getByLabelText(`Adjuntar ${ETIQUETA[tipo]}`) as HTMLInputElement;
 
-/** Adjunta un archivo del tipo indicado en el paso 3. */
-async function adjuntar(u: ReturnType<typeof userEvent.setup>, tipo: string, f: File) {
-  await u.selectOptions(screen.getByLabelText("Tipo de documento"), tipo);
-  fireEvent.change(inputArchivo(), { target: { files: [f] } });
+/** Adjunta un archivo en el casillero del documento indicado (paso 3). */
+async function adjuntar(_u: ReturnType<typeof userEvent.setup>, tipo: string, f: File) {
+  fireEvent.change(casillero(tipo), { target: { files: [f] } });
 }
 
 /** Adjunta la documentación obligatoria (DNI frente y dorso + recibo). */
@@ -219,43 +219,57 @@ describe("paso 1 · tus datos", () => {
 
 // ---------------------------------------------------------------------------
 describe("paso 3 · documentación", () => {
-  const listaDocs = () => document.querySelector(".p-docs-list") as HTMLElement | null;
+  const slot = (tipo: string) => screen.getByLabelText(`Adjuntar ${ETIQUETA[tipo]}`).closest("li") as HTMLElement;
 
   it("el paso 1 ya no pide documentación", async () => {
     await montarLogueado();
-    expect(inputArchivo()).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 
-  it("acepta una imagen y la lista con su tipo", async () => {
+  it("pide exactamente tres documentos: DNI frente, DNI dorso y recibo (sin otros tipos)", async () => {
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
+    const lista = screen.getByRole("list", { name: "Documentación requerida" });
+    expect(within(lista).getAllByRole("listitem")).toHaveLength(3);
+    expect(document.querySelectorAll('input[type="file"]')).toHaveLength(3);
+    expect(screen.queryByRole("combobox", { name: "Tipo de documento" })).toBeNull();
+    expect(screen.queryByText("Otro")).toBeNull();
+  });
+
+  it("cada casillero guarda un solo archivo: adjuntar de nuevo lo reemplaza", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
     await adjuntar(u, "DNI_FRENTE", archivo("dni.png", "image/png", 2048));
-    await waitFor(() => expect(listaDocs()).not.toBeNull());
-    expect(within(listaDocs()!).getByText("DNI (frente)")).toBeInTheDocument();
-    expect(within(listaDocs()!).getByText(/dni\.png · 2 KB/)).toBeInTheDocument();
+    expect(within(slot("DNI_FRENTE")).getByText(/dni\.png · 2 KB/)).toBeInTheDocument();
+    expect(within(slot("DNI_FRENTE")).getByText("Cambiar")).toBeInTheDocument();
+    await adjuntar(u, "DNI_FRENTE", archivo("dni-mejor.jpg", "image/jpeg"));
+    expect(within(slot("DNI_FRENTE")).getByText(/dni-mejor\.jpg/)).toBeInTheDocument();
+    expect(screen.queryByText(/dni\.png/)).toBeNull();
+    expect(screen.getByText("Te faltan 2 documentos.")).toBeInTheDocument();
   });
 
   it("rechaza formatos que no son imagen ni PDF", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
-    fireEvent.change(inputArchivo(), { target: { files: [archivo("planilla.xlsx", "application/vnd.ms-excel")] } });
-    expect(await screen.findByText("Formato no permitido (JPG, PNG o PDF).")).toBeInTheDocument();
+    await adjuntar(u, "RECIBO", archivo("planilla.xlsx", "application/vnd.ms-excel"));
+    expect(await screen.findByText("Recibo de sueldo: formato no permitido (JPG, PNG o PDF).")).toBeInTheDocument();
+    expect(within(slot("RECIBO")).getByText("Falta adjuntar")).toBeInTheDocument();
   });
 
   it("rechaza archivos de más de 5 MB", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
-    fireEvent.change(inputArchivo(), { target: { files: [archivo("recibo.pdf", "application/pdf", 6 * 1024 * 1024)] } });
-    expect(await screen.findByText("El archivo supera los 5 MB.")).toBeInTheDocument();
+    await adjuntar(u, "RECIBO", archivo("recibo.pdf", "application/pdf", 6 * 1024 * 1024));
+    expect(await screen.findByText("Recibo de sueldo: el archivo supera los 5 MB.")).toBeInTheDocument();
   });
 
   it("permite quitar un adjunto elegido", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
-    fireEvent.change(inputArchivo(), { target: { files: [archivo("dni.pdf", "application/pdf")] } });
-    await u.click(await screen.findByRole("button", { name: "Quitar documento" }));
-    expect(screen.queryByText(/dni\.pdf/)).toBeNull();
-    expect(listaDocs()).toBeNull();
+    await adjuntar(u, "DNI_DORSO", archivo("dorso.pdf", "application/pdf"));
+    await u.click(await screen.findByRole("button", { name: "Quitar DNI (dorso)" }));
+    expect(screen.queryByText(/dorso\.pdf/)).toBeNull();
+    expect(within(slot("DNI_DORSO")).getByText("Falta adjuntar")).toBeInTheDocument();
   });
 
   it("no deja seguir sin el DNI (frente y dorso) y el recibo", async () => {
@@ -268,12 +282,12 @@ describe("paso 3 · documentación", () => {
     expect(screen.queryByText(/Mirá los videos/)).toBeNull();
   });
 
-  it("con los tres documentos marca la lista y pasa a los videos", async () => {
+  it("con los tres documentos pasa a los videos", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
     await adjuntarRequeridos(u);
-    const req = screen.getByRole("list", { name: "Documentación requerida" });
-    expect(within(req).getAllByText("✓")).toHaveLength(3);
+    const lista = screen.getByRole("list", { name: "Documentación requerida" });
+    expect(within(lista).queryByText("Falta adjuntar")).toBeNull();
     await u.click(screen.getByRole("button", { name: /Continuar/ }));
     expect(await screen.findByText(/Mirá los videos/)).toBeInTheDocument();
   });

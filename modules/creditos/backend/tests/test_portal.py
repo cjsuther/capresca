@@ -670,6 +670,25 @@ def test_documento_valida_formato_y_owner(client):
     assert len(client.get(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=h).json()["items"]) == 0
 
 
+def test_un_solo_documento_de_cada_uno_de_los_pedidos(client):
+    """El ciudadano adjunta exactamente un DNI frente, un DNI dorso y un recibo: ni otros tipos, ni un
+    segundo del mismo (aunque llame a la API salteando el portal)."""
+    h = _ingresar(client)
+    numero = _crear_sol(client, h)
+    url = f"/api/creditos/portal/solicitudes/{numero}/documentos"
+    subir = lambda tipo, nombre="x.png": client.post(url, headers=h, files={"archivo": (nombre, PNG, "image/png")},
+                                                      data={"tipo": tipo} if tipo is not None else None)
+    for tipo in ("OTRO", "CONSTANCIA", None):          # sin tipo cae en OTRO
+        r = subir(tipo)
+        assert r.status_code == 422 and "DNI" in r.json()["detail"]
+    for tipo in ("DNI_FRENTE", "DNI_DORSO", "RECIBO"):
+        assert subir(tipo).status_code == 201
+    r = subir("DNI_FRENTE", "otra-foto.png")
+    assert r.status_code == 409 and "Ya adjuntaste el DNI (frente)" in r.json()["detail"]
+    tipos = [d["tipo"] for d in client.get(url, headers=h).json()["items"]]
+    assert sorted(tipos) == ["DNI_DORSO", "DNI_FRENTE", "RECIBO"]
+
+
 def test_mis_solicitudes_solo_las_propias(client):
     """'Mis solicitudes' devuelve sólo las del ciudadano autenticado; un token interno no entra."""
     h = _ingresar(client)
