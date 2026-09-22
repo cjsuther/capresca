@@ -7,6 +7,17 @@
 
 ---
 
+## H-220 · Configurar Créditos: vista en tarjetas / en línea y menú de acciones por fila
+**Fecha:** 2026-09-22 · **Módulo:** Créditos · **Alcance:** pedido del usuario (paridad con el sistema anterior)
+- El catálogo vuelve a tener las **dos vistas** de la SPA retirada: **tarjetas** (con estado, familia,
+  componentes, derivación, sistema/TNA/monto/plazo) y **en línea** (la tabla). El toggle recuerda la
+  elección por navegador (`creditos_cfg_vista`), como hacía el anterior.
+- Vuelve el **menú "⋯" de acciones** por línea, en las dos vistas: Abrir, Continuar edición, Duplicar,
+  Crear derivado, Retirar, Reactivar y Borrar; cada una aparece según estado y permisos, y las
+  irreversibles siguen pidiendo confirmación.
+- El menú quedó como componente compartido (`components/ui/MenuAcciones`) y la tabla común acepta
+  `acciones(row)`, así el resto de las grillas del sistema lo pueden usar igual.
+
 ## H-219 · Solicitud: selfie con DNI, fecha de nacimiento (la edad se calcula) y contacto
 **Fecha:** 2026-09-22 · **Módulo:** Créditos / Portal · **Alcance:** pedido del usuario
 - **Vista previa de PDF (bug):** el visor mostraba el PDF en un `<iframe>` con el archivo ya descargado

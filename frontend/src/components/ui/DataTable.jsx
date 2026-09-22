@@ -1,17 +1,20 @@
 import { useMemo, useState } from "react";
 
+import { MenuAcciones } from "./MenuAcciones";
+
 /**
  * Tabla compartida: orden por columna y paginado, en modo servidor (el padre controla
  * `total/offset/sort/order`) o en modo cliente (`clientSort` / `pageSize` ordenan y paginan en memoria).
  *
  * columns: [{ key, label, align?: "right", sortable?, render?(row), sortValue?(row) }]
+ * acciones(row) → [{ label, onClick, danger?, oculta? }]: agrega la columna "⋯" con el menú de la fila.
  */
 export function DataTable({
   columns, rows, total, limit = 25, offset = 0, sort, order = "asc",
-  onSort, onPage, clientSort, pageSize, defaultSort, rowKey, rowClass, onRowClick,
+  onSort, onPage, clientSort, pageSize, defaultSort, rowKey, rowClass, onRowClick, acciones,
   emptyText = "Sin datos",
 }) {
-  const colCount = columns.length;
+  const colCount = columns.length + (acciones ? 1 : 0);
   const [cSort, setCSort] = useState(defaultSort || "");
   const [cOrder, setCOrder] = useState("asc");
   const [cOffset, setCOffset] = useState(0);
@@ -79,6 +82,7 @@ export function DataTable({
                   </th>
                 );
               })}
+              {acciones && <th scope="col" className="px-3 py-2 w-10"><span className="sr-only">Acciones</span></th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -93,6 +97,11 @@ export function DataTable({
                     {c.render ? c.render(r) : r[c.key]}
                   </td>
                 ))}
+                {acciones && (
+                  <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                    <MenuAcciones acciones={acciones(r)} />
+                  </td>
+                )}
               </tr>
             ))}
             {!visibles.length && (
