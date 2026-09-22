@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTema, Tema } from "./tema";
 import { PasoVideos, guardarVistos, leerVistos, olvidarVistos } from "./videos";
-import { api, token, Video, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
+import { api, nuevoId, token, Video, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
 
 const money = (v: string | number) =>
   Number(v).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
@@ -364,8 +364,12 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     setCalc(true); setErr("");
     try {
       setSim(await api.simular({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), ...datos() }));
-      setIdem(crypto.randomUUID());
-    } catch { setSim(null); }   // fuera de rango, etc. (el slider ya acota al rango del producto)
+      setIdem(nuevoId());
+    } catch (e) {
+      // Sin simulación no hay "Continuar": se avisa en vez de dejar al ciudadano trabado sin explicación.
+      setSim(null);
+      setErr(`No pudimos calcular tu crédito: ${String(e).replace(/^Error:\s*/, "")}. Probá de nuevo en unos segundos.`);
+    }
     finally { setCalc(false); }
   }
 

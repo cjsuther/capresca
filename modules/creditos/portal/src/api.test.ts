@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, token } from "./api";
+import { api, nuevoId, token } from "./api";
 
 const API = "/api/creditos";
 
@@ -225,5 +225,29 @@ describe("descarga autenticada de un adjunto", () => {
     mockFetch(new Response("", { status: 404 }));
     await expect(api.docAbrir("SOL-7", "doc-x")).rejects.toThrow("Error 404");
     expect(abrir).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("nuevoId (clave de idempotencia)", () => {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  it("sin HTTPS (no hay crypto.randomUUID) igual genera un UUID v4 válido y distinto cada vez", () => {
+    const original = globalThis.crypto.randomUUID;
+    Object.defineProperty(globalThis.crypto, "randomUUID", { configurable: true, value: undefined });
+    try {
+      const a = nuevoId(), b = nuevoId();
+      expect(a).toMatch(UUID);
+      expect(b).toMatch(UUID);
+      expect(a).not.toBe(b);
+    } finally {
+      Object.defineProperty(globalThis.crypto, "randomUUID", { configurable: true, value: original });
+    }
+  });
+
+  it("con randomUUID disponible lo usa", () => {
+    const spy = vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("11111111-1111-4111-8111-111111111111" as any);
+    expect(nuevoId()).toBe("11111111-1111-4111-8111-111111111111");
+    spy.mockRestore();
   });
 });

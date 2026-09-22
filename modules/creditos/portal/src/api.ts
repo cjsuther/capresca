@@ -52,6 +52,21 @@ async function abrirArchivo(path: string) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+/**
+ * Identificador único (clave de idempotencia). `crypto.randomUUID` sólo existe en contextos seguros
+ * (HTTPS o localhost): servido por HTTP en una IP no está, y el portal quedaba sin poder simular.
+ * `getRandomValues` sí está en cualquier contexto.
+ */
+export function nuevoId(): string {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === "function") return c.randomUUID();
+  const b = c.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;   // versión 4
+  b[8] = (b[8] & 0x3f) | 0x80;   // variante RFC 4122
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 export type Ciudadano = { sub: string; email: string; nombre: string };
 export type Haberes = { disponible: boolean; sueldo: number | null; antiguedad_meses: number | null; segmento: string; empleador: string; fuente: string };
 // Producto del product builder nuevo (pp_*), no la línea legacy.

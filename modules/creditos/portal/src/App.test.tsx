@@ -336,6 +336,30 @@ describe("paso 4 · videos", () => {
 
 // ---------------------------------------------------------------------------
 describe("paso 2 · simulación", () => {
+  it("en un sitio sin HTTPS (sin crypto.randomUUID) simula y deja continuar", async () => {
+    // Regresión: servido por HTTP en una IP, randomUUID no existe; el error se tapaba y no aparecía
+    // ni la simulación ni el botón "Continuar".
+    vi.spyOn(globalThis.crypto, "randomUUID").mockRestore?.();
+    const original = globalThis.crypto.randomUUID;
+    Object.defineProperty(globalThis.crypto, "randomUUID", { configurable: true, value: undefined });
+    try {
+      const u = await montarLogueado();
+      await completarDatos(u);
+      expect(await screen.findByText("Total a pagar")).toBeInTheDocument();
+      await u.click(await screen.findByRole("button", { name: /Continuar/ }));
+      expect(await screen.findByText(/obligatoria para continuar/)).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(globalThis.crypto, "randomUUID", { configurable: true, value: original });
+    }
+  });
+
+  it("si la simulación falla lo avisa en vez de quedar trabado", async () => {
+    api.simular.mockRejectedValue(new Error("El módulo Configuraciones no está disponible"));
+    const u = await montarLogueado();
+    await completarDatos(u);
+    expect(await screen.findByText(/No pudimos calcular tu crédito: El módulo Configuraciones no está disponible/)).toBeInTheDocument();
+  });
+
   it("simula sola al entrar (sin apretar nada) y muestra los totales", async () => {
     const u = await montarLogueado();
     await completarDatos(u);
