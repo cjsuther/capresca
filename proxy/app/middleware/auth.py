@@ -8,8 +8,8 @@ Flujo:
   4. Verificar que el usuario tiene el permiso requerido para la ruta
   5. Reenviar la solicitud al microservicio correspondiente
 """
-import time
 import logging
+import posixpath
 from typing import Optional
 
 import httpx
@@ -35,6 +35,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
+        # ── Ruta normalizada ──────────────────────────────────────
+        # El permiso se decide con esta ruta, pero el cliente HTTP que reenvía al módulo colapsa los
+        # ".." antes de salir: si no se rechazan acá, `/api/x/cuentas/../config` pasa el control de
+        # `cuentas` y termina pegándole a `config` (escalada de permisos).
+        if path != posixpath.normpath(path):
+            return JSONResponse(status_code=400, content={"detail": "Ruta inválida"})
+
         # ── Rutas públicas ────────────────────────────────────────
         if path in PUBLIC_PATHS or not path.startswith("/api/"):
             return await call_next(request)
@@ -56,18 +63,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if permissions is None:
             return JSONResponse(status_code=503, content={"detail": "Servicio de seguridad no disponible"})
 
+        # Sin ningún módulo habilitado no hay nada que hacer en el sistema (p.ej. usuario dado de baja:
+        # security devuelve permisos vacíos). Antes pasaba a las rutas sin permiso requerido.
+        if not permissions.get("modules"):
+            logger.warning("Usuario sin permisos user_id=%s ruta=%s", user_id, path)
+            return JSONResponse(status_code=403, content={"detail": "Usuario sin permisos asignados"})
+
         # ── Verificar permiso requerido para la ruta ──────────────
         required = get_required_permission(request.method, path)
         if required and not self._has_permission(permissions, required):
             logger.warning("Acceso denegado user_id=%s ruta=%s permiso=%s", user_id, path, required)
-            return JSONResponse(status_code=403, content={"detail": "Acceso denegado", "required": required})
+            detalle = required if isinstance(required, str) else " | ".join(required)
+            return JSONResponse(status_code=403, content={"detail": "Acceso denegado", "required": detalle})
 
-        # ── Inyectar user_id en headers para los microservicios ───
-        headers = dict(request.headers)
-        headers["X-User-Id"] = str(user_id)
-        headers["X-Username"] = payload.get("username", "")
-
-        # Continuar al router de proxy (lo maneja routes/proxy.py)
+        # Continuar al router de proxy (routes/proxy.py inyecta la identidad en los headers)
         request.state.user_id = user_id
         request.state.username = payload.get("username", "")
         request.state.permissions = permissions
@@ -97,14 +106,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         return None
 
-    @staticmethod
-    def _has_permission(permissions: dict, required: str) -> bool:
+    @classmethod
+    def _has_permission(cls, permissions: dict, required) -> bool:
         """
         required tiene formato 'module:action' ej: 'cajeros:requests:read'
         permissions["actions"] es { "cajeros": ["requests:read", ...] }
+        'module:*' = cualquier permiso del módulo (la autorización fina la hace el módulo).
+        Una tupla/lista = alcanza con tener CUALQUIERA de esos permisos (pantallas que cruzan de área).
         """
+        if isinstance(required, (tuple, list)):
+            return any(cls._has_permission(permissions, r) for r in required)
         parts = required.split(":", 1)
         if len(parts) != 2:
             return False
         module, action = parts
+        if action == "*":
+            return bool(permissions.get("actions", {}).get(module))
         return action in permissions.get("actions", {}).get(module, [])

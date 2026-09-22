@@ -13,10 +13,17 @@ def get_username(x_username: Optional[str] = Header(None)) -> Optional[str]:
     return x_username
 
 
-def get_permissions(x_permissions: Optional[str] = Header(None)) -> list[str]:
-    if not x_permissions:
+def get_permissions(x_user_permissions: Optional[str] = Header(None)) -> list[str]:
+    """Acciones del módulo que trae el gateway en X-User-Permissions ("modulo:accion" separados por coma).
+
+    Antes se leía un header `X-Permissions` libre: el gateway no lo filtraba, así que cualquier usuario
+    podía mandarlo y darse `transactions:admin` / `read_all`.
+    """
+    prefijo = "cajeros:"
+    if not x_user_permissions:
         return []
-    return [p.strip() for p in x_permissions.split(",")]
+    return [p.strip()[len(prefijo):] for p in x_user_permissions.split(",")
+            if p.strip().startswith(prefijo)]
 
 
 @router.post("", response_model=TransactionResponse, status_code=201)

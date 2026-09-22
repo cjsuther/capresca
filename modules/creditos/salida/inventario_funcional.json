@@ -1,0 +1,3316 @@
+{
+ "forms": [
+  {
+   "form": "0001crsc",
+   "familia": "000",
+   "modulo": "Sistema/Login",
+   "titulo": "Solicitudes de Créditos",
+   "botones": []
+  },
+  {
+   "form": "0101huellas",
+   "familia": "010",
+   "modulo": "Sistema/Login",
+   "titulo": "Huella",
+   "botones": []
+  },
+  {
+   "form": "105050000modelos",
+   "familia": "105",
+   "modulo": "Despacho/Resoluciones",
+   "titulo": "Modelos de Resoluciones/Disposiciones",
+   "botones": [
+    "Word",
+    "Importa",
+    "Exporta"
+   ]
+  },
+  {
+   "form": "120050000reso_disp",
+   "familia": "120",
+   "modulo": "Despacho/Resoluciones",
+   "titulo": "CAJA DE CRÉDITO Y PRESTACIONES PROVINCIAL. - Resoluciones",
+   "botones": []
+  },
+  {
+   "form": "120100000anexo_res_dis",
+   "familia": "120",
+   "modulo": "Despacho/Resoluciones",
+   "titulo": "C.C. y P.P. - Anexo Resolución",
+   "botones": [
+    "Vista Previa",
+    "Confirmar Anexo",
+    "Imprimir Anexo"
+   ]
+  },
+  {
+   "form": "320050001pagacred",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Form2",
+   "botones": []
+  },
+  {
+   "form": "330100000reimpliq",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Liquidaciones de Fecha",
+   "botones": []
+  },
+  {
+   "form": "330100000reimpliq_esp",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Liquidaciones de Fecha",
+   "botones": []
+  },
+  {
+   "form": "ag_gral_buspar",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Busca parámetro",
+   "botones": []
+  },
+  {
+   "form": "cb-cjcreditoscobrados",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - IVA cobranza de Créditos",
+   "botones": []
+  },
+  {
+   "form": "cb-crasientodevenga",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Datos p/Asiento de Devengamiento",
+   "botones": []
+  },
+  {
+   "form": "cb-crasientootorga",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Datos p/Asiento de Otrorgamiento",
+   "botones": []
+  },
+  {
+   "form": "cb-crevicredborra",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Revisión de Créditos BORRADOS",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "cb-egivaegresos",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Reporte de IVA de Egresos de Créditos",
+   "botones": []
+  },
+  {
+   "form": "cb-egreviegresos",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Revisa Transacciones de Egresos",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "cb-iva-a-pagar-periodo",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Informe de IVA a pagar por Periodo",
+   "botones": []
+  },
+  {
+   "form": "cb-iva-gsoq-periodo",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Reporte de IVA de Gs. Orig. y Quebranto",
+   "botones": []
+  },
+  {
+   "form": "cb-op-dev-periodo",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Reporte de Ordenes de Pago devengadas",
+   "botones": []
+  },
+  {
+   "form": "cb-prepag-linea-1",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Informe Previo Pago A.G.A.P.",
+   "botones": []
+  },
+  {
+   "form": "cb-prepag-linea",
+   "familia": "cb",
+   "modulo": "Contabilidad",
+   "titulo": "C.C. y P.P. - Informe Previo Pago A.G.A.P.",
+   "botones": []
+  },
+  {
+   "form": "consulta_solicitudes",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Consulta de Solicitudes",
+   "botones": []
+  },
+  {
+   "form": "estadisticasseguros",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm120050004rtf",
+   "familia": "120",
+   "modulo": "Despacho/Resoluciones",
+   "titulo": "C.C. y P.P. - Creación de Modelo de Resolución",
+   "botones": []
+  },
+  {
+   "form": "frm130050000rptreso",
+   "familia": "130",
+   "modulo": "Despacho/Resoluciones",
+   "titulo": "C.C. y P.P. - Sistema de Impresión por múltiples campos",
+   "botones": []
+  },
+  {
+   "form": "frm14enexo_dis",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Anexo Disposicion",
+   "botones": [
+    "Vista Previa",
+    "Confirmar Anexo",
+    "Imprimir Anexo"
+   ]
+  },
+  {
+   "form": "frm14enexo_res",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Anexo Resolución",
+   "botones": [
+    "Vista Previa",
+    "Confirmar Anexo",
+    "Imprimir Anexo"
+   ]
+  },
+  {
+   "form": "frm14reimpanexo_res",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Reimpresion de Anexo Resolucion",
+   "botones": []
+  },
+  {
+   "form": "frm220050000leedisknew",
+   "familia": "220",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Lee diskettes de Quiniela",
+   "botones": []
+  },
+  {
+   "form": "frm220100000anulaintmora",
+   "familia": "220",
+   "modulo": "Caja",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm225050000aplicaj-a medias",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Aplicativo de Caja",
+   "botones": [
+    "Cr.-Seg.-Ext."
+   ]
+  },
+  {
+   "form": "frm225050000aplicaj",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Aplicativo de Caja",
+   "botones": []
+  },
+  {
+   "form": "frm225050000aplicaj_s_interes",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Aplicativo de Caja Sin Interes",
+   "botones": []
+  },
+  {
+   "form": "frm225050000aplicativodeCaja",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Aplicativo de Caja",
+   "botones": [
+    "Cr.-Seg.-Ext."
+   ]
+  },
+  {
+   "form": "frm225050001funcob1",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Sistema de Caja (Formas de Pago)",
+   "botones": []
+  },
+  {
+   "form": "frm225100000pagos_ag_transferidas",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "Agencias Transferidas",
+   "botones": []
+  },
+  {
+   "form": "frm225150000cresegu1",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "Créditos, Seguros y Juegos Extraordinarios",
+   "botones": []
+  },
+  {
+   "form": "frm225150001pagcsj",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Cobranzas",
+   "botones": []
+  },
+  {
+   "form": "frm225250000anupago",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Anula Pagos/Cobros",
+   "botones": []
+  },
+  {
+   "form": "frm225300000ctrlcaj",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Control de Caja",
+   "botones": []
+  },
+  {
+   "form": "frm225350000cierrec",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Cierre de Caja (Supervisor)",
+   "botones": []
+  },
+  {
+   "form": "frm225420000pagos_ag_transferidas",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "Agencias Transferidas",
+   "botones": []
+  },
+  {
+   "form": "frm225450000pagapremios",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "C.C. y P.P. - Emisión de Recibos p/Agencias Ganadoras",
+   "botones": []
+  },
+  {
+   "form": "frm225500000pagainterior",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "Emisión de Recibos p/Agencias del Interior",
+   "botones": []
+  },
+  {
+   "form": "frm225550000infdeuage",
+   "familia": "225",
+   "modulo": "Caja",
+   "titulo": "Informe Deuda Agencia",
+   "botones": []
+  },
+  {
+   "form": "frm230050000rptpend",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "C.C. y P.P. - Emisión de Pendientes/Ingresos",
+   "botones": []
+  },
+  {
+   "form": "frm230100000rptreci",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "C.C. y P.P. - Reimpresión de Recibos",
+   "botones": []
+  },
+  {
+   "form": "frm230100000rptrecihis",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "C.C. y P.P. - Reimpresión de Recibos Históricos",
+   "botones": []
+  },
+  {
+   "form": "frm230150000rptinte",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "C.C. y P.P. - Reporte mensual de Intereses e I.V.A.",
+   "botones": []
+  },
+  {
+   "form": "frm230200000prequi",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "C.C. y P.P. - Control de Premios (Egresos)",
+   "botones": []
+  },
+  {
+   "form": "frm230250000lispag",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "C.C. y P.P. - Listado de Pagos realizados",
+   "botones": []
+  },
+  {
+   "form": "frm230300000reca",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Totales de recaudación",
+   "botones": []
+  },
+  {
+   "form": "frm230350000infingbru",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Informe de Ingresos Brutos",
+   "botones": []
+  },
+  {
+   "form": "frm230400000reimpcie",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Reimpresión Cierre de Caja (Supervisor)",
+   "botones": []
+  },
+  {
+   "form": "frm230450000rciecre",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Fecha:",
+   "botones": []
+  },
+  {
+   "form": "frm230500000liqcob",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Reporte de Liquidaciones Cobradas/Pagadas",
+   "botones": []
+  },
+  {
+   "form": "frm230550000premioscompensados",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Informe de Premios compensados",
+   "botones": []
+  },
+  {
+   "form": "frm230570000listado_cheques",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Reimpresión Listado para Cheques",
+   "botones": []
+  },
+  {
+   "form": "frm230600000reimpresion_control_caja",
+   "familia": "230",
+   "modulo": "Caja (listados)",
+   "titulo": "Reimpresión Contol Caja Cajero",
+   "botones": []
+  },
+  {
+   "form": "frm305050000lineas",
+   "familia": "305",
+   "modulo": "Créditos",
+   "titulo": "Administración de Lineas de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm305150000requisitos",
+   "familia": "305",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Requisitos para Créditos",
+   "botones": [
+    "Grabar",
+    "Borrar",
+    "Imprimir"
+   ]
+  },
+  {
+   "form": "frm305250000gasistas",
+   "familia": "305",
+   "modulo": "Créditos",
+   "titulo": "Administracion de Gasistas/Institutos",
+   "botones": []
+  },
+  {
+   "form": "frm305300000montosperiodos",
+   "familia": "305",
+   "modulo": "Créditos",
+   "titulo": "Monto máximo a Prestar por Mes",
+   "botones": []
+  },
+  {
+   "form": "frm310100000lineas",
+   "familia": "310",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Listado de Lineas de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm315050000consoli",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Consulta de Solicitudes",
+   "botones": []
+  },
+  {
+   "form": "frm315150000consjub",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Consulta Préstamos Jubilados",
+   "botones": []
+  },
+  {
+   "form": "frm315200000datoscontrol",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Datos de control (Creditos solicitados)",
+   "botones": []
+  },
+  {
+   "form": "frm315250000organismos",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Consulta de Organismos",
+   "botones": []
+  },
+  {
+   "form": "frm315300000consenvios",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Consulta envios de cuotas",
+   "botones": []
+  },
+  {
+   "form": "frm315350000estadvar",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Estadísticas",
+   "botones": []
+  },
+  {
+   "form": "frm315400000sitmar",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Consulta situación de Margen de Cliente",
+   "botones": []
+  },
+  {
+   "form": "frm315450500solsindeb",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Solicitudes sin marca de Débito",
+   "botones": []
+  },
+  {
+   "form": "frm315451000solsindeb25",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Solicitudes sin marca de Débito de Linea 25",
+   "botones": []
+  },
+  {
+   "form": "frm315451500solactivas",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Consulta Solicitudes Activas",
+   "botones": []
+  },
+  {
+   "form": "frm315550000pagcrecaja",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Consulta Pagos de Creditos en Caja",
+   "botones": []
+  },
+  {
+   "form": "frm315600000consturno",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Consulta de turnos generados",
+   "botones": []
+  },
+  {
+   "form": "frm315620000consturno",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Listado de Turnos entregados",
+   "botones": []
+  },
+  {
+   "form": "frm315650000hiscre",
+   "familia": "315",
+   "modulo": "Créditos",
+   "titulo": "Informe Situación de un Cliente",
+   "botones": []
+  },
+  {
+   "form": "frm320050001pagacred",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - COBRANZA DE CREDITOS P/Caja",
+   "botones": []
+  },
+  {
+   "form": "frm320070000bpatcancela",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Cancelación Cuotas Previo Pago - Bco. Patagonia",
+   "botones": []
+  },
+  {
+   "form": "frm320100000solcre",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos",
+   "botones": [
+    "Disposicion"
+   ]
+  },
+  {
+   "form": "frm320100000solcreturno",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Control de Turno",
+   "botones": []
+  },
+  {
+   "form": "frm320100000solcreturnoOLD",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Control de Turno",
+   "botones": []
+  },
+  {
+   "form": "frm320100001linea",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Línea",
+   "botones": []
+  },
+  {
+   "form": "frm320100002cliente",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Solicitante",
+   "botones": [
+    "Datos Ecosistema"
+   ]
+  },
+  {
+   "form": "frm320100002cliente_api",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Datos de RENAPER y RRHH",
+   "botones": [
+    "RENAPER",
+    "Empleado/a   RRHH"
+   ]
+  },
+  {
+   "form": "frm320100002clienteagap",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Solicitante AGAP",
+   "botones": []
+  },
+  {
+   "form": "frm320100002clienteg",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Apellido y nombres",
+   "botones": []
+  },
+  {
+   "form": "frm320100002clientesadop",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Solicitante SADOP",
+   "botones": []
+  },
+  {
+   "form": "frm320100002clientesproductivos",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos Productivos - Solicitante",
+   "botones": [
+    "...",
+    "..."
+   ]
+  },
+  {
+   "form": "frm320100003garante",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Garante",
+   "botones": []
+  },
+  {
+   "form": "frm320100003garanteagap",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Garante AGAP",
+   "botones": []
+  },
+  {
+   "form": "frm320100003garanteg",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Apellido y nombres",
+   "botones": []
+  },
+  {
+   "form": "frm320100003garantesproductivos",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos Productivos - Garantes",
+   "botones": [
+    "...",
+    "...",
+    "...",
+    "..."
+   ]
+  },
+  {
+   "form": "frm320100003gtegasnopublico",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Garantes GAS que NO Pertenecen a la Adm. Pública",
+   "botones": []
+  },
+  {
+   "form": "frm320100004garante2",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección 2do. Garante",
+   "botones": []
+  },
+  {
+   "form": "frm320100005garante3",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección 3er. Garante",
+   "botones": []
+  },
+  {
+   "form": "frm320100006intendente",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "\u0006",
+   "botones": []
+  },
+  {
+   "form": "frm320100007credito",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Crédito",
+   "botones": []
+  },
+  {
+   "form": "frm320100007creditoagap",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Crédito ESPECIALES",
+   "botones": []
+  },
+  {
+   "form": "frm320100007creditog",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos - Selección de Crédito ESPECIALES",
+   "botones": []
+  },
+  {
+   "form": "frm320100007creditosproductivos",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Créditos Productivos",
+   "botones": []
+  },
+  {
+   "form": "frm320100008prenda_hipoteca",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Administración de Créditos Productivos - Solicitante",
+   "botones": []
+  },
+  {
+   "form": "frm320100500solcreturno",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Control de Turno",
+   "botones": []
+  },
+  {
+   "form": "frm320150000pagctaman1",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Pago manual de cuotas creditos",
+   "botones": []
+  },
+  {
+   "form": "frm320150001ctaactual",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Cuota actualizada",
+   "botones": []
+  },
+  {
+   "form": "frm320160000cancuo",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Cancela cuotas creditos Producir/Productivos",
+   "botones": []
+  },
+  {
+   "form": "frm320160001ctaactual",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Cuota actualizada",
+   "botones": [
+    "Cobra",
+    "No Cobra"
+   ]
+  },
+  {
+   "form": "frm320180000cancuotransf",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Cancelación de Cuotas por Trasferencias",
+   "botones": []
+  },
+  {
+   "form": "frm320180001cancuotransf",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Cuota actualizada",
+   "botones": []
+  },
+  {
+   "form": "frm320200000lc-ccvh",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Liquidación Aportes Vivienda",
+   "botones": []
+  },
+  {
+   "form": "frm320200000lc-new",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Liquidación de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm320200000lc",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Liquidación de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm320200000lc_especiales",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Liquidación de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm320200000lc_nomal",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Liquidación de Créditos - Noteboock",
+   "botones": []
+  },
+  {
+   "form": "frm320250500soljub",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Solicitud de crédito Jubilados",
+   "botones": [
+    "Agregar",
+    "Modificar",
+    "Eliminar",
+    "Buscar",
+    "Liquidar",
+    "Imprimir"
+   ]
+  },
+  {
+   "form": "frm320251000soljubpro",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Prorroga de Jubilados",
+   "botones": []
+  },
+  {
+   "form": "frm320251500solpagjub",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Generación de Pagare Jubilados",
+   "botones": []
+  },
+  {
+   "form": "frm320350000reintegros",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Reintegro de Cuotas",
+   "botones": []
+  },
+  {
+   "form": "frm320350000reintegroscta",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Reintegros Cuotas de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm320400000alternadto",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Alternar descuento entre Solicitante y Garante",
+   "botones": []
+  },
+  {
+   "form": "frm320450000cancre",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Cancelación de Creditos",
+   "botones": []
+  },
+  {
+   "form": "frm320450001quebfall",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Qebranto por Fallecimiento",
+   "botones": []
+  },
+  {
+   "form": "frm320500000iu",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Informe de ubicacion de creditos",
+   "botones": [
+    "Reimpresión"
+   ]
+  },
+  {
+   "form": "frm320550000subjub",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Subsidios a Jubilados",
+   "botones": []
+  },
+  {
+   "form": "frm320600000liqsub",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Liquidación de Subsidios",
+   "botones": []
+  },
+  {
+   "form": "frm320680000turnos_e",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Turnos Excepcionales",
+   "botones": []
+  },
+  {
+   "form": "frm320700000turnosnuevo",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Turnos para Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm320720000clienteturno",
+   "familia": "320",
+   "modulo": "Créditos",
+   "titulo": "Asignación Turnos",
+   "botones": []
+  },
+  {
+   "form": "frm321111autoriza_pp",
+   "familia": "321",
+   "modulo": "Créditos",
+   "titulo": "Autoriza",
+   "botones": []
+  },
+  {
+   "form": "frm325020000cambiosg",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Cambio automático de Solicitante a Garante",
+   "botones": []
+  },
+  {
+   "form": "frm325030000chkctaspend",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Control de Cuotas a descontar",
+   "botones": []
+  },
+  {
+   "form": "frm325040000bcopat",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Procesar archivo recibido del Patagonia",
+   "botones": []
+  },
+  {
+   "form": "frm325050000gendtos-1",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Genera Descuentos para organismos",
+   "botones": []
+  },
+  {
+   "form": "frm325050000gendtos",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Genera Descuentos p/Org. Liq.",
+   "botones": []
+  },
+  {
+   "form": "frm325250000maecli",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Actualiza Maestro DIO",
+   "botones": [
+    "Procesar",
+    "Buscar Archivo"
+   ]
+  },
+  {
+   "form": "frm325270000maeorg",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Actualiza Maestro de Organismos",
+   "botones": [
+    "Procesar",
+    "Buscar Archivo"
+   ]
+  },
+  {
+   "form": "frm325350000reca",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Recalculo de Cuotas",
+   "botones": []
+  },
+  {
+   "form": "frm325500000aplica",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Aplica descuentos",
+   "botones": []
+  },
+  {
+   "form": "frm325550000ccrepro",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Cancelacion de Ctas. Producir con D.Automatico",
+   "botones": []
+  },
+  {
+   "form": "frm325650000bajacre",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Créditos - Baja de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm325670000listagap",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Generacion Planilla para AGAP",
+   "botones": []
+  },
+  {
+   "form": "frm325700000devenga",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Datos p/Asiento de Otrorgamiento",
+   "botones": []
+  },
+  {
+   "form": "frm325750000devenga",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Datos p/Asiento de Devengamiento",
+   "botones": []
+  },
+  {
+   "form": "frm325800000situacion_cr",
+   "familia": "325",
+   "modulo": "Créditos",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm330050000solcar",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Listado de Solicitudes cargadas",
+   "botones": []
+  },
+  {
+   "form": "frm330150000rptcobcre",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Resumen de Cobros de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm330170000envaud",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Créditos enviados a Auditoría",
+   "botones": []
+  },
+  {
+   "form": "frm330200000infodeuda",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Informe de deuda",
+   "botones": []
+  },
+  {
+   "form": "frm330250500soljub",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Listado de Créditos Ley 5094",
+   "botones": []
+  },
+  {
+   "form": "frm330251000soljubdpto",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Listado de Créditos Ley 5094 por Departamento",
+   "botones": []
+  },
+  {
+   "form": "frm330251500cli5094",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de Clientes Ley 5094",
+   "botones": []
+  },
+  {
+   "form": "frm330252000totpag",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Totales pagados Créditos Ley 5094",
+   "botones": []
+  },
+  {
+   "form": "frm3302600cntrlcreditos",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Form1",
+   "botones": [
+    "Imprimir",
+    "Ver"
+   ]
+  },
+  {
+   "form": "frm330300500tdc_cre_pag",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Tribunal de Cuentas - Créditos Pagados",
+   "botones": []
+  },
+  {
+   "form": "frm330301000tdc_cre_can",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe de Créditos Cancelados",
+   "botones": []
+  },
+  {
+   "form": "frm330350000liscre",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Listado de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm330400000lisrecupera",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de Recuperacion de Cartera",
+   "botones": []
+  },
+  {
+   "form": "frm330450500lisiva",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de I.V.A.",
+   "botones": []
+  },
+  {
+   "form": "frm330500000crepag",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de Créditos pagados",
+   "botones": []
+  },
+  {
+   "form": "frm330550000crepart",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Listado de Cuotas a vencer de Particulares",
+   "botones": []
+  },
+  {
+   "form": "frm330600000ctasmora1",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de cuotas en Mora",
+   "botones": []
+  },
+  {
+   "form": "frm330650000creditoslinea",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe de créditos por Linea",
+   "botones": []
+  },
+  {
+   "form": "frm330670000ctrlda",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Control Marca Débito Automático",
+   "botones": []
+  },
+  {
+   "form": "frm330680000ctrlcrpa",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Control Creditos Pagados",
+   "botones": []
+  },
+  {
+   "form": "frm330700500jub5094",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reimpresión de pagaré Créditos ley 5094",
+   "botones": []
+  },
+  {
+   "form": "frm330701000reimpaplidio",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reimpresión de Aplicaciones",
+   "botones": []
+  },
+  {
+   "form": "frm330701500reimpenvios",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reimpresion de Envios",
+   "botones": []
+  },
+  {
+   "form": "frm330702000resumen_envios_agap",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Resumen Envios A.G.A.P.",
+   "botones": []
+  },
+  {
+   "form": "frm330750000ctactejub",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe de Cta.Cte. de Jubilados",
+   "botones": []
+  },
+  {
+   "form": "frm330800000cuotaspagadas",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Cuotas pagadas en una fecha",
+   "botones": []
+  },
+  {
+   "form": "frm330850500infoestado",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe de estado de creditos",
+   "botones": []
+  },
+  {
+   "form": "frm330851000infosaldos",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe de Saldos de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm330851500ui",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe de Ubicación de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm330852000creactdpto",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Creditos activos por Dpto.",
+   "botones": []
+  },
+  {
+   "form": "frm330853500informe_gas",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe Instalaciones de GAS",
+   "botones": []
+  },
+  {
+   "form": "frm330853700informe_gas2",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe Instalaciones de GAS",
+   "botones": []
+  },
+  {
+   "form": "frm330854000cr_mora_sin_cobros",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Creditos en Mora sin Cobros",
+   "botones": []
+  },
+  {
+   "form": "frm330854500cr_pagos_caja",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Créditos pagados por Caja",
+   "botones": []
+  },
+  {
+   "form": "frm330855000informe_aplicaciones",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Informe de Aplicaciones",
+   "botones": []
+  },
+  {
+   "form": "frm330855500info_fallecidos",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de Fallecimientos",
+   "botones": []
+  },
+  {
+   "form": "frm330920000marbaj",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Creditos con Marca de Baja",
+   "botones": []
+  },
+  {
+   "form": "frm330950000noenv",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de cuotas NO enviadas o en mora",
+   "botones": []
+  },
+  {
+   "form": "frm330970000futvto",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Reporte de Créditos a Cobrar",
+   "botones": []
+  },
+  {
+   "form": "frm330980000devengados",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Devengados",
+   "botones": []
+  },
+  {
+   "form": "frm330990000cr_razon_salud",
+   "familia": "330",
+   "modulo": "Créditos",
+   "titulo": "Listado de Créditos Por Salud Ingresados",
+   "botones": []
+  },
+  {
+   "form": "frm331000000info_cr_cancelados",
+   "familia": "331",
+   "modulo": "Créditos",
+   "titulo": "Informe de Créditos Cancelados",
+   "botones": []
+  },
+  {
+   "form": "frm335050000modgen",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Modificacion General",
+   "botones": []
+  },
+  {
+   "form": "frm335060000modspc",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "C.C. y P.P. - Modificación Solicitud-Cuotas-Clientes",
+   "botones": []
+  },
+  {
+   "form": "frm335060001modspc1",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Datos Solicitud y Prestamo",
+   "botones": []
+  },
+  {
+   "form": "frm335060002modspc4",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Datos de Cuotas",
+   "botones": []
+  },
+  {
+   "form": "frm335060003modspc2",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Datos Cliente",
+   "botones": []
+  },
+  {
+   "form": "frm335060004modspc3",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Datos Garante",
+   "botones": []
+  },
+  {
+   "form": "frm335100000cambiavto",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Cambiar fecha de vencimiento de cuotas",
+   "botones": [
+    "Cambiar"
+   ]
+  },
+  {
+   "form": "frm335150000controldio",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Control Solicitudes contra DIO (SOLICITANTE)",
+   "botones": []
+  },
+  {
+   "form": "frm335150001controldiog1",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Control Solicitudes contra DIO (GARANTE 1)",
+   "botones": []
+  },
+  {
+   "form": "frm335150002controldiog2",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Control Solicitudes contra DIO (GARANTE 2)",
+   "botones": []
+  },
+  {
+   "form": "frm335200000modgenjubi",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Modificación general Jubilados Ley 5094",
+   "botones": []
+  },
+  {
+   "form": "frm335260000controlcuotascaja",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Control de Cuotas en Caja",
+   "botones": []
+  },
+  {
+   "form": "frm335350000parcre",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Administra parámetros de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm335400000crcliact",
+   "familia": "335",
+   "modulo": "Créditos",
+   "titulo": "Control CRCLIACT",
+   "botones": []
+  },
+  {
+   "form": "frm405050001maeagencias",
+   "familia": "405",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Administración de Agencias",
+   "botones": []
+  },
+  {
+   "form": "frm405100000maejuegos",
+   "familia": "405",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Mantenimiento del Maestro de Juegos",
+   "botones": []
+  },
+  {
+   "form": "frm405150000maejugadas",
+   "familia": "405",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "A.G.de J. y S. - Maestro de Jugadas",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "frm410050000rptagencias",
+   "familia": "410",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Listados del Maestro de Agencias",
+   "botones": []
+  },
+  {
+   "form": "frm415050000prealt",
+   "familia": "415",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Consulta premios de Juegos Alternativos",
+   "botones": []
+  },
+  {
+   "form": "frm420050000cargaprode",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Carga jugadas PRODE",
+   "botones": [
+    "Agregar",
+    "Borrar"
+   ]
+  },
+  {
+   "form": "frm420100000pagajuex",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Transacciones de Pagos Extraordinarios (Caja)",
+   "botones": []
+  },
+  {
+   "form": "frm420150000pagavalor",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Valor Llave (Caja)",
+   "botones": []
+  },
+  {
+   "form": "frm420150001nuevovalor",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Valor Llave (Caja) Nueva Cuota",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "frm420200000pagosjuegos",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Pagos de Juegos",
+   "botones": []
+  },
+  {
+   "form": "frm420250000impremios",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Importa premios juegos alternativos",
+   "botones": []
+  },
+  {
+   "form": "frm420300000carpre",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Cupones Premiados Juegos Alternativos",
+   "botones": []
+  },
+  {
+   "form": "frm420300001addpre",
+   "familia": "420",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Agrega Premio",
+   "botones": []
+  },
+  {
+   "form": "frm425050000importa",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Importa Jugadas",
+   "botones": [
+    "Importar",
+    "Revisar Datos",
+    "Premios",
+    "Re-Procesar"
+   ]
+  },
+  {
+   "form": "frm425050001maejugadas",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Maestro de Jugadas",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "frm425050002altaage",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Alta de Agencia",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "frm425050003revliq",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Revisión de Liquidación",
+   "botones": []
+  },
+  {
+   "form": "frm425050003revliq1",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Modifica liquidación de Agencia",
+   "botones": []
+  },
+  {
+   "form": "frm425050004premios",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Ingreso de Premios",
+   "botones": []
+  },
+  {
+   "form": "frm425050005cargapremio",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Carga Premios p/Agencia",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "frm425100000exporta",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Exporta juegos para Caja",
+   "botones": [
+    "Exportar"
+   ]
+  },
+  {
+   "form": "frm425200000gencomafip",
+   "familia": "425",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Genera Comisiones para AFIP",
+   "botones": []
+  },
+  {
+   "form": "frm430050000rptaviso",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Impresión de Boletas de Vencimiento",
+   "botones": [
+    "Imprimir"
+   ]
+  },
+  {
+   "form": "frm430100000rptexporta",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Listado de Totales para Caja",
+   "botones": [
+    "Emitir"
+   ]
+  },
+  {
+   "form": "frm430150000rptingbru",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Reporte de Ingresos Brutos",
+   "botones": []
+  },
+  {
+   "form": "frm430200000rptcobext",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "C.C. y P.P. - Resumen de Juegos Extra. cobrados de un día",
+   "botones": []
+  },
+  {
+   "form": "frm430250000infor_f_gara",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Informe de Fdo. de Garantía",
+   "botones": []
+  },
+  {
+   "form": "frm430300000resrec",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Resumen de Recaudacion",
+   "botones": []
+  },
+  {
+   "form": "frm430350000chkagedio",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Controla Titulares con Agentes",
+   "botones": []
+  },
+  {
+   "form": "frm430400000infomibingo",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Resumen MI BINGO CATAMARQUEÑO p/periodo",
+   "botones": []
+  },
+  {
+   "form": "frm430450000inf_ingresos_jueg",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Informe de Ingresos de Juegos",
+   "botones": []
+  },
+  {
+   "form": "frm430500000premios_quini6",
+   "familia": "430",
+   "modulo": "Juegos/Quiniela",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm515050000trampend",
+   "familia": "515",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Consulta de Trámites Pendientes",
+   "botones": []
+  },
+  {
+   "form": "frm515100000historial",
+   "familia": "515",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Historia de un Expediente",
+   "botones": [
+    "Buscar"
+   ]
+  },
+  {
+   "form": "frm520050000cargatramite",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Mesa de Entradas",
+   "botones": []
+  },
+  {
+   "form": "frm520050001agregatramite",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Mesa de Entradas - Mantenimiento",
+   "botones": []
+  },
+  {
+   "form": "frm520050002busca_tramite",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm520050003carga_pase",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm520100000pasesexptes",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Pases en Expedientes",
+   "botones": []
+  },
+  {
+   "form": "frm520100001auxagregartram1",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "Atencion",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "frm520100003cons_exptes",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Consulta de Tramites",
+   "botones": [
+    "Buscar",
+    "Buscar",
+    "Buscar",
+    "Buscar"
+   ]
+  },
+  {
+   "form": "frm520100003constram",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Consulta de Trámites",
+   "botones": []
+  },
+  {
+   "form": "frm520100004imprimeparte",
+   "familia": "520",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Imprimir Parte Diario",
+   "botones": []
+  },
+  {
+   "form": "frm530050000tramitesdiarios",
+   "familia": "530",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Informe de Támites ingresados",
+   "botones": []
+  },
+  {
+   "form": "frm530100000lista_tram_pend_ofi",
+   "familia": "530",
+   "modulo": "Despacho/Notas",
+   "titulo": "C.C. y P.P. - Tramites pendientes por Oficina",
+   "botones": []
+  },
+  {
+   "form": "frm605000000admper",
+   "familia": "605",
+   "modulo": "Mesa/Trámites",
+   "titulo": "Administración del Maestro de Personal",
+   "botones": []
+  },
+  {
+   "form": "frm625050000reloj",
+   "familia": "625",
+   "modulo": "Mesa/Trámites",
+   "titulo": "C.C. y P.P. - Reloj de Marcado de Personal",
+   "botones": [
+    "Reloj de Personal"
+   ]
+  },
+  {
+   "form": "frm625050001reloj",
+   "familia": "625",
+   "modulo": "Mesa/Trámites",
+   "titulo": "Ingreso/Egreso Personal",
+   "botones": []
+  },
+  {
+   "form": "frm705050000maetit",
+   "familia": "705",
+   "modulo": "Seguros",
+   "titulo": "Titulares RENTA VITALICIA HEROES DE MALVINAS",
+   "botones": []
+  },
+  {
+   "form": "frm715100000cons_primas",
+   "familia": "715",
+   "modulo": "Seguros",
+   "titulo": "Consulta de Primas Devengadas",
+   "botones": []
+  },
+  {
+   "form": "frm720050000cobrasegu",
+   "familia": "720",
+   "modulo": "Seguros",
+   "titulo": "C.C. y P.P. - Cobro de Seguros por Caja",
+   "botones": []
+  },
+  {
+   "form": "frm720100000altatitular-1",
+   "familia": "720",
+   "modulo": "Seguros",
+   "titulo": "Alta de Titulares",
+   "botones": [
+    "Ver Consulta",
+    "Volver",
+    "Agregar",
+    "Eliminar",
+    "Modificar",
+    "Grabar"
+   ]
+  },
+  {
+   "form": "frm720100000altatitular-2",
+   "familia": "720",
+   "modulo": "Seguros",
+   "titulo": "Alta de Titulares",
+   "botones": [
+    "Ver Consulta",
+    "Volver",
+    "Agregar",
+    "Eliminar",
+    "Modificar",
+    "Grabar"
+   ]
+  },
+  {
+   "form": "frm720150000pagosseguros",
+   "familia": "720",
+   "modulo": "Seguros",
+   "titulo": "C.C. y P.P. - Pagos de Seguros",
+   "botones": []
+  },
+  {
+   "form": "frm720200000excombatientes",
+   "familia": "720",
+   "modulo": "Seguros",
+   "titulo": "Excombatientes de Malvinas",
+   "botones": [
+    "Inciar Cuotas",
+    "Imprimir Informe",
+    "Generar Cuotas Tesoreria",
+    "Otro Beneficiario",
+    "Generar Cuotas",
+    "Volver"
+   ]
+  },
+  {
+   "form": "frm725050000importardatosdecontrolprevisional",
+   "familia": "725",
+   "modulo": "Seguros",
+   "titulo": "Importar Informacion de Control Previsional",
+   "botones": [
+    "Importar Informacion de Control Previsional"
+   ]
+  },
+  {
+   "form": "frm725070000controlprevagap",
+   "familia": "725",
+   "modulo": "Seguros",
+   "titulo": "Control datos Previsional - AGAP",
+   "botones": []
+  },
+  {
+   "form": "frm725100000exptesdeseguros-1",
+   "familia": "725",
+   "modulo": "Seguros",
+   "titulo": "Form1",
+   "botones": [
+    "Ver",
+    "Generar Pago",
+    "Reimprimir Liq.",
+    "Borrar Benefi.",
+    "Leer nuevos beneficiarios",
+    "Graba"
+   ]
+  },
+  {
+   "form": "frm725100000exptesdeseguros",
+   "familia": "725",
+   "modulo": "Seguros",
+   "titulo": "Form1",
+   "botones": [
+    "Elimnar Beneficiario",
+    "Agregar",
+    "Borrar",
+    "Grabar",
+    "Informe Devengado",
+    "Generar Pago"
+   ]
+  },
+  {
+   "form": "frm725150000cuotasdesubsidio",
+   "familia": "725",
+   "modulo": "Seguros",
+   "titulo": "Cuotas de Subsidio de Proteccion a la Familia",
+   "botones": [
+    "Informe",
+    "Resolucion",
+    "O.P.",
+    "Expte"
+   ]
+  },
+  {
+   "form": "frm730050000rptcobseg",
+   "familia": "730",
+   "modulo": "Seguros",
+   "titulo": "C.C. y P.P.- Resumen de Seguros cobrados de un día",
+   "botones": [
+    "Emitir"
+   ]
+  },
+  {
+   "form": "frm730100000informededeudapororganismos",
+   "familia": "730",
+   "modulo": "Seguros",
+   "titulo": "Informe de Liquidacion de Primas",
+   "botones": [
+    "Imprimir Informe"
+   ]
+  },
+  {
+   "form": "frm730150000informeagentessinseguroadicional",
+   "familia": "730",
+   "modulo": "Seguros",
+   "titulo": "Informe de Agentes Sin Seguro Adicional",
+   "botones": [
+    "Imprimir Informe"
+   ]
+  },
+  {
+   "form": "frm730200000inf_seg_egre",
+   "familia": "730",
+   "modulo": "Seguros",
+   "titulo": "Form1",
+   "botones": [
+    "Ver",
+    "Exportar a Excel"
+   ]
+  },
+  {
+   "form": "frm730200000inf_seg_egre1",
+   "familia": "730",
+   "modulo": "Seguros",
+   "titulo": "8",
+   "botones": [
+    "Ver",
+    "Exportar a Excel"
+   ]
+  },
+  {
+   "form": "frm730250000infsegadicional",
+   "familia": "730",
+   "modulo": "Seguros",
+   "titulo": "Informe de Seguros de Vida Adicional",
+   "botones": []
+  },
+  {
+   "form": "frm78cuotasdesubsidioteso",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Cuotas de Subsidio de Proteccion a la Familia",
+   "botones": [
+    "Informe",
+    "Resolucion",
+    "O.P.",
+    "Expte"
+   ]
+  },
+  {
+   "form": "frm805050000altachequeras",
+   "familia": "805",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Administración de Chequeras",
+   "botones": []
+  },
+  {
+   "form": "frm805100000altaop",
+   "familia": "805",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Administración del Maestro de ordenes de Pago",
+   "botones": []
+  },
+  {
+   "form": "frm815050000buscaegresos",
+   "familia": "815",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Busca transacciones de Egresos",
+   "botones": []
+  },
+  {
+   "form": "frm815050001buscamuestra",
+   "familia": "815",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Muestra datos de transacción de Egresos",
+   "botones": []
+  },
+  {
+   "form": "frm820050000apriseg",
+   "familia": "820",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - (Tesoreria) Cobro Primas de Seguros (Caja)",
+   "botones": []
+  },
+  {
+   "form": "frm820100000pagostesoreria",
+   "familia": "820",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Carga O.P. a transacción de SEGUROS",
+   "botones": []
+  },
+  {
+   "form": "frm820100000pagostesoreria_1",
+   "familia": "820",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Pagos de Seguros",
+   "botones": []
+  },
+  {
+   "form": "frm820100000recibos",
+   "familia": "820",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Licitaciones y Compras (Pagos)",
+   "botones": []
+  },
+  {
+   "form": "frm820150000cargachetra",
+   "familia": "820",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Paga Transacciones",
+   "botones": []
+  },
+  {
+   "form": "frm820500000opresol",
+   "familia": "820",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Carga datos OP a una resolución",
+   "botones": []
+  },
+  {
+   "form": "frm825050000depurapendientes",
+   "familia": "825",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Depuración de Pagos Pendientes",
+   "botones": []
+  },
+  {
+   "form": "frm825100000opcero",
+   "familia": "825",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Pagos incompletos (c/OP = Ceros)",
+   "botones": []
+  },
+  {
+   "form": "frm82510op0muestra",
+   "familia": "825",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Muestra datos de transacción de Egresos",
+   "botones": []
+  },
+  {
+   "form": "frm825150000gendkt",
+   "familia": "825",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Generación diskette de Acreditaciones",
+   "botones": []
+  },
+  {
+   "form": "frm825200000anupago",
+   "familia": "825",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Anulación de Pagos",
+   "botones": []
+  },
+  {
+   "form": "frm825250000recanu",
+   "familia": "825",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Recupera transacciones Anuladas",
+   "botones": []
+  },
+  {
+   "form": "frm830050000rptliqcre",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Reportes de Créditos a Jubilados",
+   "botones": []
+  },
+  {
+   "form": "frm830100000rptsegpen",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Ca.Pes.Ca. - Reporte de Seguros pendientes",
+   "botones": []
+  },
+  {
+   "form": "frm830150500rptoprb",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Reporte de Ordenes de Pago",
+   "botones": []
+  },
+  {
+   "form": "frm830151000rptop",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Reporte de Ordenes de Pago por N°",
+   "botones": []
+  },
+  {
+   "form": "frm830200000rptuti",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Reporte de distribución de Utilidades",
+   "botones": []
+  },
+  {
+   "form": "frm830251000reimpsubs",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Reimpresion de Recibos de Jubilados",
+   "botones": []
+  },
+  {
+   "form": "frm830251500reimpro",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Reimpresión de recibos de Administración",
+   "botones": []
+  },
+  {
+   "form": "frm830252000reimpcreditos",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Reimpresion de Recibos de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm830252500reimpseguros",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Reimpresión de recibos de Seguros",
+   "botones": []
+  },
+  {
+   "form": "frm830253000reimpvarios",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Reimpresión de recibos de Varios",
+   "botones": []
+  },
+  {
+   "form": "frm830253500reimppremios",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Reimpresión de recibos de Premios de Juegos",
+   "botones": []
+  },
+  {
+   "form": "frm830254000reimpacred-old",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Reimpresión de envios a Acreditar",
+   "botones": []
+  },
+  {
+   "form": "frm830254000reimpacred",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Reimpresión de envios a Acreditar",
+   "botones": []
+  },
+  {
+   "form": "frm830300000rptsellos",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "C.C. y P.P. - Reporte de Sellados",
+   "botones": []
+  },
+  {
+   "form": "frm830350000arptestado5094",
+   "familia": "830",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Informe estado Subsidios Ley 5094",
+   "botones": []
+  },
+  {
+   "form": "frm835050000modgenjubi",
+   "familia": "835",
+   "modulo": "Tesorería/Egresos",
+   "titulo": "Modificación general Jubilados Ley 5094",
+   "botones": []
+  },
+  {
+   "form": "frm905050000abmusu-1",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Administración de Usuarios",
+   "botones": []
+  },
+  {
+   "form": "frm9050501camcla",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Cambio de Clave de Usuario",
+   "botones": []
+  },
+  {
+   "form": "frm90505abmusu",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Mantenimiento de Usuarios",
+   "botones": [
+    "Primero",
+    "Siguiente",
+    "Anterior",
+    "Ultimo",
+    "Nuevo",
+    "Modifica"
+   ]
+  },
+  {
+   "form": "frm905100000abmper",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "",
+   "botones": []
+  },
+  {
+   "form": "frm90510admperfil",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Administración de Perfiles de Usuarios",
+   "botones": []
+  },
+  {
+   "form": "frm905150000abmfer",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "C.C. y P.P. - Administración de días feriados",
+   "botones": [
+    "Aceptar",
+    "Eliminar",
+    "Generar Año"
+   ]
+  },
+  {
+   "form": "frm905200000abmpar",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Administración de parámetros generales",
+   "botones": []
+  },
+  {
+   "form": "frm905250000abmorg",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Administracion de Organismos",
+   "botones": []
+  },
+  {
+   "form": "frm905350000abmenu",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Administración de opciones del menú general",
+   "botones": []
+  },
+  {
+   "form": "frm905450000admofi",
+   "familia": "905",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Administración de Oficinas",
+   "botones": []
+  },
+  {
+   "form": "frm910050000lisper",
+   "familia": "910",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Listado de Perfiles de Usuarios",
+   "botones": []
+  },
+  {
+   "form": "frm91010lisusu",
+   "familia": "910",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Listado de Usuarios",
+   "botones": []
+  },
+  {
+   "form": "frm915050000condio",
+   "familia": "915",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Consulta Maestro DIO",
+   "botones": []
+  },
+  {
+   "form": "frm915100000condio",
+   "familia": "915",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "[C.C. y P.P.] Administracion de Clientes",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit001",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Auditoría - Solicitudes",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit002",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Datos Solicitante",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit003",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Datos Garante",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit004",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Datos Prestamo",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit005",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Muestra datos Cuotas",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit006",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Muestra Datos del Cliente",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit007",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Muestra datos Tesoreria",
+   "botones": []
+  },
+  {
+   "form": "frm920050000audit008",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Muestra Datos Cobros por Caja",
+   "botones": []
+  },
+  {
+   "form": "frm920100000adminv",
+   "familia": "920",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Movimientos de Hardware",
+   "botones": [
+    "Informe",
+    "Movimientos",
+    "Mantenimiento",
+    "Nuevo Movimiento",
+    "Volver",
+    "Confirma"
+   ]
+  },
+  {
+   "form": "frm925050000actorg",
+   "familia": "925",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "C.C. y P.P. - Actualizacion Organismos",
+   "botones": []
+  },
+  {
+   "form": "frm925100000admtareas",
+   "familia": "925",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Administración de Tareas",
+   "botones": []
+  },
+  {
+   "form": "frm930050000audusu",
+   "familia": "930",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "C.C. y P.P. - Reporte de Auditoría",
+   "botones": []
+  },
+  {
+   "form": "frm930100000audmaq",
+   "familia": "930",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "C.C. y P.P. - Reporte de Auditoría por PC",
+   "botones": []
+  },
+  {
+   "form": "frm930150000tranvda",
+   "familia": "930",
+   "modulo": "Utilidades/Tablas",
+   "titulo": "Transacciones Revertidas",
+   "botones": []
+  },
+  {
+   "form": "frm_agrega_seguro_alcredito",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_autoriza",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_bus_cargos01c",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Seleccionar Cargo",
+   "botones": []
+  },
+  {
+   "form": "frm_bus_cargos01d",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Seleccionar Cargo",
+   "botones": []
+  },
+  {
+   "form": "frm_bus_dio",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Busca Cliente en Maestro Clientes",
+   "botones": []
+  },
+  {
+   "form": "frm_bus_linea",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Busqueda de Linea de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frm_bus_maestro",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Busqueda de Agente en Maestro DIO",
+   "botones": []
+  },
+  {
+   "form": "frm_bus_org",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Busqueda de Organismo",
+   "botones": []
+  },
+  {
+   "form": "frm_bus_par",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Busca parámetro",
+   "botones": []
+  },
+  {
+   "form": "frm_carga_nuevo_desembolso",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_cr_hisclin",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Integrantes Grupo Fliar.",
+   "botones": []
+  },
+  {
+   "form": "frm_detcta",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Determinación de Cuota de Crédito",
+   "botones": []
+  },
+  {
+   "form": "frm_detctamp",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Determinación de Cuota de Crédito",
+   "botones": []
+  },
+  {
+   "form": "frm_genera_cuotas_index",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_genera_hipotecarios",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_genera_hipotecarios_suma",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_genera_plan_multa",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_mod_egre",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frm_vergarante",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Chequear Garante",
+   "botones": []
+  },
+  {
+   "form": "frmbus_creditos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Historial de Creditos",
+   "botones": []
+  },
+  {
+   "form": "frmbusca_organismo",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Buscar Organismo",
+   "botones": []
+  },
+  {
+   "form": "frmbuscagencia",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frmcarga_cheque_tranf",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Paga Transacciones",
+   "botones": []
+  },
+  {
+   "form": "frmcierrecajahistoricos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Cierre de Caja (Supervisor)",
+   "botones": []
+  },
+  {
+   "form": "frmcontrolcajahistoricos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Control de Caja Históricos",
+   "botones": []
+  },
+  {
+   "form": "frmcuotaplat",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Genera Cuotas Plataforma",
+   "botones": [
+    "Generar"
+   ]
+  },
+  {
+   "form": "frmdetcuil",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Determina C.U.I.L./C.U.I.T.",
+   "botones": []
+  },
+  {
+   "form": "frmeditperfiles",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "",
+   "botones": []
+  },
+  {
+   "form": "frmgralmotbaja",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Informacion de baja",
+   "botones": []
+  },
+  {
+   "form": "frmimpres",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "",
+   "botones": []
+  },
+  {
+   "form": "frminformecobros",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Form1",
+   "botones": []
+  },
+  {
+   "form": "frmlooksol",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Busca Cédito",
+   "botones": []
+  },
+  {
+   "form": "frmpagostesoreria_1",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Pagos de Seguros",
+   "botones": []
+  },
+  {
+   "form": "frmpagostesoreria_2",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Carga O.P. a transacción de SEGUROS",
+   "botones": []
+  },
+  {
+   "form": "frmpersonacta",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Administracion de Datos de Cuentas Bancarias",
+   "botones": []
+  },
+  {
+   "form": "frmpremioshistoricos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Control de Premios (Egresos)",
+   "botones": []
+  },
+  {
+   "form": "frmreimpresion_recibos_egresos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Reimpresion de Recibos de Créditos",
+   "botones": []
+  },
+  {
+   "form": "frmsolicitud",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Administración de Créditos",
+   "botones": [
+    "Disposicion"
+   ]
+  },
+  {
+   "form": "frmsolicitudcliente",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Administración de Créditos Productivos - Solicitante",
+   "botones": [
+    "...",
+    "..."
+   ]
+  },
+  {
+   "form": "frmsolicitudgarantes",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Administración de Créditos Productivos - Garantes",
+   "botones": [
+    "...",
+    "...",
+    "...",
+    "..."
+   ]
+  },
+  {
+   "form": "frmsolicitudlinea",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Administración de Créditos - Selección de Línea",
+   "botones": []
+  },
+  {
+   "form": "login",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Iniciar Sesion",
+   "botones": []
+  },
+  {
+   "form": "loginold",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Control de Acceso",
+   "botones": [
+    "Aceptar"
+   ]
+  },
+  {
+   "form": "lyc905100000admprov",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Administración de Proveedores",
+   "botones": []
+  },
+  {
+   "form": "lyc920050000ingresos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Transacciones de Administración (Ingresos)",
+   "botones": []
+  },
+  {
+   "form": "lyc920100000egresos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Transacciones de Administración (Egresos)",
+   "botones": []
+  },
+  {
+   "form": "modgen_egresos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Modificacion General Egresos",
+   "botones": []
+  },
+  {
+   "form": "modop",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "Modificaciones de O.P.",
+   "botones": []
+  },
+  {
+   "form": "pagos-de-juegos",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "C.C. y P.P. - Pagos de Juegos",
+   "botones": []
+  },
+  {
+   "form": "reso_dispo_0",
+   "familia": "otros",
+   "modulo": "Otros/Utilidades",
+   "titulo": "CAJA DE CRÉDITO Y PRESTACIONES PROVINCIAL. - Resoluciones",
+   "botones": []
+  }
+ ],
+ "reportes": [
+  "320999999entfin",
+  "320999999entfin_solicitud",
+  "520100000impnota",
+  "520100000impnota1",
+  "520100000pasegral",
+  "520100001impcarat",
+  "520100001impcarat1",
+  "520100002paseinicial1",
+  "520100003paseinicial",
+  "520100003paseinicial1",
+  "Ley5094Vigentes",
+  "OpcionesMenu",
+  "Solsinres",
+  "afip1130",
+  "cajacreseg",
+  "crepoman",
+  "ctapagproducir",
+  "cuotasdio",
+  "dtosdobles",
+  "frm230600repcontrcreditos",
+  "frm79infdetitularessindatos",
+  "impcarat",
+  "impnota",
+  "infoanda",
+  "infobelen",
+  "infoctasmora",
+  "lst32carteras",
+  "lst32lineasalf",
+  "lst32lineaspol",
+  "lst32politicas",
+  "lst361orden1",
+  "lst361orden2",
+  "lst42agenciascbu",
+  "lst42agenciascom",
+  "lst42agenciasred",
+  "lucia_cred",
+  "lucia_cred_m",
+  "mcsindeb",
+  "report1",
+  "rp225050000recibo",
+  "rpt000",
+  "rpt001",
+  "rpt101paramgral",
+  "rpt1021programas",
+  "rpt106auditoria",
+  "rpt16imp",
+  "rpt16impm",
+  "rpt220100000lische",
+  "rpt225050000ciecaj",
+  "rpt225050000ciemon",
+  "rpt225050000premios",
+  "rpt225050000premios-a",
+  "rpt225050000recibo",
+  "rpt225050000recibo-a",
+  "rpt225050000recibo-a-sn",
+  "rpt225050000recibo-b",
+  "rpt225150001recibocre",
+  "rpt225150001recibocre-a",
+  "rpt225150001recibojue",
+  "rpt225150001recibojue-a",
+  "rpt225150001recibojue-a1",
+  "rpt225150001recibolic",
+  "rpt225150001recibolic-a",
+  "rpt225150001reciboseg",
+  "rpt225150001reciboseg-a",
+  "rpt225300000ctrladm",
+  "rpt225300000ctrlcre",
+  "rpt225300000ctrlext",
+  "rpt225300000ctrljue",
+  "rpt225300000ctrlmibingo",
+  "rpt225300000ctrlseg",
+  "rpt225300000ctrltot",
+  "rpt225300000infomibingo",
+  "rpt225300001ctcred",
+  "rpt225300001ctrljue",
+  "rpt225300001ctrlmibingo",
+  "rpt225350000cierrec",
+  "rpt225350000cierrem",
+  "rpt225350000cierret",
+  "rpt225350000cobpen",
+  "rpt225350000cobpenotros",
+  "rpt225350000pendia",
+  "rpt22550000infdeuage",
+  "rpt225550000infdeuage",
+  "rpt230050000informependientes",
+  "rpt230050000pagaotro",
+  "rpt230050000pendotro",
+  "rpt230050000pendpaga",
+  "rpt230100000rpremios",
+  "rpt230100000rrecibo",
+  "rpt230100000rrecibo-1",
+  "rpt230100000rrecibocre",
+  "rpt230100000rrecibojue",
+  "rpt230100000rrecibolic",
+  "rpt230100000rreciboseg",
+  "rpt230150000inteext",
+  "rpt230150000intejue",
+  "rpt230200000prequi",
+  "rpt230200001prequi",
+  "rpt230250000lispag",
+  "rpt230300000reca",
+  "rpt230300001reca",
+  "rpt230300002reca",
+  "rpt23030recaud",
+  "rpt230350000infibdet",
+  "rpt230350000infibtot",
+  "rpt25placon",
+  "rpt25placop",
+  "rpt25recibocrepr",
+  "rpt25recprem",
+  "rpt25rrecprem",
+  "rpt25vcidos",
+  "rpt26placre",
+  "rpt26plajue",
+  "rpt26plaseg",
+  "rpt310100000lincar",
+  "rpt310100000lineasalfa",
+  "rpt310100000lineascar",
+  "rpt310100000lineasnum",
+  "rpt315451500solactivas",
+  "rpt315620000turnoscliente",
+  "rpt3200001carta_banco_pnia",
+  "rpt3200015cov_gas",
+  "rpt3200015cov_gas_an2",
+  "rpt3200015cov_gas_an3",
+  "rpt3200015dec_jur",
+  "rpt3200015dec_jur_gral",
+  "rpt3200015dec_jur_gral_g",
+  "rpt3200021disposicion",
+  "rpt3200021disposiciong",
+  "rpt320050001pagacred",
+  "rpt320100000decjur",
+  "rpt320100000liqcre",
+  "rpt320100000solpre",
+  "rpt320100000solpre1",
+  "rpt320100000solpre_e",
+  "rpt320100000solpre_ee",
+  "rpt320100000solpreagap",
+  "rpt320100000solpreagapsg",
+  "rpt320100000solpreg",
+  "rpt320100000solprege",
+  "rpt320100000solprege_heredia",
+  "rpt320100000solpregg",
+  "rpt320100000solpregg1",
+  "rpt320100000solpregge",
+  "rpt320100000solprod",
+  "rpt320160000cproenv",
+  "rpt320190000fometuri",
+  "rpt320200000lc_contpres",
+  "rpt320200000lc_contpres_esp",
+  "rpt320200000lc_ppagap",
+  "rpt320200000liqcre",
+  "rpt320200000liqcre_aportes",
+  "rpt320200000liqcre_esp",
+  "rpt320200000liqcre_g",
+  "rpt320200000liqcre_prod",
+  "rpt320250500soljub",
+  "rpt320250501soljubpro",
+  "rpt320250502pagjub",
+  "rpt320250503pagjubpro",
+  "rpt320400000mora",
+  "rpt320550000subjub",
+  "rpt320600000liqsub",
+  "rpt320670000turnos",
+  "rpt320670000turnos_agap",
+  "rpt320720000clienteturno",
+  "rpt325020000cambiosg",
+  "rpt325030000ctaspend",
+  "rpt325050000dtodio",
+  "rpt325050000gendto",
+  "rpt325050000gendto_t",
+  "rpt325050000gendtoc",
+  "rpt325050000gendtot",
+  "rpt325050001gendtomun",
+  "rpt325050001gendtomun-1",
+  "rpt325050001gendtomunc",
+  "rpt325050001gendtomunl",
+  "rpt325050002gendtoans",
+  "rpt325500000-leedesctos",
+  "rpt325500000leedesctos",
+  "rpt325500001erroneas",
+  "rpt325500002aplidtos",
+  "rpt325500003dtosrech",
+  "rpt32550dtoscons",
+  "rpt325550000cctapro",
+  "rpt330050000solcar",
+  "rpt330050000solcar1",
+  "rpt330050000solcar_c",
+  "rpt330150000cobcre",
+  "rpt330170000envaud",
+  "rpt330200000ainfodeuda",
+  "rpt330200000infodeuda",
+  "rpt330250500soljub",
+  "rpt330251000soljubdepto1",
+  "rpt330251500cli5094",
+  "rpt330252000totpag",
+  "rpt330300500tdc_cre_pagc",
+  "rpt330300500tdc_cre_pagr",
+  "rpt330301000tdc_cre_can_err",
+  "rpt330301000tdc_cre_canc",
+  "rpt330301000tdc_cre_canr",
+  "rpt330350000liscre",
+  "rpt330350001nliscre",
+  "rpt330350002liscre",
+  "rpt330350003nliscre",
+  "rpt330350004liscre",
+  "rpt330350005nliscre",
+  "rpt330350006liscre",
+  "rpt330350007nliscre",
+  "rpt330350008liscre",
+  "rpt330400000lisrecupera",
+  "rpt330450000ivadev",
+  "rpt330450000lisiva",
+  "rpt330450000lisivacc",
+  "rpt330450000lisivat",
+  "rpt330450000lisivatcc",
+  "rpt330450001ivadev",
+  "rpt330450001lisiva",
+  "rpt330500000crepag",
+  "rpt330550000crepart",
+  "rpt330600000ctasmora1",
+  "rpt33060ctasmora",
+  "rpt330650000creditoslinea",
+  "rpt330650001creditoslinea",
+  "rpt330670000ctrlda",
+  "rpt330670001ctrlda",
+  "rpt330680000crpagdh",
+  "rpt330680001crpagsc",
+  "rpt330702000resumen_envios_agap",
+  "rpt330702001resumen_envios_agap_saf",
+  "rpt330750000ctactejub",
+  "rpt330800000cuotaspagadas",
+  "rpt33080crelindpto",
+  "rpt33080creorg",
+  "rpt330851000infosaldos",
+  "rpt330851500anexo_disp",
+  "rpt330851500anexo_disp_a",
+  "rpt330851500anexo_disp_viv",
+  "rpt330851500anexo_reso",
+  "rpt330851500anexo_reso_viv",
+  "rpt330851500iu",
+  "rpt330851500nota_agap",
+  "rpt330851500nota_agap1",
+  "rpt330851500resolucion",
+  "rpt330852000creactdpto",
+  "rpt330853500informe_gas",
+  "rpt330853700informe_gas2",
+  "rpt330854000cr_mora_sin_pagos",
+  "rpt330854500cr_pagos_caja",
+  "rpt330855000informe_aplicaciones",
+  "rpt330855500info_fallecidos",
+  "rpt33085cresituac",
+  "rpt33085infoestado",
+  "rpt330900000reintegros",
+  "rpt330920000marbaj",
+  "rpt330950000noenv",
+  "rpt330960000infprod10m",
+  "rpt330970000futvto",
+  "rpt330970001devlin",
+  "rpt330990000cr_razon_salud",
+  "rpt334datoscontrol",
+  "rpt335200000modgenjub",
+  "rpt3370000mov_anecred",
+  "rpt3370000mov_anecred1",
+  "rpt3431informesaldo",
+  "rpt3442liqcremp",
+  "rpt34liqcre",
+  "rpt3510genprod",
+  "rpt351gendtoerr",
+  "rpt355aplica1",
+  "rpt355aplica2",
+  "rpt357ee",
+  "rpt357rr",
+  "rpt3582di",
+  "rpt3582no",
+  "rpt3582ok",
+  "rpt3582rrdi",
+  "rpt3582rrdipju",
+  "rpt3582rrno",
+  "rpt3582rrnopju",
+  "rpt363infodeuda",
+  "rpt364infodeuda",
+  "rpt364infodeuda1",
+  "rpt364infodeuda_a",
+  "rpt366soljubdepto",
+  "rpt412maejuegos",
+  "rpt420100000juex",
+  "rpt420200000liqjue",
+  "rpt420200000pagosjuegos",
+  "rpt420250000impremios",
+  "rpt420300000carpre",
+  "rpt425050000revliq1",
+  "rpt425100000expoprode",
+  "rpt425200000gencomafip",
+  "rpt425200000maeafip",
+  "rpt430050000avisovto",
+  "rpt430200000cobext",
+  "rpt430250000inf_f_gara",
+  "rpt430250000inf_f_gara_tag",
+  "rpt430300000resrec",
+  "rpt430350000chkagedio",
+  "rpt430350000fdogtia",
+  "rpt430350001fdogtia1",
+  "rpt430400000infomibingo",
+  "rpt430450000inf_ingresos_jueg",
+  "rpt46ingbru",
+  "rpt515100000historial",
+  "rpt520100000impnota",
+  "rpt520100000impnota1",
+  "rpt520100000pasegral",
+  "rpt520100001impcarat",
+  "rpt520100001impcarat1",
+  "rpt520100002paseinicial1",
+  "rpt520100003paseinicial",
+  "rpt520100004parte_diario",
+  "rpt530050000tramites_diarios",
+  "rpt530100000lista_tram_pend_ofi",
+  "rpt605050000cuilvacio",
+  "rpt605050001admpersonal",
+  "rpt61005rptpersredu",
+  "rpt625100000partediario",
+  "rpt62520liqfdocad",
+  "rpt630100000infhstra",
+  "rpt720050000pagasegu",
+  "rpt720150000liqseg",
+  "rpt720150000pagoseguros",
+  "rpt743liqseg",
+  "rpt74comprobantedeseguros",
+  "rpt74fichasepelio",
+  "rpt74fichavida",
+  "rpt74subsidio",
+  "rpt761cobseg",
+  "rpt78informeregpago",
+  "rpt78informesubsidios",
+  "rpt79dev_primas",
+  "rpt79excomb_dom",
+  "rpt79excomb_inf",
+  "rpt79importaprevisional",
+  "rpt79informedeprimas",
+  "rpt79informedesegadicional",
+  "rpt79informedeseguros",
+  "rpt79infsegadicional",
+  "rpt79infsegadicional-1",
+  "rpt79liquidaciondeseguros",
+  "rpt79liquidaciondeseguros-1",
+  "rpt79requiseguros",
+  "rpt79resumendedeuda",
+  "rpt79resumendedeudaporsaf",
+  "rpt805100000maeop",
+  "rpt820150001recpro",
+  "rpt820200001recseg",
+  "rpt820200001recseg-1",
+  "rpt820250000receso",
+  "rpt820250000receso1",
+  "rpt820250001recesomp",
+  "rpt820250002recreintegro",
+  "rpt820250003recsubjub",
+  "rpt820300001pagjub",
+  "rpt820350000paguti",
+  "rpt820400001recpv",
+  "rpt820450001recpp",
+  "rpt825150000gendkt",
+  "rpt830050000liqcre",
+  "rpt830100000segimp",
+  "rpt830150500op",
+  "rpt830150501ro",
+  "rpt830151000rptop",
+  "rpt830151000rptop1",
+  "rpt830200000reputi",
+  "rpt830254000gendkt",
+  "rpt830300000sellos",
+  "rpt830300000sellos1",
+  "rpt830300001sellosop",
+  "rpt830300001sellosop1",
+  "rpt830300002sellosres",
+  "rpt830300003sellos",
+  "rpt830350000aestado5094",
+  "rpt835100000cheqemi",
+  "rpt84registro_mov",
+  "rpt853pagjubx",
+  "rpt905050000lisusu",
+  "rpt905200000pargral",
+  "rpt905250000organismos",
+  "rpt905350000opcmen",
+  "rpt905350001menperf",
+  "rpt905350002opcperf",
+  "rpt905450000admofi",
+  "rpt910050000perfiles",
+  "rpt91010lisusu",
+  "rpt915050000condio",
+  "rpt915100001condio",
+  "rpt920100000registro_baja",
+  "rpt920100000registro_mant",
+  "rpt920100000registro_maq",
+  "rpt930050000audiuser",
+  "rpt930050001audipc",
+  "rpt930100000auditoriapc",
+  "rpt930150000tranvdacaja",
+  "rpt930150000tranvdacred",
+  "rpt930150000tranvdaegre",
+  "rpt_apli_acepta",
+  "rpt_apli_recha",
+  "rpt_chk_list",
+  "rpt_cj20170508",
+  "rpt_formato_cr_sb",
+  "rpt_iva_pagar_periodo",
+  "rpt_provall",
+  "rpt_turnos_Alfa",
+  "rpt_turnos_dia",
+  "rptagrecibos",
+  "rptagreintegros",
+  "rptagrimporta",
+  "rptbpatnota",
+  "rptbus_cred",
+  "rptbus_cred1",
+  "rptcb-cr-cpp-linea",
+  "rptcb-iva-gsoq-periodo",
+  "rptcb-op-dev-periodo-1",
+  "rptcb-op-dev-periodo-2",
+  "rptcj_decjur_pagos",
+  "rptcjliqche",
+  "rptcontrolapli",
+  "rptcr_hisclin",
+  "rptcrcanper",
+  "rptcrsitmar",
+  "rptcta_int_neg",
+  "rptctrlimpo",
+  "rptctrlimpor",
+  "rptctrljue",
+  "rptdetcta",
+  "rptdetliqimp",
+  "rptdevenga",
+  "rptdevengares",
+  "rptdeverror",
+  "rptdevint",
+  "rptdevplla1",
+  "rptdevplla2",
+  "rptdevplla3",
+  "rptdevplla4",
+  "rptdevplla5",
+  "rptdevplla6",
+  "rptdevplla6-1",
+  "rptdevplla7",
+  "rptdevplla8",
+  "rptdevplla9",
+  "rptdiccam",
+  "rptdicsis",
+  "rptdictab",
+  "rptegresos",
+  "rptest",
+  "rptestadisticaseguros",
+  "rptgtia169",
+  "rpthiscrespe",
+  "rptinfomun",
+  "rptinfoprem",
+  "rptinfosvco",
+  "rptivacobrado-1",
+  "rptivaegre",
+  "rptliqcob",
+  "rptlycliqprov",
+  "rptmaechequeras",
+  "rptpagostesoreria",
+  "rptplladev1",
+  "rptplladev1a",
+  "rptplladev1b",
+  "rptpremiosquini",
+  "rptreintegros",
+  "rptrevliq",
+  "rptsolborra",
+  "rpttgpprovisorias",
+  "rr1-1",
+  "rr1-2",
+  "sdoasiper",
+  "seguros_lucia",
+  "sol_banco",
+  "sol_hipotecarios",
+  "solicitud_banco",
+  "solicitud_banco-bak",
+  "solicitud_banco-old"
+ ]
+}

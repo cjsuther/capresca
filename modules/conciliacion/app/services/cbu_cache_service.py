@@ -21,6 +21,7 @@ async def rebuild_cache(db: Session) -> int:
                 cached_at=datetime.now(timezone.utc),
             )
             db.merge(entry)
+            db.flush()   # el mismo CBU repetido entre agencias no debe romper el rebuild
             count += 1
     db.commit()
     return count

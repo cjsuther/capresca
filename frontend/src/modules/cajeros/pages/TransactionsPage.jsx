@@ -28,7 +28,7 @@ function RejectModal({ onConfirm, onClose }) {
   const [reason, setReason] = useState("");
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+      <div className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-800">Rechazar transacción</h3>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -61,7 +61,7 @@ function RejectModal({ onConfirm, onClose }) {
 function DetailPanel({ tx, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h3 className="font-semibold text-gray-800">Transacción #{tx.id}</h3>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -188,7 +188,7 @@ export default function TransactionsPage() {
               className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                 statusFilter.includes(s)
                   ? STATUS_COLORS[s] + " border-transparent"
-                  : "bg-white text-gray-400 border-gray-200"
+                  : "bg-surface text-gray-400 border-gray-200"
               }`}
             >
               {STATUS_LABELS[s]}
@@ -205,7 +205,7 @@ export default function TransactionsPage() {
         </select>
       </div>
 
-      <div className="bg-white border rounded-xl overflow-x-auto">
+      <div className="bg-surface border rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>

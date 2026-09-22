@@ -30,7 +30,7 @@ export default function LimitesPage() {
       <h2 className="text-xl font-semibold text-gray-800 mb-6">Mis Límites Operativos</h2>
 
       {!editing ? (
-        <div className="bg-white border rounded-xl p-6 space-y-4">
+        <div className="bg-surface border rounded-xl p-6 space-y-4">
           <div className="flex justify-between">
             <span className="text-gray-600">Límite diario</span>
             <span className="font-semibold">{limit.daily_limit} {limit.currency}</span>
@@ -48,7 +48,7 @@ export default function LimitesPage() {
           </PermissionGate>
         </div>
       ) : (
-        <form onSubmit={handleSave} className="bg-white border rounded-xl p-6 space-y-4">
+        <form onSubmit={handleSave} className="bg-surface border rounded-xl p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Límite diario</label>
             <input type="number" step="0.01" className="input w-full" value={form.daily_limit} onChange={(e) => setForm({ ...form, daily_limit: e.target.value })} />

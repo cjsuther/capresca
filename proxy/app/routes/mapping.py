@@ -4,6 +4,51 @@ Mapeo de rutas del gateway a microservicios y permisos requeridos.
 import re
 from app.config import settings
 
+
+def _creditos_area(path_regex: str, area: str) -> list:
+    return [
+        ("GET", path_regex, settings.creditos_service_url, f"creditos:{area}:read"),
+        (None,  path_regex, settings.creditos_service_url, f"creditos:{area}:write"),
+    ]
+
+
+def _creditos_rutas() -> list:
+    """Créditos publica sólo el circuito de créditos: todo pide `creditos:read` (GET) o `creditos:write`.
+    Las áreas de CCyPP que no se migraron (caja, contabilidad, tesorería, seguros, despacho, mesa, juegos,
+    general, seguridad) no tienen rutas: el gateway no las reenvía (404)."""
+    url = settings.creditos_service_url
+    base = r"^/api/creditos"
+    return [
+        # Aprobaciones: el módulo exige el rol de aprobación que pide cada nivel del workflow.
+        ("GET",  base + r"/aprobaciones/inbox$",                           url, "creditos:*"),
+        ("POST", base + r"/aprobaciones/pendientes/[^/]+/(aprobar|rechazar)$", url, "creditos:*"),
+        # Cambios de estado: mezclan acciones de edición y de aprobación; el módulo las gatea por acción.
+        ("POST", base + r"/productos/[^/]+/estado$",                       url, "creditos:*"),
+        ("POST", base + r"/solicitudes/[^/]+/estado$",                     url, "creditos:*"),
+        # Catálogos de Configuraciones que usa el armado de productos: sólo lectura (Créditos los trae
+        # de Configuraciones; se editan allá, con sus permisos).
+        ("GET",  base + r"/(impuestos|indices)$",                         url, "creditos:creditos:read"),
+        *_creditos_area(base + r"/(clientes|creditos|solicitudes|productos|contratos|sistema-calculos)(/|$)",
+                        "creditos"),
+        # De `admin` y `caja` sólo se publica lo que usa el circuito de créditos.
+        *_creditos_area(base + r"/admin/(lineas|organismos|parametros)(/|$)", "creditos"),
+        *_creditos_area(base + r"/caja/(recibos|pendientes-cobro)(/|$)", "creditos"),
+    ]
+
+
+def _configuraciones_rutas() -> list:
+    """Cada catálogo tiene su par de permisos: tener `indices:write` no habilita a tocar impuestos, y
+    el workflow (quién aprueba) se administra con un permiso propio, aparte de operar los módulos."""
+    url = settings.configuraciones_service_url
+    base = r"^/api/configuraciones"
+    rutas = []
+    for catalogo in ("impuestos", "indices", "feriados", "workflow"):
+        rx = base + rf"/{catalogo}(/|$)"
+        rutas += [("GET", rx, url, f"configuraciones:{catalogo}:read"),
+                  (None, rx, url, f"configuraciones:{catalogo}:write")]
+    return rutas
+
+
 # (method, pattern_regex) → (service_base_url, required_permission | None)
 ROUTE_MAP = [
     # ── Auth (sin permiso requerido) ────────────────────────────
@@ -43,6 +88,10 @@ ROUTE_MAP = [
     ("GET",  r"^/api/notifications",                 settings.notifications_service_url, None),
 
     # ── Clientes ────────────────────────────────────────────────
+    # Documentos del cliente (DNI, recibo…): verlos pide lectura; cargarlos o borrarlos, escritura.
+    ("GET",    r"^/api/clientes/\d+/documentos(/\d+)?$",  settings.clientes_service_url, "clientes:clients:read"),
+    ("POST",   r"^/api/clientes/\d+/documentos$",         settings.clientes_service_url, "clientes:clients:write"),
+    ("DELETE", r"^/api/clientes/\d+/documentos/\d+$",     settings.clientes_service_url, "clientes:clients:write"),
     ("GET",    r"^/api/clientes/\d+/cbus$",         settings.clientes_service_url, "clientes:clients:read"),
     ("POST",   r"^/api/clientes/\d+/cbus$",         settings.clientes_service_url, "clientes:clients:write"),
     ("PUT",    r"^/api/clientes/\d+/cbus/\d+$",     settings.clientes_service_url, "clientes:clients:write"),
@@ -112,6 +161,16 @@ ROUTE_MAP = [
     ("POST",   r"^/api/legacy/sync/\w+$",           settings.legacy_service_url, "legacy:admin:write"),
     ("GET",    r"^/api/legacy/outbox$",             settings.legacy_service_url, "legacy:admin:read"),
     ("POST",   r"^/api/legacy/outbox/drain$",       settings.legacy_service_url, "legacy:admin:write"),
+
+    # ── Créditos (CCyPP) ─────────────────────────────────────────
+    # Permisos por área: GET exige <area>:read y el resto de los métodos <area>:write.
+    # "creditos:*" = cualquier permiso del módulo; lo usan las rutas cuya autorización fina
+    # decide el módulo (aprobaciones, catálogos compartidos). El portal ciudadano NO pasa por
+    # acá: nginx lo manda directo al módulo (realm propio). Las rutas no listadas dan 404.
+    *_creditos_rutas(),
+
+    # ── Configuraciones: un par read/write por catálogo (impuestos, índices, feriados, workflow) ──
+    *_configuraciones_rutas(),
 ]
 
 
@@ -123,7 +182,8 @@ def get_service_url(method: str, path: str) -> str | None:
     return None
 
 
-def get_required_permission(method: str, path: str) -> str | None:
+def get_required_permission(method: str, path: str) -> str | tuple[str, ...] | None:
+    """Permiso exigido para la ruta. Una tupla significa "alcanza con cualquiera de estos"."""
     for entry in ROUTE_MAP:
         m, pattern, _, permission = entry
         if (m is None or m == method) and re.match(pattern, path):

@@ -1,6 +1,6 @@
 # Sistema Modular Portezuelo
 
-Sistema de gestión modular basado en microservicios para administración de agencias de juego, conciliación financiera y liquidaciones.
+Sistema de gestión modular basado en microservicios para administración de agencias de juego, conciliación financiera, liquidaciones y créditos.
 
 ## Arquitectura
 
@@ -21,11 +21,15 @@ Sistema de gestión modular basado en microservicios para administración de age
            │  :8000     │           │   :8007        │
            └─────┬──────┘           └────────────────┘
                  │
-    ┌──────┬─────┼──────┬──────┬───────┬──────┬──────┬──────┐
-    │      │     │      │      │       │      │      │      │
- :8001  :8002 :8003  :8004  :8005  :8006  :8007  :8008  :8009
-Security Cajeros Clientes IB  Notif. Concil. Liquid. Comunic. Legacy
+    ┌──────┬─────┼──────┬──────┬───────┬──────┬──────┬──────┬──────┬──────┐
+    │      │     │      │      │       │      │      │      │      │      │
+ :8001  :8002 :8003  :8004  :8005  :8006  :8007  :8008  :8009  :8010  :8011
+Security Cajeros Clientes IB  Notif. Concil. Liquid. Comunic. Legacy Créditos Config.
 ```
+
+El backoffice de Créditos (CCyPP) es un módulo más del frontend (`/modules/creditos/`). Aparte trae
+el portal ciudadano `/portal-creditos/`, servido por nginx en el mismo origen, con SSO Mi Catamarca;
+su API `/api/creditos/portal/*` va directo al módulo, sin gateway.
 
 Interacciones entre módulos (todas vía endpoints `/internal/*` con API key):
 
@@ -39,8 +43,13 @@ liquidaciones ▶ notifications       (avisa al que subió el lote: procesado/er
 interbanking ▶ notifications        (avisa al actor: transferencia registrada)
 conciliacion ▶ notifications        (avisa al uploader: registros a verificar)
 legacy ─────▶ notifications         (avisa al admin: drenado/sync)
+creditos ───▶ clientes              (padrón único: espejo de la identidad del cliente)
+creditos ───▶ configuraciones       (impuestos, índices, feriados y reglas del workflow)
 proxy ──────▶ security              (valida JWT y resuelve permisos por usuario)
 ```
+
+El proxy inyecta en cada request autenticada `X-User-Id`, `X-Username` y `X-User-Permissions`
+(`modulo:accion` separados por coma) y descarta cualquier `X-User*` que mande el cliente.
 
 Cada módulo tiene su propia base de datos PostgreSQL independiente.
 
@@ -88,9 +97,26 @@ LIQUIDACIONES_DB_USER=liq_user
 LIQUIDACIONES_DB_PASS=liq_pass
 LIQUIDACIONES_DB_NAME=liquidaciones_db
 LIQUIDACIONES_INTERNAL_API_KEY=cambiar_por_hash_seguro_aleatorio
+
+CREDITOS_DB_USER=creditos_user
+CREDITOS_DB_PASS=creditos_pass
+CREDITOS_DB_NAME=creditos_db
+CREDITOS_PORTAL_JWT_SECRET=cambiar_distinto_de_JWT_SECRET   # firma los tokens del portal ciudadano
+CREDITOS_PUBLIC_URL=http://localhost                       # base del callback OIDC y del portal
+CREDITOS_BASES_HOST_PATH=./externalfiles/creditos_bases    # backup DBF del VFP para el ETL
+CREDITOS_PORTAL_MOCK_SSO=false                             # true sólo en demo/QA
+CREDITOS_PORTAL_VIDEOS_HOST_PATH=./externalfiles/portal_videos   # video1.mp4, video2.mp4, video3.mp4 del paso 4
+MICATAMARCA_CLIENT_ID=
+MICATAMARCA_CLIENT_SECRET=
+
+# Módulo Configuraciones (impuestos, índices, feriados, workflow de aprobaciones)
+CONFIGURACIONES_DB_USER=configuraciones_user
+CONFIGURACIONES_DB_PASS=configuraciones_pass
+CONFIGURACIONES_DB_NAME=configuraciones_db
+CONFIGURACIONES_INTERNAL_API_KEY=cambiar_por_hash_seguro_aleatorio   # la usa Créditos para leer la configuración
 ```
 
-> **Importante:** En produccion, generar valores seguros para `JWT_SECRET`, `INTERBANKING_ENCRYPTION_KEY` y `LIQUIDACIONES_INTERNAL_API_KEY`. Se puede usar `python3 -c "import secrets; print(secrets.token_hex(32))"` para generarlos.
+> **Importante:** En produccion, generar valores seguros para `JWT_SECRET`, `INTERBANKING_ENCRYPTION_KEY`, `LIQUIDACIONES_INTERNAL_API_KEY` y `CONFIGURACIONES_INTERNAL_API_KEY`. Se puede usar `python3 -c "import secrets; print(secrets.token_hex(32))"` para generarlos.
 
 ### 3. Levantar los servicios
 
@@ -121,6 +147,8 @@ Abrir el navegador en `http://localhost` e iniciar sesion con las credenciales p
 | **Conciliacion** | 8006 | Conciliacion de juego: cruza liquidaciones con transacciones IB por CBU |
 | **Liquidaciones** | 8007 | Procesamiento de archivos ZIP con DBFs de liquidacion de juegos |
 | **Legacy** | 8009 | Integracion apagable con el sistema legacy VFP9 (DBF). Ver [modules/legacy/README.md](modules/legacy/README.md) |
+| **Creditos** | 8010 | CCyPP: circuito de creditos (productos, solicitudes, originacion, servicing, cartera) + portal ciudadano. Ver [modules/creditos/README.md](modules/creditos/README.md) |
+| **Configuraciones** | 8011 | Impuestos, indices de referencia, feriados y workflow de aprobaciones, compartidos por los modulos. Ver [modules/configuraciones/README.md](modules/configuraciones/README.md) |
 
 ## API interna de Liquidaciones
 
@@ -280,6 +308,8 @@ sistema-modular/
 │   ├── notifications/     # :8005
 │   ├── conciliacion/      # :8006
 │   ├── liquidaciones/     # :8007
-│   └── legacy/            # :8009 (integracion VFP9, apagable)
+│   ├── legacy/            # :8009 (integracion VFP9, apagable)
+│   ├── creditos/          # :8010 API + portal ciudadano (/portal-creditos/)
+│   └── configuraciones/   # :8011 impuestos, índices, feriados, workflow
 └── externalfiles/         # Archivos compartidos (montado en liquidaciones/legacy)
 ```

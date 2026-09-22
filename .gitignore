@@ -9,6 +9,10 @@ env/
 dist/
 build/
 .pytest_cache/
+.coverage
+htmlcov/
+coverage/
+*.tsbuildinfo
 
 # Node
 node_modules/

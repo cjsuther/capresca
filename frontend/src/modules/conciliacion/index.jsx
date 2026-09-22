@@ -5,7 +5,7 @@ import { Sidebar } from "../../components/Sidebar";
 import ConciliacionPage from "./pages/ConciliacionPage";
 
 export const conciliacionMenu = [
-  { label: "Conciliación", path: "/modules/conciliacion/conciliacion", permission: "conciliacion:read", icon: Scale },
+  { label: "Conciliación", path: "/modules/conciliacion/conciliacion", permission: "read", icon: Scale },
 ];
 
 export default function ConciliacionModule() {

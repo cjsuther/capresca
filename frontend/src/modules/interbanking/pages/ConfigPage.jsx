@@ -207,7 +207,7 @@ export default function ConfigPage() {
       <PermissionGate moduleCode="interbanking" action="config:write"
         fallback={
           config ? (
-            <div className="bg-white border rounded-xl p-5">
+            <div className="bg-surface border rounded-xl p-5">
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between"><dt className="text-gray-500">Nombre</dt><dd>{config.name}</dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">URL Base API</dt><dd className="font-mono text-xs">{config.base_url}</dd></div>
@@ -225,7 +225,7 @@ export default function ConfigPage() {
           ) : <p className="text-gray-400 text-sm">Sin configuración</p>
         }
       >
-        <form onSubmit={handleSave} className="bg-white border rounded-xl p-5 space-y-5">
+        <form onSubmit={handleSave} className="bg-surface border rounded-xl p-5 space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la configuración</label>
             <input className="input w-full" placeholder="Ej: Sandbox Portezuelo" {...f("name")} required />

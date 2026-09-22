@@ -62,7 +62,7 @@ export default function NewTransactionPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{error}</div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white border rounded-xl p-6 grid gap-4">
+      <form onSubmit={handleSubmit} className="bg-surface border rounded-xl p-6 grid gap-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Moneda</label>

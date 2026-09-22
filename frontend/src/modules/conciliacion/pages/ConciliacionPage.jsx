@@ -249,7 +249,7 @@ export default function ConciliacionPage() {
 
         {/* Summary bar */}
         {summary && (
-          <div className="bg-white border rounded-xl p-4 mb-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
+          <div className="bg-surface border rounded-xl p-4 mb-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
             <div>
               <p className="text-xs text-gray-500 mb-1">A Verificar</p>
               <p className="font-semibold text-yellow-700">{summary.A_VERIFICAR ?? 0}</p>
@@ -280,7 +280,7 @@ export default function ConciliacionPage() {
         {/* Grids */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Records grid */}
-          <div className="bg-white border rounded-xl overflow-hidden">
+          <div className="bg-surface border rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b bg-gray-50">
               <h3 className="text-sm font-semibold text-gray-700">Registros de Conciliación</h3>
             </div>
@@ -334,7 +334,7 @@ export default function ConciliacionPage() {
           </div>
 
           {/* IB Transactions grid */}
-          <div className="bg-white border rounded-xl overflow-hidden">
+          <div className="bg-surface border rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b bg-gray-50">
               <h3 className="text-sm font-semibold text-gray-700">Transacciones Interbanking</h3>
             </div>
@@ -399,7 +399,7 @@ export default function ConciliacionPage() {
 
       {/* Side panel */}
       {isPanelOpen && (
-        <div className="w-80 flex-shrink-0 bg-white border-l shadow-lg ml-5 rounded-xl overflow-y-auto max-h-[calc(100vh-120px)] sticky top-4 self-start">
+        <div className="w-80 flex-shrink-0 bg-surface border-l shadow-lg ml-5 rounded-xl overflow-y-auto max-h-[calc(100vh-120px)] sticky top-4 self-start">
           <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
             <h3 className="text-sm font-semibold text-gray-700">
               {selectedRecord ? "Detalle Registro" : "Detalle Transacción"}
@@ -544,7 +544,7 @@ export default function ConciliacionPage() {
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-gray-700">Transacciones vinculadas</p>
                   {selectedRecord.links.map((link) => (
-                    <div key={link.id} className="flex items-center justify-between border rounded-lg px-3 py-2 text-xs bg-white">
+                    <div key={link.id} className="flex items-center justify-between border rounded-lg px-3 py-2 text-xs bg-surface">
                       <div>
                         <span className="font-mono text-gray-600">{link.ib_transaction_id}</span>
                         <span className="ml-1 text-gray-400">({link.ib_transaction_type})</span>
@@ -566,20 +566,22 @@ export default function ConciliacionPage() {
                 </div>
               )}
 
-              {/* Download boleta */}
+              {/* Download boleta — el gateway exige conciliacion:download */}
               {selectedRecord.status !== "A_VERIFICAR" && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={handleDownloadBoleta}
-                    disabled={boletaLoading}
-                    className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <Download size={14} />
-                    {boletaLoading ? "Descargando..." : "Descargar Boleta"}
-                  </button>
-                  {boletaError && <p className="text-xs text-red-600 mt-1">{boletaError}</p>}
-                </div>
+                <PermissionGate moduleCode="conciliacion" action="download">
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadBoleta}
+                      disabled={boletaLoading}
+                      className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <Download size={14} />
+                      {boletaLoading ? "Descargando..." : "Descargar Boleta"}
+                    </button>
+                    {boletaError && <p className="text-xs text-red-600 mt-1">{boletaError}</p>}
+                  </div>
+                </PermissionGate>
               )}
             </div>
           )}
@@ -634,7 +636,7 @@ export default function ConciliacionPage() {
                     <select
                       value={selectedAgencyId}
                       onChange={(e) => setSelectedAgencyId(e.target.value)}
-                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-7"
+                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-surface pr-7"
                     >
                       <option value="">Seleccionar agencia...</option>
                       {agencies.map((ag) => (

@@ -29,7 +29,10 @@ def process_zip(
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
 ):
-    batch = process_from_path(db, request.zip_path, user_id)
+    try:
+        batch = process_from_path(db, request.zip_path, user_id)
+    except (ValueError, FileNotFoundError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return batch
 
 

@@ -11,6 +11,7 @@ import {
   ArrowLeft, User, Building2, Pencil, Check, X,
   UserPlus, Trash2, Search, CreditCard, Plus,
 } from "lucide-react";
+import { DocumentosCliente } from "../components/DocumentosCliente";
 
 // ── Campo editable ───────────────────────────────────────────────
 function Field({ label, value, editing, name, form, onChange, type = "text" }) {
@@ -221,7 +222,7 @@ export default function ClienteDetailPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Datos base */}
-        <div className="bg-white border rounded-xl p-5">
+        <div className="bg-surface border rounded-xl p-5">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-medium text-gray-700">Datos generales</h3>
             <PermissionGate moduleCode="clientes" action="clients:write">
@@ -251,7 +252,7 @@ export default function ClienteDetailPage() {
         </div>
 
         {/* Perfil */}
-        <div className="bg-white border rounded-xl p-5">
+        <div className="bg-surface border rounded-xl p-5">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-medium text-gray-700">{isHuman ? "Datos personales" : "Datos de la empresa"}</h3>
             <PermissionGate moduleCode="clientes" action="clients:write">
@@ -297,7 +298,7 @@ export default function ClienteDetailPage() {
 
       {/* Miembros (solo PJ) */}
       {!isHuman && (
-        <div className="bg-white border rounded-xl p-5 mb-6">
+        <div className="bg-surface border rounded-xl p-5 mb-6">
           <h3 className="font-medium text-gray-700 mb-4">Personas físicas vinculadas</h3>
 
           {/* Agregar miembro */}
@@ -314,7 +315,7 @@ export default function ClienteDetailPage() {
                     onChange={(e) => { handleMemberSearch(e.target.value); }}
                   />
                   {memberSearchResults.length > 0 && !selectedHuman && (
-                    <div className="absolute z-10 top-full mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 top-full mt-1 w-full bg-surface border rounded-lg shadow-lg max-h-48 overflow-y-auto">
                       {memberSearchResults.map((c) => (
                         <button
                           key={c.id}
@@ -393,7 +394,7 @@ export default function ClienteDetailPage() {
 
       {/* CBUs (solo PJ) */}
       {!isHuman && (
-        <div className="bg-white border rounded-xl p-5 mb-6">
+        <div className="bg-surface border rounded-xl p-5 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard size={16} className="text-gray-500" />
             <h3 className="font-medium text-gray-700">CBUs registrados</h3>
@@ -446,8 +447,11 @@ export default function ClienteDetailPage() {
         </div>
       )}
 
+      {/* Documentos (DNI, recibo…): cargados acá o traídos de una solicitud de crédito */}
+      <DocumentosCliente clientId={Number(id)} />
+
       {/* Notas */}
-      <div className="bg-white border rounded-xl p-5">
+      <div className="bg-surface border rounded-xl p-5">
         <h3 className="font-medium text-gray-700 mb-4">Notas</h3>
         <form onSubmit={handleAddNote} className="flex gap-2 mb-4">
           <input

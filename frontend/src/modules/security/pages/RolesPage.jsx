@@ -142,7 +142,7 @@ export default function RolesPage() {
 
       {/* Formulario de creación */}
       {showCreateForm && (
-        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-5 mb-4 flex gap-4 flex-wrap items-end">
+        <form onSubmit={handleCreate} className="bg-surface border rounded-xl p-5 mb-4 flex gap-4 flex-wrap items-end">
           <div className="flex-1 min-w-36">
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
             <input
@@ -176,7 +176,7 @@ export default function RolesPage() {
         {loading ? (
           <p className="text-gray-400 text-sm">Cargando...</p>
         ) : roles.map((role) => (
-          <div key={role.id} className="bg-white border rounded-xl overflow-hidden">
+          <div key={role.id} className="bg-surface border rounded-xl overflow-hidden">
 
             {/* Cabecera del rol */}
             <div className="px-5 py-4">
@@ -294,7 +294,7 @@ export default function RolesPage() {
                 <div className="flex gap-2 justify-end">
                   <button
                     onClick={() => setPermsPanelId(null)}
-                    className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-white"
+                    className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-surface"
                   >
                     Cancelar
                   </button>

@@ -34,7 +34,7 @@ export function ChangePasswordModal({ title, requireCurrent = false, onSave, onC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-sm mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2 text-gray-800 font-medium">

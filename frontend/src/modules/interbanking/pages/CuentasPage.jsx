@@ -81,7 +81,7 @@ export default function CuentasPage() {
           <button
             onClick={cargarSaldos}
             disabled={loadingSaldos || cuentas.length === 0}
-            className="flex items-center gap-2 bg-white border text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-2 bg-surface border text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
           >
             <Wallet size={15} className={loadingSaldos ? "animate-pulse" : ""} />
             Actualizar saldos
@@ -109,11 +109,11 @@ export default function CuentasPage() {
       )}
 
       {cuentas.length === 0 ? (
-        <div className="bg-white border rounded-xl p-12 text-center text-gray-400 text-sm">
+        <div className="bg-surface border rounded-xl p-12 text-center text-gray-400 text-sm">
           Presioná "Refrescar" para cargar las cuentas operativas en Interbanking
         </div>
       ) : (
-        <div className="bg-white border rounded-xl overflow-x-auto">
+        <div className="bg-surface border rounded-xl overflow-x-auto">
           <table className="w-full text-sm min-w-[900px]">
             <thead className="bg-gray-50 text-gray-600">
               <tr>

@@ -108,7 +108,7 @@ export default function RulesPage() {
       )}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-5 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <form onSubmit={handleCreate} className="bg-surface border rounded-xl p-5 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cajero</label>
             <select
@@ -190,7 +190,7 @@ export default function RulesPage() {
         </select>
       </div>
 
-      <div className="bg-white border rounded-xl overflow-x-auto">
+      <div className="bg-surface border rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>

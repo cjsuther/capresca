@@ -13,6 +13,8 @@ volumes:
   conciliacion_data:
   liquidaciones_data:
   legacy_data:
+  creditos_data:
+  configuraciones_data:
 
 services:
 
@@ -28,6 +30,8 @@ services:
     depends_on:
       - frontend
       - proxy
+      - creditos
+      - creditos-portal
     networks:
       - app_network
     restart: unless-stopped
@@ -61,6 +65,8 @@ services:
       - CONCILIACION_SERVICE_URL=http://conciliacion:8006
       - LIQUIDACIONES_SERVICE_URL=http://liquidaciones:8007
       - LEGACY_SERVICE_URL=http://legacy:8009
+      - CREDITOS_SERVICE_URL=http://creditos:8010
+      - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -72,6 +78,8 @@ services:
       - conciliacion
       - liquidaciones
       - legacy
+      - creditos
+      - configuraciones
     networks:
       - app_network
     restart: unless-stopped
@@ -385,3 +393,101 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # ──────────────────────────────────────────
+  # Módulo Configuraciones — impuestos, índices, feriados y workflow (API :8011)
+  # ──────────────────────────────────────────
+  configuraciones:
+    build:
+      context: ./modules/configuraciones
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${CONFIGURACIONES_DB_USER}:${CONFIGURACIONES_DB_PASS}@db_configuraciones:5432/${CONFIGURACIONES_DB_NAME}
+      - INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+    depends_on:
+      db_configuraciones:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_configuraciones:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${CONFIGURACIONES_DB_NAME}
+      - POSTGRES_USER=${CONFIGURACIONES_DB_USER}
+      - POSTGRES_PASSWORD=${CONFIGURACIONES_DB_PASS}
+    volumes:
+      - configuraciones_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CONFIGURACIONES_DB_USER} -d ${CONFIGURACIONES_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Créditos (CCyPP) — API :8010 + portal ciudadano /portal-creditos/
+  # (el backoffice es parte del frontend de Portezuelo: /modules/creditos/)
+  # ──────────────────────────────────────────
+  creditos:
+    build:
+      context: ./modules/creditos/backend
+      dockerfile: Dockerfile
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql+psycopg://${CREDITOS_DB_USER}:${CREDITOS_DB_PASS}@db_creditos:5432/${CREDITOS_DB_NAME}
+      # Firma SOLO los tokens del portal ciudadano (realm propio). Debe ser distinto de JWT_SECRET:
+      # los usuarios del backoffice los autentica el gateway de Portezuelo.
+      - JWT_SECRET=${CREDITOS_PORTAL_JWT_SECRET}
+      # SSO Mi Catamarca del portal. Sin credenciales, el login del portal responde 503 salvo que se
+      # habilite el proveedor MOCK (sólo demo/QA: deja entrar a cualquiera como un ciudadano de prueba).
+      - MICATAMARCA_CLIENT_ID=${MICATAMARCA_CLIENT_ID:-}
+      - MICATAMARCA_CLIENT_SECRET=${MICATAMARCA_CLIENT_SECRET:-}
+      - MICATAMARCA_REDIRECT_URI=${CREDITOS_PUBLIC_URL:-http://localhost}/api/creditos/portal/auth/callback
+      - PORTAL_WEB_URL=${CREDITOS_PUBLIC_URL:-http://localhost}/portal-creditos
+      - PORTAL_MOCK_SSO=${CREDITOS_PORTAL_MOCK_SSO:-false}
+      # Impuestos, índices, feriados y reglas del workflow: los lee de Configuraciones (API interna).
+      - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
+      - CONFIGURACIONES_INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+    volumes:
+      # Backup DBF del sistema VFP para el ETL (read-only):
+      #   docker compose exec creditos python3 -m app.etl.cargar_todo /bases
+      - ${CREDITOS_BASES_HOST_PATH:-./externalfiles/creditos_bases}:/bases:ro
+    depends_on:
+      db_creditos:
+        condition: service_healthy
+      configuraciones:
+        condition: service_started
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_creditos:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${CREDITOS_DB_NAME}
+      - POSTGRES_USER=${CREDITOS_DB_USER}
+      - POSTGRES_PASSWORD=${CREDITOS_DB_PASS}
+    volumes:
+      - creditos_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CREDITOS_DB_USER} -d ${CREDITOS_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  creditos-portal:
+    build:
+      context: ./modules/creditos/portal
+      dockerfile: Dockerfile
+    volumes:
+      # Videos obligatorios del paso 4 (video1.mp4, video2.mp4, video3.mp4), read-only.
+      - ${CREDITOS_PORTAL_VIDEOS_HOST_PATH:-./externalfiles/portal_videos}:/videos:ro
+    networks:
+      - app_network
+    restart: unless-stopped

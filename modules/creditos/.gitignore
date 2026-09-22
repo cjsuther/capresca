@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# Entorno / secretos
+.env
+# Node
+node_modules/
+dist/
+# Datos
+*.dbf
+*.fpt
+# Datos de producción / backups (NO subir)
+backups/
+*.dump
+*.sql
+*.bak
+*.sqlite
+*.sqlite3
+_test_ccypp.db

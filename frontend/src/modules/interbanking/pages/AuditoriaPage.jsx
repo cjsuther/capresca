@@ -51,7 +51,7 @@ export default function AuditoriaPage() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white border rounded-xl p-4 mb-4">
+      <div className="bg-surface border rounded-xl p-4 mb-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Usuario ID</label>
@@ -89,7 +89,7 @@ export default function AuditoriaPage() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white border rounded-xl overflow-x-auto">
+      <div className="bg-surface border rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
@@ -141,7 +141,7 @@ export default function AuditoriaPage() {
       {/* Modal detalle */}
       {modal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setModal(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-surface rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-800">{modal.operation}</h3>
               <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>

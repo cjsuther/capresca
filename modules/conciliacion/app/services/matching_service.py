@@ -34,6 +34,8 @@ async def load_date(db: Session, rec_date: date,
     db.query(cbu_cache_service.CbuAgencyCache if False else __import__('app.models.cbu_agency_cache', fromlist=['CbuAgencyCache']).CbuAgencyCache).delete()
     from app.models.cbu_agency_cache import CbuAgencyCache
     db.query(CbuAgencyCache).delete()
+    # Un mismo CBU puede venir repetido entre agencias (dato mal cargado en Clientes): se mergea uno
+    # por vez para que el último gane, en vez de romper el cruce del día con un UNIQUE al flushear.
     for agency in agencies:
         for cbu_entry in agency.get("cbus", []):
             entry = CbuAgencyCache(
@@ -44,7 +46,7 @@ async def load_date(db: Session, rec_date: date,
                 cached_at=datetime.now(timezone.utc),
             )
             db.merge(entry)
-    db.flush()
+            db.flush()
 
     # Step 2: Get IB transactions (transferencias) + movimientos de la cuenta elegida
     ib_txs = await interbanking_client.get_transactions(date_str)
@@ -278,6 +280,7 @@ async def assign_agency(db: Session, tx_type: str, tx_id: int, client_id: int,
         linked_by_user_id=user_id,
     )
     db.add(new_link)
+    db.flush()   # sin autoflush, el recálculo no vería el vínculo recién creado
     recalculate_depositado(db, new_record)
     db.commit()
     db.refresh(new_record)

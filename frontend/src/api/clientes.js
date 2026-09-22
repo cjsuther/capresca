@@ -62,3 +62,21 @@ export const updateCbu = (clientId, cbuId, data) =>
 
 export const deleteCbu = (clientId, cbuId) =>
   api.delete(`/clientes/${clientId}/cbus/${cbuId}`);
+
+// ── Documentos del cliente (DNI, recibo…) ──
+export const getDocumentos = (clientId) =>
+  api.get(`/clientes/${clientId}/documentos`).then((r) => r.data);
+
+export const subirDocumento = (clientId, archivo, tipo) => {
+  const f = new FormData();
+  f.append("archivo", archivo);
+  f.append("tipo", tipo);
+  return api.post(`/clientes/${clientId}/documentos`, f).then((r) => r.data);
+};
+
+/** El archivo como Blob, para verlo dentro de la página. */
+export const getDocumentoArchivo = (clientId, docId) =>
+  api.get(`/clientes/${clientId}/documentos/${docId}`, { responseType: "blob" }).then((r) => r.data);
+
+export const borrarDocumento = (clientId, docId) =>
+  api.delete(`/clientes/${clientId}/documentos/${docId}`);

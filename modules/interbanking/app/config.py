@@ -13,12 +13,20 @@ class Settings(BaseSettings):
     # Mock: cuando no hay credenciales de transferencias-confeccion operativas en este ambiente.
     # Setear en false al pasar a credenciales reales.
     interbanking_mock_transfers: bool = True
+    # Dominios admitidos para base_url / auth_url / service_url de las credenciales. Sin esto, quien
+    # pueda configurar credenciales apunta el módulo a un host propio: el "probar conexión" le manda
+    # los secretos descifrados y las operaciones (incluidas transferencias) se van a ese host.
+    allowed_provider_domains: str = "interbanking.com.ar"
 
     class Config:
         env_file = ".env"
 
 
 settings = Settings()
+
+
+def provider_domains() -> list[str]:
+    return [d.strip().lower() for d in settings.allowed_provider_domains.split(",") if d.strip()]
 
 
 def get_fernet() -> Fernet:

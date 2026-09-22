@@ -41,7 +41,7 @@ export default function AutorizacionesPage() {
       ) : (
         <div className="grid gap-4">
           {pending.map((r) => (
-            <div key={r.id} className="bg-white border rounded-xl p-5">
+            <div key={r.id} className="bg-surface border rounded-xl p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-gray-800">#{r.id} — {r.amount} {r.currency}</p>
