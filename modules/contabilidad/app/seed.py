@@ -96,16 +96,32 @@ def sembrar(db: Session) -> None:
         if not db.scalar(select(models.CentroCosto).where(models.CentroCosto.codigo == codigo)):
             db.add(models.CentroCosto(codigo=codigo, nombre=nombre))
     for codigo, nombre, rubro, imputable, saldo, ajustable in PLAN:
-        if not db.scalar(select(models.Cuenta).where(models.Cuenta.codigo == codigo)):
+        cuenta = db.scalar(select(models.Cuenta).where(models.Cuenta.codigo == codigo))
+        if cuenta is None:
             db.add(models.Cuenta(codigo=codigo, nombre=nombre, rubro=rubro, imputable=imputable,
                                  saldo_normal=saldo, ajustable=ajustable))
+            continue
+        # El código ya existe (siembra anterior): se alinea con el plan. Renombrar es siempre seguro;
+        # el rubro y el "imputable" sólo se tocan si la cuenta todavía no tiene movimientos.
+        cuenta.nombre, cuenta.saldo_normal, cuenta.ajustable = nombre, saldo, ajustable
+        if not _tiene_movimientos(db, codigo):
+            cuenta.rubro, cuenta.imputable = rubro, imputable
     db.flush()
     _limpiar_cuentas_ajenas(db)
     anio = date.today().year
     if not db.scalar(select(models.Ejercicio).where(models.Ejercicio.numero == anio)):
         db.add(models.Ejercicio(numero=anio, desde=date(anio, 1, 1), hasta=date(anio, 12, 31),
                                 estado="ABIERTO", cuenta_resultado=CUENTA_RESULTADO))
+    # Un ejercicio que apunte a una cuenta de resultado que ya no existe no se podría cerrar.
+    for ej in db.scalars(select(models.Ejercicio).where(models.Ejercicio.estado == "ABIERTO")).all():
+        if not db.scalar(select(models.Cuenta).where(models.Cuenta.codigo == ej.cuenta_resultado)):
+            ej.cuenta_resultado = CUENTA_RESULTADO
     db.commit()
+
+
+def _tiene_movimientos(db: Session, codigo: str) -> bool:
+    return bool(db.scalar(select(func.count()).select_from(models.AsientoLinea)
+                          .where(models.AsientoLinea.cuenta_codigo == codigo)) or 0)
 
 
 def _limpiar_cuentas_ajenas(db: Session) -> None:
@@ -116,9 +132,7 @@ def _limpiar_cuentas_ajenas(db: Session) -> None:
     definidas = {l.get("cuenta") for d in db.scalars(select(models.DefinicionAsiento)).all()
                  for l in (d.lineas or [])}
     for c in db.scalars(select(models.Cuenta).where(models.Cuenta.codigo.notin_(CODIGOS))).all():
-        usada = db.scalar(select(func.count()).select_from(models.AsientoLinea)
-                          .where(models.AsientoLinea.cuenta_codigo == c.codigo)) or 0
-        if usada or c.codigo in definidas:
+        if _tiene_movimientos(db, c.codigo) or c.codigo in definidas:
             log.warning("Contabilidad: la cuenta %s (%s) no está en el plan estándar pero está en uso.",
                         c.codigo, c.nombre)
             continue

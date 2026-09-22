@@ -246,3 +246,50 @@ def test_el_centro_de_costo_se_edita(client, contador):
     r = client.put(f"{API}/centros/{c['id']}", headers=contador,
                    json={"codigo": "ADM", "nombre": "Administración general", "activo": False})
     assert r.json()["nombre"] == "Administración general" and r.json()["activo"] is False
+
+
+# ── El plan sembrado es el del sistema anterior ──────────────────────────────────────────────────
+
+def test_el_plan_es_el_del_sistema_anterior(client, contador):
+    """Misma codificación que venía usando el motor de asientos de Créditos."""
+    cuentas = {c["codigo"]: c for c in client.get(f"{API}/cuentas", headers=contador).json()["items"]}
+    esperadas = {"1.1.01": "Caja", "1.1.02": "Banco", "1.1.05.01": "Préstamos otorgados",
+                 "1.2.01": "Créditos a cobrar", "1.2.04": "IVA crédito fiscal",
+                 "2.1.01": "IVA débito fiscal", "2.1.02": "Proveedores",
+                 "3.3": "Resultado del ejercicio", "4.1.01": "Intereses ganados",
+                 "4.1.02": "Intereses punitorios ganados", "4.1.03": "Seguros",
+                 "4.1.04": "Gastos administrativos", "5.2.02": "Comisiones y gastos bancarios"}
+    for codigo, nombre in esperadas.items():
+        assert cuentas[codigo]["nombre"] == nombre, codigo
+    assert cuentas["1"]["imputable"] is False and cuentas["1.1.01"]["imputable"] is True
+    ej = client.get(f"{API}/ejercicios", headers=contador).json()["items"][0]
+    assert ej["cuentaResultado"] == "3.3"
+
+
+def test_una_siembra_vieja_se_alinea_con_el_plan(client, contador, db):
+    """Si la base venía de un plan anterior: se corrigen los nombres y se van las cuentas sin uso."""
+    from app.models import Cuenta
+    from app.seed import sembrar
+    db.add(Cuenta(codigo="9.9.90", nombre="Cuenta de otro plan", rubro="ACTIVO"))
+    caja = db.query(Cuenta).filter_by(codigo="1.1.01").one()
+    caja.nombre = "Caja chica (nombre viejo)"
+    db.commit()
+
+    sembrar(db)
+
+    assert db.query(Cuenta).filter_by(codigo="9.9.90").first() is None      # no la usaba nadie
+    assert db.query(Cuenta).filter_by(codigo="1.1.01").one().nombre == "Caja"
+
+
+def test_una_cuenta_de_otro_plan_con_movimientos_no_se_borra(client, contador, db):
+    from app.models import Cuenta
+    from app.seed import sembrar
+    db.add(Cuenta(codigo="9.9.91", nombre="Vieja con uso", rubro="ACTIVO"))
+    db.commit()
+    client.post(f"{API}/asientos", headers=contador, json={
+        "fecha": HOY, "concepto": "Movimiento viejo",
+        "lineas": [{"cuenta": "9.9.91", "debe": 100}, {"cuenta": "1.1.01", "haber": 100}]})
+
+    sembrar(db)
+
+    assert db.query(Cuenta).filter_by(codigo="9.9.91").first() is not None
