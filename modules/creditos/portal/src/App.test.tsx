@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
     loginUrl: vi.fn(), me: vi.fn(), haberes: vi.fn(), productos: vi.fn(), simular: vi.fn(),
     preAprobado: vi.fn(), enviarSolicitud: vi.fn(), misSolicitudes: vi.fn(), solicitudDetalle: vi.fn(),
     docsListar: vi.fn(), docSubir: vi.fn(), docAbrir: vi.fn(), docBorrar: vi.fn(),
-    misCreditos: vi.fn(), creditoDetalle: vi.fn(), notificaciones: vi.fn(),
+    misCreditos: vi.fn(), creditoDetalle: vi.fn(), notificaciones: vi.fn(), videos: vi.fn(),
   },
 }));
 vi.mock("./api", async (original) => ({ ...(await original() as any), api: h.api }));
@@ -28,6 +28,12 @@ const SIM = {
   total_a_pagar: 700000, total_interes: 200000, cuota_promedio: 58333, tea: 79, cft: 95,
   elegible: true, motivos: [], afectacion: 25, cuotas: [],
 };
+
+const VIDEOS = [
+  { id: "video1", titulo: "Video 1", url: "/portal-creditos/videos/video1.mp4" },
+  { id: "video2", titulo: "Video 2", url: "/portal-creditos/videos/video2.mp4" },
+  { id: "video3", titulo: "Video 3", url: "/portal-creditos/videos/video3.mp4" },
+];
 
 const locationOriginal = window.location;
 function stubLocation(pathname = "/", hash = "") {
@@ -51,6 +57,7 @@ beforeEach(() => {
   api.simular.mockResolvedValue(SIM);
   api.preAprobado.mockRejectedValue(new Error("sin pre-aprobado"));
   api.loginUrl.mockResolvedValue({ authorize_url: "https://mi.catamarca/oidc" });
+  api.videos.mockResolvedValue(VIDEOS);
 });
 
 afterEach(() => {
@@ -65,6 +72,34 @@ async function montarLogueado() {
   render(<App />);
   expect(await screen.findByRole("heading", { name: "Solicitá tu crédito" })).toBeInTheDocument();
   return u;
+}
+
+const archivo = (nombre: string, tipo: string, tam = 1000) => {
+  const f = new File(["x"], nombre, { type: tipo });
+  Object.defineProperty(f, "size", { value: tam });
+  return f;
+};
+const inputArchivo = () => document.querySelector('input[type="file"]') as HTMLInputElement;
+
+/** Adjunta un archivo del tipo indicado en el paso 3. */
+async function adjuntar(u: ReturnType<typeof userEvent.setup>, tipo: string, f: File) {
+  await u.selectOptions(screen.getByLabelText("Tipo de documento"), tipo);
+  fireEvent.change(inputArchivo(), { target: { files: [f] } });
+}
+
+/** Adjunta la documentación obligatoria (DNI frente y dorso + recibo). */
+async function adjuntarRequeridos(u: ReturnType<typeof userEvent.setup>) {
+  const docs = { DNI_FRENTE: archivo("dni-frente.jpg", "image/jpeg"), DNI_DORSO: archivo("dni-dorso.jpg", "image/jpeg"),
+                 RECIBO: archivo("recibo.pdf", "application/pdf") };
+  for (const [t, f] of Object.entries(docs)) await adjuntar(u, t, f);
+  return docs;
+}
+
+/** Datos + simulación → paso 3 (documentación). */
+async function llegarADocumentacion(u: ReturnType<typeof userEvent.setup>) {
+  await completarDatos(u);
+  await u.click(await screen.findByRole("button", { name: /Continuar/ }));
+  expect(await screen.findByText(/obligatoria para continuar/)).toBeInTheDocument();
 }
 
 /** Completa el paso 1 (identidad + situación) y pasa a la simulación. */
@@ -183,41 +218,119 @@ describe("paso 1 · tus datos", () => {
 });
 
 // ---------------------------------------------------------------------------
-describe("adjuntos del paso 1 (H-162)", () => {
-  const archivo = (nombre: string, tipo: string, tam = 1000) => {
-    const f = new File(["x"], nombre, { type: tipo });
-    Object.defineProperty(f, "size", { value: tam });
-    return f;
-  };
-  const inputArchivo = () => document.querySelector('input[type="file"]') as HTMLInputElement;
+describe("paso 3 · documentación", () => {
   const listaDocs = () => document.querySelector(".p-docs-list") as HTMLElement | null;
 
-  it("acepta una imagen y la lista con su tipo", async () => {
+  it("el paso 1 ya no pide documentación", async () => {
     await montarLogueado();
-    fireEvent.change(inputArchivo(), { target: { files: [archivo("dni.png", "image/png", 2048)] } });
+    expect(inputArchivo()).toBeNull();
+  });
+
+  it("acepta una imagen y la lista con su tipo", async () => {
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
+    await adjuntar(u, "DNI_FRENTE", archivo("dni.png", "image/png", 2048));
     await waitFor(() => expect(listaDocs()).not.toBeNull());
     expect(within(listaDocs()!).getByText("DNI (frente)")).toBeInTheDocument();
     expect(within(listaDocs()!).getByText(/dni\.png · 2 KB/)).toBeInTheDocument();
   });
 
   it("rechaza formatos que no son imagen ni PDF", async () => {
-    await montarLogueado();
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
     fireEvent.change(inputArchivo(), { target: { files: [archivo("planilla.xlsx", "application/vnd.ms-excel")] } });
     expect(await screen.findByText("Formato no permitido (JPG, PNG o PDF).")).toBeInTheDocument();
   });
 
   it("rechaza archivos de más de 5 MB", async () => {
-    await montarLogueado();
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
     fireEvent.change(inputArchivo(), { target: { files: [archivo("recibo.pdf", "application/pdf", 6 * 1024 * 1024)] } });
     expect(await screen.findByText("El archivo supera los 5 MB.")).toBeInTheDocument();
   });
 
   it("permite quitar un adjunto elegido", async () => {
     const u = await montarLogueado();
+    await llegarADocumentacion(u);
     fireEvent.change(inputArchivo(), { target: { files: [archivo("dni.pdf", "application/pdf")] } });
     await u.click(await screen.findByRole("button", { name: "Quitar documento" }));
     expect(screen.queryByText(/dni\.pdf/)).toBeNull();
     expect(listaDocs()).toBeNull();
+  });
+
+  it("no deja seguir sin el DNI (frente y dorso) y el recibo", async () => {
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
+    await adjuntar(u, "DNI_FRENTE", archivo("dni.jpg", "image/jpeg"));
+    expect(screen.getByText("Te faltan 2 documentos.")).toBeInTheDocument();
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(screen.getByText("Falta adjuntar: DNI (dorso), Recibo de sueldo.")).toBeInTheDocument();
+    expect(screen.queryByText(/Mirá los videos/)).toBeNull();
+  });
+
+  it("con los tres documentos marca la lista y pasa a los videos", async () => {
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
+    await adjuntarRequeridos(u);
+    const req = screen.getByRole("list", { name: "Documentación requerida" });
+    expect(within(req).getAllByText("✓")).toHaveLength(3);
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(await screen.findByText(/Mirá los videos/)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("paso 4 · videos", () => {
+  /** Simula ver un video completo: avanza el tiempo de a poco y dispara el final. */
+  function verCompleto(video: HTMLVideoElement, duracion = 10) {
+    let t = 0;
+    Object.defineProperty(video, "duration", { configurable: true, get: () => duracion });
+    Object.defineProperty(video, "currentTime", { configurable: true, get: () => t, set: (v) => { t = v; } });
+    fireEvent.loadedMetadata(video);
+    for (let x = 0.25; x <= duracion; x += 0.25) { t = x; fireEvent.timeUpdate(video); }
+    fireEvent.ended(video);
+  }
+  const videosEnPantalla = () => Array.from(document.querySelectorAll("video")) as HTMLVideoElement[];
+
+  async function llegarAVideos() {
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
+    await adjuntarRequeridos(u);
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(await screen.findByText(/Mirá los videos/)).toBeInTheDocument();
+    return u;
+  }
+
+  it("muestra los tres videos en orden; sólo el primero se puede reproducir", async () => {
+    await llegarAVideos();
+    expect(screen.getByRole("article", { name: "Video 1: Video 1" })).toBeInTheDocument();
+    expect(videosEnPantalla()).toHaveLength(1);
+    expect(within(screen.getByRole("article", { name: "Video 2: Video 2" })).getByText("Se habilita al terminar el anterior")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
+  });
+
+  it("al terminar cada video se habilita el siguiente y, con los tres, se puede continuar", async () => {
+    const u = await llegarAVideos();
+    for (let i = 1; i <= 3; i++) {
+      verCompleto(videosEnPantalla()[i - 1]);
+      await waitFor(() => expect(within(screen.getByRole("article", { name: `Video ${i}: Video ${i}` })).getByText("Visto")).toBeInTheDocument());
+    }
+    expect(screen.getByText("✓ Viste todos los videos.")).toBeInTheDocument();
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(await screen.findByText("Revisá y confirmá tu solicitud")).toBeInTheDocument();
+  });
+
+  it("lo visto se recuerda si se recarga la página", async () => {
+    await llegarAVideos();
+    verCompleto(videosEnPantalla()[0]);
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("portal_videos_u-1")!)).toEqual(["video1"]));
+  });
+
+  it("si los videos no se pueden cargar no deja continuar", async () => {
+    api.videos.mockRejectedValue(new Error("caído"));
+    await llegarAVideos();
+    expect(screen.getByText(/No se pudieron cargar los videos/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
   });
 });
 
@@ -266,17 +379,21 @@ describe("paso 2 · simulación", () => {
 });
 
 // ---------------------------------------------------------------------------
-describe("paso 3 · confirmación y envío", () => {
+describe("paso 5 · confirmación y envío", () => {
+  /** Recorre los pasos 1–4 con los videos ya vistos (quedan guardados en el dispositivo). */
   async function llegarAConfirmacion() {
+    localStorage.setItem("portal_videos_u-1", JSON.stringify(VIDEOS.map((v) => v.id)));
     const u = await montarLogueado();
-    await completarDatos(u);
+    await llegarADocumentacion(u);
+    const docs = await adjuntarRequeridos(u);
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
     await u.click(await screen.findByRole("button", { name: /Continuar/ }));
     expect(await screen.findByText("Revisá y confirmá tu solicitud")).toBeInTheDocument();
-    return u;
+    return { u, docs };
   }
 
   it("no deja enviar sin CBU completo ni aceptaciones", async () => {
-    const u = await llegarAConfirmacion();
+    const { u } = await llegarAConfirmacion();
     const enviar = screen.getByRole("button", { name: /Confirmar y enviar/ });
     expect(enviar).toBeDisabled();
     await u.type(screen.getByLabelText(/CBU/), "123");
@@ -286,7 +403,7 @@ describe("paso 3 · confirmación y envío", () => {
 
   it("con CBU y las dos aceptaciones envía la solicitud y muestra el número", async () => {
     api.enviarSolicitud.mockResolvedValue({ numero: "SOL-7" });
-    const u = await llegarAConfirmacion();
+    const { u } = await llegarAConfirmacion();
     await u.type(screen.getByLabelText(/CBU/), "2".repeat(22));
     await u.click(screen.getByRole("checkbox", { name: /términos y condiciones/ }));
     await u.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos/ }));
@@ -294,32 +411,33 @@ describe("paso 3 · confirmación y envío", () => {
 
     await waitFor(() => expect(api.enviarSolicitud).toHaveBeenCalled());
     const [cuerpo, idem] = api.enviarSolicitud.mock.calls[0];
-    expect(cuerpo).toMatchObject({ producto_id: "pp_1", cbu: "2".repeat(22), acepta_terminos: true, acepta_datos: true, dni: "30123456" });
+    expect(cuerpo).toMatchObject({ producto_id: "pp_1", cbu: "2".repeat(22), acepta_terminos: true, acepta_datos: true, dni: "30123456",
+                                   videos_vistos: ["video1", "video2", "video3"] });
     expect(idem).toBe("idem-fijo");
     expect(await screen.findByText(/Solicitud SOL-7 enviada/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Mis solicitudes" })).toBeInTheDocument();
+    // la próxima solicitud vuelve a pedir los videos
+    expect(localStorage.getItem("portal_videos_u-1")).toBeNull();
   });
 
   it("sube los adjuntos elegidos y avisa si alguno falla", async () => {
     api.enviarSolicitud.mockResolvedValue({ numero: "SOL-8" });
-    api.docSubir.mockRejectedValue(new Error("upload caído"));
-    const u = await montarLogueado();
-    const f = new File(["x"], "dni.pdf", { type: "application/pdf" });
-    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [f] } });
-    await completarDatos(u);
-    await u.click(await screen.findByRole("button", { name: /Continuar/ }));
-    await u.type(await screen.findByLabelText(/CBU/), "2".repeat(22));
+    api.docSubir.mockRejectedValueOnce(new Error("upload caído")).mockResolvedValue({});
+    const { u, docs } = await llegarAConfirmacion();
+    await u.type(screen.getByLabelText(/CBU/), "2".repeat(22));
     await u.click(screen.getByRole("checkbox", { name: /términos y condiciones/ }));
     await u.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos/ }));
     await u.click(screen.getByRole("button", { name: /Confirmar y enviar/ }));
 
-    await waitFor(() => expect(api.docSubir).toHaveBeenCalledWith("SOL-8", f, "DNI_FRENTE"));
+    await waitFor(() => expect(api.docSubir).toHaveBeenCalledTimes(3));
+    expect(api.docSubir).toHaveBeenCalledWith("SOL-8", docs.DNI_FRENTE, "DNI_FRENTE");
+    expect(api.docSubir).toHaveBeenCalledWith("SOL-8", docs.RECIBO, "RECIBO");
     expect(await screen.findByText(/No se pudieron adjuntar 1 archivo/)).toBeInTheDocument();
   });
 
   it("si el backend rechaza el envío lo muestra y no borra el formulario", async () => {
     api.enviarSolicitud.mockRejectedValue(new Error("Ya tenés una solicitud en curso"));
-    const u = await llegarAConfirmacion();
+    const { u } = await llegarAConfirmacion();
     await u.type(screen.getByLabelText(/CBU/), "2".repeat(22));
     await u.click(screen.getByRole("checkbox", { name: /términos y condiciones/ }));
     await u.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos/ }));
@@ -330,10 +448,8 @@ describe("paso 3 · confirmación y envío", () => {
 
   it("no se puede enviar si la simulación dice que no califica", async () => {
     api.simular.mockResolvedValue({ ...SIM, elegible: false, motivos: ["Edad máxima superada"] });
-    const u = await montarLogueado();
-    await completarDatos(u);
-    await u.click(await screen.findByRole("button", { name: /Continuar/ }));
-    await u.type(await screen.findByLabelText(/CBU/), "2".repeat(22));
+    const { u } = await llegarAConfirmacion();
+    await u.type(screen.getByLabelText(/CBU/), "2".repeat(22));
     await u.click(screen.getByRole("checkbox", { name: /términos y condiciones/ }));
     await u.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos/ }));
     expect(screen.getByRole("button", { name: /Confirmar y enviar/ })).toBeDisabled();
@@ -355,6 +471,14 @@ describe("borrador del trámite", () => {
     const u2 = await montarLogueado();
     await u2.click(await screen.findByRole("button", { name: "Retomar" }));
     expect((screen.getByLabelText(/Apellido/) as HTMLInputElement).value).toBe("Prueba");
+  });
+
+  it("un borrador guardado en los videos se retoma en Documentación (los archivos no se guardan)", async () => {
+    localStorage.setItem("portal_borrador_u-1", JSON.stringify({ paso: 5, apellido: "Prueba", nombre: "Ana", dni: "30123456",
+      segmento: "AGENTE_PUBLICO", prodId: "pp_1", savedAt: new Date().toISOString() }));
+    const u = await montarLogueado();
+    await u.click(await screen.findByRole("button", { name: "Retomar" }));
+    expect(await screen.findByText(/obligatoria para continuar/)).toBeInTheDocument();
   });
 
   it("descartar borra el borrador guardado", async () => {

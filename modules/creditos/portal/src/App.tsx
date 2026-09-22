@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTema, Tema } from "./tema";
-import { api, token, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
+import { PasoVideos, guardarVistos, leerVistos, olvidarVistos } from "./videos";
+import { api, token, Video, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
 
 const money = (v: string | number) =>
   Number(v).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
@@ -185,10 +186,14 @@ const DESTINO_LABEL = Object.fromEntries(DESTINOS);
 const TIPO_DOC: Record<string, string> = {
   DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo", OTRO: "Otro",
 };
+// Documentación que se pide en el paso 3 para poder seguir (OTRO es opcional).
+const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "RECIBO"];
+const PASOS = ["Tus datos", "Simulación", "Documentación", "Videos", "Confirmación"];
+type Paso = 1 | 2 | 3 | 4 | 5;
 const fmtBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
-// Selector de documentos para "Tus datos": se eligen en el cliente y se suben al ENVIAR la solicitud
-// (todavía no existe el número). Valida formato/tamaño localmente. H-162.
+// Selector de documentos del paso 3: se eligen en el cliente y se suben al ENVIAR la solicitud (todavía
+// no existe el número). Valida formato/tamaño localmente. H-162.
 const DOC_MAX = 5 * 1024 * 1024;
 const DOC_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 function DocsPicker({ docs, onChange }: { docs: { file: File; tipo: string }[]; onChange: (d: { file: File; tipo: string }[]) => void }) {
@@ -206,8 +211,12 @@ function DocsPicker({ docs, onChange }: { docs: { file: File; tipo: string }[]; 
   };
   return (
     <div className="p-docs">
-      <div className="p-docs-head">Documentación <span className="p-docs-opt">opcional · agiliza la evaluación</span></div>
-      {docs.length === 0 && <p className="p-fine" style={{ margin: "0 0 8px" }}>Adjuntá tu DNI y el último recibo de sueldo.</p>}
+      <ul className="p-docs-req" aria-label="Documentación requerida">
+        {DOCS_REQUERIDOS.map((t) => {
+          const ok = docs.some((d) => d.tipo === t);
+          return <li key={t} className={ok ? "ok" : ""}><span aria-hidden>{ok ? "✓" : "○"}</span>{TIPO_DOC[t]}</li>;
+        })}
+      </ul>
       {docs.length > 0 && (
         <ul className="p-docs-list">
           {docs.map((d, i) => (
@@ -241,7 +250,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [creditoDet, setCreditoDet] = useState<CreditoDetalle | null>(null);
   const [notis, setNotis] = useState<Notificacion[]>([]);
   const [notisOpen, setNotisOpen] = useState(false);
-  const [paso, setPaso] = useState<1 | 2 | 3>(1);   // 1 Datos · 2 Simulación · 3 Confirmación
+  const [paso, setPaso] = useState<Paso>(1);   // 1 Datos · 2 Simulación · 3 Documentación · 4 Videos · 5 Confirmación
   const [datosErr, setDatosErr] = useState("");
   const [productos, setProductos] = useState<Producto[]>([]);
   const [prodId, setProdId] = useState<string>("");
@@ -267,6 +276,19 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [antiguedad, setAntiguedad] = useState("");
   const [sueldo, setSueldo] = useState("");
   const [pendingDocs, setPendingDocs] = useState<{ file: File; tipo: string }[]>([]);   // adjuntos elegidos (se suben al enviar)
+  const [docsErr, setDocsErr] = useState("");
+  const docsFaltantes = DOCS_REQUERIDOS.filter((t) => !pendingDocs.some((d) => d.tipo === t));
+  // Paso 4: videos obligatorios (la lista la da el backend) y los que ya vio completos.
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [videosErr, setVideosErr] = useState("");
+  const [videosListos, setVideosListos] = useState(false);   // hasta que llega la lista no se puede avanzar
+  const [vistos, setVistos] = useState<string[]>(() => leerVistos(sesion.sub));
+  const videosOk = videosListos && videos.every((v) => vistos.includes(v.id));
+  const marcarVisto = (id: string) => setVistos((vs) => {
+    const nuevos = vs.includes(id) ? vs : [...vs, id];
+    guardarVistos(sesion.sub, nuevos);
+    return nuevos;
+  });
   const [cbu, setCbu] = useState("");
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [aceptaDatos, setAceptaDatos] = useState(false);
@@ -295,7 +317,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     setSueldo(d.sueldo || ""); if (d.prodId) setProdId(d.prodId);
     setMonto(d.monto || "500000"); setPlazo(d.plazo || "12"); setCbu(d.cbu || "");
     setAceptaTerminos(!!d.aceptaTerminos); setAceptaDatos(!!d.aceptaDatos);
-    setPaso((d.paso || 1) as 1 | 2 | 3); setTab("simular"); setBorrador(null);
+    // Los archivos no se guardan en el borrador: se retoma, como mucho, en Documentación.
+    setPaso(Math.min(d.paso || 1, 3) as Paso); setTab("simular"); setBorrador(null);
   }
   function limpiarBorrador() { try { localStorage.removeItem(BORRADOR_KEY); } catch { /* ignore */ } }
   function descartarBorrador() { limpiarBorrador(); setBorrador(null); }
@@ -316,6 +339,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   useEffect(() => { if (tab === "solicitudes") cargarSolicitudes(); }, [tab]);
   useEffect(() => { if (tab === "creditos") api.misCreditos().then(setCreditos).catch((e) => setErr(String(e))); }, [tab]);
   useEffect(() => { api.notificaciones().then(setNotis).catch(() => {}); }, []);
+  useEffect(() => {
+    api.videos().then((vs) => { setVideos(vs); setVideosListos(true); }).catch(() => setVideosErr("No se pudieron cargar los videos. Reintentá en unos minutos."));
+  }, []);
 
   // Paso 2: la cuota se recalcula EN VIVO al mover el monto/plazo (debounce), sin apretar "Simular".
   useEffect(() => {
@@ -352,13 +378,17 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     setDatosErr(""); setPaso(2);
   }
   function reiniciarWizard() { setPaso(1); setSim(null); }
+  function irAVideos() {
+    if (docsFaltantes.length) { setDocsErr(`Falta adjuntar: ${docsFaltantes.map((t) => TIPO_DOC[t]).join(", ")}.`); return; }
+    setDocsErr(""); setPaso(4);
+  }
 
   async function enviarSolicitud() {
     if (!prodId || !idem) return;
     setEnviando(true); setErr("");
     try {
-      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), destino, cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, ...datos() }, idem);
-      // Subir los documentos elegidos en "Tus datos" (best-effort: si alguno falla, avisamos sin frenar).
+      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), destino, cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, videos_vistos: vistos, ...datos() }, idem);
+      // Subir los documentos del paso 3 (best-effort: si alguno falla, avisamos sin frenar).
       let fallos = 0;
       for (const d of pendingDocs) {
         try { await api.docSubir(s.numero, d.file, d.tipo); } catch { fallos++; }
@@ -367,6 +397,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
         + (fallos ? ` (No se pudieron adjuntar ${fallos} archivo/s; un asesor te los va a pedir si hacen falta.)` : ""));
       setPendingDocs([]);
       limpiarBorrador();   // enviada → el borrador ya no aplica
+      olvidarVistos(sesion.sub); setVistos([]);   // la próxima solicitud vuelve a pedir los videos
       reiniciarWizard();
       setTab("solicitudes");
     } catch (e) { setErr(String(e)); }
@@ -541,8 +572,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
       <main className="p-main">
         <h1>Solicitá tu crédito</h1>
         <ol className="p-steps">
-          {["Tus datos", "Simulación", "Confirmación"].map((t, i) => {
-            const n = (i + 1) as 1 | 2 | 3;
+          {PASOS.map((t, i) => {
+            const n = (i + 1) as Paso;
             const estado = paso === n ? "on" : paso > n ? "done" : "";
             const ir = () => { if (n < paso) setPaso(n); };
             return <li key={t} className={`p-step ${estado}`} onClick={ir}>
@@ -587,7 +618,6 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <select value={destino} onChange={(e) => setDestino(e.target.value)}>
                 {DESTINOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select></label>
-            <div className="p-col2"><DocsPicker docs={pendingDocs} onChange={setPendingDocs} /></div>
             {datosErr && <div className="p-col2 p-alert">{datosErr}</div>}
             <div className="p-col2 p-actions"><button className="p-btn" onClick={irASimulacion}>Continuar →</button></div>
           </div>
@@ -666,7 +696,34 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
           </>
         )}
 
-        {paso === 3 && sim && (
+        {paso === 3 && (
+          <section className="p-result">
+            <div className="p-card" style={{ padding: "18px 20px" }}>
+              <div className="p-subtitle" style={{ borderTop: "none", paddingTop: 0 }}>Documentación <span>(obligatoria para continuar)</span></div>
+              <p className="p-fine" style={{ margin: "6px 0 12px" }}>Adjuntá tu DNI (frente y dorso) y tu último recibo de sueldo. Podés sumar otros comprobantes.</p>
+              <DocsPicker docs={pendingDocs} onChange={(d) => { setPendingDocs(d); setDocsErr(""); }} />
+              {docsErr && <div className="p-alert">{docsErr}</div>}
+            </div>
+            <div className="p-cta">
+              <button type="button" className="p-btn-ghost" onClick={() => setPaso(2)}>← Volver</button>
+              <button className="p-btn p-btn-mc" onClick={irAVideos}>Continuar →</button>
+              {docsFaltantes.length > 0 && <span className="p-fine">Te falta{docsFaltantes.length === 1 ? "" : "n"} {docsFaltantes.length} documento{docsFaltantes.length === 1 ? "" : "s"}.</span>}
+            </div>
+          </section>
+        )}
+
+        {paso === 4 && (
+          <section className="p-result">
+            <PasoVideos videos={videos} vistos={vistos} onVisto={marcarVisto} error={videosErr} />
+            <div className="p-cta">
+              <button type="button" className="p-btn-ghost" onClick={() => setPaso(3)}>← Volver</button>
+              <button className="p-btn p-btn-mc" onClick={() => setPaso(5)} disabled={!videosOk || !!videosErr}>Continuar →</button>
+              {!videosOk && <span className="p-fine">Terminá de ver los videos para continuar.</span>}
+            </div>
+          </section>
+        )}
+
+        {paso === 5 && sim && (
           <section className="p-result">
             <div className="p-card" style={{ padding: "18px 20px" }}>
               <div className="p-subtitle" style={{ borderTop: "none", paddingTop: 0 }}>Revisá y confirmá tu solicitud</div>
@@ -698,8 +755,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <label className="p-check"><input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} /> Autorizo el <b>tratamiento de mis datos personales</b> para evaluar la solicitud.</label>
             </div>
             <div className="p-cta">
-              <button type="button" className="p-btn-ghost" onClick={() => setPaso(2)}>← Volver</button>
-              <button className="p-btn p-btn-mc" onClick={enviarSolicitud} disabled={enviando || !puedeEnviar || sim?.elegible === false}>{enviando ? "Enviando…" : "Confirmar y enviar solicitud"}</button>
+              <button type="button" className="p-btn-ghost" onClick={() => setPaso(4)}>← Volver</button>
+              <button className="p-btn p-btn-mc" onClick={enviarSolicitud} disabled={enviando || !puedeEnviar || !videosOk || sim?.elegible === false}>{enviando ? "Enviando…" : "Confirmar y enviar solicitud"}</button>
               {sim?.elegible === false
                 ? <span className="p-fine">No cumplís las condiciones de este crédito: no se puede enviar.</span>
                 : !puedeEnviar && <span className="p-fine">Completá el CBU y aceptá los términos para enviar.</span>}
@@ -893,7 +950,26 @@ function Estilos() {
     .p-table td.r, .p-table th.r { text-align:right; }
     .p-table tr:last-child td { border-bottom:none; }
     /* Documentación adjunta (H-160) */
-    .p-docs { margin-top:18px; border-top:1px solid var(--p-border); padding-top:14px; }
+    .p-docs { margin-top:4px; }
+    .p-docs-req { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
+    .p-docs-req li { display:flex; align-items:center; gap:6px; font-size:.82rem; font-weight:600; padding:5px 12px; border-radius:999px; border:1px dashed var(--p-border); color:var(--p-muted); }
+    .p-docs-req li.ok { border-style:solid; border-color:var(--p-ok); color:var(--p-ok); }
+
+    /* Paso 4: videos obligatorios */
+    .p-videos { padding:18px 20px; }
+    .p-video { border:1px solid var(--p-border); border-radius:14px; padding:12px; margin-bottom:12px; background:var(--p-surface); }
+    .p-video.off { opacity:.65; }
+    .p-video.ok { border-color:var(--p-ok); }
+    .p-video-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .p-video-head .p-fine { margin:0 0 0 auto; }
+    .p-video-n { width:26px; height:26px; border-radius:999px; display:grid; place-items:center; font-size:.8rem; font-weight:800; background:var(--p-bg); color:var(--p-muted); }
+    .p-video.on .p-video-n { background:var(--p-brand); color:var(--p-brand-ink); }
+    .p-video.ok .p-video-n { background:var(--p-ok); color:#fff; }
+    .p-video video { width:100%; max-height:62vh; border-radius:10px; background:#000; display:block; }
+    .p-video-bar { height:6px; border-radius:999px; background:var(--p-bg); overflow:hidden; margin-top:8px; }
+    .p-video-bar span { display:block; height:100%; background:var(--p-green); transition:width .3s; }
+    .p-video-aviso { margin:8px 0 0; font-size:.8rem; color:var(--p-warn); font-weight:600; }
+    .p-video-lock { height:140px; border-radius:10px; background:var(--p-bg); display:grid; place-items:center; font-size:1.6rem; }
     .p-docs-head { font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--p-muted); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
     .p-docs-count { font-weight:700; color:var(--p-ink); background:var(--p-surface-2, rgba(120,140,170,.14)); border-radius:999px; padding:1px 8px; font-size:.72rem; letter-spacing:0; }
     .p-docs-opt { font-weight:400; text-transform:none; letter-spacing:0; color:var(--p-muted); font-size:.72rem; }
@@ -929,5 +1005,6 @@ function Estilos() {
       .p-notis{ position:fixed; left:8px; right:8px; top:64px; width:auto; }
     }
     @media (max-width:400px){ .p-kpis{ grid-template-columns:1fr 1fr; } .p-form{ grid-template-columns:1fr; } }
+    @media (max-width:560px){ .p-steps{ gap:6px; } .p-step{ padding:5px 10px 5px 5px; font-size:.78rem; } .p-step:not(.on){ font-size:0; gap:0; padding:4px; } .p-step:not(.on) .p-step-n{ font-size:.75rem; } }
   `}</style>;
 }

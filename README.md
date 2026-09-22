@@ -105,6 +105,7 @@ CREDITOS_PORTAL_JWT_SECRET=cambiar_distinto_de_JWT_SECRET   # firma los tokens d
 CREDITOS_PUBLIC_URL=http://localhost                       # base del callback OIDC y del portal
 CREDITOS_BASES_HOST_PATH=./externalfiles/creditos_bases    # backup DBF del VFP para el ETL
 CREDITOS_PORTAL_MOCK_SSO=false                             # true sólo en demo/QA
+CREDITOS_PORTAL_VIDEOS_HOST_PATH=./externalfiles/portal_videos   # video1.mp4, video2.mp4, video3.mp4 del paso 4
 MICATAMARCA_CLIENT_ID=
 MICATAMARCA_CLIENT_SECRET=
 

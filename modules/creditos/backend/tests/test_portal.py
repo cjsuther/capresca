@@ -108,8 +108,47 @@ def _un_producto(client, h):
 
 
 # CBU + consentimientos + identidad declarada, obligatorios para enviar (se ignoran en /simular). H-162.
+VIDEOS = ["video1", "video2", "video3"]   # los obligatorios por defecto (config `portal_videos`)
 CONSENT = {"cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True,
-           "apellido": "PEREZ", "nombre": "JUAN CARLOS", "dni": "30123456"}
+           "apellido": "PEREZ", "nombre": "JUAN CARLOS", "dni": "30123456", "videos_vistos": VIDEOS}
+
+
+def test_videos_obligatorios_del_paso_4(client):
+    """El portal lista los videos que hay que ver completos antes de confirmar."""
+    h = _ingresar(client)
+    vs = client.get("/api/creditos/portal/videos", headers=h).json()
+    assert [v["id"] for v in vs] == VIDEOS
+    assert vs[0] == {"id": "video1", "titulo": "Video 1", "url": "/portal-creditos/videos/video1.mp4"}
+    assert client.get("/api/creditos/portal/videos").status_code == 401   # sólo con sesión del ciudadano
+
+
+def test_no_se_envia_sin_ver_todos_los_videos(client):
+    """Aunque se llame a la API salteando el portal, sin los tres videos vistos no hay solicitud; con
+    ellos, queda registrado en la solicitud que los vio (auditoría)."""
+    h = _ingresar(client)
+    p = _un_producto(client, h)
+    base = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": 12}
+    for vistos in ([], ["video1", "video2"], ["video1", "video2", "otro"]):
+        r = client.post("/api/creditos/portal/solicitudes", headers=h, json={**base, "videos_vistos": vistos})
+        assert r.status_code == 422 and "videos" in r.json()["detail"]
+    r = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "vid-ok"}, json=base)
+    assert r.status_code == 201, r.text
+    from app.core.database import SessionLocal
+    from app import models_productos as _m
+    with SessionLocal() as db:
+        sol = db.query(_m.PPSolicitud).filter_by(numero=r.json()["numero"]).one()
+        assert sol.datos_adicionales["videos_vistos"]["videos"] == VIDEOS
+
+
+def test_sin_videos_configurados_no_se_exigen(client, monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "portal_videos", "")
+    h = _ingresar(client)
+    assert client.get("/api/creditos/portal/videos", headers=h).json() == []
+    p = _un_producto(client, h)
+    r = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "vid-none"},
+                    json={**CONSENT, "videos_vistos": [], "producto_id": p["id"], "monto": 500000.0, "plazo": 12})
+    assert r.status_code == 201, r.text
 
 
 def test_enviar_exige_identidad_declarada(client):
@@ -118,7 +157,7 @@ def test_enviar_exige_identidad_declarada(client):
     h = _ingresar(client)
     p = _un_producto(client, h)
     base = {"cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True,
-            "producto_id": p["id"], "monto": 500000.0, "plazo": 12}
+            "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "videos_vistos": VIDEOS}
     # sin apellido/nombre → 422
     assert client.post("/api/creditos/portal/solicitudes", headers=h, json=base).status_code == 422
     # DNI inválido → 422

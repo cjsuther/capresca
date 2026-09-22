@@ -219,6 +219,12 @@ class PortalPreAprobadoOut(BaseModel):
     plazo: int
 
 
+class PortalVideoOut(BaseModel):
+    id: str
+    titulo: str
+    url: str
+
+
 class PortalSolicitudIn(DatosSolicitante):
     producto_id: str
     monto: float = Field(gt=0)
@@ -233,6 +239,7 @@ class PortalSolicitudIn(DatosSolicitante):
     cbu: str = ""                       # CBU de acreditación (22 dígitos)
     acepta_terminos: bool = False       # consentimiento: términos y condiciones
     acepta_datos: bool = False          # consentimiento: tratamiento de datos personales
+    videos_vistos: list[str] = []       # ids de los videos obligatorios que vio completos (paso 4)
 
 
 class PortalSolicitudOut(BaseModel):

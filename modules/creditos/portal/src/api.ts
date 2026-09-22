@@ -69,6 +69,9 @@ export type SolicitudDetalle = Solicitud & {
   sueldo: number | null; afectacion: number | null; total_a_pagar: number; cuotas: Cuota[];
 };
 
+// Video obligatorio del paso 4: se ve completo (sin adelantar) antes de confirmar la solicitud.
+export type Video = { id: string; titulo: string; url: string };
+
 export type Solicitud = {
   numero: string; estado: string; producto: string; monto: number; plazo: number;
   cuota_estimada: number; tna: number; fecha: string; motivo_rechazo: string;
@@ -84,8 +87,9 @@ export const api = {
   preAprobado: (b: { producto_id: string; plazo: number; sueldo: number; afectacion_max?: number }): Promise<PreAprobado> =>
     req("/portal/pre-aprobado", { method: "POST", body: JSON.stringify(b) }),
   // Idempotency-Key: un doble-clic en "Enviar" no crea dos solicitudes.
-  enviarSolicitud: (b: { producto_id: string; monto: number; plazo: number; apellido?: string; nombre?: string; dni?: string; destino?: string; cbu?: string; acepta_terminos?: boolean; acepta_datos?: boolean } & Datos, idemKey: string): Promise<Solicitud> =>
+  enviarSolicitud: (b: { producto_id: string; monto: number; plazo: number; apellido?: string; nombre?: string; dni?: string; destino?: string; cbu?: string; acepta_terminos?: boolean; acepta_datos?: boolean; videos_vistos?: string[] } & Datos, idemKey: string): Promise<Solicitud> =>
     req("/portal/solicitudes", { method: "POST", body: JSON.stringify(b), headers: { "Idempotency-Key": idemKey } }),
+  videos: (): Promise<Video[]> => req("/portal/videos"),
   misSolicitudes: (): Promise<Solicitud[]> => req("/portal/solicitudes"),
   solicitudDetalle: (numero: string): Promise<SolicitudDetalle> => req(`/portal/solicitudes/${numero}`),
   // Documentación adjunta

@@ -7,6 +7,24 @@
 
 ---
 
+## H-213 · Portal: documentación en su propio paso y videos obligatorios antes de confirmar
+**Fecha:** 2026-09-22 · **Módulo:** Portal del ciudadano · **Alcance:** pedido del usuario
+- El trámite pasa a 5 pasos: Tus datos → Simulación → **Documentación** → **Videos** → Confirmación.
+- **Documentación (paso 3):** sale de "Tus datos". Para seguir hay que adjuntar DNI frente, DNI
+  dorso y el último recibo de sueldo ("Otro" es opcional). Los archivos se siguen subiendo al enviar
+  (todavía no hay número de solicitud antes); un borrador retomado vuelve, como mucho, a este paso
+  porque los archivos no se guardan en el dispositivo.
+- **Videos (paso 4):** tres videos que se ven completos y en orden. No se puede adelantar (un salto
+  vuelve al punto más lejano visto) ni cambiar la velocidad; sí volver atrás. Si la pestaña pasa a
+  segundo plano, el video se pausa. Terminar el video sin haberlo recorrido no cuenta. Lo visto se
+  recuerda en el dispositivo hasta enviar; la solicitud siguiente los vuelve a pedir.
+- **Control en el backend:** `POST /portal/solicitudes` exige `videos_vistos` con todos los videos
+  configurados (422 si falta alguno) y deja la constancia en `datos_adicionales.videos_vistos`. El
+  bloqueo del reproductor corre en el navegador; esta validación impide saltearlo llamando a la API.
+- Lista de videos: config `PORTAL_VIDEOS` ("id:Título,…"), expuesta en `GET /portal/videos`. Los
+  archivos no van en el repo ni en la imagen: el contenedor del portal los sirve desde
+  `CREDITOS_PORTAL_VIDEOS_HOST_PATH` (default `externalfiles/portal_videos`), con soporte de Range.
+
 ## H-212 · Impuestos, índices, feriados y workflow pasan al módulo Configuraciones
 **Fecha:** 2026-09-22 · **Módulo:** Configuraciones (nuevo, :8011) / Créditos · **Alcance:** pedido del usuario
 - La configuración que no tenía pantalla se muda a un módulo propio con backend (base aparte) y

@@ -134,6 +134,23 @@ def callback(code: str, state: str, request: Request, db: Session = Depends(get_
     return RedirectResponse(f"{s.portal_web_url}/ingreso#token={token}")
 
 
+def videos_obligatorios() -> list[dict]:
+    """Videos que hay que ver completos antes de confirmar (config `portal_videos`, "id:Título,…")."""
+    out = []
+    for item in (get_settings().portal_videos or "").split(","):
+        vid, _, titulo = item.strip().partition(":")
+        if vid:
+            out.append({"id": vid, "titulo": titulo.strip() or vid,
+                        "url": f"/portal-creditos/videos/{vid}.mp4"})
+    return out
+
+
+@router.get("/videos", response_model=list[schemas.PortalVideoOut])
+def videos(c: Ciudadano = Depends(get_ciudadano)):
+    """Videos del paso 4: el ciudadano los ve completos (sin adelantar) antes de confirmar."""
+    return videos_obligatorios()
+
+
 @router.get("/me", response_model=schemas.CiudadanoOut)
 def me(c: Ciudadano = Depends(get_ciudadano)):
     return schemas.CiudadanoOut(sub=c.sub, email=c.email, nombre=c.nombre)
@@ -327,6 +344,12 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
     cbu = "".join(ch for ch in (req.cbu or "") if ch.isdigit())
     if len(cbu) != 22:
         raise HTTPException(422, "El CBU debe tener 22 dígitos.")
+    # Paso 4: los videos obligatorios tienen que estar vistos completos. El portal no deja avanzar sin
+    # verlos; acá se exige igual para que no se pueda saltear llamando a la API directo.
+    requeridos = [v["id"] for v in videos_obligatorios()]
+    faltan = [v for v in requeridos if v not in set(req.videos_vistos)]
+    if faltan:
+        raise HTTPException(422, "Tenés que ver los videos completos antes de enviar la solicitud.")
     # H-162: el ciudadano declara su identidad (Mi Catamarca sólo confirma que existe). Apellido, nombre y
     # DNI son obligatorios para poder liquidar; el DNI debe tener 7 u 8 dígitos.
     apellido, nombre = (req.apellido or "").strip(), (req.nombre or "").strip()
@@ -366,6 +389,7 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
                                "destino": destino,
                                "cbu": cbu, "consentimiento": {"terminos": True, "datos": True,
                                                               "fecha": str(date.today())},
+                               "videos_vistos": {"videos": requeridos, "fecha": str(date.today())},
                                "afectacion": (round(cuota_est / req.sueldo * 100, 1)
                                               if (req.sueldo and req.sueldo > 0) else None)},
             creado_por=marca, enviada_por=marca)

@@ -485,6 +485,9 @@ services:
     build:
       context: ./modules/creditos/portal
       dockerfile: Dockerfile
+    volumes:
+      # Videos obligatorios del paso 4 (video1.mp4, video2.mp4, video3.mp4), read-only.
+      - ${CREDITOS_PORTAL_VIDEOS_HOST_PATH:-./externalfiles/portal_videos}:/videos:ro
     networks:
       - app_network
     restart: unless-stopped
