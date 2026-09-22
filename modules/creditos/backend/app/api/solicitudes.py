@@ -16,6 +16,7 @@ from app.services import documentos
 
 from app.core import clientes_padron
 from app.core.database import get_db
+from app.core.descargas import disposicion
 from app.core.numbering import crear_con_numero_unico
 from app.core.idempotency import con_idempotencia
 from app.deps import get_current_user
@@ -402,4 +403,4 @@ def descargar_documento_solicitud(sid: str, doc_id: str, db: Session = Depends(g
     if not doc:
         raise HTTPException(404, "Documento no encontrado.")
     return Response(content=doc.contenido, media_type=doc.content_type,
-                    headers={"Content-Disposition": f'inline; filename="{doc.nombre}"'})
+                    headers={"Content-Disposition": disposicion(doc.nombre)})

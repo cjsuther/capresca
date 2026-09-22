@@ -69,6 +69,16 @@ function postIdem(path, body) {
 }
 
 // Descarga/abre un archivo protegido (PDF/Excel). `path` ya viene absoluto (incluye API).
+/** Trae un archivo del backend como Blob (con la sesión del usuario), para mostrarlo en la página. */
+async function traerArchivo(path) {
+  try {
+    const res = await api.request({ url: path, baseURL: "", responseType: "blob" });
+    return res.data;
+  } catch (e) {
+    throw new Error(e.response ? "No se pudo abrir el archivo" : e.message);
+  }
+}
+
 async function abrirArchivo(path, downloadName) {
   let res;
   try {
@@ -150,6 +160,7 @@ export const creditos = {
   ppSolicitudPromover: (id, d = {}) => req(`/solicitudes/${id}/promover-cliente`, { method: "POST", body: JSON.stringify(d) }),
   ppSolicitudDocs: (sid) => req(`/solicitudes/${sid}/documentos`),
   ppSolicitudDocAbrir: (sid, docId) => abrirArchivo(`${API}/solicitudes/${sid}/documentos/${docId}`),
+  ppSolicitudDocArchivo: (sid, docId) => traerArchivo(`${API}/solicitudes/${sid}/documentos/${docId}`),
   ctoDevengar: (id) => req(`/contratos/${id}/devengar`, { method: "POST" }),
   ctoPdf: (id, numero) => abrirArchivo(`${API}/contratos/${id}/pdf`, `${numero}.pdf`),
   ctoCarteraExcel: () => abrirArchivo(`${API}/contratos/export.xlsx`, "cartera_creditos.xlsx"),

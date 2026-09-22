@@ -11,7 +11,7 @@ import { useAuthStore } from "../../../../context/authStore";
 vi.mock("../../../../api/creditos", () => ({
   creditos: {
     ppSolicitudes: vi.fn(), ppSolicitud: vi.fn(), ppSolicitudCrear: vi.fn(), ppSolicitudEstado: vi.fn(),
-    ppSolicitudPromover: vi.fn(), ppSolicitudDocs: vi.fn(), ppSolicitudDocAbrir: vi.fn(),
+    ppSolicitudPromover: vi.fn(), ppSolicitudDocs: vi.fn(), ppSolicitudDocAbrir: vi.fn(), ppSolicitudDocArchivo: vi.fn(),
     ppSimPreview: vi.fn(), ppOferta: vi.fn(), ctoSegmentos: vi.fn(), ctoOriginar: vi.fn(),
   },
 }));
@@ -99,6 +99,27 @@ describe("Solicitudes de crédito · deep link del inbox", () => {
     montar();
     await screen.findByText("SOL-1");
     expect(creditos.ppSolicitud).not.toHaveBeenCalled();
+  });
+});
+
+describe("Solicitudes de crédito · documentación adjunta", () => {
+  it("los documentos del solicitante se ven dentro de la página", async () => {
+    globalThis.URL.createObjectURL = vi.fn(() => "blob:dni");
+    globalThis.URL.revokeObjectURL = vi.fn();
+    creditos.ppSolicitudDocs.mockResolvedValue({ items: [
+      { id: "doc-1", tipo: "DNI_FRENTE", nombre: "dni frente.png", tamano: 900000 },
+      { id: "doc-2", tipo: "RECIBO", nombre: "recibo.pdf", tamano: 180000 },
+    ] });
+    creditos.ppSolicitudDocArchivo.mockResolvedValue(new Blob(["x"], { type: "image/png" }));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-1"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    await u.click(await within(detalle).findByRole("button", { name: "dni frente.png" }));
+    const visor = await screen.findByRole("dialog", { name: /DNI/ });
+    expect(await within(visor).findByRole("img")).toHaveAttribute("src", "blob:dni");
+    expect(creditos.ppSolicitudDocArchivo).toHaveBeenCalledWith("s1", "doc-1");
+    expect(creditos.ppSolicitudDocAbrir).not.toHaveBeenCalled();   // ya no abre otra pestaña
   });
 });
 

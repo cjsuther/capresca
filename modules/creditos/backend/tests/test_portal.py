@@ -537,6 +537,28 @@ def test_documento_subir_listar_descargar(client):
     assert client.get(f"/api/creditos/solicitudes/{sid}/documentos/{doc['id']}", headers=hi).content == PNG
 
 
+def test_documento_con_nombre_no_ascii_se_abre(client):
+    """Regresión: las capturas de macOS traen un espacio angosto (U+202F) antes de "a. m."; el nombre iba
+    tal cual al encabezado Content-Disposition (sólo latin-1) y abrir el documento daba 500, tanto en el
+    portal como en la plataforma. Ahora va en UTF-8 (filename*) con un respaldo ASCII."""
+    from urllib.parse import quote
+    nombre = "Captura de pantalla 2026-09-22 a la(s) 11.46.03\u202fa.\u00a0m. — Peña.png"
+    h = _ingresar(client)
+    numero = _crear_sol(client, h)
+    doc = client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=h,
+                      files={"archivo": (nombre, PNG, "image/png")}, data={"tipo": "DNI_FRENTE"}).json()
+    dl = client.get(f"/api/creditos/portal/solicitudes/{numero}/documentos/{doc['id']}", headers=h)
+    assert dl.status_code == 200 and dl.content == PNG
+    cd = dl.headers["content-disposition"]
+    assert cd.startswith("inline; filename=\"Captura de pantalla") and f"filename*=UTF-8''{quote(doc['nombre'], safe='')}" in cd
+
+    tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
+    hi = {"Authorization": f"Bearer {tok}"}
+    sid = next(s for s in client.get("/api/creditos/solicitudes", headers=hi).json()["items"] if s["numero"] == numero)["id"]
+    r = client.get(f"/api/creditos/solicitudes/{sid}/documentos/{doc['id']}", headers=hi)
+    assert r.status_code == 200 and r.content == PNG and r.headers["content-type"].startswith("image/png")
+
+
 def test_documento_valida_formato_y_owner(client):
     """Rechaza formatos no permitidos (422) y solicitudes ajenas (404); permite borrar el propio."""
     h = _ingresar(client)

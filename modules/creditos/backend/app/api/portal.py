@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.descargas import disposicion
 from app.core.idempotency import con_idempotencia
 from app.core.numbering import crear_con_numero_unico
 from app.core.security import create_portal_token, create_state_token, decode_token
@@ -501,7 +502,7 @@ def descargar_documento(numero: str, doc_id: str, db: Session = Depends(get_db),
     if not doc:
         raise HTTPException(404, "Documento no encontrado")
     return Response(content=doc.contenido, media_type=doc.content_type,
-                    headers={"Content-Disposition": f'inline; filename="{doc.nombre}"'})
+                    headers={"Content-Disposition": disposicion(doc.nombre)})
 
 
 @router.delete("/solicitudes/{numero}/documentos/{doc_id}")

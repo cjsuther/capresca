@@ -4,6 +4,7 @@ import { creditos } from "../../../../api/creditos";
 import { PageHeader, Card, Field, Boton, Alerta, Modal } from "../../components/ui";
 import { Pill } from "../../components/Pill";
 import { Confirmacion } from "../../components/Confirmacion";
+import { VisorDocumento } from "../../components/VisorDocumento";
 import { BuscadorCliente, nombreCliente } from "../../components/BuscadorCliente";
 import { useSoloLectura } from "../../permisos";
 import { fecha, fmtBytes } from "../../components/format";
@@ -58,6 +59,7 @@ export default function SolicitudesCreditoPage() {
   // Detalle de una solicitud
   const [sel, setSel] = useState(null);
   const [docs, setDocs] = useState([]);
+  const [viendoDoc, setViendoDoc] = useState(null);   // índice del documento abierto en el visor
   const [crono, setCrono] = useState([]);
   const [cronoAbierto, setCronoAbierto] = useState(false);
   const [cargandoCrono, setCargandoCrono] = useState(false);
@@ -95,6 +97,7 @@ export default function SolicitudesCreditoPage() {
 
   // Al abrir una solicitud: documentación, cronograma estimado y observación previa.
   useEffect(() => {
+    setViendoDoc(null);
     if (!sel?.id) { setDocs([]); setCrono([]); return; }
     setObs(sel.datosAdicionales?.obs_revision || ""); setDetErr(""); setCronoAbierto(false);
     creditos.ppSolicitudDocs(sel.id).then((d) => setDocs(d.items)).catch(() => setDocs([]));
@@ -530,8 +533,8 @@ export default function SolicitudesCreditoPage() {
               {docs.map((d) => (
                 <div key={d.id} className="flex items-center gap-2 py-1 text-sm">
                   <Pill>{TIPODOC[d.tipo] || d.tipo}</Pill>
-                  <button onClick={() => creditos.ppSolicitudDocAbrir(sel.id, d.id)}
-                          className="text-blue-600 hover:underline">{d.nombre}</button>
+                  <button onClick={() => setViendoDoc(docs.indexOf(d))}
+                          className="text-blue-600 hover:underline truncate max-w-xs" title={`Ver ${d.nombre}`}>{d.nombre}</button>
                   <span className="text-gray-400 text-xs">{fmtBytes(d.tamano)}</span>
                 </div>
               ))}
@@ -631,6 +634,12 @@ export default function SolicitudesCreditoPage() {
           </p>
           <BuscadorCliente onSelect={(c) => c && vincularCliente(c)} autoFocus />
         </Modal>
+      )}
+
+      {viendoDoc != null && sel && docs[viendoDoc] && (
+        <VisorDocumento docs={docs} inicial={viendoDoc} etiquetas={TIPODOC}
+                        cargar={(d) => creditos.ppSolicitudDocArchivo(sel.id, d.id)}
+                        onClose={() => setViendoDoc(null)} />
       )}
 
       {confirmando && (
