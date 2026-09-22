@@ -20,7 +20,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies.auth import Usuario
-from app.services import auditoria_central as central, avisos, interbanking, workflow
+from app.services import (auditoria_central as central, avisos, contabilidad_central as contab,
+                          interbanking, workflow)
 
 # Estados de un pago que lo mantienen "vivo" (no se puede cargar de nuevo en otro lote).
 VIVOS = ("PENDIENTE", "ENVIANDO", "ENVIADO", "CONFIRMADO", "INCIERTO")
@@ -311,12 +312,25 @@ def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str) -> 
         p.estado = interbanking.clasificar(p.estado_banco)
         if p.estado == "CONFIRMADO":
             p.confirmado_en = _ahora()
+            _contabilizar(lote, p)
     except interbanking.EnvioRechazado as e:
         p.estado, p.motivo = "FALLIDO", f"Interbanking rechazó la transferencia: {e}"[:300]
     except interbanking.EnvioIncierto as e:
         p.estado, p.motivo = "INCIERTO", (f"{e}. Verificá en el banco si salió antes de resolverlo; "
                                           "no se reintenta solo.")[:300]
     db.commit()
+
+
+def _contabilizar(lote: models.Lote, p: models.Pago) -> None:
+    """El pago acreditado es la transacción que Contabilidad convierte en asiento (no le mandamos uno)."""
+    contab.registrar(tipo=f"PAGO_{lote.origen}", referencia=f"{lote.codigo}/{p.referencia_externa}",
+                     fecha=(p.confirmado_en or _ahora()).date(),
+                     descripcion=f"Pago a {p.beneficiario} · lote {lote.codigo}",
+                     usuario=lote.enviado_por,
+                     datos={"importe": float(p.monto), "beneficiario": p.beneficiario,
+                            "documento": p.documento, "cbu": p.cbu, "lote": lote.codigo,
+                            "referencia_origen": p.referencia_externa, "simulado": lote.simulado,
+                            "id_operacion_ib": p.id_operacion_ib})
 
 
 def recalcular(lote: models.Lote) -> None:
@@ -392,6 +406,7 @@ def actualizar(db: Session, lote: models.Lote, usuario: str = "sistema") -> int:
             continue
         if lote.simulado or p.estado_banco == "SIMULADO":
             p.estado, p.estado_banco, p.confirmado_en = "CONFIRMADO", "SIMULADO", _ahora()
+            _contabilizar(lote, p)
             cambios += 1
             continue
         if not p.transfer_id:
@@ -405,6 +420,7 @@ def actualizar(db: Session, lote: models.Lote, usuario: str = "sistema") -> int:
             p.estado_banco, p.estado = eb, nuevo
             if nuevo == "CONFIRMADO":
                 p.confirmado_en = _ahora()
+                _contabilizar(lote, p)
             if nuevo == "FALLIDO":
                 p.motivo = f"El banco informó {eb}."
             cambios += 1
@@ -454,6 +470,9 @@ def resolver_incierto(db: Session, lote: models.Lote, pago_id: int, resultado: s
     if not observacion:
         raise HTTPException(422, "Indicá qué verificaste en el banco.")
     p.estado, p.motivo = resultado, f"Resuelto a mano: {observacion}"[:300]
+    if resultado == "CONFIRMADO":
+        p.confirmado_en = p.confirmado_en or _ahora()
+        _contabilizar(lote, p)
     if resultado == "CONFIRMADO":
         p.confirmado_en = _ahora()
     evento(db, lote, user.username, "INCIERTO_RESUELTO", f"{p.beneficiario}: {resultado} — {observacion}")

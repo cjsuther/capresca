@@ -182,3 +182,26 @@ def test_la_auditoria_se_consulta_con_su_permiso(metodo, ruta):
 def test_el_registro_de_auditoria_no_se_escribe_desde_afuera(metodo, ruta):
     assert get_service_url(metodo, ruta) is None
 
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/contabilidad/asientos", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/libros/diario", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/transacciones/sin-definir", "contabilidad:asientos:read"),
+    ("POST", "/api/contabilidad/asientos", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/asientos/4/anular", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/transacciones/reprocesar", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/cuentas", "contabilidad:definiciones:write"),
+    ("PUT", "/api/contabilidad/definiciones/4", "contabilidad:definiciones:write"),
+    ("POST", "/api/contabilidad/definiciones/4/probar", "contabilidad:definiciones:write"),
+    ("POST", "/api/contabilidad/ejercicios", "contabilidad:ejercicios:write"),
+    ("POST", "/api/contabilidad/ejercicios/4/cerrar", "contabilidad:ejercicios:write"),
+])
+def test_rutas_de_contabilidad(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.contabilidad_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+
+
+def test_las_transacciones_contables_solo_entran_por_la_api_interna():
+    """Ningún módulo manda asientos ni transacciones por el gateway: van por la red interna."""
+    assert get_service_url("POST", "/internal/contabilidad/transacciones") is None
+

@@ -24,6 +24,7 @@ MODULES = [
     {"code": "legacy", "name": "Legacy", "description": "Integración con el sistema legacy (VFP9) — interacciones IN/OUT", "icon": "database"},
     {"code": "creditos", "name": "Créditos", "description": "CCyPP: créditos, originación, cartera y portal ciudadano", "icon": "landmark"},
     {"code": "tesoreria", "name": "Tesorería", "description": "Lotes de pagos: aprobación y envío por Interbanking", "icon": "wallet"},
+    {"code": "contabilidad", "name": "Contabilidad", "description": "Plan de cuentas, asientos, libros y estados contables", "icon": "book-open"},
     {"code": "auditoria", "name": "Auditoría", "description": "Qué hace cada usuario con la información del sistema", "icon": "clipboard-list"},
     {"code": "configuraciones", "name": "Configuraciones", "description": "Impuestos, índices, feriados y workflow de aprobaciones", "icon": "settings"},
 ]
@@ -105,6 +106,14 @@ PERMISSIONS = {
         ("lotes:enviar", "Tesorería · enviar lotes aprobados por Interbanking"),
         ("aprobaciones:aprobar", "Tesorería · aprobar lotes (rol APROBAR del workflow)"),
         ("aprobaciones:supervisar", "Tesorería · aprobar niveles de supervisión (rol SUPERVISAR)"),
+    ],
+    # Contabilidad: consultar (libros), registrar asientos manuales, definir cómo se contabiliza cada
+    # transacción y administrar los ejercicios (incluido el cierre).
+    "contabilidad": [
+        ("asientos:read", "Contabilidad · ver asientos, libros y estados contables"),
+        ("asientos:write", "Contabilidad · registrar asientos manuales y anular"),
+        ("definiciones:write", "Contabilidad · plan de cuentas y definiciones de asiento"),
+        ("ejercicios:write", "Contabilidad · abrir y cerrar ejercicios"),
     ],
     # La auditoría es sólo de lectura: nadie edita ni borra el registro (ni el administrador).
     "auditoria": [

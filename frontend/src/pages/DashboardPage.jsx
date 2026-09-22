@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings, Wallet, ClipboardList } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings, Wallet, ClipboardList, BookOpen } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -85,6 +85,15 @@ const ALL_MODULES = [
     color: "bg-green-50 border-green-200 text-green-700",
     iconColor: "text-green-500",
     path: "/modules/tesoreria",
+  },
+  {
+    code: "contabilidad",
+    name: "Contabilidad",
+    description: "Asientos desde las transacciones, libros y estados contables",
+    icon: BookOpen,
+    color: "bg-indigo-50 border-indigo-200 text-indigo-700",
+    iconColor: "text-indigo-500",
+    path: "/modules/contabilidad",
   },
   {
     code: "auditoria",

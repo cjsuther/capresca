@@ -177,6 +177,17 @@ ROUTE_MAP = [
     # ── Configuraciones: un par read/write por catálogo (impuestos, índices, feriados, workflow) ──
     *_configuraciones_rutas(),
 
+    # ── Contabilidad: consultar libros / registrar asientos / definir imputaciones / ejercicios ──
+    ("GET",  r"^/api/contabilidad/",                                    settings.contabilidad_service_url, "contabilidad:asientos:read"),
+    ("POST", r"^/api/contabilidad/asientos$",                           settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/asientos/\d+/anular$",                settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/transacciones/reprocesar$",           settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/(cuentas|centros|definiciones)$",     settings.contabilidad_service_url, "contabilidad:definiciones:write"),
+    ("PUT",  r"^/api/contabilidad/(cuentas|definiciones)/\d+$",         settings.contabilidad_service_url, "contabilidad:definiciones:write"),
+    ("POST", r"^/api/contabilidad/definiciones/\d+/probar$",            settings.contabilidad_service_url, "contabilidad:definiciones:write"),
+    ("POST", r"^/api/contabilidad/ejercicios$",                         settings.contabilidad_service_url, "contabilidad:ejercicios:write"),
+    ("POST", r"^/api/contabilidad/ejercicios/\d+/cerrar$",              settings.contabilidad_service_url, "contabilidad:ejercicios:write"),
+
     # ── Auditoría: sólo consulta (el registro no se edita ni se borra desde ningún lado) ──
     ("GET",  r"^/api/auditoria/eventos(/\d+|/resumen)?$",               settings.auditoria_service_url, "auditoria:eventos:read"),
     ("GET",  r"^/api/auditoria/registros/[^/]+/[^/]+/[^/]+$",           settings.auditoria_service_url, "auditoria:eventos:read"),

@@ -115,6 +115,13 @@ def test_la_auditoria_es_solo_de_lectura(correr_seed, db):
     assert {p.code for p in db.query(Permission).filter_by(module_id=mod.id).all()} == {"eventos:read"}
 
 
+def test_contabilidad_separa_consultar_registrar_definir_y_cerrar(correr_seed, db):
+    correr_seed()
+    mod = db.query(Module).filter_by(code="contabilidad").one()
+    assert {p.code for p in db.query(Permission).filter_by(module_id=mod.id).all()} == {
+        "asientos:read", "asientos:write", "definiciones:write", "ejercicios:write"}
+
+
 def test_seed_crea_los_tres_roles(correr_seed, db):
     correr_seed()
     assert {r.name for r in db.query(Role).all()} == {"admin", "cajero", "supervisor"}

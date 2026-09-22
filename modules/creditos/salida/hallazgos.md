@@ -7,6 +7,30 @@
 
 ---
 
+## H-222 · Módulo Contabilidad: el asiento se arma acá, desde la transacción del módulo
+**Fecha:** 2026-09-22 · **Módulo:** Contabilidad (nuevo) / Créditos / Tesorería · **Alcance:** pedido del usuario
+- Nuevo módulo **Contabilidad** (:8014). **Ningún módulo manda asientos**: mandan la transacción que
+  ocurrió (`POST /internal/contabilidad/transacciones`, idempotente por módulo+tipo+referencia) y acá se
+  resuelve con la **definición** de ese tipo. Sin definición, la transacción queda
+  **PENDIENTE_CONFIGURACION**; al cargar la regla se contabiliza sola (y lo mismo con las que fallaron).
+- La definición dice, por línea, cuenta, lado y cómo se calcula el importe con los campos que manda el
+  módulo (`capital + gastos`). Las expresiones son un mini-lenguaje seguro (números, campos y `+ - * /`):
+  una definición cargada por pantalla no ejecuta código. Se puede **probar** con una transacción real.
+- Trazabilidad en los dos sentidos: la transacción muestra su asiento y el asiento, la operación que lo
+  originó con los datos que llegaron.
+- Lo que pide una contabilidad argentina: plan de cuentas por rubro con cuentas de agrupación y marca de
+  ajustable (RT 6), partida doble obligatoria, ejercicios con cierre y refundición de resultados,
+  numeración correlativa, libro inalterable (se anula con contra-asiento), libro diario, mayor, sumas y
+  saldos, estados contables con control de la ecuación, **libro IVA ventas y compras** con totales por
+  alícuota, centros de costo, diarios y CUIT/condición frente al IVA del ente.
+- Integrado: **Créditos** (desembolso, devengamiento, cobranza, cancelación anticipada) y **Tesorería**
+  (pago acreditado). Créditos conserva su contabilidad interna (cuenta corriente y reportes del módulo);
+  al módulo Contabilidad le manda transacciones, nunca asientos.
+- QA de punta a punta en local: contrato → Tesorería → pago acreditado → Créditos desembolsa → llegaron
+  las dos transacciones; la de Créditos ya tenía definición y salió el asiento (1.1.04 a 1.1.02 por
+  $300.000), la de Tesorería quedó esperando y se contabilizó al definirla. Sumas y saldos balanceado.
+- Pendiente: el motor de ajuste por inflación (la marca en el plan y la cuenta RECPAM ya están).
+
 ## H-221 · Módulo Auditoría: qué hace cada usuario con la información del sistema
 **Fecha:** 2026-09-22 · **Módulo:** Auditoría (nuevo) / todos · **Alcance:** pedido del usuario
 - Nuevo módulo **Auditoría** (:8013): un evento por acción, con quién, qué módulo, qué registro

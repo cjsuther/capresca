@@ -17,6 +17,7 @@ volumes:
   configuraciones_data:
   tesoreria_data:
   auditoria_data:
+  contabilidad_data:
 
 services:
 
@@ -73,6 +74,7 @@ services:
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       # Auditoría central: el gateway registra toda operación que modifica datos.
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -88,6 +90,7 @@ services:
       - configuraciones
       - tesoreria
       - auditoria
+      - contabilidad
     networks:
       - app_network
     restart: unless-stopped
@@ -458,6 +461,43 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────
+  # Módulo Contabilidad — transacciones de los módulos → asientos, libros y estados (API :8014)
+  # ──────────────────────────────────────────
+  contabilidad:
+    build:
+      context: ./modules/contabilidad
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${CONTABILIDAD_DB_USER}:${CONTABILIDAD_DB_PASS}@db_contabilidad:5432/${CONTABILIDAD_DB_NAME}
+      # La presentan los módulos al mandar sus transacciones (nunca asientos).
+      - INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+    depends_on:
+      db_contabilidad:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_contabilidad:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${CONTABILIDAD_DB_NAME}
+      - POSTGRES_USER=${CONTABILIDAD_DB_USER}
+      - POSTGRES_PASSWORD=${CONTABILIDAD_DB_PASS}
+    volumes:
+      - contabilidad_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CONTABILIDAD_DB_USER} -d ${CONTABILIDAD_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
   # Módulo Auditoría — qué hace cada usuario con la información del sistema (API :8013)
   # ──────────────────────────────────────────
   auditoria:
@@ -505,6 +545,8 @@ services:
       - DATABASE_URL=postgresql://${TESORERIA_DB_USER}:${TESORERIA_DB_PASS}@db_tesoreria:5432/${TESORERIA_DB_NAME}
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
+      - CONTABILIDAD_INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
       # Autentica a los módulos que le mandan lotes y a los avisos de resultado que Tesorería les devuelve.
       - INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
       - INTERBANKING_SERVICE_URL=http://interbanking:8004
@@ -551,6 +593,8 @@ services:
       - DATABASE_URL=postgresql+psycopg://${CREDITOS_DB_USER}:${CREDITOS_DB_PASS}@db_creditos:5432/${CREDITOS_DB_NAME}
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
+      - CONTABILIDAD_INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
       # Firma SOLO los tokens del portal ciudadano (realm propio). Debe ser distinto de JWT_SECRET:
       # los usuarios del backoffice los autentica el gateway de Portezuelo.
       - JWT_SECRET=${CREDITOS_PORTAL_JWT_SECRET}
