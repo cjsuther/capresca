@@ -293,3 +293,11 @@ def test_una_cuenta_de_otro_plan_con_movimientos_no_se_borra(client, contador, d
     sembrar(db)
 
     assert db.query(Cuenta).filter_by(codigo="9.9.91").first() is not None
+
+
+def test_el_plan_dice_que_cuentas_estan_en_uso(client, contador):
+    """La pantalla necesita saberlo: una cuenta con movimientos no se borra ni cambia de rubro."""
+    _asiento(client, contador, debe="1.1.01", haber="1.1.02", importe=100)
+    cuentas = {c["codigo"]: c for c in client.get(f"{API}/cuentas", headers=contador).json()["items"]}
+    assert cuentas["1.1.01"]["enUso"] is True and cuentas["1.1.01"]["movimientos"] == 1
+    assert cuentas["1.2.01"]["enUso"] is False and cuentas["1.2.01"]["movimientos"] == 0

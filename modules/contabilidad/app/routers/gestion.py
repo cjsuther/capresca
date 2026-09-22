@@ -41,12 +41,14 @@ class CuentaIn(BaseModel):
     activa: bool = True
 
 
-def _serial_cuenta(c: models.Cuenta) -> dict:
+def _serial_cuenta(c: models.Cuenta, movimientos: int = 0) -> dict:
     return {"id": c.id, "codigo": c.codigo, "nombre": c.nombre, "rubro": c.rubro,
             "imputable": c.imputable, "saldoNormal": c.saldo_normal, "moneda": c.moneda,
             "ajustable": c.ajustable, "requiereCentro": c.requiere_centro,
             "descripcion": c.descripcion, "activa": c.activa,
-            "nivel": c.codigo.count(".") + 1}
+            "nivel": c.codigo.count(".") + 1,
+            # Una cuenta en uso no se borra ni cambia de rubro: la pantalla lo muestra.
+            "movimientos": movimientos, "enUso": movimientos > 0}
 
 
 @router.get("/cuentas")
@@ -54,7 +56,9 @@ def listar_cuentas(solo_imputables: bool = False, db: Session = Depends(get_db))
     q = select(models.Cuenta).order_by(models.Cuenta.codigo)
     if solo_imputables:
         q = q.where(models.Cuenta.imputable.is_(True), models.Cuenta.activa.is_(True))
-    items = [_serial_cuenta(c) for c in db.scalars(q).all()]
+    usos = dict(db.execute(select(models.AsientoLinea.cuenta_codigo, func.count())
+                           .group_by(models.AsientoLinea.cuenta_codigo)).all())
+    items = [_serial_cuenta(c, int(usos.get(c.codigo, 0))) for c in db.scalars(q).all()]
     return {"items": items, "total": len(items), "rubros": list(models.RUBROS)}
 
 

@@ -9,6 +9,7 @@ describe("módulo Contabilidad", () => {
       ["/modules/contabilidad/libros", "asientos:read"],
       ["/modules/contabilidad/conciliacion", "asientos:read"],
       ["/modules/contabilidad/plan", "asientos:read"],
+      ["/modules/contabilidad/ejercicios", "asientos:read"],
     ]);
   });
 });

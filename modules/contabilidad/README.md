@@ -70,8 +70,12 @@ transacción real antes de aplicarla.
   queda a pagar o a favor, con el detalle por alícuota.
 - **Análisis por centro de costo**: ingresos, egresos y resultado de cada centro.
 - **Entes contables**: razón social, CUIT, condición frente al IVA y domicilio.
-- **Plan de cuentas**: alta, edición y baja; una cuenta con movimientos o usada por una definición no
-  se borra (se da de baja y queda en los libros).
+- **Plan de cuentas** con la misma experiencia del sistema anterior: **árbol jerárquico** plegable con
+  buscador a la izquierda y los **datos de la cuenta** a la derecha. Cada rama tiene su "＋" para
+  agregarle una subcuenta con el **código ya sugerido** (1.1 → 1.1.03), la cuenta que se está creando
+  aparece en el árbol para ver dónde queda, se puede **duplicar** una cuenta y avisa antes de perder
+  cambios sin guardar. Una cuenta **en uso** muestra sus movimientos y deja fijos el código, el rubro y
+  la imputabilidad (para dejar de usarla, se le saca "Activa"); una cuenta sin movimientos se borra.
 
 ## Permisos
 
