@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     String, Integer, BigInteger, Numeric, Date, DateTime, Boolean, ForeignKey,
-    Text, Index, UniqueConstraint, JSON, func, event,
+    Text, UniqueConstraint, JSON, func, event,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,11 +47,19 @@ class Organismo(Base):
 
 
 class Cliente(Base):
-    """Clientes / agentes (VFP: maeclientes + maestrodio consolidados)."""
+    """
+    ESPEJO del padrón de clientes de Portezuelo (módulo Clientes) + los datos crediticios propios.
+
+    La identidad (apellido y nombre, documento, domicilio, contacto, CBU) es de sólo lectura acá: se
+    sincroniza desde el servicio de Clientes, que es el único maestro (ver core/clientes_padron.py).
+    `id` es el id del cliente EN EL PADRÓN, no una secuencia local. Lo propio de Créditos —sueldo,
+    organismo, categoría, débito automático— sigue viviendo en esta tabla.
+    """
     __tablename__ = "clientes"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    id_cliente: Mapped[str] = mapped_column(String(15), unique=True, index=True)  # cidcliente
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)   # id del padrón
+    sincronizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    id_cliente: Mapped[str] = mapped_column(String(15), unique=True, index=True)  # cidcliente (legacy)
     cuil: Mapped[str] = mapped_column(String(11), unique=True, index=True)  # ccuil (único: la DB es árbitro, H-154)
     dni: Mapped[str] = mapped_column(String(9), default="")        # edni
     apellido_nombre: Mapped[str] = mapped_column(String(80))       # capenom
@@ -122,37 +130,6 @@ class MovimientoCta(Base):
     iva: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     punitorio: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     no_recibo: Mapped[int] = mapped_column(Integer, default=0)
-
-
-class Requisito(Base):
-    """Requisitos para créditos por línea (VFP: frm305150000requisitos)."""
-    __tablename__ = "requisitos"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    linea_id: Mapped[int | None] = mapped_column(ForeignKey("lineas_credito.id"))
-    descripcion: Mapped[str] = mapped_column(String(150))
-    obligatorio: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class Gasista(Base):
-    """Gasistas / Institutos matriculados (VFP: frm305250000gasistas)."""
-    __tablename__ = "gasistas"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(80))
-    matricula: Mapped[str] = mapped_column(String(30), default="")
-    cuit: Mapped[str] = mapped_column(String(11), default="")
-    activo: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class MontoPeriodo(Base):
-    """Monto máximo a prestar por línea y período (VFP: frm305300000montosperiodos)."""
-    __tablename__ = "montos_periodo"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    linea_id: Mapped[int] = mapped_column(ForeignKey("lineas_credito.id"))
-    periodo: Mapped[str] = mapped_column(String(7), index=True)   # YYYY-MM
-    monto_maximo: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
 
 
 class Solicitud(Base):
@@ -390,177 +367,6 @@ class PagoCuota(Base):
     cuota: Mapped["Cuota"] = relationship()
 
 
-class Juego(Base):
-    """Maestro de juegos (VFP: maejuegos). Cada juego/modalidad con su comisión."""
-    __tablename__ = "juegos"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[int] = mapped_column(Integer, index=True)          # CODIGO
-    modalidad: Mapped[int] = mapped_column(Integer, default=0)        # MODALIDAD
-    cod_afip: Mapped[int] = mapped_column(Integer, default=0)         # NCODAFIP
-    denominacion: Mapped[str] = mapped_column(String(40), default="")  # DENOMINACI
-    com_agencia: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=0)    # COM_AGENCI %
-    com_subagencia: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=0)  # COM_SUBAGE %
-
-
-class Sorteo(Base):
-    """Sorteo/jugada de un juego (VFP: maejugadas). Calendario de sorteos."""
-    __tablename__ = "sorteos_juego"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    cod_juego: Mapped[int] = mapped_column(Integer, index=True)       # COD_JUEGO
-    no_sorteo: Mapped[int] = mapped_column(Integer, index=True)       # NO_SORTEO
-    fecha_sorteo: Mapped[date | None] = mapped_column(Date)           # FECHA_SORT
-    fecha_vto: Mapped[date | None] = mapped_column(Date)              # FECHA_VTO
-    importado_caja: Mapped[bool] = mapped_column(Boolean, default=False)  # CAJAIMPORT
-
-
-class AgenciaJuego(Base):
-    """Agencia de juegos/quiniela (VFP: agjsjuegos/agenjuegos)."""
-    __tablename__ = "agencias_juego"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    numero: Mapped[int] = mapped_column(Integer, index=True)          # no_agencia
-    subagencia: Mapped[int] = mapped_column(Integer, default=0)       # no_subagen
-    codigo: Mapped[int] = mapped_column(Integer, default=0)           # cod_agenci
-    interior: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Juegos que ofrece
-    quiniela: Mapped[bool] = mapped_column(Boolean, default=False)
-    quini6: Mapped[bool] = mapped_column(Boolean, default=False)
-    loto: Mapped[bool] = mapped_column(Boolean, default=False)
-    brinco: Mapped[bool] = mapped_column(Boolean, default=False)
-    prode: Mapped[bool] = mapped_column(Boolean, default=False)
-    telekino: Mapped[bool] = mapped_column(Boolean, default=False)
-    activa: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class LiquidacionAgencia(Base):
-    """Liquidación de una agencia por sorteo (VFP: cajaliq)."""
-    __tablename__ = "liquidaciones_agencia"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    cod_agencia: Mapped[int] = mapped_column(Integer, index=True, default=0)  # cod_agenci
-    no_agencia: Mapped[int] = mapped_column(Integer, index=True)
-    subagencia: Mapped[int] = mapped_column(Integer, default=0)
-    cod_juego: Mapped[int] = mapped_column(Integer, default=0)         # cod_juego
-    juego: Mapped[str] = mapped_column(String(30), default="")         # cjuego
-    no_sorteo: Mapped[int] = mapped_column(Integer, index=True)
-    fecha_sorteo: Mapped[date | None] = mapped_column(Date)
-    interior: Mapped[bool] = mapped_column(Boolean, default=False)     # INTERIOR (capital/interior)
-    moneda: Mapped[str] = mapped_column(String(1), default="$")        # MONEDA ($/B)
-    recaudacion: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    premios: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    com_premios: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)  # COM_PREMIO
-    comision_agencia: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    comision_subagencia: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    multas: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    ing_brutos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)   # ING_BRUTOS (retención)
-    fdo_gtia: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)     # FDO_GTIA (fondo de garantía)
-    total: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    intereses: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    iva: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    total_gral: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    fecha_vto: Mapped[date | None] = mapped_column(Date)
-    pagado: Mapped[bool] = mapped_column(Boolean, default=False)
-    fecha_pago: Mapped[date | None] = mapped_column(Date)
-    cajero: Mapped[str] = mapped_column(String(20), default="")
-    no_recibo: Mapped[int] = mapped_column(Integer, default=0, index=True)
-
-
-class CajaCreSeg(Base):
-    """Cola/cobros de caja de Créditos, Seguros y Extraordinarios (VFP: cajacreseg).
-    Cada ítem cobrado por caja, con su interés/IVA normal y punitorio. Es la fuente
-    real de la cobranza de créditos/seguros en caja (menú 22515) y de sus reportes."""
-    __tablename__ = "caja_creseg"
-
-    id: Mapped[int] = mapped_column(primary_key=True)               # NORDEN
-    origen: Mapped[str] = mapped_column(String(4), index=True)      # CRED/SEGU/EXTR/JUEG
-    no_credito: Mapped[int] = mapped_column(Integer, default=0, index=True)
-    cuil: Mapped[str] = mapped_column(String(11), default="")
-    dni: Mapped[str] = mapped_column(String(9), default="")
-    apellido_nombre: Mapped[str] = mapped_column(String(80), default="")  # APENOM
-    cuota: Mapped[int] = mapped_column(Integer, default=0)          # CUALCUO
-    moncuo: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    interes: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)     # interés normal
-    iva_interes: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)  # IVAIN
-    seguro: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)      # NSEG
-    iva_seguro: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)  # NIVASEG
-    gastos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    iva_gastos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)  # NIVAADM
-    interes_punit: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)   # INTERESES
-    iva_punit: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)       # IVA
-    total: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    total_gral: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    moneda: Mapped[str] = mapped_column(String(1), default="$")
-    cajero: Mapped[str] = mapped_column(String(20), default="")
-    fecha_pago: Mapped[date | None] = mapped_column(Date, index=True)
-    pagado: Mapped[bool] = mapped_column(Boolean, default=False)
-    revertida: Mapped[bool] = mapped_column(Boolean, default=False)   # LREVERTIDA
-    no_recibo: Mapped[int] = mapped_column(Integer, default=0, index=True)  # RECOFI
-    mes: Mapped[int] = mapped_column(Integer, default=0)
-    ano: Mapped[int] = mapped_column(Integer, default=0)
-    coding: Mapped[int] = mapped_column(Integer, default=0, index=True)   # CODING (tipo ingreso)
-    subing: Mapped[int] = mapped_column(Integer, default=0)               # SUBING
-    ctactble: Mapped[str] = mapped_column(String(20), default="")
-
-
-class CajaPagoAgencia(Base):
-    """Recibo de cobro de una agencia de quiniela (VFP: cajapagos). Doble moneda
-    (bonos/pesos), vuelto por moneda y premios descontados. Reconstruye el
-    Aplicativo de Caja (frm225050000aplicaj / menú 22505)."""
-    __tablename__ = "caja_pagos_agencia"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    cod_agencia: Mapped[int] = mapped_column(Integer, index=True)      # cod_agenci
-    fecha_pago: Mapped[date | None] = mapped_column(Date, index=True)
-    origen: Mapped[str] = mapped_column(String(4), default="JUEG")
-    # Nº de recibo de cobranza de agencia (max+1 global): unicidad por la DB (árbitro). H-108.
-    no_recibo: Mapped[int] = mapped_column(Integer, unique=True, index=True)
-    bonos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)          # adeudado bonos
-    pesos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)          # adeudado pesos
-    total: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    cobrado_bonos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    cobrado_pesos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    cobrado_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    vuelto_bonos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    vuelto_pesos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    premios_bonos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    premios_pesos: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    cajero: Mapped[str] = mapped_column(String(20), default="")
-    anulado: Mapped[bool] = mapped_column(Boolean, default=False)
-
-
-class TramiteTipo(Base):
-    """Catálogo de tipos de trámite histórico (VFP: tipotram): N=Nota, E*=Expedientes."""
-    __tablename__ = "tramite_tipos"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[str] = mapped_column(String(4), index=True, default="")  # TIPO
-    descripcion: Mapped[str] = mapped_column(String(60), default="")        # DESCRIPCIO
-    corta: Mapped[str] = mapped_column(String(15), default="")              # DES_RED
-
-
-class Tramite(Base):
-    """Trámite / nota / expediente de Mesa de Entradas (VFP: tramites, 82k).
-    Identificado por tipo+letra+número+año."""
-    __tablename__ = "tramites"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    tipo: Mapped[str] = mapped_column(String(4), index=True, default="")    # ID_TRAMITE
-    letra: Mapped[str] = mapped_column(String(2), default="")               # ID_LETRA
-    numero: Mapped[int] = mapped_column(Integer, index=True, default=0)     # ID_NRO
-    anio: Mapped[int] = mapped_column(Integer, index=True, default=0)       # ID_ANO
-    sentido: Mapped[str] = mapped_column(String(1), default="")             # I_D (I/D)
-    referencia: Mapped[str] = mapped_column(String(120), default="")
-    iniciador: Mapped[str] = mapped_column(String(80), default="")         # NOMBRE_INI/INICIADOR
-    asegurado: Mapped[str] = mapped_column(String(80), default="")         # NOMBRE_ASE
-    destino: Mapped[str] = mapped_column(String(40), default="")
-    estado: Mapped[str] = mapped_column(String(1), default="", index=True)  # A/C/B
-    oficina_actual: Mapped[int] = mapped_column(Integer, default=0)
-    hojas: Mapped[int] = mapped_column(Integer, default=0)
-    fecha_alta: Mapped[date | None] = mapped_column(Date, index=True)
-
-
 class Proveedor(Base):
     """Proveedor (VFP: proveedores). Beneficiario de OP por licitaciones/compras."""
     __tablename__ = "proveedores"
@@ -656,36 +462,6 @@ class PerfilPermiso(Base):
     nivel: Mapped[str] = mapped_column(String(10), default="CONSULTA")
 
 
-class Oficina(Base):
-    """Oficina/dependencia interna (VFP: oficinas). Referenciada por los pases."""
-    __tablename__ = "oficinas"
-
-    id: Mapped[int] = mapped_column(primary_key=True)   # ID_OFICINA
-    denominacion: Mapped[str] = mapped_column(String(60), default="")
-    telefono_interno: Mapped[str] = mapped_column(String(10), default="")
-    telefono_linea: Mapped[str] = mapped_column(String(20), default="")
-    interna: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class TramitePase(Base):
-    """Pase (movimiento de oficina) de un trámite de Mesa (VFP: pases, 428k).
-    Ligado al trámite por tipo+letra+número+año. (Distinto de Pase de Expediente)."""
-    __tablename__ = "tramite_pases"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    tipo: Mapped[str] = mapped_column(String(4), default="")
-    letra: Mapped[str] = mapped_column(String(2), default="")
-    numero: Mapped[int] = mapped_column(Integer, default=0)
-    anio: Mapped[int] = mapped_column(Integer, default=0)
-    fecha_pase: Mapped[date | None] = mapped_column(Date)
-    oficina_origen: Mapped[int] = mapped_column(Integer, default=0)
-    oficina_destino: Mapped[int] = mapped_column(Integer, default=0)
-    texto: Mapped[str] = mapped_column(String(255), default="")
-    activo: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    __table_args__ = (Index("ix_pase_tramite", "tipo", "letra", "numero", "anio"),)
-
-
 class TipoTramite(Base):
     """Catálogo de tipos de trámite de Mesa de entradas (VFP: agjsmesa)."""
     __tablename__ = "tipos_tramite"
@@ -694,40 +470,6 @@ class TipoTramite(Base):
     nombre: Mapped[str] = mapped_column(String(60))
     prefijo: Mapped[str] = mapped_column(String(3), default="")  # p.ej. CR, PG
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class Turno(Base):
-    """Turno de atención (VFP: agjsmesa — turnos)."""
-    __tablename__ = "turnos"
-    # Correlativo por día: unicidad (fecha, numero) garantizada por la DB. H-108.
-    __table_args__ = (UniqueConstraint("fecha", "numero", name="uq_turnos_fecha_numero"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    numero: Mapped[int] = mapped_column(Integer, index=True)          # correlativo del día
-    fecha: Mapped[date] = mapped_column(Date, index=True)
-    tipo_tramite_id: Mapped[int] = mapped_column(ForeignKey("tipos_tramite.id"))
-    cliente_nombre: Mapped[str] = mapped_column(String(80), default="")
-    cliente_cuil: Mapped[str] = mapped_column(String(11), default="")
-    estado: Mapped[str] = mapped_column(String(1), default="E")       # E espera, L llamado, A atendido, C cancelado
-    box: Mapped[str] = mapped_column(String(20), default="")
-    generado: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    atendido: Mapped[datetime | None] = mapped_column(DateTime)
-
-    tipo_tramite: Mapped["TipoTramite"] = relationship()
-
-
-class ModeloResolucion(Base):
-    """Modelo/plantilla de resolución o disposición (VFP: rtf). Catálogo."""
-    __tablename__ = "modelos_resolucion"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    tipo_res: Mapped[int] = mapped_column(Integer, default=0)          # TIPO_RES
-    codigo: Mapped[int] = mapped_column(Integer, index=True, default=0)  # COD_MOD
-    descripcion: Mapped[str] = mapped_column(String(120), default="")  # DES_MOD
-    es_disposicion: Mapped[bool] = mapped_column(Boolean, default=False)  # DISPOSICIO
-    es_seguros: Mapped[bool] = mapped_column(Boolean, default=False)   # SEGUROS
-    tiene_plantilla: Mapped[bool] = mapped_column(Boolean, default=False)
-    plantilla: Mapped[str] = mapped_column(Text, default="")           # MODELO (texto base que "Modelo a utilizar" carga)
 
 
 class SolicitudCredito(Base):
@@ -751,84 +493,6 @@ class SolicitudCredito(Base):
     fecha_resol: Mapped[date | None] = mapped_column(Date)
     en_reso: Mapped[bool] = mapped_column(Boolean, default=False)
     lote: Mapped[int] = mapped_column(Integer, default=0, index=True)
-
-
-class Resolucion(Base):
-    """Resolución / Disposición administrativa (VFP: agjsdespacho — resoluciones)."""
-    __tablename__ = "resoluciones"
-    # Nº correlativo por año y tipo: unicidad (anio, tipo, numero) garantizada por la DB. H-108.
-    __table_args__ = (UniqueConstraint("anio", "tipo", "numero", name="uq_resoluciones_anio_tipo_numero"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    numero: Mapped[int] = mapped_column(Integer, index=True)         # NRO_RES (Nº correlativo)
-    anio: Mapped[int] = mapped_column(Integer, index=True)
-    tipo: Mapped[str] = mapped_column(String(3), default="RES")      # RES / DIS
-    fecha: Mapped[date] = mapped_column(Date)                        # FEC_RES
-    # Nº Real / Fecha Real: el número OFICIAL, que se carga después del correlativo (pantalla VFP
-    # "Carga Nº Real de RESOLUCIÓN"). Puede quedar nulo hasta que Despacho lo asigna. H-164.
-    numero_real: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)   # NRO_REAL
-    fecha_real: Mapped[date | None] = mapped_column(Date, nullable=True)                  # FEC_REAL
-    organo: Mapped[str] = mapped_column(String(60), default="")
-    asunto: Mapped[str] = mapped_column(String(200))
-    motivo_cod: Mapped[int] = mapped_column(Integer, default=0)      # COD_MOT
-    motivo: Mapped[str] = mapped_column(String(120), default="")     # etiqueta del motivo (ej. TRANSFERENCIA)
-    importe: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=0)  # IMPORTE
-    modelo_codigo: Mapped[int | None] = mapped_column(Integer, nullable=True)  # COD_MOD del modelo usado
-    origen: Mapped[str] = mapped_column(String(40), default="")      # ID_TRAMITE/ID_LETRA/ID_NRO/ID_ANO (Exp./Nota origen)
-    nro_op: Mapped[int | None] = mapped_column(Integer, nullable=True)   # NRO_OP (orden de pago asociada)
-    texto: Mapped[str] = mapped_column(Text, default="")             # TEXTO (Texto del Instrumento Legal)
-    estado: Mapped[str] = mapped_column(String(1), default="B")      # B borrador, F firmada
-    anulada: Mapped[bool] = mapped_column(Boolean, default=False)    # LANULADA
-    creado: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-
-    beneficiarios: Mapped[list["ResolucionBeneficiario"]] = relationship(
-        back_populates="resolucion", cascade="all, delete-orphan")
-
-
-class ResolucionBeneficiario(Base):
-    """Beneficiario de una resolución (VFP: Despacho/beneficiarios.dbf). Grilla al pie de la pantalla."""
-    __tablename__ = "resolucion_beneficiarios"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    resolucion_id: Mapped[int] = mapped_column(ForeignKey("resoluciones.id"), index=True)
-    tipo_doc: Mapped[int] = mapped_column(Integer, default=0)        # TIPO_DOC
-    nro_doc: Mapped[str] = mapped_column(String(11), default="")     # NRO_DOC
-    nombre: Mapped[str] = mapped_column(String(80), default="")      # NOMBRE
-    tipo_bene: Mapped[int] = mapped_column(Integer, default=0)       # TIPO_BENE
-
-    resolucion: Mapped["Resolucion"] = relationship(back_populates="beneficiarios")
-
-
-class Expediente(Base):
-    """Expediente / trámite que circula por pases (VFP: agjsdespacho / agjsmesa)."""
-    __tablename__ = "expedientes"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    numero: Mapped[str] = mapped_column(String(20), unique=True, index=True)
-    caratula: Mapped[str] = mapped_column(String(200))
-    iniciador: Mapped[str] = mapped_column(String(80), default="")
-    fecha_inicio: Mapped[date] = mapped_column(Date)
-    estado: Mapped[str] = mapped_column(String(1), default="T")      # T en trámite, A archivado
-    oficina_actual: Mapped[str] = mapped_column(String(60), default="")
-
-    pases: Mapped[list["Pase"]] = relationship(
-        back_populates="expediente", cascade="all, delete-orphan")
-
-
-class Pase(Base):
-    """Pase de un expediente entre oficinas (VFP: pases)."""
-    __tablename__ = "pases"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    expediente_id: Mapped[int] = mapped_column(ForeignKey("expedientes.id"), index=True)
-    orden: Mapped[int] = mapped_column(Integer, default=1)
-    fecha: Mapped[date] = mapped_column(Date)
-    oficina_origen: Mapped[str] = mapped_column(String(60), default="")
-    oficina_destino: Mapped[str] = mapped_column(String(60))
-    motivo: Mapped[str] = mapped_column(String(200), default="")
-    usuario: Mapped[str] = mapped_column(String(30), default="")
-
-    expediente: Mapped["Expediente"] = relationship(back_populates="pases")
 
 
 class OrdenPago(Base):
@@ -876,19 +540,6 @@ class AutorizacionOP(Base):
     fres1: Mapped[date | None] = mapped_column(Date)                  # FRES1
     nres2: Mapped[int] = mapped_column(Integer, default=0)            # NRES2
     fres2: Mapped[date | None] = mapped_column(Date)                  # FRES2
-
-
-class Chequera(Base):
-    """Chequera de un banco (VFP: agjsegresos — chequeras, frm805050000altachequeras)."""
-    __tablename__ = "chequeras"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    banco: Mapped[str] = mapped_column(String(40))
-    cuenta: Mapped[str] = mapped_column(String(30), default="")
-    numero_desde: Mapped[int] = mapped_column(Integer)
-    numero_hasta: Mapped[int] = mapped_column(Integer)
-    proximo: Mapped[int] = mapped_column(Integer)          # próximo cheque a usar
-    activa: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class MovimientoContable(Base):
@@ -954,41 +605,6 @@ class CentroCosto(Base):
     codigo: Mapped[str] = mapped_column(String(12), unique=True, index=True)
     nombre: Mapped[str] = mapped_column(String(60))
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class ExtractoBancarioLinea(Base):
-    """Línea del extracto bancario (resumen del banco) para la conciliación. Se coteja contra los
-    movimientos del mayor en la cuenta banco. `importe` con signo: + aumenta el saldo del banco
-    (crédito/depósito), − lo disminuye (débito/pago)."""
-    __tablename__ = "extracto_bancario_lineas"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    empresa_id: Mapped[int | None] = mapped_column(ForeignKey("empresas.id"), index=True, nullable=True)  # H-188
-    cuenta_codigo: Mapped[str] = mapped_column(String(12), index=True)   # cuenta banco del plan (p.ej. 1.1.02)
-    fecha: Mapped[date] = mapped_column(Date, index=True)
-    descripcion: Mapped[str] = mapped_column(String(120), default="")
-    referencia: Mapped[str] = mapped_column(String(40), default="")
-    importe: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)   # con signo (+ ingreso / − egreso)
-    conciliada: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    asiento_linea_id: Mapped[int | None] = mapped_column(ForeignKey("asientos_lineas.id"), nullable=True)
-    creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-
-
-class EjercicioContable(Base):
-    """Ejercicio contable (período fiscal). Estado abierto/cerrado; al cerrar se genera el asiento de
-    cierre (refundición de resultados) y se bloquea la carga de asientos con fecha en el período."""
-    __tablename__ = "ejercicios_contables"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    empresa_id: Mapped[int | None] = mapped_column(ForeignKey("empresas.id"), index=True, nullable=True)  # H-188
-    nombre: Mapped[str] = mapped_column(String(40))                 # ej. "Ejercicio 2026"
-    fecha_desde: Mapped[date] = mapped_column(Date, index=True)
-    fecha_hasta: Mapped[date] = mapped_column(Date, index=True)
-    estado: Mapped[str] = mapped_column(String(10), default="abierto")   # abierto|cerrado
-    resultado: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=0)  # resultado al cierre
-    asiento_cierre_id: Mapped[int | None] = mapped_column(Integer)
-    asiento_apertura_id: Mapped[int | None] = mapped_column(Integer)
-    cerrado_en: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class DiarioContable(Base):
@@ -1366,20 +982,6 @@ class Beneficiario(Base):
     regimen: Mapped["RegimenEspecial"] = relationship()
 
 
-class CuotaRegimen(Base):
-    """Cuota mensual de un beneficiario de régimen especial."""
-    __tablename__ = "cuotas_regimen"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    beneficiario_id: Mapped[int] = mapped_column(ForeignKey("beneficiarios.id"), index=True)
-    regimen_id: Mapped[int] = mapped_column(ForeignKey("regimenes_especiales.id"), index=True)
-    periodo: Mapped[str] = mapped_column(String(7), index=True)   # YYYY-MM
-    monto: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    estado: Mapped[str] = mapped_column(String(1), default="G")   # G generada, L liquidada
-    orden_pago_id: Mapped[int | None] = mapped_column(ForeignKey("ordenes_pago.id"))
-    generado: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-
-
 class Asiento(Base):
     """Asiento contable (cabecera). VFP: cb-crasientootorga / cb-crasientodevenga."""
     __tablename__ = "asientos"
@@ -1458,61 +1060,3 @@ def _asiento_balanceado(mapper, connection, target):
         raise ValueError(
             f"Asiento desbalanceado (origen={target.origen!r}, concepto={target.concepto!r}): "
             f"Σdebe={d} ≠ Σhaber={h}. Todo asiento de la app debe balancear (contabilidad balanceada).")
-
-
-class Impuesto(Base):
-    """Maestro de impuestos del sistema (IVA, IIBB, sellado, percepciones…).
-
-    General: cualquier módulo (créditos, seguros, tesorería) puede referenciarlo.
-    Se administra desde Contabilidad → Impuestos.
-    """
-    __tablename__ = "impuestos"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # IVA21, IIBB...
-    nombre: Mapped[str] = mapped_column(String(120))
-    tipo: Mapped[str] = mapped_column(String(20), default="IVA")   # IVA, IIBB, SELLADO, PERCEPCION, RETENCION, OTRO
-    alicuota: Mapped[Decimal] = mapped_column(Numeric(9, 4), default=0)  # %
-    base: Mapped[str] = mapped_column(String(20), default="INTERES")     # INTERES, CARGOS, CUOTA, CAPITAL, TOTAL
-    cuenta_contable: Mapped[str] = mapped_column(String(12), default="")
-    jurisdiccion: Mapped[str] = mapped_column(String(40), default="")     # para IIBB
-    vigente_desde: Mapped[date | None] = mapped_column(Date, nullable=True)
-    vigente_hasta: Mapped[date | None] = mapped_column(Date, nullable=True)
-    activo: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class IndiceReferencia(Base):
-    """Índices de referencia para tasas variables (BADLAR, política monetaria, UVA…).
-
-    Maestro general del sistema (Contabilidad → Índices). La tasa efectiva de un producto de
-    tasa variable = valor del índice + margen.
-    """
-    __tablename__ = "indices_referencia"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[str] = mapped_column(String(30), unique=True, index=True)
-    nombre: Mapped[str] = mapped_column(String(120))
-    valor: Mapped[Decimal] = mapped_column(Numeric(9, 4), default=0)   # % nominal anual vigente
-    fuente: Mapped[str] = mapped_column(String(60), default="")        # BCRA, INDEC...
-    fecha_valor: Mapped[date | None] = mapped_column(Date, nullable=True)
-    activo: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class Feriado(Base):
-    """Maestro de feriados por país (calendario de días no laborables).
-
-    Lo usa el motor de cronograma para no fechar vencimientos en días inhábiles cuando el
-    producto ajusta a día hábil. Se puede cargar manualmente o importar de una fuente oficial.
-    tipo: INAMOVIBLE (fecha fija) · TRASLADABLE · PUENTE · NO_LABORABLE.
-    origen: MANUAL · OFICIAL (importado de una fuente).
-    """
-    __tablename__ = "feriados"
-    __table_args__ = (UniqueConstraint("pais", "fecha", name="uq_feriado_pais_fecha"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    pais: Mapped[str] = mapped_column(String(2), index=True, default="AR")  # ISO-3166 alpha-2
-    fecha: Mapped[date] = mapped_column(Date, index=True)
-    nombre: Mapped[str] = mapped_column(String(120))
-    tipo: Mapped[str] = mapped_column(String(20), default="INAMOVIBLE")
-    origen: Mapped[str] = mapped_column(String(10), default="MANUAL")
-    activo: Mapped[bool] = mapped_column(Boolean, default=True)

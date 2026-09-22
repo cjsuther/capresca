@@ -112,7 +112,7 @@ export default function InteraccionesPage() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="bg-surface border border-gray-200 rounded-xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
         <Field label="Desde">
           <input type="date" value={filters.date_from} onChange={(e) => setF("date_from", e.target.value)} className={inputCls} />
         </Field>
@@ -149,7 +149,7 @@ export default function InteraccionesPage() {
       {error && <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}
 
       {/* Tabla */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-surface border border-gray-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -199,7 +199,7 @@ export default function InteraccionesPage() {
                           <div className="text-xs text-gray-600 mb-2">outbox_id: {it.outbox_id}</div>
                         )}
                         <div className="text-xs text-gray-500 mb-1">payload_summary:</div>
-                        <pre className="text-xs bg-white border border-gray-200 rounded p-2 overflow-x-auto">
+                        <pre className="text-xs bg-surface border border-gray-200 rounded p-2 overflow-x-auto">
                           {JSON.stringify(it.payload_summary ?? {}, null, 2)}
                         </pre>
                       </td>

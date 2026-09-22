@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { login } from "../api/auth";
 import { useAuthStore } from "../context/authStore";
 import { useIsAuthenticated } from "../context/usePermissions";
-import { Navigate } from "react-router-dom";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export default function LoginPage() {
   const isAuth = useIsAuthenticated();
@@ -13,20 +13,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
-  // ?next=/creditos/... : volver a la app de un módulo externo (p.ej. Créditos) tras el login.
-  // Sólo rutas locales absolutas ("/x"; no "//host" ni "/\host", que el navegador trata como otro
-  // origen) para no abrir un open redirect.
-  const [params] = useSearchParams();
-  const next = params.get("next") || "";
-  const nextExterno = /^\/(?![\/\\])/.test(next) ? next : null;
 
-  if (isAuth) {
-    if (nextExterno) {
-      window.location.assign(nextExterno);
-      return null;
-    }
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (isAuth) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,8 +23,7 @@ export default function LoginPage() {
     try {
       const data = await login(username, password);
       setAuth(data.access_token, data.user, data.permissions);
-      if (nextExterno) window.location.assign(nextExterno);
-      else navigate("/dashboard");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.detail || "Error al iniciar sesión");
     } finally {
@@ -45,10 +32,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 relative">
+      {/* El tema también se elige antes de entrar: la preferencia es del navegador, no de la sesión. */}
+      <div className="absolute top-4 right-4"><ThemeToggle variante="suelto" /></div>
+      <div className="bg-surface rounded-2xl shadow-lg p-8 w-full max-w-sm">
         <div className="mb-8 text-center">
-          <img src="/logo-condor.svg" alt="Portezuelo" className="h-16 w-auto mx-auto mb-4" />
+          <img src="/logo-condor.svg" alt="Portezuelo" className="logo-marca h-16 w-auto mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900">Portezuelo</h1>
           <p className="text-sm text-gray-500 mt-1">Ingresa tus credenciales</p>
         </div>
@@ -60,7 +49,7 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input w-full"
               placeholder="usuario"
               required
             />
@@ -71,7 +60,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input w-full"
               placeholder="••••••••"
               required
             />

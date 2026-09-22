@@ -3,7 +3,6 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -12,7 +11,7 @@ from app.services import consultas as svc
 from app.reports.excel import (envios_excel, listado_creditos_excel,
                                pagos_caja_excel, turnos_excel)
 from app.reports.pdf import cartera_pdf, por_cartera_pdf
-from app import models, schemas
+from app import schemas
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -28,23 +27,9 @@ def situacion(cliente_id: int, db: Session = Depends(get_db)):
     return data
 
 
-@router.get("/cliente/{cliente_id}/vision-360")
-def vision_360(cliente_id: int, db: Session = Depends(get_db)):
-    """Visión 360° del cliente: datos + créditos + seguros + pagos + trámites."""
-    data = svc.vision_360(db, cliente_id)
-    if not data:
-        raise HTTPException(404, "Cliente no encontrado")
-    return data
-
-
 @router.get("/estadisticas", response_model=schemas.EstadisticasCartera)
 def estadisticas(db: Session = Depends(get_db)):
     return svc.estadisticas_cartera(db)
-
-
-@router.get("/solicitudes-activas")
-def solicitudes_activas(db: Session = Depends(get_db)):
-    return svc.solicitudes_activas(db)
 
 
 @router.get("/creditos")
@@ -165,12 +150,6 @@ def pagos_caja_excel_endpoint(
         "Content-Disposition": 'attachment; filename="pagos_en_caja.xlsx"'})
 
 
-@router.get("/previo-pago")
-def previo_pago(db: Session = Depends(get_db)):
-    """Solicitudes con previo pago (cancelación de crédito anterior)."""
-    return svc.previo_pago(db)
-
-
 @router.get("/cuenta-corriente/{credito_id}")
 def cuenta_corriente(credito_id: int, db: Session = Depends(get_db)):
     """Cuenta corriente (movimientos débito/crédito) de un crédito."""
@@ -178,12 +157,6 @@ def cuenta_corriente(credito_id: int, db: Session = Depends(get_db)):
 
 
 # ---------------- Jubilados / Ley 5094 ----------------
-@router.get("/jubilados")
-def jubilados(liquidada: bool | None = None, db: Session = Depends(get_db)):
-    from app.services import jubilados as jsvc
-    return jsvc.listar(db, liquidada)
-
-
 @router.get("/jubilados/resumen")
 def jubilados_resumen(db: Session = Depends(get_db)):
     from app.services import jubilados as jsvc
@@ -194,12 +167,6 @@ def jubilados_resumen(db: Session = Depends(get_db)):
 def jubilados_por_depto(db: Session = Depends(get_db)):
     from app.services import jubilados as jsvc
     return jsvc.por_departamento(db)
-
-
-@router.get("/jubilados/{jub_id}/cuotas")
-def jubilados_cuotas(jub_id: int, db: Session = Depends(get_db)):
-    from app.services import jubilados as jsvc
-    return jsvc.cuotas(db, jub_id)
 
 
 @router.get("/envios", response_model=schemas.EnviosResumen)
@@ -223,12 +190,6 @@ def envios_excel_endpoint(desde: date, hasta: date, db: Session = Depends(get_db
     xlsx = envios_excel(data)
     return Response(content=xlsx, media_type=XLSX, headers={
         "Content-Disposition": f'attachment; filename="padron_debito_{desde}_{hasta}.xlsx"'})
-
-
-@router.get("/organismos")
-def organismos(db: Session = Depends(get_db)):
-    orgs = db.scalars(select(models.Organismo).order_by(models.Organismo.nombre)).all()
-    return [{"id": o.id, "codigo": o.codigo, "nombre": o.nombre} for o in orgs]
 
 
 @router.get("/resumen-cobros")

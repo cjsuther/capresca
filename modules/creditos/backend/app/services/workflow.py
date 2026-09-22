@@ -1,64 +1,40 @@
-"""Motor de workflow de aprobaciones configurable (cuatro-ojos / N-ojos en serie).
+"""Motor de workflow de aprobaciones (cuatro-ojos / N-ojos en serie).
 
-Una regla por tipo de objeto (LINEA, SOLICITUD, DESEMBOLSO, REFINANCIACION); cada regla tiene N
-niveles en serie; cada nivel aprueba un ROL base con cuatro-ojos y overrides por usuario
-(INCLUIR/EXCLUIR). El evaluador dice si un usuario puede aprobar un nivel dado, respetando que no
-apruebe algo en lo que ya intervino (submitter o aprobadores previos).
+La DEFINICIÓN de las reglas (niveles, rol que aprueba cada uno, cuatro-ojos y overrides por usuario)
+vive en el módulo Configuraciones de Portezuelo; acá se lee con `core.configuraciones.regla_workflow`.
+La EJECUCIÓN es de Créditos: qué nivel de qué objeto aprobó quién (`pp_workflow_aprobacion`, con la
+DB como árbitro contra dos aprobadores concurrentes en el mismo nivel).
 
-La configuración vive en Seguridad (`/api/creditos/workflow`); las reglas sembradas replican el cuatro-ojos
-actual, así el comportamiento por defecto no cambia.
+Objetos: LINEA, SOLICITUD, DESEMBOLSO, REFINANCIACION. Regla inactiva o inexistente → no exige
+aprobación (el gate lo pone la pantalla con el permiso de aprobar).
 """
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models, models_productos as m
+from app.core import configuraciones as config
+from app.core.configuraciones import NivelWorkflow, ReglaWorkflow
 from app.core.gateway import ROLES_APROBACION
 from app.core.permisos import roles_de
 
-# Catálogo de objetos aprobables y su estado inicial (activo hoy vs. futuro).
-OBJETOS = [
-    # App nueva: el cuatro-ojos arranca INACTIVO para que un único admin pueda operar (aprobar/publicar).
-    # Se activa desde Seguridad → Workflow cuando la organización suma un segundo aprobador (H-141).
-    ("LINEA", "Publicación de línea de crédito", "Aprobar/publicar una versión de línea (Configurar Créditos)", False),
-    ("SOLICITUD", "Aprobación de solicitud de crédito", "Resolver una solicitud EN_EVALUACION", False),
-    ("DESEMBOLSO", "Otorgamiento / desembolso de contrato", "Aprobar el desembolso de un crédito", False),
-    ("REFINANCIACION", "Refinanciación de contrato", "Aprobar una refinanciación", False),
-]
+
+def regla(db: Session, objeto: str) -> ReglaWorkflow | None:
+    return config.regla_workflow(objeto)
 
 
-def seed_workflow(db: Session) -> None:
-    """Siembra las reglas por defecto (idempotente): 1 nivel, rol APROBAR, cuatro-ojos on."""
-    for objeto, nombre, desc, activo in OBJETOS:
-        if db.query(m.PPWorkflowRegla).filter_by(objeto=objeto).first():
-            continue
-        regla = m.PPWorkflowRegla(objeto=objeto, nombre=nombre, descripcion=desc, activo=activo)
-        db.add(regla); db.flush()
-        db.add(m.PPWorkflowNivel(regla_id=regla.id, orden=1, nombre="Aprobación", rol="APROBAR", cuatro_ojos=True))
-    db.commit()
-
-
-def regla(db: Session, objeto: str) -> m.PPWorkflowRegla | None:
-    return db.query(m.PPWorkflowRegla).filter_by(objeto=objeto).first()
-
-
-def niveles(db: Session, objeto: str) -> list[m.PPWorkflowNivel]:
+def niveles(db: Session, objeto: str) -> list[NivelWorkflow]:
     r = regla(db, objeto)
-    return sorted(r.niveles, key=lambda n: n.orden) if r else []
+    return list(r.niveles) if r else []
 
 
-def _rol_apto(db: Session, nivel: m.PPWorkflowNivel, user: models.Usuario) -> bool:
-    """¿`user` tiene el rol que aprueba este nivel? Los roles de aprobación (APROBAR / SUPERVISAR) salen de
-    los permisos `aprobaciones:*` que el usuario tiene en Seguridad de Portezuelo; es la misma fuente que
-    gobierna las capacidades de las pantallas (caps_creditos)."""
-    return (nivel.rol or "").upper() in roles_de(db, user)
-
-
-def elegible_en_nivel(db: Session, nivel: m.PPWorkflowNivel, user: models.Usuario,
-                      actores: set[str] | None = None) -> bool:
-    """Elegible = tiene el rol Y (sin cuatro-ojos o no intervino todavía)."""
-    if not _rol_apto(db, nivel, user):
+def _habilitado(db: Session, nivel: NivelWorkflow, user: models.Usuario) -> bool:
+    """¿`user` aprueba este nivel? Por rol (permisos `aprobaciones:*` de Seguridad), salvo los overrides
+    del nivel: EXCLUIR le saca la aprobación aunque tenga el rol; INCLUIR se la da aunque no lo tenga."""
+    if user.username in nivel.excluidos:
         return False
-    return not (nivel.cuatro_ojos and user.username in (actores or set()))
+    if user.username in nivel.incluidos:
+        return True
+    return (nivel.rol or "").upper() in roles_de(db, user)
 
 
 def progreso(db: Session, objeto: str, objeto_id: str) -> dict:
@@ -117,8 +93,10 @@ def puede_aprobar(db: Session, objeto: str, user: models.Usuario,
     niv = next((n for n in r.niveles if n.orden == orden), None)
     if niv is None:
         return True, 200, "sin nivel"
-    # El permiso para aprobar sale de los roles de aprobación del usuario (permisos de Portezuelo).
-    if not _rol_apto(db, niv, user):
+    # Aprueba quien tiene el rol del nivel (permisos de Portezuelo), con los overrides del nivel.
+    if not _habilitado(db, niv, user):
+        if user.username in niv.excluidos:
+            return False, 403, "Estás excluido de este paso de aprobación (Configuraciones → Workflow)."
         return False, 403, (f"No tenés el permiso que aprueba este paso ({ROLES_APROBACION.get((niv.rol or '').upper(), niv.rol)}). "
                             "Se asigna en Seguridad de Portezuelo.")
     if niv.cuatro_ojos and user.username in (actores or set()):

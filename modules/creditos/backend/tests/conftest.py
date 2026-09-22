@@ -35,6 +35,14 @@ _sec_mod.verify_password = _fast_verify
 _seed_mod.hash_password = _fast_hash
 
 
+@pytest.fixture(autouse=True)
+def config_falsa():
+    """Impuestos, índices, feriados y reglas del workflow vienen del módulo Configuraciones: en los
+    tests, de una copia en memoria recién sembrada (ver tests/config_falsa.py)."""
+    from tests.config_falsa import reiniciar
+    return reiniciar()
+
+
 # Módulos de test que NO usan la base de datos (motor de dominio puro).
 _SIN_DB = ("test_motor_cuotas", "test_equivalencia_real", "test_equivalencia_mora")
 

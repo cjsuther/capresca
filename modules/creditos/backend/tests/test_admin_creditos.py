@@ -1,4 +1,4 @@
-"""ABMs de configuración de Créditos: requisitos, gasistas, montos por período."""
+"""Configuración de Créditos: ABM de líneas y generación/asignación de turnos."""
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,35 +13,6 @@ def client():
 def _auth(client):
     r = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"})
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
-
-
-def test_abm_requisitos(client):
-    h = _auth(client)
-    r = client.post("/api/creditos/admin/requisitos", headers=h, json={
-        "descripcion": "Fotocopia de DNI", "obligatorio": True})
-    assert r.status_code == 201
-    assert any(x["descripcion"] == "Fotocopia de DNI"
-               for x in client.get("/api/creditos/admin/requisitos", headers=h).json())
-
-
-def test_abm_gasistas(client):
-    h = _auth(client)
-    g = client.post("/api/creditos/admin/gasistas", headers=h, json={
-        "nombre": "Instituto Gas SRL", "matricula": "MG-123"})
-    assert g.status_code == 201
-    assert any(x["nombre"] == "Instituto Gas SRL"
-               for x in client.get("/api/creditos/admin/gasistas", headers=h).json())
-
-
-def test_abm_montos_periodo(client):
-    h = _auth(client)
-    linea = next(l for l in client.get("/api/creditos/creditos/lineas", headers=h).json()
-                 if l["tipo_calculo"] == 1)
-    m = client.post("/api/creditos/admin/montos-periodo", headers=h, json={
-        "linea_id": linea["id"], "periodo": "2026-05", "monto_maximo": "5000000"})
-    assert m.status_code == 201
-    assert any(x["periodo"] == "2026-05"
-               for x in client.get("/api/creditos/admin/montos-periodo", headers=h).json())
 
 
 def test_abm_lineas_campos_nuevos(client):

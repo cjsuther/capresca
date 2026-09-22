@@ -88,7 +88,7 @@ export default function EstadoPage() {
           </div>
 
           {/* Sincronización por tabla */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-4">
+          <div className="bg-surface border border-gray-200 rounded-xl overflow-hidden mb-4">
             <div className="px-4 py-2 border-b border-gray-100 text-sm font-medium text-gray-700">Sincronización por tabla</div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -123,7 +123,7 @@ export default function EstadoPage() {
 
           {/* Detalle SMB por base de datos */}
           {smb?.databases && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="bg-surface border border-gray-200 rounded-xl p-4">
               <div className="text-sm font-medium text-gray-700 mb-2">Tablas detectadas en el share</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {Object.entries(smb.databases).map(([db, info]) => (
@@ -153,7 +153,7 @@ export default function EstadoPage() {
 
 function Card({ title, icon: Icon, children }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
+    <div className="bg-surface border border-gray-200 rounded-xl p-4">
       <div className="flex items-center gap-2 text-xs uppercase text-gray-400 mb-2">
         {Icon && <Icon size={14} />} {title}
       </div>

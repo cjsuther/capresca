@@ -8,7 +8,7 @@ Seed de datos iniciales:
 import sys
 from app.db.session import SessionLocal
 from app.models.module import Module
-from app.models.permission import Permission
+from app.models.permission import Permission, UserPermission
 from app.models.role import Role
 from app.models.user import User
 from app.services.auth_service import hash_password
@@ -22,24 +22,20 @@ MODULES = [
     {"code": "liquidaciones", "name": "Liquidaciones", "description": "Procesamiento de liquidaciones de juegos", "icon": "receipt"},
     {"code": "comunicacion", "name": "Comunicación", "description": "Chat con clientes vía WhatsApp Business", "icon": "message-circle"},
     {"code": "legacy", "name": "Legacy", "description": "Integración con el sistema legacy (VFP9) — interacciones IN/OUT", "icon": "database"},
-    {"code": "creditos", "name": "Créditos", "description": "CCyPP: créditos, caja, contabilidad, tesorería y portal ciudadano", "icon": "landmark"},
+    {"code": "creditos", "name": "Créditos", "description": "CCyPP: créditos, originación, cartera y portal ciudadano", "icon": "landmark"},
+    {"code": "configuraciones", "name": "Configuraciones", "description": "Impuestos, índices, feriados y workflow de aprobaciones", "icon": "settings"},
 ]
 
 # Créditos: permisos por área (<area>:read / <area>:write). Debe coincidir con
 # modules/creditos/backend/app/core/gateway.py y con proxy/app/routes/mapping.py.
 CREDITOS_AREAS = [
-    ("clientes", "clientes"),
     ("creditos", "créditos"),
-    ("caja", "caja"),
-    ("tesoreria", "tesorería"),
-    ("contabilidad", "contabilidad"),
-    ("seguros", "seguros"),
-    ("despacho", "despacho"),
-    ("mesa", "mesa de entradas"),
-    ("juegos", "juegos / quiniela"),
-    ("general", "tablas generales"),
-    ("seguridad", "auditoría, workflow y controles"),
 ]
+
+# Áreas de CCyPP que no se migraron a Portezuelo: sus permisos se retiran de la base (y de los roles y
+# usuarios que los tuvieran) para que no aparezcan en Seguridad habilitando pantallas que no existen.
+CREDITOS_AREAS_RETIRADAS = ("clientes", "caja", "tesoreria", "contabilidad", "seguros", "despacho",
+                            "mesa", "juegos", "general", "seguridad")
 
 PERMISSIONS = {
     "security": [
@@ -98,6 +94,17 @@ PERMISSIONS = {
         ("admin:read", "Ver outbox de escrituras"),
         ("admin:write", "Forzar sync y drenar el outbox"),
     ],
+    # Un par por catálogo: el workflow (quién aprueba) se asigna aparte de operar los módulos.
+    "configuraciones": [
+        ("impuestos:read", "Configuraciones · ver impuestos"),
+        ("impuestos:write", "Configuraciones · editar impuestos"),
+        ("indices:read", "Configuraciones · ver índices de referencia"),
+        ("indices:write", "Configuraciones · editar índices de referencia"),
+        ("feriados:read", "Configuraciones · ver el calendario de feriados"),
+        ("feriados:write", "Configuraciones · editar el calendario de feriados"),
+        ("workflow:read", "Configuraciones · ver el workflow de aprobaciones"),
+        ("workflow:write", "Configuraciones · configurar el workflow de aprobaciones"),
+    ],
     "creditos": [
         *[perm for area, label in CREDITOS_AREAS for perm in (
             (f"{area}:read", f"Créditos · ver {label}"),
@@ -125,18 +132,31 @@ def run():
                 module_map[m["code"]] = existing
 
         # ── Permisos ─────────────────────────────────────────────
-        perm_map: dict[str, Permission] = {}
+        # Clave (módulo, código): el código ya no es único global, así que dos módulos pueden
+        # declarar el mismo (p.ej. `caja:read`) sin pisarse.
+        perm_map: dict[tuple[str, str], Permission] = {}
         for module_code, perms in PERMISSIONS.items():
             mod = module_map[module_code]
             for code, desc in perms:
-                existing = db.query(Permission).filter(Permission.code == code).first()
+                existing = db.query(Permission).filter(
+                    Permission.module_id == mod.id, Permission.code == code
+                ).first()
                 if not existing:
                     obj = Permission(module_id=mod.id, code=code, description=desc)
                     db.add(obj)
                     db.flush()
-                    perm_map[code] = obj
+                    perm_map[(module_code, code)] = obj
                 else:
-                    perm_map[code] = existing
+                    perm_map[(module_code, code)] = existing
+
+        # ── Permisos retirados ───────────────────────────────────
+        retirados = [f"{area}:{accion}" for area in CREDITOS_AREAS_RETIRADAS for accion in ("read", "write")]
+        obsoletos = db.query(Permission).filter(
+            Permission.module_id == module_map["creditos"].id, Permission.code.in_(retirados)).all()
+        for perm in obsoletos:
+            db.query(UserPermission).filter(UserPermission.permission_id == perm.id).delete()
+            db.delete(perm)   # la relación con roles es `secondary`: se borra la fila de role_permissions
+        db.flush()
 
         # ── Rol admin ────────────────────────────────────────────
         admin_role = db.query(Role).filter(Role.name == "admin").first()
@@ -158,7 +178,7 @@ def run():
             cajero_role = Role(name="cajero", description="Cajero estándar")
             db.add(cajero_role)
             db.flush()
-            cajero_perms = [p for code, p in perm_map.items() if code in (
+            cajero_perms = [p for (_mod, code), p in perm_map.items() if code in (
                 "transactions:read", "transactions:write", "transactions:delete",
                 "clients:read",
             )]
@@ -170,7 +190,7 @@ def run():
             supervisor_role = Role(name="supervisor", description="Supervisor / Autorizador")
             db.add(supervisor_role)
             db.flush()
-            supervisor_perms = [p for code, p in perm_map.items() if code in (
+            supervisor_perms = [p for (_mod, code), p in perm_map.items() if code in (
                 "transactions:read", "transactions:read_all", "transactions:authorize",
                 "rules:read", "rules:write",
                 "clients:read",

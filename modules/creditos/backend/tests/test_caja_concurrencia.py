@@ -62,45 +62,6 @@ def test_orden_pago_numero_unico(db):
     db.query(models.OrdenPago).filter(models.OrdenPago.numero.in_([990001, 990002])).delete(); db.commit()
 
 
-def test_recibo_agencia_no_recibo_unico(db):
-    """Nº de recibo de cobranza de agencia (quiniela) único: la DB rechaza el duplicado. H-108."""
-    from app import models
-    def pa(n):
-        return models.CajaPagoAgencia(cod_agencia=1, no_recibo=n, cajero="admin")
-    db.query(models.CajaPagoAgencia).filter(models.CajaPagoAgencia.no_recibo.in_([990101, 990102])).delete(); db.commit()
-    db.add(pa(990101)); db.commit()
-    db.add(pa(990101))
-    with pytest.raises(IntegrityError):
-        db.commit()
-    db.rollback()
-    db.add(pa(990102)); db.commit()
-    assert db.query(models.CajaPagoAgencia).filter(models.CajaPagoAgencia.no_recibo.in_([990101, 990102])).count() == 2
-    db.query(models.CajaPagoAgencia).filter(models.CajaPagoAgencia.no_recibo.in_([990101, 990102])).delete(); db.commit()
-
-
-def test_resolucion_numero_unico_por_anio_tipo(db):
-    """Constraint compuesta: (anio, tipo, numero) único, pero el mismo número vale en otro año/tipo. H-108."""
-    from app import models
-    from datetime import date
-    def r(anio, tipo, n):
-        return models.Resolucion(numero=n, anio=anio, tipo=tipo, fecha=date(anio, 1, 1),
-                                 organo="X", asunto="a", texto="t", estado="B")
-    for x in db.query(models.Resolucion).filter(models.Resolucion.numero == 990501).all():
-        db.delete(x)
-    db.commit()
-    db.add(r(2099, "RES", 990501)); db.commit()
-    db.add(r(2099, "RES", 990501))                      # mismo (anio,tipo,numero) → rechazado
-    with pytest.raises(IntegrityError):
-        db.commit()
-    db.rollback()
-    db.add(r(2099, "DIS", 990501)); db.commit()         # mismo numero, otro tipo → OK
-    db.add(r(2098, "RES", 990501)); db.commit()         # mismo numero, otro año → OK
-    assert db.query(models.Resolucion).filter(models.Resolucion.numero == 990501).count() == 3
-    for x in db.query(models.Resolucion).filter(models.Resolucion.numero == 990501).all():
-        db.delete(x)
-    db.commit()
-
-
 def test_emitir_recibo_reintenta_en_carrera(db, monkeypatch):
     """_emitir_recibo: si el número generado ya lo tomó otro (carrera), reintenta con el próximo libre."""
     from app import models

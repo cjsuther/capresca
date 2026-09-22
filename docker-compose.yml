@@ -14,6 +14,7 @@ volumes:
   liquidaciones_data:
   legacy_data:
   creditos_data:
+  configuraciones_data:
 
 services:
 
@@ -30,7 +31,6 @@ services:
       - frontend
       - proxy
       - creditos
-      - creditos-web
       - creditos-portal
     networks:
       - app_network
@@ -66,6 +66,7 @@ services:
       - LIQUIDACIONES_SERVICE_URL=http://liquidaciones:8007
       - LEGACY_SERVICE_URL=http://legacy:8009
       - CREDITOS_SERVICE_URL=http://creditos:8010
+      - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -78,6 +79,7 @@ services:
       - liquidaciones
       - legacy
       - creditos
+      - configuraciones
     networks:
       - app_network
     restart: unless-stopped
@@ -392,7 +394,42 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────
-  # Módulo Créditos (CCyPP) — API :8010 + backoffice /creditos/ + portal ciudadano /portal-creditos/
+  # Módulo Configuraciones — impuestos, índices, feriados y workflow (API :8011)
+  # ──────────────────────────────────────────
+  configuraciones:
+    build:
+      context: ./modules/configuraciones
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${CONFIGURACIONES_DB_USER}:${CONFIGURACIONES_DB_PASS}@db_configuraciones:5432/${CONFIGURACIONES_DB_NAME}
+      - INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+    depends_on:
+      db_configuraciones:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_configuraciones:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${CONFIGURACIONES_DB_NAME}
+      - POSTGRES_USER=${CONFIGURACIONES_DB_USER}
+      - POSTGRES_PASSWORD=${CONFIGURACIONES_DB_PASS}
+    volumes:
+      - configuraciones_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CONFIGURACIONES_DB_USER} -d ${CONFIGURACIONES_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Créditos (CCyPP) — API :8010 + portal ciudadano /portal-creditos/
+  # (el backoffice es parte del frontend de Portezuelo: /modules/creditos/)
   # ──────────────────────────────────────────
   creditos:
     build:
@@ -411,6 +448,9 @@ services:
       - MICATAMARCA_REDIRECT_URI=${CREDITOS_PUBLIC_URL:-http://localhost}/api/creditos/portal/auth/callback
       - PORTAL_WEB_URL=${CREDITOS_PUBLIC_URL:-http://localhost}/portal-creditos
       - PORTAL_MOCK_SSO=${CREDITOS_PORTAL_MOCK_SSO:-false}
+      # Impuestos, índices, feriados y reglas del workflow: los lee de Configuraciones (API interna).
+      - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
+      - CONFIGURACIONES_INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
     volumes:
       # Backup DBF del sistema VFP para el ETL (read-only):
       #   docker compose exec creditos python3 -m app.etl.cargar_todo /bases
@@ -418,6 +458,8 @@ services:
     depends_on:
       db_creditos:
         condition: service_healthy
+      configuraciones:
+        condition: service_started
     networks:
       - app_network
     restart: unless-stopped
@@ -437,14 +479,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    restart: unless-stopped
-
-  creditos-web:
-    build:
-      context: ./modules/creditos/frontend
-      dockerfile: Dockerfile
-    networks:
-      - app_network
     restart: unless-stopped
 
   creditos-portal:

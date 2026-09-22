@@ -55,9 +55,10 @@ def test_aprobar_paso_carrera_devuelve_409(db, monkeypatch):
     db.query(wf.m.PPWorkflowAprobacion).filter_by(objeto="LINEA", objeto_id=oid).delete()
     db.commit()
 
+    from tests.config_falsa import CONFIG
+    CONFIG.activar("LINEA")   # el cuatro-ojos se siembra inactivo (H-141); este test lo activa
     r = wf.regla(db, "LINEA")
-    assert r is not None
-    r.activo = True; db.commit()   # el cuatro-ojos se siembra inactivo (H-141); este test lo activa
+    assert r is not None and r.activo
     nivel1 = next(n for n in r.niveles if n.orden == 1)
 
     # Ambos aprobadores ven el mismo estado stale: nivel actual = 1, sin actores (aún nadie aprobó).

@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from app.routers import config, cuentas, transferencias, auditoria
@@ -32,7 +33,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         "Validation 422 on %s %s\n  errors=%s\n  body=%s",
         request.method, request.url.path, exc.errors(), body,
     )
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # jsonable_encoder: los errores de Pydantic pueden traer Decimals en `ctx` (p.ej. `gt: Decimal(0)`),
+    # que JSONResponse no serializa → el request terminaba en 500 en vez de 422.
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
 app.include_router(config.router,          prefix="/api/interbanking/config")
 app.include_router(cuentas.router,         prefix="/api/interbanking/cuentas")

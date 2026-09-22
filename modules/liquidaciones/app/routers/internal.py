@@ -1,3 +1,4 @@
+import hmac
 from decimal import Decimal
 from collections import defaultdict
 
@@ -10,21 +11,23 @@ from app.models.batch import LiquidacionBatch
 from app.models.procesada import LiquidacionProcesada
 from app.services.processing import process_from_upload
 
-router = APIRouter()
-
-
 def verify_api_key(x_api_key: str = Header(...)):
     if not settings.internal_api_key:
         raise HTTPException(status_code=503, detail="API key no configurada")
-    if x_api_key != settings.internal_api_key:
+    # Comparación de tiempo constante: evita distinguir la clave por tiempos de respuesta.
+    if not hmac.compare_digest(x_api_key, settings.internal_api_key):
         raise HTTPException(status_code=401, detail="API key inválida")
+
+
+# La API key se exige en TODO el router: nginx publica /internal/liquidaciones/ hacia afuera y antes
+# `agency-totals` quedaba anónimo (totales por agencia legibles por cualquiera).
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/internal/liquidaciones/upload")
 async def internal_upload_zip(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: None = Depends(verify_api_key),
 ):
     if not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="El archivo debe ser un ZIP")

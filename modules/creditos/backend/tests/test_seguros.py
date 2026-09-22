@@ -1,4 +1,5 @@
-"""Módulo Seguros: emisión de póliza al otorgar y liquidación a la compañía."""
+"""Seguro del crédito: al otorgar se emite la póliza (el área Seguros de CCyPP no se publica, pero la
+póliza forma parte del alta del crédito)."""
 import os
 
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///./_seg.db"
@@ -36,31 +37,17 @@ def _otorgar_con_seguro(client, h, fecha="2026-07-01"):
 
 
 def test_poliza_emitida_al_otorgar(client):
+    from app import models
+    from app.core.database import SessionLocal
     h = _auth(client)
     cred = _otorgar_con_seguro(client, h)
-    polizas = client.get(f"/api/creditos/seguros/polizas?credito_id={cred['id']}", headers=h).json()
-    assert len(polizas) == 1
-    p = polizas[0]
-    assert p["estado"] == "V"
-    assert Decimal(p["capital_asegurado"]) == Decimal("240000.00")
-
-
-def test_liquidacion_agrupa_seguro_cobrado(client):
-    h = _auth(client)
-    fecha = "2026-07-01"
-    cred = _otorgar_con_seguro(client, h, fecha=fecha)
-    # las cuotas deben traer seguro (>0) porque la línea tiene prima
+    # las cuotas traen seguro (>0) porque la línea tiene prima
     assert any(float(c["seguro"]) > 0 for c in cred["cuotas"])
-
-    # cobrar 2 cuotas ese día
-    client.post("/api/creditos/caja/cobrar", headers=h, json={
-        "credito_id": cred["id"], "cuotas": [1, 2], "fecha_pago": fecha,
-    })
-    liq = client.get(f"/api/creditos/seguros/liquidacion?desde={fecha}&hasta={fecha}", headers=h).json()
-    assert len(liq) >= 1
-    fila = liq[0]
-    assert Decimal(fila["total_seguro"]) > 0
-    assert fila["compania"]
+    with SessionLocal() as db:
+        polizas = db.query(models.Poliza).filter_by(credito_id=cred["id"]).all()
+        assert len(polizas) == 1
+        assert polizas[0].estado == "V"
+        assert polizas[0].capital_asegurado == Decimal("240000.00")
 
 
 def teardown_module(_):

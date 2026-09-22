@@ -3,15 +3,10 @@
 Reescritura del sistema de gestión de la **Caja de Prestaciones Sociales de
 Catamarca** (originalmente en Visual FoxPro) sobre un stack moderno.
 
-> **Estado (2026-08-04):** aplicación en producción con **47 pantallas** en 9
-> módulos, **118 tests verdes**, corriendo sobre **PostgreSQL con el backup real
-> cargado** (62,6M registros). Cobertura del inventario VFP: **111/377 formularios
-> (29%)** — el alcance *efectivo* es mayor porque muchos pendientes son
-> variantes/pickers consolidados. Foto por módulo en
-> [`salida/checkpoint-menu.md`](salida/checkpoint-menu.md); plan y mejoras en
-> [`salida/cobertura-migracion.md`](salida/cobertura-migracion.md); estado
-> pantalla por pantalla en [`salida/estado-migracion.md`](salida/estado-migracion.md);
-> hallazgos (H-001→H-024) en [`salida/hallazgos.md`](salida/hallazgos.md).
+> **Estado (2026-09-22):** módulo **Créditos de Portezuelo** — sólo el circuito de créditos (30 pantallas
+> en el frontend del sistema + portal ciudadano), **246 tests** de backend, sobre **PostgreSQL con el
+> backup real cargado**. Las demás áreas de CCyPP se retiraron (H-210, H-211). Hallazgos en
+> [`salida/hallazgos.md`](salida/hallazgos.md); el relevamiento histórico de la migración sigue en `salida/`.
 
 ## Stack
 
@@ -19,7 +14,7 @@ Catamarca** (originalmente en Visual FoxPro) sobre un stack moderno.
 |---|---|
 | Backend / API | Python 3.12 + FastAPI + SQLAlchemy 2.0 + Alembic |
 | Base de datos | PostgreSQL 16 |
-| Frontend | React 18 + Vite + TypeScript |
+| Frontend | Backoffice: módulo del frontend de Portezuelo (React 18 + JSX + Tailwind) · Portal: React 18 + Vite + TypeScript |
 | Orquestación | Docker + docker-compose |
 
 ## Integración con Portezuelo
@@ -31,7 +26,7 @@ desde el `docker-compose.yml` de la raíz:
 |---|---|---|
 | API (FastAPI) | `creditos` (:8010) | `/api/creditos/*` **vía gateway** · `/api/creditos/portal/*` directo (portal) |
 | Base de datos | `db_creditos` (Postgres 16) | — |
-| Backoffice (React) | `creditos-web` | `/creditos/` |
+| Backoffice (React) | `frontend` de Portezuelo | `/modules/creditos/` (`frontend/src/modules/creditos/`) |
 | Portal ciudadano (React) | `creditos-portal` | `/portal-creditos/` |
 
 **Seguridad.** No hay login propio en el backoffice: se entra por el login de Portezuelo y el Dashboard
@@ -40,18 +35,30 @@ resuelve los permisos contra `security` y reenvía `X-User-Id` / `X-Username` / 
 (`app/core/gateway.py`). El `Usuario` local se crea en el primer acceso, vinculado por username, sólo para
 auditoría y workflow.
 
-**Permisos** (Seguridad de Portezuelo → módulo *Créditos*), por área:
+**Alcance.** El módulo es sólo el **circuito de créditos**. Las demás áreas de CCyPP (caja de ventanilla,
+contabilidad, tesorería, seguros, despacho, mesa de entradas, juegos, tablas generales, seguridad) no se
+migraron a Portezuelo: no tienen pantallas, endpoints ni permisos. Lo que el crédito necesita de ellas por
+dentro sigue: asiento contable al originar/cobrar, póliza al otorgar, orden de pago del desembolso y recibo de
+la cancelación anticipada.
+
+**Permisos** (Seguridad de Portezuelo → módulo *Créditos*):
 
 | Permiso | Habilita |
 |---|---|
-| `<area>:read` / `<area>:write` | Ver / operar el área. Áreas: `clientes`, `creditos`, `caja`, `tesoreria`, `contabilidad`, `seguros`, `despacho`, `mesa`, `juegos`, `general`, `seguridad` |
+| `creditos:read` / `creditos:write` | Ver / operar el módulo |
 | `aprobaciones:aprobar` | Rol **APROBAR** de los niveles del workflow (cuatro-ojos) |
 | `aprobaciones:supervisar` | Rol **SUPERVISAR** (niveles de supervisión, N-ojos) |
 
-El gateway exige `GET → <area>:read` y el resto de los métodos `<area>:write` según el prefijo de la API
-(`proxy/app/routes/mapping.py`). Diseñar/editar créditos exige `creditos:write`; aprobar, un permiso de
-aprobación. Configurar el workflow exige `seguridad:write`. Usuarios, perfiles y grupos del sistema VFP ya
-no autorizan nada: sus pantallas se retiraron y sus endpoints no se publican en el gateway.
+El gateway exige `GET → creditos:read` y el resto de los métodos `creditos:write`
+(`proxy/app/routes/mapping.py`); sólo reenvía los recursos del circuito de créditos. Diseñar/editar créditos
+exige `creditos:write`; aprobar, un permiso de aprobación. Configurar el workflow se hace en Configuraciones
+con su propio permiso (no alcanza con `creditos:write`: quien carga créditos no puede sacarse su propio
+control). Usuarios, perfiles y grupos del sistema VFP ya no autorizan nada.
+
+**Configuración compartida.** Impuestos, índices de referencia, feriados y las reglas del workflow de
+aprobaciones se administran en el módulo **Configuraciones** (`modules/configuraciones`) y Créditos los
+lee por su API interna. Tras levantarlo por primera vez, migrar lo que había en Créditos:
+`docker compose exec creditos python -m app.etl.migrar_configuraciones` (idempotente).
 
 **Portal ciudadano.** Tiene su propio realm (SSO Mi Catamarca, tokens `scope=portal` firmados con
 `CREDITOS_PORTAL_JWT_SECRET`) y nginx lo manda directo al módulo, sin gateway. Sin credenciales de Mi
@@ -63,7 +70,7 @@ Registrar en Mi Catamarca el callback `${CREDITOS_PUBLIC_URL}/api/creditos/porta
 ```bash
 # 1) Variables en el .env de la raíz: CREDITOS_DB_USER/PASS/NAME, CREDITOS_PORTAL_JWT_SECRET,
 #    CREDITOS_PUBLIC_URL, CREDITOS_BASES_HOST_PATH, MICATAMARCA_CLIENT_ID/SECRET (ver README raíz)
-docker compose up -d --build creditos creditos-web creditos-portal proxy security nginx
+docker compose up -d --build creditos creditos-portal frontend proxy security nginx
 
 # 2) Cargar los datos reales del backup VFP (una vez; CREDITOS_BASES_HOST_PATH montado en /bases)
 docker compose exec creditos python3 -m app.etl.cargar_todo /bases
@@ -85,6 +92,11 @@ usuarios sembrados por perfil y el middleware que inyecta los headers `X-User-*`
 
 ## Estructura
 
+El backoffice no vive acá: es `frontend/src/modules/creditos/` en el frontend de Portezuelo (pantallas
+en `pages/creditos/`, componentes compartidos en `components/`, cliente HTTP en
+`frontend/src/api/creditos.js`). La SPA propia que se publicaba en `/creditos/` se retiró; nginx
+redirige esa ruta a `/modules/creditos/`.
+
 ```
 backend/
   app/
@@ -93,18 +105,16 @@ backend/
       mora.py      #   punitorios y resarcitorios
       margen.py    #   margen de afectación + validación de CUIL
       carteras.py  #   matriz de compatibilidad de carteras
-    api/           # routers FastAPI (auth, clientes, creditos, caja, seguros,
-                   #   contabilidad, egresos, admin, despacho, mesa, juegos, consultas)
+    api/           # routers FastAPI del circuito de créditos (productos, solicitudes, contratos,
+                   #   creditos, consultas, clientes-espejo, admin de líneas/parámetros, portal…)
+    services/      # lógica; contabilidad/seguros/egresos/caja quedan sólo para lo que usa el crédito
     etl/           # loaders VFP-DBF → PostgreSQL (cargar_todo + por módulo)
     reports/       # PDF (reportlab) y Excel (openpyxl), con patrón write-only
-    core/          # config, database, gateway (identidad de Portezuelo), permisos por área, pagination
+    core/          # config, database, gateway (identidad de Portezuelo), permisos, pagination
     models.py      # modelos SQLAlchemy · schemas.py  Pydantic
     seed.py        # datos demo (reemplazado por el ETL en producción)
   tests/           # 118 tests (motor, equivalencia real, API por módulo)
   alembic/         # migraciones de esquema
-frontend/
-  src/pages/       # 53 pantallas en subcarpetas por módulo (creditos/, caja/,
-  src/components/  #   seguros/, mesa/, general/…); DataTable, Sidebar
 portal/            # portal público del ciudadano (React/Vite/TS)
 salida/            # análisis de la migración, hallazgos (log vivo), estado por pantalla
 ```
@@ -129,22 +139,12 @@ Todos los secretos se leen de variables de entorno (`.env`, ver `.env.example`).
 El VFP tenía el *ClientSecret* de la API de Catamarca en texto plano: **debe
 rotarse** antes de reutilizar la integración.
 
-## Estado por módulo (47 pantallas)
+## Pantallas
 
-| Módulo | Pantallas construidas |
-|---|---|
-| **Créditos** | Solicitudes, Simulador, Situación del cliente, Estadísticas de cartera, Créditos por cartera (+PDF), Turnos otorgados, Listado (+Excel), Cuotas en mora, Sin débito automático, Pagos en caja (+Excel), Cuenta corriente, Pendientes de cobro, Envíos/padrón (+Excel), Jubilados Ley 5094, Líneas de crédito |
-| **Caja** | Cobranza (mora + recibo), Control de caja |
-| **Tesorería** | Órdenes de pago, Reporte de OP, Chequeras |
-| **Contabilidad** | Libro diario (+PDF), Balance de sumas y saldos (+PDF), IVA por período (+PDF), Cierre de caja (+PDF) |
-| **Seguros** | Pólizas y liquidación, Regímenes especiales (Malvinas/Excombatientes/Subsidio), Seguro de vida adicional, Informes |
-| **Despacho** | Resoluciones y disposiciones (+Word), Expedientes y pases |
-| **Juegos/Quiniela** | Maestro de juegos, Control de sorteos, Agencias y liquidaciones, Ingresos por juego |
-| **Mesa de Entradas** | Turnos, Consulta de trámites, Trámites ingresados, Historial de pases |
-| **General / Tablas** | Clientes/Agentes, Usuarios, Perfiles, Organismos, Oficinas, Compañías, Proveedores, Parámetros, Auditoría |
-
-Detalle pantalla por pantalla en [`salida/estado-migracion.md`](salida/estado-migracion.md)
-y reconciliación contra el menú real en [`salida/checkpoint-menu.md`](salida/checkpoint-menu.md).
+El backoffice (30 pantallas del circuito de créditos) vive en `frontend/src/modules/creditos/` del frontend
+de Portezuelo; el detalle está en su `menu.js`. Las pantallas de Caja, Tesorería, Contabilidad, Seguros,
+Despacho, Juegos, Mesa de Entradas y Tablas generales que tenía la SPA de CCyPP se retiraron (H-210, H-211);
+el relevamiento histórico sigue en [`salida/estado-migracion.md`](salida/estado-migracion.md).
 
 ## Datos reales cargados (PostgreSQL)
 

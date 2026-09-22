@@ -4,7 +4,7 @@ import clsx from "clsx";
 
 export function Sidebar({ menuItems, moduleCode, onClose }) {
   return (
-    <aside className="w-56 min-h-screen bg-white border-r border-gray-200 pt-4 md:pt-6">
+    <aside className="w-56 min-h-screen bg-surface border-r border-gray-200 pt-4 md:pt-6">
       <nav className="flex flex-col gap-1 px-2">
         {menuItems.map((item) => (
           <SidebarItem key={item.path} item={item} moduleCode={moduleCode} onClose={onClose} />

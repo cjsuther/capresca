@@ -71,7 +71,7 @@ def test_detalle_credito_migrado_sin_solicitud(client):
     from app.core.database import SessionLocal
     from app import models
     db = SessionLocal()
-    cli = models.Cliente(id_cliente="MIGRA00000001", apellido_nombre="MIGRADO TEST",
+    cli = models.Cliente(id=9101, id_cliente="MIGRA00000001", apellido_nombre="MIGRADO TEST",
                          cuil="20999999911", dni="99999911", sueldo=Decimal("100000"))
     db.add(cli); db.flush()
     cr = models.Credito(cliente_id=cli.id, solicitud_id=None, linea_id=None,
@@ -90,7 +90,7 @@ def test_pagos_en_caja(client):
     from app.core.database import SessionLocal
     from app import models
     db = SessionLocal()
-    cli = models.Cliente(id_cliente="PAGOCAJA00001", apellido_nombre="PAGA TEST",
+    cli = models.Cliente(id=9102, id_cliente="PAGOCAJA00001", apellido_nombre="PAGA TEST",
                          cuil="20999999988", dni="99999988", sueldo=Decimal("100000"))
     db.add(cli); db.flush()
     cr = models.Credito(cliente_id=cli.id, capital=Decimal("60000"),
@@ -121,7 +121,7 @@ def test_creditos_sin_debito(client):
     from app.core.database import SessionLocal
     from app import models
     db = SessionLocal()
-    cli = models.Cliente(id_cliente="SINCBU0000001", apellido_nombre="SIN CBU TEST",
+    cli = models.Cliente(id=9103, id_cliente="SINCBU0000001", apellido_nombre="SIN CBU TEST",
                          cuil="20999999997", dni="99999999",
                          sueldo=Decimal("100000"), cbu="")
     db.add(cli); db.flush()
@@ -178,19 +178,6 @@ def test_listado_creditos_excel(client):
     # los .xlsx son zips: empiezan con 'PK'
     assert r.content[:2] == b"PK"
     assert len(r.content) > 0
-
-
-def test_solicitudes_activas(client):
-    h = _auth(client)
-    # una solicitud sin otorgar queda activa (estado I)
-    cli = client.get("/api/creditos/clientes", headers=h).json()["items"][0]["id"]
-    linea = next(l for l in client.get("/api/creditos/creditos/lineas", headers=h).json() if l["tipo_calculo"] == 1)
-    client.post("/api/creditos/creditos/solicitudes", headers=h, json={
-        "cliente_id": cli, "linea_id": linea["id"], "monto_solicitado": "50000",
-        "cantidad_cuotas": 6, "fecha_primer_vencimiento": "2026-05-10"})
-    r = client.get("/api/creditos/creditos/consultas/solicitudes-activas", headers=h).json()
-    assert len(r) >= 1
-    assert all(x["estado"] in ("I", "A") for x in r)
 
 
 def test_cuotas_en_mora(client):

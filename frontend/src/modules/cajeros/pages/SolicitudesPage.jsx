@@ -57,7 +57,7 @@ export default function SolicitudesPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-6 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={handleCreate} className="bg-surface border rounded-xl p-6 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Monto</label>
             <input type="number" step="0.01" className="input w-full" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
@@ -79,7 +79,7 @@ export default function SolicitudesPage() {
         </form>
       )}
 
-      <div className="bg-white border rounded-xl overflow-x-auto">
+      <div className="bg-surface border rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>

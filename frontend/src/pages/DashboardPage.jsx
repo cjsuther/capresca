@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -71,13 +71,20 @@ const ALL_MODULES = [
   {
     code: "creditos",
     name: "Créditos",
-    description: "CCyPP: créditos, caja, contabilidad y tesorería",
+    description: "CCyPP: créditos, originación, cartera y portal ciudadano",
     icon: Landmark,
     color: "bg-rose-50 border-rose-200 text-rose-700",
     iconColor: "text-rose-500",
-    path: "/creditos/",
-    // SPA propia del módulo (misma sesión): navegación completa, no del router de React.
-    external: true,
+    path: "/modules/creditos",
+  },
+  {
+    code: "configuraciones",
+    name: "Configuraciones",
+    description: "Impuestos, índices, feriados y workflow de aprobaciones",
+    icon: Settings,
+    color: "bg-gray-50 border-gray-200 text-gray-700",
+    iconColor: "text-gray-500",
+    path: "/modules/configuraciones",
   },
 ];
 

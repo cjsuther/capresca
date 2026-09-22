@@ -32,15 +32,6 @@ def _sembrar():
     db.commit(); db.close()
 
 
-def test_listado_y_cuotas_jubilados(client):
-    h = _auth(client)
-    _sembrar()
-    js = client.get("/api/creditos/creditos/consultas/jubilados", headers=h).json()
-    assert any(j["id"] == 9001 and j["departamento"] == "CAPITAL" for j in js)
-    cts = client.get("/api/creditos/creditos/consultas/jubilados/9001/cuotas", headers=h).json()
-    assert len(cts) == 1 and Decimal(cts[0]["valor"]) == Decimal("50000")
-
-
 def test_resumen_y_por_departamento(client):
     h = _auth(client)
     _sembrar()

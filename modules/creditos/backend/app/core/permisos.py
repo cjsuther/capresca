@@ -4,7 +4,6 @@ Los permisos se administran en Seguridad de Portezuelo (módulo `creditos`) y ll
 headers del gateway (ver `app/core/gateway.py`). El gateway ya exige el permiso del área según el prefijo de
 la API; este módulo los usa para:
 
-- el nivel por pantalla que consume el front (`/api/creditos/auth/mis-permisos` → `permisos.tsx`),
 - las dependencias `requiere_permiso` (defensa en profundidad sobre rutas puntuales),
 - las capacidades del circuito de créditos (editar / aprobar) y los roles del workflow de aprobaciones.
 
@@ -22,10 +21,6 @@ from app.deps import get_current_user
 
 ORDEN = {"NINGUNO": 0, "CONSULTA": 1, "ESCRITURA": 2, "TOTAL": 3}
 
-# Primer segmento de una ruta del front que no coincide con el código del área.
-_ALIAS_RUTA = {"controles-version": "seguridad"}
-
-
 def permisos_de(user: models.Usuario) -> frozenset[str]:
     """Acciones del módulo que tiene el usuario (sin prefijo `creditos:`). Vacío si no vino del gateway."""
     return getattr(user, "permisos_gateway", frozenset())
@@ -34,7 +29,6 @@ def permisos_de(user: models.Usuario) -> frozenset[str]:
 def area_de_ruta(ruta: str) -> str | None:
     """Área de una ruta del front (`/caja/cobranza` → `caja`)."""
     seg = ruta.strip("/").split("/", 1)[0]
-    seg = _ALIAS_RUTA.get(seg, seg)
     return seg if seg in AREAS else None
 
 

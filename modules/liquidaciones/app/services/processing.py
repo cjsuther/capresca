@@ -1,9 +1,11 @@
 from datetime import datetime, date
 from decimal import Decimal
+from pathlib import Path
 from collections import defaultdict
 
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models.batch import LiquidacionBatch
 from app.models.detalle_raw import LiquidacionDetalleRaw
 from app.models.resumen_raw import LiquidacionResumenRaw
@@ -142,7 +144,20 @@ def process_batch(db: Session, zip_bytes: bytes, zip_filename: str, user_id: int
 
 
 def process_from_path(db: Session, file_path: str, user_id: int) -> LiquidacionBatch:
-    """Process a ZIP from a filesystem path."""
+    """Procesa un ZIP del directorio de entrada.
+
+    La ruta la manda el cliente, así que se exige que caiga DENTRO de `INBOX_DIR` y termine en .zip:
+    sin eso, cualquiera con `liquidaciones:liq:write` podía hacer leer (y después descargar) cualquier
+    archivo del contenedor.
+    """
+    inbox = Path(settings.inbox_dir).resolve()
+    destino = Path(file_path)
+    if not destino.is_absolute():
+        destino = inbox / destino
+    destino = destino.resolve()
+    if not destino.is_relative_to(inbox) or destino.suffix.lower() != ".zip":
+        raise ValueError(f"Ruta no permitida: el archivo debe ser un .zip dentro de {inbox}")
+    file_path = str(destino)
     zip_bytes = read_zip_from_path(file_path)
     filename = file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path
     return process_batch(db, zip_bytes, filename, user_id)

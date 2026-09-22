@@ -10,8 +10,8 @@ los permisos del usuario contra el módulo security y reenvía la request con es
 El proxy descarta cualquier `X-User-*` que mande el cliente, y nginx sólo publica el módulo a través del
 proxy (salvo `/api/creditos/portal/`, que usa el realm propio del ciudadano y nunca lee estos headers).
 
-Los permisos del módulo se modelan POR ÁREA (`<area>:read` / `<area>:write`) más dos de aprobación
-para el workflow cuatro-ojos/N-ojos. El catálogo tiene que coincidir con `modules/security/app/seed.py`
+Los permisos del módulo son `creditos:read` / `creditos:write` (una sola área: el circuito de créditos)
+más dos de aprobación para el workflow cuatro-ojos/N-ojos. El catálogo tiene que coincidir con `modules/security/app/seed.py`
 y con el mapeo de rutas de `proxy/app/routes/mapping.py`.
 """
 from dataclasses import dataclass
@@ -21,18 +21,10 @@ from fastapi import Request
 MODULO = "creditos"
 
 # código de área → etiqueta. Cada área es un par de permisos `<area>:read` / `<area>:write`.
+# Las demás áreas de CCyPP (caja, contabilidad, tesorería, seguros, despacho, mesa, juegos, general,
+# seguridad) no se migraron a Portezuelo.
 AREAS: dict[str, str] = {
-    "clientes": "Clientes",
     "creditos": "Créditos",
-    "caja": "Caja",
-    "tesoreria": "Tesorería",
-    "contabilidad": "Contabilidad",
-    "seguros": "Seguros",
-    "despacho": "Despacho",
-    "mesa": "Mesa de entradas",
-    "juegos": "Juegos / Quiniela",
-    "general": "General (tablas maestras)",
-    "seguridad": "Seguridad (auditoría, workflow, controles)",
 }
 
 # Permisos de aprobación: cada nivel del workflow exige uno de estos "roles" (ver services/workflow.py).
@@ -45,7 +37,7 @@ ROLES_APROBACION = {"APROBAR": PERMISO_APROBAR, "SUPERVISAR": PERMISO_SUPERVISAR
 class Identidad:
     user_id: int
     username: str
-    permisos: frozenset[str]   # acciones de ESTE módulo, sin el prefijo `creditos:` (p.ej. "caja:write")
+    permisos: frozenset[str]   # acciones de ESTE módulo, sin el prefijo `creditos:` (p.ej. "creditos:write")
 
 
 def identidad(request: Request) -> Identidad | None:

@@ -55,14 +55,10 @@ def _gw(username: str, *perms: str, user_id: int = 950) -> dict:
 
 
 def _activar_wf(objeto: str) -> None:
-    """El cuatro-ojos se siembra INACTIVO (app nueva single-admin, H-141); los tests que lo ejercitan
-    lo activan explícitamente."""
-    from app import models_productos as _m
-    with _db() as db:
-        r = db.query(_m.PPWorkflowRegla).filter_by(objeto=objeto).first()
-        if r:
-            r.activo = True; db.commit()
-
+    """El cuatro-ojos se siembra INACTIVO (app nueva single-admin, H-141); los tests que ejercitan el
+    workflow lo activan explícitamente en Configuraciones."""
+    from tests.config_falsa import CONFIG
+    CONFIG.activar(objeto)
 
 def _asientos_de(db, numero_contrato):
     from app import models
@@ -519,11 +515,8 @@ def test_gate_desembolso_pendiente_y_aprobacion(client):
     # aprobador de Portezuelo (permiso aprobaciones:aprobar), distinto del emisor admin
     hcred = _gw("aprobador", "creditos:read", "aprobaciones:aprobar")
     hadmin = _auth(client)
-    # activar la regla DESEMBOLSO; su nivel 1 exige el rol APROBAR con cuatro-ojos
-    client.put("/api/creditos/workflow/DESEMBOLSO", headers=hadmin, json={"activo": True})
-    wfj = client.get("/api/creditos/workflow", headers=hadmin).json()
-    n1 = next(r for r in wfj["reglas"] if r["objeto"] == "DESEMBOLSO")["niveles"][0]["id"]
-    client.put(f"/api/creditos/workflow/niveles/{n1}", headers=hadmin, json={"nombre": "Aprobación", "rol": "APROBAR", "cuatroOjos": True})
+    # activar la regla DESEMBOLSO en Configuraciones; su nivel 1 exige el rol APROBAR con cuatro-ojos
+    _activar_wf("DESEMBOLSO")
 
     # admin origina un contrato SIN desembolsar, y pide el desembolso → queda PENDIENTE
     pers = next(p for p in client.get("/api/creditos/contratos/oferta", headers=hadmin).json()["items"] if p["codigo"] == "LP-PERS-01")
@@ -552,11 +545,9 @@ def test_workflow_cadena_n_niveles(client):
     hadmin = _auth(client)                                             # tiene APROBAR y SUPERVISAR
     # configurar LINEA con 2 niveles: nivel 1 rol APROBAR (lo aprueba el revisor), nivel 2 rol SUPERVISAR
     # sin cuatro-ojos (lo cierra admin aunque sea el emisor; en prod sería otro gerente).
-    wfj = client.get("/api/creditos/workflow", headers=hadmin).json()
-    linea = next(r for r in wfj["reglas"] if r["objeto"] == "LINEA")
-    n1 = linea["niveles"][0]["id"]
-    client.put(f"/api/creditos/workflow/niveles/{n1}", headers=hadmin, json={"nombre": "Revisión", "rol": "APROBAR", "cuatroOjos": True})
-    client.post("/api/creditos/workflow/LINEA/niveles", headers=hadmin, json={"nombre": "Gerencia", "rol": "SUPERVISAR", "cuatroOjos": False})
+    from tests.config_falsa import CONFIG
+    CONFIG.editar_nivel("LINEA", 1, nombre="Revisión")
+    CONFIG.agregar_nivel("LINEA", "Gerencia", rol="SUPERVISAR", cuatro_ojos=False)
 
     # admin diseña y envía a revisión
     p = client.post("/api/creditos/productos", headers=hadmin, json={"nombre": "Cadena 2 niveles"}).json()
@@ -576,9 +567,9 @@ def test_workflow_cadena_n_niveles(client):
 
 
 def test_workflow_quien_aprueba_via_permisos(client):
-    """H-150/H-205: quién aprueba se define con los permisos de aprobación de Portezuelo, no con overrides
-    por nivel. Sin el permiso, 'creditos' no puede aprobar (403); cuando Seguridad de Portezuelo se lo
-    asigna, el mismo usuario sí puede. Y sin escritura de Seguridad no se toca la config (403)."""
+    """H-150/H-205: quién aprueba se define con los permisos de aprobación de Portezuelo. Sin el permiso,
+    'creditos' no puede aprobar (403); cuando Seguridad de Portezuelo se lo asigna, el mismo usuario sí
+    puede. La configuración del workflow ya no está en Créditos (vive en Configuraciones)."""
     _activar_wf("LINEA")
     hcred = _gw("creditos", "creditos:read", "creditos:write")
     hadmin = _auth(client)
@@ -590,12 +581,82 @@ def test_workflow_quien_aprueba_via_permisos(client):
     client.post(f"/api/creditos/productos/{pid}/estado", headers=hadmin, json={"accion": "revisar"})
     # sin permiso de aprobación: creditos NO puede aprobar → 403
     assert client.post(f"/api/creditos/productos/{pid}/estado", headers=hcred, json={"accion": "aprobar"}).status_code == 403
-    # sin escritura de Seguridad no se configura el workflow → 403
-    assert client.put("/api/creditos/workflow/LINEA", headers=hcred, json={"activo": False}).status_code == 403
+    # el workflow ya no se configura desde Créditos
+    assert client.put("/api/creditos/workflow/LINEA", headers=hcred, json={"activo": False}).status_code == 404
     # Seguridad de Portezuelo le asigna el permiso de aprobación → el mismo usuario SÍ puede aprobar
     hcred = _gw("creditos", "creditos:read", "creditos:write", "aprobaciones:aprobar")
     ap = client.post(f"/api/creditos/productos/{pid}/estado", headers=hcred, json={"accion": "aprobar"})
     assert ap.status_code == 200 and ap.json()["estado"] == "APROBADO" and ap.json()["aprobadoPor"] == "creditos"
+
+
+def _linea_en_revision(client, hadmin, nombre):
+    p = client.post("/api/creditos/productos", headers=hadmin, json={"nombre": nombre}).json()
+    client.put(f"/api/creditos/productos/{p['id']}/config", headers=hadmin,
+               json={**p["cfg"], "sistema": "FRANCES", "tna": 40, "montoMin": 100000, "montoMax": 2000000, "plazoMin": 6, "plazoMax": 36})
+    client.post(f"/api/creditos/productos/{p['id']}/estado", headers=hadmin, json={"accion": "revisar"})
+    return p["id"]
+
+
+def test_workflow_override_excluir_saca_la_aprobacion_aunque_tenga_el_rol(client):
+    """Los overrides del nivel se configuran en Configuraciones y el motor los aplica (antes se guardaban
+    pero el evaluador los ignoraba): EXCLUIR le saca la aprobación a quien tiene el rol."""
+    from tests.config_falsa import CONFIG
+    _activar_wf("LINEA")
+    CONFIG.override("LINEA", 1, "pz.excluido", "EXCLUIR")
+    hadmin = _auth(client)
+    pid = _linea_en_revision(client, hadmin, "WF-excluir")
+    excluido = _gw("pz.excluido", "creditos:read", "aprobaciones:aprobar")
+    r = client.post(f"/api/creditos/productos/{pid}/estado", headers=excluido, json={"accion": "aprobar"})
+    assert r.status_code == 403 and "excluido" in r.json()["detail"]
+    # tampoco la ve en su bandeja
+    assert all(t["id"] != pid for t in client.get("/api/creditos/aprobaciones/inbox", headers=excluido).json()["items"])
+    otro = _gw("pz.otro", "creditos:read", "aprobaciones:aprobar")
+    assert client.post(f"/api/creditos/productos/{pid}/estado", headers=otro, json={"accion": "aprobar"}).json()["estado"] == "APROBADO"
+
+
+def test_workflow_override_incluir_habilita_sin_el_rol(client):
+    """INCLUIR habilita a aprobar ese nivel a alguien que no tiene el rol (p.ej. un gerente puntual)."""
+    from tests.config_falsa import CONFIG
+    _activar_wf("LINEA")
+    CONFIG.override("LINEA", 1, "pz.gerente", "INCLUIR")
+    hadmin = _auth(client)
+    pid = _linea_en_revision(client, hadmin, "WF-incluir")
+    sin_rol = _gw("pz.sinrol", "creditos:read", "creditos:write")
+    assert client.post(f"/api/creditos/productos/{pid}/estado", headers=sin_rol, json={"accion": "aprobar"}).status_code == 403
+    gerente = _gw("pz.gerente", "creditos:read")
+    r = client.post(f"/api/creditos/productos/{pid}/estado", headers=gerente, json={"accion": "aprobar"})
+    assert r.status_code == 200 and r.json()["estado"] == "APROBADO", r.text
+
+
+def test_sin_configuraciones_no_se_aprueba_ni_se_simula(client):
+    """Falla cerrado: si Configuraciones no responde y no hay copia, 503 (no se inventa una regla que
+    saltee el cuatro-ojos ni un cronograma sin feriados)."""
+    from tests.config_falsa import CONFIG
+    _activar_wf("LINEA")
+    hadmin = _auth(client)
+    pid = _linea_en_revision(client, hadmin, "WF-caido")
+    pers = next(p for p in client.get("/api/creditos/contratos/oferta", headers=hadmin).json()["items"] if p["codigo"] == "LP-PERS-01")
+    CONFIG.caida = True
+    CONFIG._cambio()   # sin copia en caché
+    aprobador = _gw("pz.aprobador", "creditos:read", "aprobaciones:aprobar")
+    r = client.post(f"/api/creditos/productos/{pid}/estado", headers=aprobador, json={"accion": "aprobar"})
+    assert r.status_code == 503 and "Configuraciones" in r.json()["detail"]
+    assert client.get("/api/creditos/contratos/oferta", headers=hadmin).status_code == 503
+    r = client.post(f"/api/creditos/productos/{pers['id']}/simular-preview", headers=hadmin, json={"monto": 500000, "plazo": 12})
+    assert r.status_code == 503
+
+
+def test_con_configuraciones_caido_se_usa_la_copia_reciente(client):
+    """Un corte breve no frena la operación: si hay copia reciente de la regla, se sigue con ella."""
+    from tests.config_falsa import CONFIG
+    _activar_wf("LINEA")
+    hadmin = _auth(client)
+    pid = _linea_en_revision(client, hadmin, "WF-copia")
+    client.get("/api/creditos/aprobaciones/inbox", headers=hadmin)   # lee y cachea las reglas
+    CONFIG.caida = True
+    aprobador = _gw("pz.aprobador", "creditos:read", "aprobaciones:aprobar")
+    r = client.post(f"/api/creditos/productos/{pid}/estado", headers=aprobador, json={"accion": "aprobar"})
+    assert r.status_code == 200 and r.json()["estado"] == "APROBADO", r.text
 
 
 def test_guardar_config_rechaza_invalidos(client):
@@ -645,8 +706,8 @@ def test_inbox_aprobaciones_cuatro_ojos(client):
     mia = [t for t in box_admin["items"] if t["id"] == pid]
     assert mia, "la versión EN_REVISION no aparece en el inbox del aprobador"
     assert mia[0]["solicitante"] == "creditos" and mia[0]["accion"] == "aprobar"
-    assert mia[0]["tipo"] == "LINEA" and mia[0]["ruta"] == "/creditos/configurar"
-    assert client.get("/api/creditos/aprobaciones/count", headers=hadmin).json()["total"] >= 1
+    # la ruta es la del módulo dentro del frontend de Portezuelo (la SPA propia /creditos/ se retiró)
+    assert mia[0]["tipo"] == "LINEA" and mia[0]["ruta"] == "/modules/creditos/configurar"
 
     # cuatro-ojos estricto: el ADMG crea OTRA línea y la envía él mismo → NO debe verla en su inbox
     p2 = client.post("/api/creditos/productos", headers=hadmin, json={"nombre": "Inbox línea propia ADMG"}).json()

@@ -2,12 +2,173 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Tokens de color del tema. El markup usa las clases de siempre (`bg-surface`, `text-gray-700`,
+ * `bg-blue-50`…) y acá se define qué significan en cada tema: en oscuro la escala de grises se
+ * invierte y los tintes de acento (50/100) pasan a fondos profundos, con los textos de acento
+ * (600/700) aclarados para que mantengan contraste sobre superficie oscura.
+ */
+@layer base {
+  :root {
+    --c-surface: 255 255 255;
+
+    --c-gray-50: 249 250 251;
+    --c-gray-100: 243 244 246;
+    --c-gray-200: 229 231 235;
+    --c-gray-300: 209 213 219;
+    --c-gray-400: 156 163 175;
+    --c-gray-500: 107 114 128;
+    --c-gray-600: 75 85 99;
+    --c-gray-700: 55 65 81;
+    --c-gray-800: 31 41 55;
+    --c-gray-900: 17 24 39;
+
+    --c-blue-50: 239 246 255;
+    --c-blue-100: 219 234 254;
+    --c-blue-200: 191 219 254;
+    --c-blue-300: 147 197 253;
+    --c-blue-400: 96 165 250;
+    --c-blue-500: 59 130 246;
+    --c-blue-600: 37 99 235;
+    --c-blue-700: 29 78 216;
+    --c-blue-800: 30 64 175;
+    --c-blue-900: 30 58 138;
+
+    --c-red-50: 254 242 242;
+    --c-red-100: 254 226 226;
+    --c-red-200: 254 202 202;
+    --c-red-300: 252 165 165;
+    --c-red-400: 248 113 113;
+    --c-red-500: 239 68 68;
+    --c-red-600: 220 38 38;
+    --c-red-700: 185 28 28;
+    --c-red-800: 153 27 27;
+    --c-red-900: 127 29 29;
+
+    --c-green-50: 240 253 244;
+    --c-green-100: 220 252 231;
+    --c-green-200: 187 247 208;
+    --c-green-300: 134 239 172;
+    --c-green-400: 74 222 128;
+    --c-green-500: 34 197 94;
+    --c-green-600: 22 163 74;
+    --c-green-700: 21 128 61;
+    --c-green-800: 22 101 52;
+    --c-green-900: 20 83 45;
+
+    --c-yellow-50: 254 252 232;
+    --c-yellow-100: 254 249 195;
+    --c-yellow-200: 254 240 138;
+    --c-yellow-300: 253 224 71;
+    --c-yellow-400: 250 204 21;
+    --c-yellow-500: 234 179 8;
+    --c-yellow-600: 202 138 4;
+    --c-yellow-700: 161 98 7;
+    --c-yellow-800: 133 77 14;
+    --c-yellow-900: 113 63 18;
+
+    --c-amber-50: 255 251 235;
+    --c-amber-100: 254 243 199;
+    --c-amber-200: 253 230 138;
+    --c-amber-300: 252 211 77;
+    --c-amber-400: 251 191 36;
+    --c-amber-500: 245 158 11;
+    --c-amber-600: 217 119 6;
+    --c-amber-700: 180 83 9;
+    --c-amber-800: 146 64 14;
+    --c-amber-900: 120 53 15;
+  }
+
+  .dark {
+    /* Superficie de tarjetas y barras; el fondo de página es gray-50 (ya invertido). */
+    --c-surface: 30 41 59;
+
+    /* Grises invertidos: los fondos claros pasan a profundos y los textos oscuros a claros. */
+    --c-gray-50: 15 23 42;
+    --c-gray-100: 30 41 59;
+    --c-gray-200: 51 65 85;
+    --c-gray-300: 71 85 105;
+    --c-gray-400: 148 163 184;
+    --c-gray-500: 148 163 184;
+    --c-gray-600: 203 213 225;
+    --c-gray-700: 226 232 240;
+    --c-gray-800: 241 245 249;
+    --c-gray-900: 248 250 252;
+
+    /* Tintes (50/100) → fondos profundos; textos/acentos (600/700) → claros y legibles. */
+    --c-blue-50: 30 58 138;
+    --c-blue-100: 30 64 175;
+    --c-blue-200: 37 99 235;
+    --c-blue-300: 59 130 246;
+    --c-blue-400: 96 165 250;
+    --c-blue-500: 96 165 250;
+    --c-blue-600: 59 130 246;
+    --c-blue-700: 147 197 253;
+    --c-blue-800: 191 219 254;
+    --c-blue-900: 219 234 254;
+
+    --c-red-50: 76 20 20;
+    --c-red-100: 127 29 29;
+    --c-red-200: 153 27 27;
+    --c-red-300: 185 28 28;
+    --c-red-400: 248 113 113;
+    --c-red-500: 239 68 68;
+    --c-red-600: 248 113 113;
+    --c-red-700: 252 165 165;
+    --c-red-800: 254 202 202;
+    --c-red-900: 254 226 226;
+
+    --c-green-50: 15 58 37;
+    --c-green-100: 20 83 45;
+    --c-green-200: 22 101 52;
+    --c-green-300: 21 128 61;
+    --c-green-400: 74 222 128;
+    --c-green-500: 34 197 94;
+    --c-green-600: 74 222 128;
+    --c-green-700: 134 239 172;
+    --c-green-800: 187 247 208;
+    --c-green-900: 220 252 231;
+
+    --c-yellow-50: 66 45 6;
+    --c-yellow-100: 113 63 18;
+    --c-yellow-200: 133 77 14;
+    --c-yellow-300: 161 98 7;
+    --c-yellow-400: 250 204 21;
+    --c-yellow-500: 234 179 8;
+    --c-yellow-600: 250 204 21;
+    --c-yellow-700: 253 224 71;
+    --c-yellow-800: 254 240 138;
+    --c-yellow-900: 254 249 195;
+
+    --c-amber-50: 69 39 9;
+    --c-amber-100: 120 53 15;
+    --c-amber-200: 146 64 14;
+    --c-amber-300: 180 83 9;
+    --c-amber-400: 251 191 36;
+    --c-amber-500: 245 158 11;
+    --c-amber-600: 251 191 36;
+    --c-amber-700: 252 211 77;
+    --c-amber-800: 253 230 138;
+    --c-amber-900: 254 243 199;
+  }
+
+  /* Sin esto, el navegador sigue pintando de blanco los controles nativos en tema oscuro. */
+  .dark {
+    color-scheme: dark;
+  }
+}
+
 body {
   @apply bg-gray-50 text-gray-900;
 }
 
 @layer components {
+  /* El cóndor es un SVG de trazo negro: en tema oscuro se invierte para no perderse en la tarjeta. */
+  .logo-marca {
+    @apply dark:invert;
+  }
+
   .input {
-    @apply border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white;
+    @apply border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-surface text-gray-800;
   }
 }

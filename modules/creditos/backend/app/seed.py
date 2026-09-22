@@ -88,20 +88,19 @@ def seed(db: Session) -> None:
                             plazo_max=60, monto_max=Decimal("5000000")),
     ])
 
-    from app.core.codigos import codigo_cliente, codigo_cliente_provisorio
+    # Espejo del padrón: el id es el del módulo Clientes (acá, datos de demo con ids fijos).
+    from app.core.codigos import codigo_cliente
     _clientes = [
         models.Cliente(
-            id_cliente=codigo_cliente_provisorio(), cuil="20123456786", dni="12345678",
+            id=1, id_cliente=codigo_cliente(1), cuil="20123456786", dni="12345678",
             apellido_nombre="PEREZ, JUAN CARLOS", sueldo=Decimal("650000"),
             cbu="0110466420046600526713", organismo_id=org.id),
         models.Cliente(
-            id_cliente=codigo_cliente_provisorio(), cuil="27234567818", dni="23456781",
+            id=2, id_cliente=codigo_cliente(2), cuil="27234567818", dni="23456781",
             apellido_nombre="GOMEZ, MARIA LAURA", sueldo=Decimal("820000"),
             cbu="0110466420046600520531", organismo_id=org.id),
     ]
     db.add_all(_clientes); db.flush()
-    for _c in _clientes:                      # id_cliente autogenerado del PK (no CUIL) — H-169
-        _c.id_cliente = codigo_cliente(_c.id)
 
     db.add_all([
         models.TipoTramite(nombre="Solicitud de crédito", prefijo="CR"),
@@ -148,24 +147,5 @@ def seed_config(db: Session) -> None:
     seed_plan_cuentas(db)
     db.commit()
 
-    seed_impuestos(db)
     from app.seed_productos import seed_productos
     seed_productos(db)
-
-
-def seed_impuestos(db: Session) -> None:
-    """Maestros de impuestos e índices por defecto (idempotente)."""
-    if not db.query(models.Impuesto).first():
-        db.add_all([
-            models.Impuesto(codigo="IVA21", nombre="IVA 21%", tipo="IVA", alicuota=Decimal("21"), base="INTERES", cuenta_contable="2.1.07.01"),
-            models.Impuesto(codigo="IVA105", nombre="IVA 10,5%", tipo="IVA", alicuota=Decimal("10.5"), base="INTERES", cuenta_contable="2.1.07.02"),
-            models.Impuesto(codigo="IIBB-CAT", nombre="Ingresos Brutos Catamarca", tipo="IIBB", alicuota=Decimal("4"), base="TOTAL", cuenta_contable="2.1.08", jurisdiccion="Catamarca"),
-            models.Impuesto(codigo="SELLOS", nombre="Sellado provincial", tipo="SELLADO", alicuota=Decimal("1.2"), base="CUOTA", cuenta_contable="2.1.09"),
-        ])
-    if not db.query(models.IndiceReferencia).first():
-        db.add_all([
-            models.IndiceReferencia(codigo="BADLAR", nombre="BADLAR bancos privados", valor=Decimal("45"), fuente="BCRA"),
-            models.IndiceReferencia(codigo="TPM", nombre="Tasa de política monetaria", valor=Decimal("40"), fuente="BCRA"),
-            models.IndiceReferencia(codigo="UVA", nombre="Unidad de Valor Adquisitivo (equiv. anual)", valor=Decimal("30"), fuente="INDEC"),
-        ])
-    db.commit()

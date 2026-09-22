@@ -1,12 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Optional
 
 
+MIN_PASSWORD = 8
+
+
 class UserCreate(BaseModel):
-    username: str
+    username: str = Field(min_length=3, max_length=64)
     email: str
-    password: str
+    password: str = Field(min_length=MIN_PASSWORD)
     full_name: Optional[str] = None
 
 
@@ -47,9 +50,9 @@ class AssignRolesRequest(BaseModel):
 
 
 class AdminChangePasswordRequest(BaseModel):
-    new_password: str
+    new_password: str = Field(min_length=MIN_PASSWORD)
 
 
 class ChangeOwnPasswordRequest(BaseModel):
     current_password: str
-    new_password: str
+    new_password: str = Field(min_length=MIN_PASSWORD)

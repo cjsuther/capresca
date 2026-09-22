@@ -36,6 +36,18 @@ class Settings(BaseSettings):
                 "(el default del código permitiría forjar tokens). Configurá la variable JWT_SECRET.")
         return self
 
+    # Padrón de clientes: vive en el módulo Clientes de Portezuelo. Créditos NO tiene maestro propio;
+    # mantiene un espejo de sólo lectura que sincroniza contra este servicio (red interna de Docker).
+    clientes_service_url: str = "http://clientes:8003"
+
+    # Impuestos, índices de referencia, feriados y reglas del workflow viven en el módulo
+    # Configuraciones; Créditos los lee por su API interna (con esta clave) y los cachea unos segundos.
+    configuraciones_service_url: str = "http://configuraciones:8011"
+    configuraciones_internal_api_key: str = ""
+    configuraciones_cache_segundos: int = 30
+    # Si Configuraciones no responde, se sigue con la última copia hasta este tope; sin copia, 503.
+    configuraciones_copia_max_segundos: int = 600
+
     # Integraciones externas (secretos por entorno; ver README)
     intranet_auth_url: str = ""
     intranet_client_id: str = ""

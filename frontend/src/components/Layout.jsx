@@ -7,6 +7,7 @@ import { logout as apiLogout } from "../api/auth";
 import { changeMyPassword } from "../api/security";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { NotificationBell } from "./NotificationBell";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Layout({ children, sidebar }) {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export function Layout({ children, sidebar }) {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Topbar */}
-      <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-20 relative">
+      <header className="h-14 bg-surface border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-20 relative">
         <div className="flex items-center gap-2 md:gap-4">
           {/* Hamburger — solo en mobile cuando hay sidebar */}
           {sidebar && (
@@ -44,7 +45,7 @@ export function Layout({ children, sidebar }) {
             </button>
           )}
           <Link to="/dashboard" className="flex items-center gap-2 hover:opacity-80">
-            <img src="/logo-condor.svg" alt="Portezuelo" className="h-8 w-auto" />
+            <img src="/logo-condor.svg" alt="Portezuelo" className="logo-marca h-8 w-auto" />
             <span className="hidden sm:inline font-semibold text-sm text-gray-800">Portezuelo</span>
           </Link>
         </div>
@@ -65,11 +66,13 @@ export function Layout({ children, sidebar }) {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white border rounded-xl shadow-lg z-20 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-52 bg-surface border rounded-xl shadow-lg z-20 overflow-hidden">
                 <div className="px-4 py-3 border-b bg-gray-50">
                   <p className="text-sm font-medium text-gray-800">{user?.full_name || user?.username}</p>
                   <p className="text-xs text-gray-400">{user?.username}</p>
                 </div>
+                <ThemeToggle />
+                <div className="border-t" />
                 <button
                   onClick={() => { setMenuOpen(false); setShowPasswordModal(true); }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 text-left"
@@ -98,7 +101,7 @@ export function Layout({ children, sidebar }) {
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50" onClick={closeSidebar} />
           {/* Panel */}
-          <div className={`relative h-full w-56 bg-white shadow-xl transform transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <div className={`relative h-full w-56 bg-surface shadow-xl transform transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <span className="text-sm font-semibold text-gray-700">Menú</span>
               <button onClick={closeSidebar} className="p-1 rounded text-gray-400 hover:text-gray-700">

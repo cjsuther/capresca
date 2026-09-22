@@ -384,46 +384,6 @@ class PPIdempotencia(Base):
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
-class PPWorkflowRegla(Base):
-    """Regla de workflow por tipo de objeto aprobable (motor de cuatro-ojos / N-ojos configurable).
-    objeto: LINEA | SOLICITUD | DESEMBOLSO | REFINANCIACION."""
-    __tablename__ = "pp_workflow_regla"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uid)
-    objeto: Mapped[str] = mapped_column(String(20), unique=True, index=True)
-    nombre: Mapped[str] = mapped_column(String(80), default="")
-    descripcion: Mapped[str] = mapped_column(String(200), default="")
-    activo: Mapped[bool] = mapped_column(Boolean, default=True)   # si off, no exige aprobación
-    creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    niveles: Mapped[list["PPWorkflowNivel"]] = relationship(
-        back_populates="regla", cascade="all, delete-orphan")
-
-
-class PPWorkflowNivel(Base):
-    """Nivel de aprobación en serie dentro de una regla (orden 1..N). Cada nivel aprueba un ROL base,
-    con cuatro-ojos (no puede aprobar quien ya actuó) y overrides por usuario."""
-    __tablename__ = "pp_workflow_nivel"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uid)
-    regla_id: Mapped[str] = mapped_column(ForeignKey("pp_workflow_regla.id"))
-    orden: Mapped[int] = mapped_column(Integer, default=1)
-    nombre: Mapped[str] = mapped_column(String(60), default="Aprobación")
-    rol: Mapped[str] = mapped_column(String(20), default="APROBAR")  # rol de aprobación (core/gateway.py)
-    cuatro_ojos: Mapped[bool] = mapped_column(Boolean, default=True)  # excluye a quien ya intervino
-    regla: Mapped["PPWorkflowRegla"] = relationship(back_populates="niveles")
-    usuarios: Mapped[list["PPWorkflowNivelUsuario"]] = relationship(
-        back_populates="nivel", cascade="all, delete-orphan")
-
-
-class PPWorkflowNivelUsuario(Base):
-    """Override por usuario en un nivel: INCLUIR (aprobador extra aunque no tenga el rol) o
-    EXCLUIR (quitar a alguien que sí tiene el rol)."""
-    __tablename__ = "pp_workflow_nivel_usuario"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uid)
-    nivel_id: Mapped[str] = mapped_column(ForeignKey("pp_workflow_nivel.id"))
-    username: Mapped[str] = mapped_column(String(30))
-    modo: Mapped[str] = mapped_column(String(10), default="INCLUIR")  # INCLUIR | EXCLUIR
-    nivel: Mapped["PPWorkflowNivel"] = relationship(back_populates="usuarios")
-
-
 class PPWorkflowAprobacion(Base):
     """Aprobación registrada de un objeto concreto en un nivel de su regla (para ejecutar la cadena
     de N niveles en serie). objeto_id = id de la versión (LINEA), solicitud, o contrato.

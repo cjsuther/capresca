@@ -143,7 +143,7 @@ export default function TransferenciasPage() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white border rounded-xl p-4 mb-4 flex flex-wrap items-end gap-3">
+      <div className="bg-surface border rounded-xl p-4 mb-4 flex flex-wrap items-end gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Desde</label>
           <input
@@ -165,7 +165,7 @@ export default function TransferenciasPage() {
         <button
           onClick={cargar}
           disabled={loading}
-          className="flex items-center gap-2 bg-white border text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+          className="flex items-center gap-2 bg-surface border text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
         >
           <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           Consultar
@@ -193,7 +193,7 @@ export default function TransferenciasPage() {
       )}
 
       {/* Listado */}
-      <div className="bg-white border rounded-xl overflow-x-auto">
+      <div className="bg-surface border rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[900px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
@@ -236,7 +236,7 @@ export default function TransferenciasPage() {
       {/* Modal Nueva Transferencia */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+          <div className="bg-surface rounded-2xl p-6 w-full max-w-lg shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-800">Nueva Transferencia</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>

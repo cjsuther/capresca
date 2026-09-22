@@ -7,6 +7,119 @@
 
 ---
 
+## H-212 · Impuestos, índices, feriados y workflow pasan al módulo Configuraciones
+**Fecha:** 2026-09-22 · **Módulo:** Configuraciones (nuevo, :8011) / Créditos · **Alcance:** pedido del usuario
+- La configuración que no tenía pantalla se muda a un módulo propio con backend (base aparte) y
+  frontend (`/modules/configuraciones`): **impuestos, índices de referencia, feriados y la definición
+  del workflow de aprobaciones**. Los bundles de productos quedan en Créditos (son productos de crédito).
+- Créditos los lee por la API interna (`X-Api-Key`), con caché de 30 s y última copia hasta 10 min si
+  Configuraciones no responde. **Sin copia, 503**: no se simula con un calendario vacío ni se aprueba
+  con una regla inventada (fallar abierto salteaba el cuatro-ojos).
+- Créditos conserva la **ejecución** del workflow (`pp_workflow_aprobacion`, con la DB como árbitro por
+  nivel) y los GET de impuestos/índices que usa el armado de productos. Sin ABM ni tablas propias.
+- Permisos por catálogo (`configuraciones:<catalogo>:read|write`). Configurar el workflow es un permiso
+  aparte de operar Créditos.
+- **Bug corregido:** las excepciones por usuario de un nivel (INCLUIR / EXCLUIR) se guardaban pero el
+  motor las ignoraba. Ahora EXCLUIR saca la aprobación aunque se tenga el rol, e INCLUIR la da sin él.
+- **Comportamiento conservado:** un índice dado de baja sigue devolviendo su valor a las líneas
+  publicadas (antes también); si no, pasarían a cotizar sólo el margen.
+- Migración: `python -m app.etl.migrar_configuraciones` (idempotente por clave natural). Las tablas
+  viejas de Créditos quedan como respaldo, sin uso.
+- Los componentes de pantalla de Créditos (encabezado, tarjeta, tabla, modal, pills, confirmación)
+  pasan a `frontend/src/components/ui` para compartirlos; Créditos los re-exporta.
+
+## H-211 · Poda del backend: sólo el circuito de créditos
+**Fecha:** 2026-09-22 · **Módulo:** Créditos (backend, gateway, seguridad) · **Alcance:** cierre de la migración
+- **Endpoints.** Se retiran los routers de las áreas de CCyPP que no se migraron: contabilidad, egresos
+  (tesorería), seguros, despacho, mesa, juegos, controles de versión, migradores y `auth/mis-permisos`
+  (lo reemplaza el gateway). De `caja` quedan el recibo en PDF y los pendientes de cobro; de `admin`,
+  líneas, organismos (consulta) y parámetros; de `consultas`, las que usan las pantallas. También
+  `aprobaciones/count`. Criterio: se va todo lo que no llama ninguna pantalla del backoffice ni el portal,
+  salvo la **configuración del crédito que hoy no tiene pantalla** (impuestos, índices, feriados,
+  workflow, bundles, sincronización/perfil crediticio del padrón), que queda documentada como pendiente.
+- **Servicios que el crédito usa por dentro** siguen, podados a lo que usa: asientos (`contabilidad`),
+  póliza al otorgar (`seguros`), OP del desembolso (`egresos`), recibo de la cancelación (`caja`).
+  El registro de auditoría de cada mutación sigue igual; se retira la pantalla de consulta.
+- **Código muerto** (análisis de referencias iterado hasta punto fijo): funciones de servicios y
+  reportes, ~125 schemas y 23 modelos ORM de áreas retiradas. **Las tablas y sus datos en Postgres no
+  se tocan**; el DDL de arranque que alteraba esas tablas se quitó (en una base nueva ya no existen).
+- **Permisos.** Una sola área: `creditos:read|write` + `aprobaciones:aprobar|supervisar`. El seed de
+  Seguridad **borra** los permisos de las áreas retiradas (y sus asignaciones a roles/usuarios).
+  El gateway sólo reenvía los recursos del circuito; lo demás es 404.
+- **Workflow.** Configurar los niveles de aprobación pasa de `seguridad:write` a
+  `aprobaciones:supervisar` (gateway + módulo): `creditos:write` no alcanza, así quien carga créditos
+  no puede sacarse su propio control.
+- **Bug corregido.** El inbox de aprobaciones enlazaba a rutas de la SPA vieja (`/creditos/configurar`),
+  que en Portezuelo terminaban en el dashboard; ahora `/modules/creditos/...`. Además *Solicitudes de
+  crédito* no abría la solicitud del deep link (`solicitud_abrir`): se perdió al portar la pantalla.
+- **Límite consciente:** los loaders de ETL de histórico (cheques, contabilidad general, liquidaciones
+  de agencias) siguen: son la herramienta de migración de datos productivos, no se exponen.
+
+## H-210 · Se retira la SPA propia del backoffice (`/creditos/`)
+**Fecha:** 2026-09-22 · **Módulo:** Créditos · **Alcance:** cierre de la migración al frontend de Portezuelo
+- Con las 30 pantallas de crédito ya en `frontend/src/modules/creditos/`, se borró
+  `modules/creditos/frontend` (SPA TSX) y su servicio `creditos-web` del compose.
+- nginx ya no la sirve: `/creditos` y `/creditos/*` redirigen (301) a `/modules/creditos/`, así los
+  accesos guardados no terminan en 404.
+- El login de Portezuelo pierde el `?next=` externo, que sólo existía para volver a esa SPA: ahora se
+  ignora siempre (menos superficie de open redirect).
+- Queda para la próxima etapa la poda del backend de las áreas descartadas (caja, contabilidad,
+  tesorería, seguros, despacho, mesa, juegos, migradores), que todavía exponen endpoints.
+
+## H-209 · Servicing: una respuesta sin cuerpo dejaba la pantalla en blanco
+**Fecha:** 2026-09-21 · **Módulo:** Créditos (frontend) · **Alcance:** robustez
+- `ContratoServicing.aplicar()` propagaba el contrato devuelto por la acción (pago, devengo,
+  desembolso, reversa) a `onChange`. Si el endpoint respondía sin cuerpo, el `setDetalle` del
+  padre hacía `c.id` sobre `undefined` **dentro del updater**, fuera del `try`: el error escapaba
+  al render y tiraba abajo *Situación del cliente* entera (no sólo la fila).
+- Ahora `aplicar` recarga siempre y sólo propaga el contrato cuando viene con `id`.
+- El test de desembolso tapaba el caso (el doble devolvía `undefined`); ahora devuelve el contrato
+  y verifica que tras desembolsar aparecen las acciones de servicing.
+
+## H-208 · Tema claro/oscuro en toda la plataforma
+**Fecha:** 2026-09-21 · **Módulo:** Portezuelo (frontend + portal) · **Alcance:** pedido del usuario
+- El tema se resuelve con **tokens CSS** (`--c-*` en `index.css`) y `darkMode: "class"` en Tailwind:
+  las clases de siempre (`bg-surface`, `text-gray-700`, `bg-blue-50`…) cambian de significado según
+  el tema. **No se agregan variantes `dark:` en el markup** — si hace falta un color nuevo, se suma
+  un token, no un `dark:`.
+- Preferencia por navegador (localStorage, no sessionStorage): sobrevive al cierre de sesión y el
+  selector está también en el login. Tres opciones: claro, oscuro y el del sistema operativo, que
+  se sigue en vivo sólo mientras esté elegido "sistema".
+- Los gráficos del tablero toman su paleta de `modules/creditos/graficos.js` (validada para ambos
+  fondos); no quedan hex fijos en el markup.
+- El **portal del ciudadano** lleva el mismo selector con sus propios tokens `--p-*`
+  (`<html data-tema>`), respetando la identidad CCyPP.
+
+## H-207 · Padrón único de clientes: el maestro pasa al módulo Clientes de Portezuelo
+**Fecha:** 2026-09-20 · **Módulo:** Clientes / Créditos · **Alcance:** pedido del usuario
+- CCyPP tenía su propio maestro de personas (`clientes`, migrado de `maeclientes`) y Portezuelo el suyo
+  (`/api/clientes`): dos padrones para la misma persona. Ahora el **único maestro es el módulo Clientes**.
+- En Créditos la tabla `clientes` pasa a ser **espejo de sólo lectura** de la identidad (nombre, documento,
+  domicilio, contacto, CBU) y su `id` es el **id del padrón**, no una secuencia local. Lo propio del crédito
+  —sueldo, organismo, categoría, débito automático— sigue en Créditos (`PUT /clientes/{id}/perfil-crediticio`).
+- Se retiran de Créditos el alta, la edición y la baja de personas (405). El espejo se refresca con
+  `POST /clientes/{id}/sincronizar` y al consultar un cliente que todavía no está espejado.
+- El módulo Clientes suma dos endpoints internos (no salen del gateway): `/internal/clientes/{id}/ficha`
+  (identidad completa) y `/internal/clientes/importar` (alta/merge por documento, idempotente).
+- La promoción de una solicitud express (portal) da de alta a la persona **en el padrón** y espeja; si el
+  módulo Clientes no responde, devuelve 503 en vez de crear un cliente local.
+- **Migración de datos:** `app.etl.migrar_padron_clientes` empuja el maestro CCyPP al padrón por documento,
+  reescribe las FKs (solicitudes, créditos, recibos, pólizas) y re-clava el espejo con el id nuevo. Es
+  reentrante (tabla `clientes_padron_map`) y tiene `--dry-run`.
+- **Pendiente:** los permisos por área de Créditos (`creditos:clientes:*`) quedan sin uso en el front; se
+  podan cuando se retire la SPA vieja.
+
+## H-206 · "Limpiar filtros" recargaba con los filtros viejos (cierre obsoleto)
+**Fecha:** 2026-09-20 · **Módulo:** Backoffice (frontend) · **Alcance:** cobertura de tests
+**Evidencia:** `ResumenCobros`, `ContabilidadGeneral`, `ChequesEmitidos` y `Polizas` llamaban a la
+función de recarga en el mismo tick que los `setState` del limpiado, así que la petición salía con
+los valores del render anterior: la UI mostraba los filtros vacíos pero los datos seguían filtrados.
+En `ChequesEmitidos` y `Polizas` pasaba lo mismo al clickear una fila para filtrar por cuenta/agente
+(el pedido iba sin el valor recién elegido).
+**Impacto:** corregido pasando los filtros por argumento (`ver(d, h)` / `ver(off, e, filtros)` /
+`buscar(off, filtros)`) en vez de leerlos del estado. Cubierto por
+`ResumenCobros.test.tsx` y `ContabilidadGeneral.test.tsx`.
+
 ## H-205 · Integración con Portezuelo (sistema modular): identidad y permisos del gateway
 **Fecha:** 2026-09-18 · **Módulo:** Seguridad / Integración · **Alcance:** pedido del usuario
 - CCyPP pasa a ser el módulo **Créditos** de Portezuelo (`modules/creditos`, API :8010). El backoffice se

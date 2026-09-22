@@ -50,12 +50,6 @@ def assign(user_id: int, data: AssignRolesRequest, db: Session = Depends(get_db)
     return assign_roles(db, user_id, data.role_ids)
 
 
-# ── Cambio de contraseña por admin ───────────────────────────────
-@router.put("/{user_id}/password", status_code=204)
-def admin_set_password(user_id: int, data: AdminChangePasswordRequest, db: Session = Depends(get_db)):
-    admin_change_password(db, user_id, data.new_password)
-
-
 # ── Cambio de contraseña propio ──────────────────────────────────
 @router.put("/me/password", status_code=204)
 def change_my_password(
@@ -66,3 +60,9 @@ def change_my_password(
     if not x_user_id:
         raise HTTPException(status_code=401, detail="No autenticado")
     change_own_password(db, int(x_user_id), data.current_password, data.new_password)
+
+
+# ── Cambio de contraseña por admin ───────────────────────────────
+@router.put("/{user_id}/password", status_code=204)
+def admin_set_password(user_id: int, data: AdminChangePasswordRequest, db: Session = Depends(get_db)):
+    admin_change_password(db, user_id, data.new_password)

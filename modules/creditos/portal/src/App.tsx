@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTema, Tema } from "./tema";
 import { api, token, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
 
 const money = (v: string | number) =>
@@ -16,6 +17,35 @@ function PortalLogo({ size = 40 }: { size?: number }) {
     </svg>
   );
 }
+// Selector de tema (claro / oscuro / dispositivo). Mismo criterio que el backoffice: la
+// preferencia es del navegador, así que también está disponible antes de iniciar sesión.
+const TEMAS: { id: Tema; label: string; icono: JSX.Element }[] = [
+  { id: "light", label: "Claro", icono: (
+    <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>
+  ) },
+  { id: "dark", label: "Oscuro", icono: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" /> },
+  { id: "system", label: "Dispositivo", icono: (
+    <><rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></>
+  ) },
+];
+
+function SelectorTema() {
+  const [tema, setTema] = useTema();
+  return (
+    <div className="p-tema" role="radiogroup" aria-label="Tema de la interfaz">
+      {TEMAS.map((t) => (
+        <button key={t.id} type="button" role="radio" aria-checked={tema === t.id} aria-label={t.label}
+                title={t.label} className={tema === t.id ? "on" : ""} onClick={() => setTema(t.id)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {t.icono}
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const SISTEMA: Record<string, string> = { FRANCES: "Francés", ALEMAN: "Alemán", DIRECTO: "Directo", CUOTA_FIJA: "Cuota fija" };
 
 // Captura el token del fragmento tras el callback OIDC (<base>/ingreso#token=...) y limpia la URL.
@@ -71,7 +101,10 @@ function Login() {
   return (
     <Marco>
       <div className="p-card p-login">
-        <div className="p-brand"><PortalLogo size={64} /><div><b>Caja de Crédito y Prestaciones</b><span>Ca.Pre.S.Ca. · Provincia de Catamarca</span></div></div>
+        <div className="p-login-top">
+          <div className="p-brand"><PortalLogo size={64} /><div><b>Caja de Crédito y Prestaciones</b><span>Ca.Pre.S.Ca. · Provincia de Catamarca</span></div></div>
+          <SelectorTema />
+        </div>
         <h1>Solicitá tu crédito online</h1>
         <p className="p-muted">Ingresá con tu cuenta de <b>Mi Catamarca</b> para simular tu crédito y enviar tu solicitud sin trámites presenciales.</p>
         <button className="p-btn p-btn-mc" onClick={ingresar} disabled={yendo}>
@@ -350,6 +383,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
           <button className={tab === "creditos" ? "on" : ""} onClick={() => setTab("creditos")}>Mis créditos</button>
         </nav>
         <div className="p-user">
+          <SelectorTema />
           <div className="p-bell">
             <button className="p-bell-btn" onClick={() => setNotisOpen((o) => !o)} aria-label="Notificaciones">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -679,6 +713,20 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   );
 }
 
+// Reglas del tema oscuro, parametrizadas por el selector raíz: se emiten dos veces (elección
+// explícita y preferencia del dispositivo) para no duplicar los valores a mano.
+const OSCURO = (raiz: string) => `
+      ${raiz} {
+        --p-bg:#0e1622; --p-surface:#172230; --p-ink:#e7eef7; --p-muted:#95a3b8;
+        --p-border:#2a3a4e; --p-brand:#5b8fc7; --p-brand-2:#7aa6d6; --p-green:#81bc26; --p-brand-ink:#0b1220;
+        --p-ok:#43c88a; --p-warn:#e0a44a; --p-warn-soft:#3a2f16; --p-crit:#f0777a; --p-crit-soft:#3a1e20;
+      }
+      ${raiz} .p-alert { background:#3a1e20; color:#f0777a; border-color:#5b2a2c; }
+      ${raiz} .p-ok, ${raiz} .p-preap { background:rgba(129,188,38,.12); border-color:rgba(129,188,38,.35); color:var(--p-ink); }
+      ${raiz} .p-pill.ok { background:rgba(67,200,138,.16); color:var(--p-ok); }
+      ${raiz} .p-track-step.done .p-track-dot, ${raiz} .p-track-step.fail .p-track-dot { color:#0b1220; }
+`;
+
 function Estilos() {
   return <style>{`
     :root {
@@ -687,17 +735,12 @@ function Estilos() {
       --p-border:#dbe1ee; --p-brand:#1a3258; --p-brand-2:#294d76; --p-green:#81bc26; --p-brand-ink:#ffffff;
       --p-ok:#1a7f4b; --p-warn:#b45309; --p-warn-soft:#fef3c7; --p-crit:#b91c1c; --p-crit-soft:#fef2f2;
     }
-    /* Modo oscuro: respeta el dispositivo, misma identidad (navy más claro para contraste + verde). */
+    /* Modo oscuro: misma identidad (navy más claro para contraste + verde). Se aplica cuando el
+       ciudadano lo elige (<html data-tema="dark">) o, si eligió "dispositivo", cuando el sistema
+       operativo lo pide — salvo que haya elegido claro explícitamente. */
+    ${OSCURO(':root[data-tema="dark"]')}
     @media (prefers-color-scheme: dark) {
-      :root {
-        --p-bg:#0e1622; --p-surface:#172230; --p-ink:#e7eef7; --p-muted:#95a3b8;
-        --p-border:#2a3a4e; --p-brand:#5b8fc7; --p-brand-2:#7aa6d6; --p-green:#81bc26; --p-brand-ink:#0b1220;
-        --p-ok:#43c88a; --p-warn:#e0a44a; --p-warn-soft:#3a2f16; --p-crit:#f0777a; --p-crit-soft:#3a1e20;
-      }
-      .p-alert { background:#3a1e20; color:#f0777a; border-color:#5b2a2c; }
-      .p-ok, .p-preap { background:rgba(129,188,38,.12); border-color:rgba(129,188,38,.35); color:var(--p-ink); }
-      .p-pill.ok { background:rgba(67,200,138,.16); color:var(--p-ok); }
-      .p-track-step.done .p-track-dot, .p-track-step.fail .p-track-dot { color:#0b1220; }
+      ${OSCURO(':root:not([data-tema="light"])')}
     }
     * { box-sizing:border-box; }
     html, body { margin:0; overflow-x:hidden; max-width:100%; }
@@ -732,6 +775,11 @@ function Estilos() {
       font-size:.9rem; font-weight:600; color:var(--p-muted); }
     .p-nav button.on { background:var(--p-bg); color:var(--p-brand); }
     .p-user { display:flex; align-items:center; gap:12px; font-size:.9rem; margin-left:auto; }
+    .p-login-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .p-tema { display:inline-flex; align-items:center; gap:2px; padding:2px; border-radius:10px; background:var(--p-bg); border:1px solid var(--p-border); }
+    .p-tema button { display:inline-flex; padding:5px; border:none; border-radius:8px; background:transparent; color:var(--p-muted); cursor:pointer; transition:background .15s, color .15s; }
+    .p-tema button:hover { color:var(--p-ink); }
+    .p-tema button.on { background:var(--p-surface); color:var(--p-brand); box-shadow:0 1px 2px rgba(15,23,42,.12); }
     .p-bell { position:relative; }
     .p-bell-btn { background:transparent; border:none; cursor:pointer; position:relative; padding:5px; color:var(--p-muted); display:inline-flex; border-radius:10px; transition:color .15s, background .15s; }
     .p-bell-btn:hover { color:var(--p-ink); background:var(--p-surface-2, rgba(120,140,170,.12)); }

@@ -1,4 +1,4 @@
-"""Integración con Portezuelo: identidad y permisos por área que inyecta el gateway (H-205)."""
+"""Integración con Portezuelo: identidad y permisos que inyecta el gateway (H-205)."""
 import pytest
 from fastapi.testclient import TestClient
 
@@ -24,26 +24,23 @@ def _auth(client, user="admin", pw="admin123"):
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
-def test_gateway_crea_usuario_local_y_expone_areas(client):
-    h = _gw("pz.operador", "creditos:caja:read", "creditos:creditos:write",
-            "creditos:aprobaciones:aprobar", "cajeros:rules:read")
+def test_gateway_crea_usuario_local_y_toma_sus_permisos(client):
+    h = _gw("pz.operador", "creditos:creditos:write", "creditos:aprobaciones:aprobar", "cajeros:rules:read")
     for _ in range(2):   # el segundo acceso reusa el Usuario local
-        r = client.get("/api/creditos/auth/mis-permisos", headers=h)
+        r = client.get("/api/creditos/productos", headers=h)
         assert r.status_code == 200, r.text
-        d = r.json()
-        assert d["usuario"] == "pz.operador"
-        assert d["areas"] == {"caja": "CONSULTA", "creditos": "ESCRITURA"}   # los de otros módulos se ignoran
-        assert d["roles"] == ["APROBAR"]
+        # los permisos de otros módulos (cajeros:*) no cuentan
+        assert r.json()["permisos"] == {"edita": True, "aprueba": True}
     with SessionLocal() as db:
         u = db.query(models.Usuario).filter_by(username="pz.operador").all()
         assert len(u) == 1 and u[0].perfil == "SSO"   # se crea una sola vez
 
 
 def test_gateway_sin_identidad_es_401(client):
-    assert client.get("/api/creditos/auth/mis-permisos").status_code == 401
+    assert client.get("/api/creditos/productos").status_code == 401
     assert client.get("/api/creditos/contratos/tablero").status_code == 401
     # Un id no numérico no es una identidad válida del gateway.
-    assert client.get("/api/creditos/auth/mis-permisos", headers=_gw("x", user_id=0) | {"X-User-Id": "abc"}).status_code == 401
+    assert client.get("/api/creditos/productos", headers=_gw("x", user_id=0) | {"X-User-Id": "abc"}).status_code == 401
 
 
 def test_capacidades_de_creditos_salen_de_los_permisos(client):
@@ -55,32 +52,24 @@ def test_capacidades_de_creditos_salen_de_los_permisos(client):
     assert client.get("/api/creditos/productos", headers=supervisor).json()["permisos"] == {"edita": False, "aprueba": True}
 
 
-def test_workflow_roles_de_aprobacion(client):
+def test_la_configuracion_del_workflow_no_vive_en_creditos(client):
+    """Las reglas se administran en el módulo Configuraciones (con su permiso `workflow:write`)."""
     admin = _auth(client)
-    wf = client.get("/api/creditos/workflow", headers=admin).json()
-    assert wf["perfiles"] == ["APROBAR", "SUPERVISAR"] and wf["puedeEditar"] is True
-    nivel = next(r for r in wf["reglas"] if r["objeto"] == "LINEA")["niveles"][0]
-    assert nivel["rol"] == "APROBAR"
-    # Un perfil VFP ya no es un rol válido para un nivel.
-    r = client.put(f"/api/creditos/workflow/niveles/{nivel['id']}", headers=admin,
-                   json={"nombre": "Aprobación", "rol": "ADMG", "cuatroOjos": True})
-    assert r.status_code == 422
-    # Configurar el workflow exige escritura de Seguridad.
-    lector = _gw("pz.lector", "creditos:seguridad:read")
-    assert client.get("/api/creditos/workflow", headers=lector).json()["puedeEditar"] is False
-    assert client.put("/api/creditos/workflow/LINEA", headers=lector, json={"activo": True}).status_code == 403
+    assert client.get("/api/creditos/workflow", headers=admin).status_code == 404
+    assert client.put("/api/creditos/workflow/LINEA", headers=admin, json={"activo": True}).status_code == 404
 
 
 def test_rechazar_pendiente_exige_aprobador(client):
     """H-205: sin regla activa, rechazar un pendiente exige el permiso de aprobación."""
     admin = _auth(client)
-    client.put("/api/creditos/workflow/DESEMBOLSO", headers=admin, json={"activo": True})
+    from tests.config_falsa import CONFIG
+    CONFIG.activar("DESEMBOLSO")
     pers = next(p for p in client.get("/api/creditos/contratos/oferta", headers=admin).json()["items"] if p["codigo"] == "LP-PERS-01")
     cid = client.post("/api/creditos/contratos/originar", headers=admin, json={
         "producto_id": pers["id"], "cliente_nombre": "RECHAZO-GATE", "monto": 500_000, "plazo": 12,
         "desembolsar": False}).json()["id"]
     pid = client.post(f"/api/creditos/contratos/{cid}/desembolsar", headers=admin).json()["pendienteId"]
-    client.put("/api/creditos/workflow/DESEMBOLSO", headers=admin, json={"activo": False})
+    CONFIG.activar("DESEMBOLSO", False)
 
     sin_aprobacion = _gw("pz.editor", "creditos:creditos:write", "creditos:creditos:read")
     r = client.post(f"/api/creditos/aprobaciones/pendientes/{pid}/rechazar", headers=sin_aprobacion, json={"motivo": "x"})

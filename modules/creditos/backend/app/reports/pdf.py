@@ -106,21 +106,6 @@ def tabla_pdf(titulo: str, subtitulo: str, columnas, filas, anchos=None,
     return buf.read()
 
 
-def libro_diario_pdf(asientos) -> bytes:
-    """Libro diario: cada asiento con sus líneas debe/haber."""
-    filas = []
-    for a in asientos:
-        filas.append([f"#{a.id}", str(a.fecha), a.concepto, "", ""])
-        for l in a.lineas:
-            filas.append(["", "", f"   {l.cuenta_codigo} {l.cuenta_nombre}",
-                          _money(l.debe) if l.debe else "",
-                          _money(l.haber) if l.haber else ""])
-    cols = [("Asiento", "l"), ("Fecha", "l"), ("Cuenta / concepto", "l"),
-            ("Debe", "r"), ("Haber", "r")]
-    anchos = [18 * mm, 22 * mm, 90 * mm, 20 * mm, 20 * mm]
-    return tabla_pdf("Libro diario", "Contabilidad", cols, filas, anchos)
-
-
 def pendientes_cobro_pdf(data) -> bytes:
     """Listado de cuotas pendientes de cobro con mora."""
     filas = [[i["cliente"], f"#{i['credito_id']}-{i['cuota_numero']}",
@@ -134,22 +119,6 @@ def pendientes_cobro_pdf(data) -> bytes:
            _money(data["total_mora"]), _money(data["total"])]
     return tabla_pdf(f"Pendientes de cobro al {data['fecha_corte']}",
                      "Caja", cols, filas, anchos, totales_fila=tot)
-
-
-def control_caja_pdf(data) -> bytes:
-    """Control de caja detallado por cajero."""
-    filas = []
-    for c in data["cajeros"]:
-        filas.append([f"Cajero: {c['cajero']}", "", "", ""])
-        for r in c["recibos"]:
-            filas.append([f"   Recibo {r['numero']}", r["cliente"],
-                          r["via_pago"], _money(r["total"])])
-        filas.append(["", "", f"Subtotal ({c['cantidad']})", _money(c["subtotal"])])
-    cols = [("Recibo", "l"), ("Cliente", "l"), ("Vía / concepto", "l"), ("Importe", "r")]
-    anchos = [40 * mm, 65 * mm, 40 * mm, 25 * mm]
-    tot = ["", "", f"TOTAL GENERAL ({data['cantidad_total']})", _money(data["total_general"])]
-    return tabla_pdf(f"Control de caja — {data['fecha']}", "Caja", cols, filas, anchos,
-                     totales_fila=tot)
 
 
 def cartera_pdf(data) -> bytes:
@@ -181,117 +150,6 @@ def por_cartera_pdf(data) -> bytes:
     if data.get("anomalias_saldo_negativo"):
         sub = f"Créditos — {data['anomalias_saldo_negativo']} crédito(s) con saldo negativo excluidos (H-023)"
     return tabla_pdf("Créditos por cartera", sub, cols, filas, anchos, totales_fila=tot)
-
-
-def balance_sumas_saldos_pdf(data) -> bytes:
-    """Balance de sumas y saldos: cuenta, debe, haber, saldo deudor/acreedor."""
-    filas = [[f"{c['cuenta_codigo']} {c['cuenta_nombre']}", _money(c["debe"]),
-              _money(c["haber"]), _money(c["saldo_deudor"]), _money(c["saldo_acreedor"])]
-             for c in data["cuentas"]]
-    cols = [("Cuenta", "l"), ("Debe", "r"), ("Haber", "r"),
-            ("Saldo deudor", "r"), ("Saldo acreedor", "r")]
-    anchos = [66 * mm, 26 * mm, 26 * mm, 29 * mm, 29 * mm]
-    t = data["total"]
-    tot = ["TOTALES", _money(t["debe"]), _money(t["haber"]),
-           _money(t["deudor"]), _money(t["acreedor"])]
-    sub = "Contabilidad" + ("" if data["cuadra"] else " — ⚠ NO CUADRA")
-    return tabla_pdf("Balance de sumas y saldos", sub, cols, filas, anchos, totales_fila=tot)
-
-
-def iva_periodo_pdf(data) -> bytes:
-    filas = [["IVA débito fiscal (a pagar)", _money(data["iva_debito"])],
-             ["Asientos considerados", str(data["cantidad_asientos"])]]
-    cols = [("Concepto", "l"), ("Valor", "r")]
-    return tabla_pdf(f"IVA a pagar — {data['desde']} a {data['hasta']}",
-                     "Contabilidad", cols, filas, [120 * mm, 50 * mm])
-
-
-def cierre_caja_pdf(cierre) -> bytes:
-    """Cierre de caja (supervisor): totales por moneda (pesos/bonos), quiniela y
-    desglose por concepto de créditos. Reimpresión 23040/cierre 22535."""
-    filas = []
-    if getattr(cierre, "por_moneda", None):
-        filas.append(["— Por moneda —", ""])
-        for m in cierre.por_moneda:
-            filas.append([f"   {m.concepto}", _money(m.importe)])
-    if getattr(cierre, "quiniela_cantidad", 0):
-        filas.append([f"   Quiniela ({cierre.quiniela_cantidad} cobros)",
-                      _money(cierre.quiniela_cobrado)])
-    if cierre.por_concepto:
-        filas.append(["— Por concepto (créditos) —", ""])
-        for c in cierre.por_concepto:
-            filas.append([f"   {c.concepto}", _money(c.importe)])
-    cols = [("Concepto", "l"), ("Importe", "r")]
-    anchos = [120 * mm, 50 * mm]
-    tot = [f"Recibos: {cierre.cantidad_recibos}", _money(cierre.total_cobrado)]
-    return tabla_pdf(f"Cierre de caja — {cierre.fecha}"
-                     + (f" (cajero {cierre.cajero})" if cierre.cajero else ""),
-                     "Caja (Supervisor)", cols, filas, anchos, totales_fila=tot)
-
-
-def recibo_reimpresion_pdf(cabecera: dict, lineas: list[dict]) -> bytes:
-    """PDF de reimpresión de un recibo histórico (quiniela o créditos/seguros).
-    `cabecera` = {no_recibo, origen, titular, fecha, cajero, total, extra};
-    `lineas` = [{detalle, moneda, importe}]."""
-    buf = BytesIO()
-    c = canvas.Canvas(buf, pagesize=A4)
-    w, h = A4
-    c.setFillColor(AZUL)
-    c.rect(0, h - 20 * mm, w, 20 * mm, fill=1, stroke=0)
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(20 * mm, h - 13 * mm, "C.C. y P.P. — Ca.Pre.S.Ca.")
-    c.setFont("Helvetica", 9)
-    c.drawRightString(w - 20 * mm, h - 13 * mm, "Reimpresión de recibo")
-
-    c.setFillColor(colors.black)
-    y = h - 30 * mm
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(20 * mm, y, f"Recibo N° {cabecera['no_recibo']} — {cabecera['origen']}")
-    c.setFont("Helvetica", 10)
-    c.drawRightString(w - 20 * mm, y, f"Fecha: {cabecera['fecha']}")
-    y -= 8 * mm
-    c.drawString(20 * mm, y, f"Titular: {cabecera['titular']}")
-    y -= 6 * mm
-    c.drawString(20 * mm, y, f"Cajero: {cabecera['cajero']}")
-    if cabecera.get("extra"):
-        y -= 6 * mm
-        c.drawString(20 * mm, y, cabecera["extra"])
-    y -= 10 * mm
-
-    c.setFont("Helvetica-Bold", 8)
-    c.setFillColor(AZUL)
-    c.drawString(20 * mm, y, "Detalle")
-    c.drawString(150 * mm, y, "Mon.")
-    c.drawRightString(w - 20 * mm, y, "Importe")
-    c.setFillColor(colors.black)
-    y -= 2 * mm
-    c.line(20 * mm, y, w - 20 * mm, y)
-    y -= 5 * mm
-    c.setFont("Helvetica", 8)
-    for ln in lineas:
-        if y < 25 * mm:
-            c.showPage(); y = h - 25 * mm
-            c.setFont("Helvetica", 8)
-        c.drawString(20 * mm, y, str(ln["detalle"])[:95])
-        c.drawString(150 * mm, y, str(ln.get("moneda", "")))
-        c.drawRightString(w - 20 * mm, y, _money(ln["importe"]))
-        y -= 5 * mm
-
-    y -= 2 * mm
-    c.line(20 * mm, y, w - 20 * mm, y)
-    y -= 8 * mm
-    c.setFont("Helvetica-Bold", 12)
-    c.drawRightString(w - 20 * mm, y, f"TOTAL: {_money(cabecera['total'])}")
-
-    c.setFont("Helvetica-Oblique", 7)
-    c.setFillColor(colors.grey)
-    c.drawString(20 * mm, 15 * mm,
-                 "Reimpresión generada por el sistema CCyPP (migración desde Visual FoxPro).")
-    c.showPage()
-    c.save()
-    buf.seek(0)
-    return buf.read()
 
 
 def recibo_pdf(recibo, pagos, cliente_nombre: str) -> bytes:

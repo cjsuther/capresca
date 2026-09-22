@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core import configuraciones as config
 from app.core.database import get_db
 from app.core.numbering import crear_con_numero_unico
 from app.core.idempotency import con_idempotencia
@@ -150,17 +151,15 @@ def _tna_base(db: Session, v: m.PPVersion) -> float:
     para que la simulación (prueba en vivo, portal) coincida con la originación en tasa variable."""
     tna_row = next((t for t in v.tasas if t.codigo == "TNA"), None)
     if tna_row and tna_row.modalidad == "VARIABLE":
-        ind = db.query(models.IndiceReferencia).filter_by(codigo=tna_row.indice_referencia).first()
-        return (float(ind.valor) if ind else 0.0) + float(tna_row.margen)
+        return (config.indice_valor(tna_row.indice_referencia) or 0.0) + float(tna_row.margen)
     return float(tna_row.tasa_default) if tna_row else _tasa(v, "TNA")
 
 
 def _feriados_engine(db: Session, pais: str = "AR") -> set:
-    """Feriados activos del país para alimentar el motor de cronograma (calendario tiny)."""
-    from app.api.feriados import feriados_set
+    """Feriados activos del país (módulo Configuraciones) para el ajuste a día hábil del cronograma."""
     from datetime import date as _d
     hoy = _d.today()
-    return feriados_set(db, pais, _d(hoy.year - 1, 1, 1), _d(hoy.year + 15, 12, 31))
+    return config.feriados(pais, _d(hoy.year - 1, 1, 1), _d(hoy.year + 15, 12, 31))
 
 
 def _params_cronograma(v: m.PPVersion, feriados: set | None = None, decimales: int = 2) -> dict:
@@ -376,8 +375,7 @@ def _serial_v(db: Session, prod: m.PPProducto, v: m.PPVersion, calc_map: dict[st
     _ind_cod = next((t.indice_referencia for t in v.tasas if t.codigo == "TNA"), "")
     _margen = next((float(t.margen) for t in v.tasas if t.codigo == "TNA"), 0.0)
     if tna_mod == "VARIABLE" and _ind_cod:
-        _ind = db.query(models.IndiceReferencia).filter_by(codigo=_ind_cod).first()
-        tna_vigente = round((float(_ind.valor) if _ind else 0.0) + _margen, 4)
+        tna_vigente = round((config.indice_valor(_ind_cod) or 0.0) + _margen, 4)
     else:
         tna_vigente = tna_def
     publicadas = sorted({x.numero_version for x in prod.versiones if x.estado == "PUBLICADO"})

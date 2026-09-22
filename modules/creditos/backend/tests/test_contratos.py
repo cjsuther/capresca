@@ -325,9 +325,9 @@ def test_repricing_periodico_actualiza_tna_variable(client):
     cid = c["id"]
     tna0 = c["tasa"]  # BADLAR(45) + margen(10) = 55
     assert tna0 == 55
-    # Cambia el índice BADLAR y aplica repricing
-    badlar = next(i for i in client.get("/api/creditos/indices", headers=h).json()["items"] if i["codigo"] == "BADLAR")
-    client.put(f"/api/creditos/indices/{badlar['id']}", headers=h, json={**badlar, "valor": 60})
+    # Cambia el índice BADLAR (en Configuraciones) y aplica repricing
+    from tests.config_falsa import CONFIG
+    CONFIG.set_indice("BADLAR", 60)
     rp = client.post(f"/api/creditos/contratos/{cid}/actividad", headers=h, json={"tipo": "REPRICING"}).json()
     assert rp["tasa"] == 70  # 60 + 10
     rep = next(a for a in rp["actividades"] if a["tipo"] == "REPRICING")
@@ -356,9 +356,13 @@ def test_asientos_contables_de_originacion_y_pago(client):
     otorg = next(a for a in c["asientos"] if a["origen"] == "pp_otorgamiento")
     assert _sum(otorg["lineas"], "debe") == _sum(otorg["lineas"], "haber") == 1200000
     assert any(l["cuenta"] == "1.1.01" and l["haber"] == 1200000 for l in otorg["lineas"])
-    # Aparece en el Libro Diario de Contabilidad
-    ld = client.get("/api/creditos/contabilidad/libro-diario", headers=h).json()
-    assert any("CONTAB" in a["concepto"] or c["numero_contrato"] in a["concepto"] for a in ld)
+    # Queda persistido en el libro de asientos (la contabilidad de CCyPP no se publica, pero el asiento sí
+    # se registra: lo necesita el circuito del crédito).
+    from app.core.database import SessionLocal
+    from app import models
+    with SessionLocal() as db:
+        conceptos = [a.concepto for a in db.query(models.Asiento).filter_by(origen="pp_otorgamiento").all()]
+    assert any("CONTAB" in x or c["numero_contrato"] in x for x in conceptos)
     # Pago genera asiento de cobranza balanceado
     c2 = client.post(f"/api/creditos/contratos/{cid}/actividad", headers=h, json={"tipo": "PAYMENT"}).json()
     cob = next(a for a in c2["asientos"] if a["origen"] == "pp_cobranza")

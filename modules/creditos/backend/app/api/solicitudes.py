@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.services import documentos
 
-from app.core.codigos import codigo_cliente, codigo_cliente_provisorio
+from app.core import clientes_padron
 from app.core.database import get_db
 from app.core.numbering import crear_con_numero_unico
 from app.core.idempotency import con_idempotencia
@@ -355,20 +355,33 @@ def promover_cliente(sid: str, data: PromoverIn, db: Session = Depends(get_db),
     cuil = "".join(ch for ch in (data.cuil or cd.get("cuil") or "") if ch.isdigit())
     if cuil and len(cuil) != 11:
         raise HTTPException(422, "El CUIL debe tener 11 dígitos.")
-    existente = db.query(models.Cliente).filter_by(cuil=cuil).first() if cuil else None
-    if existente:
-        cli = existente
-    else:
-        # H-169: el id_cliente del maestro se AUTOGENERA del PK (no el CUIL ni el N° de solicitud).
-        manual = (data.id_cliente or "").strip()
-        cli = models.Cliente(id_cliente=manual or codigo_cliente_provisorio(),
-                             cuil=cuil, dni=dni, apellido_nombre=nombre)
-        db.add(cli); db.flush()
-        if not manual:
-            cli.id_cliente = codigo_cliente(cli.id); db.flush()
+    # El padrón es del módulo Clientes: la persona se da de alta ALLÁ (idempotente por documento) y
+    # acá queda sólo el espejo. Así no hay dos maestros de clientes en el sistema.
+    documento = cuil or dni
+    if not documento:
+        raise HTTPException(422, "Hace falta el DNI o el CUIL para darlo de alta en el padrón de clientes.")
+    apellido, _, nombres = nombre.partition(",")
+    try:
+        r = clientes_padron.importar([{
+            "documento": documento,
+            "tipo_documento": "CUIL" if cuil else "DNI",
+            "apellido": apellido.strip() or nombre,
+            "nombres": nombres.strip(),
+            "email": cd.get("email") or "",
+            "telefono": cd.get("telefono") or "",
+            "domicilio": cd.get("domicilio") or "",
+            "localidad": cd.get("localidad") or "",
+        }])
+    except Exception as e:                                   # el padrón no respondió
+        raise HTTPException(503, f"No se pudo dar de alta en el padrón de clientes: {e}")
+    ya_existia = documento in (r.get("existentes") or {})
+    cliente_id = (r.get("creados") or {}).get(documento) or (r.get("existentes") or {}).get(documento)
+    if not cliente_id:
+        raise HTTPException(502, "El padrón de clientes no devolvió el id de la persona.")
+    cli = clientes_padron.sincronizar(db, int(cliente_id))
     s.solicitante_tipo = "REGISTRADO"; s.cliente_id = cli.id; s.cliente_datos = {}
     db.commit(); db.refresh(s)
-    return {"solicitud": _serial(db, s), "clienteId": cli.id, "yaExistia": bool(existente)}
+    return {"solicitud": _serial(db, s), "clienteId": cli.id, "yaExistia": ya_existia}
 
 
 # ---------------- Documentación adjunta (la sube el ciudadano; la ve el asesor) ----------------

@@ -1,6 +1,9 @@
 """Orquestador de ETL: corre todas las cargas reales en orden y, en PostgreSQL,
 resetea las secuencias de las tablas con id explícito.
 
+Despacho, juegos y mesa de entradas ya no se cargan: esas áreas de CCyPP no se migraron a Portezuelo
+(sus tablas y datos ya cargados quedan en la base, sin endpoints que los lean).
+
 Uso:
     DATABASE_URL=postgresql+psycopg://ccypp:ccypp@db:5432/ccypp \
     python3 -m app.etl.cargar_todo "/bases"
@@ -11,12 +14,10 @@ import sys
 
 from sqlalchemy import text
 
-from app.core.database import Base, engine, SessionLocal
+from app.core.database import Base, engine
 from app.etl import (cargar_maestros, cargar_seguros, cargar_creditos,
-                     cargar_ctacte, cargar_despacho, cargar_egresos, cargar_juegos,
-                     cargar_usuarios, cargar_auditoria, cargar_jubilados,
-                     cargar_tramites, cargar_solicitudes, cargar_contable,
-                     cargar_polizas, cargar_hisliq, cargar_cheques,
+                     cargar_ctacte, cargar_egresos, cargar_usuarios, cargar_auditoria,
+                     cargar_jubilados, cargar_contable, cargar_hisliq, cargar_cheques,
                      cargar_egresos_ledger, cargar_ccseguros,
                      cargar_asientos_pd, cargar_contab_caja)
 
@@ -43,7 +44,6 @@ def main(bases: str):
     print(">> ETL ccseguros");   cargar_ccseguros.cargar(bases)
     print(">> ETL créditos");    cargar_creditos.cargar(bases)
     print(">> ETL cta.cte.");    cargar_ctacte.cargar(bases)
-    print(">> ETL despacho");    cargar_despacho.cargar(bases)
     print(">> ETL egresos");     cargar_egresos.cargar(bases)
     print(">> ETL cheques");     cargar_cheques.cargar(bases)
     print(">> ETL egr.ledger");  cargar_egresos_ledger.cargar(bases)
@@ -54,7 +54,6 @@ def main(bases: str):
     print(">> ETL cj_crsghis");   cargar_contab_caja.cargar_crsghis(bases)
     print(">> ETL cj_liqhis");    cargar_contab_caja.cargar_liqhis(bases)
     print(">> ETL cj_paghis");    cargar_contab_caja.cargar_paghis(bases)
-    print(">> ETL juegos");      cargar_juegos.cargar(bases)
     print(">> ETL hist.liq.");   cargar_hisliq.cargar(bases)
     print(">> ETL usuarios");    cargar_usuarios.cargar(bases)
     print(">> ETL auditoría");   cargar_auditoria.cargar(bases)

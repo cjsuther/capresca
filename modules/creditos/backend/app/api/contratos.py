@@ -18,6 +18,7 @@ from app.reports.excel import contratos_pp_excel
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
+from app.core import configuraciones as config
 from app.core.database import get_db
 from app.core.numbering import crear_con_numero_unico
 from app.core.idempotency import con_idempotencia
@@ -1144,8 +1145,7 @@ def _actividad_impl(db: Session, contrato_id: str, data: ActividadIn, user) -> d
         snap = c.snapshot_producto or {}
         if not snap.get("indice"):
             raise HTTPException(422, "Sólo las líneas de tasa variable admiten repricing.")
-        ind = db.query(models.IndiceReferencia).filter_by(codigo=snap["indice"]).first()
-        val = float(ind.valor) if ind else 0.0
+        val = config.indice_valor(snap["indice"]) or 0.0
         # El piso de la banda también aplica al repricing: el índice+margen+bonus no lo perfora.
         nueva = max(float(snap.get("piso_relacion") or 0.0), 0.0,
                     val + float(snap.get("margen") or 0.0) + float(snap.get("bonus_relacion") or 0.0))

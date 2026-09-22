@@ -16,6 +16,9 @@ from app.services import auditoria as audit
 from app import models, models_productos as m
 from app.api.productos import _caps
 
+# Las tareas enlazan a la pantalla del módulo Créditos dentro del frontend de Portezuelo.
+RUTA_FRONT = "/modules/creditos"
+
 router = APIRouter(prefix="/api/creditos/aprobaciones", tags=["aprobaciones"])
 
 
@@ -65,7 +68,7 @@ def _inbox(db: Session, user: models.Usuario) -> list[dict]:
             "estado": v.estado, "accion": accion, "solicitante": solicitante,
             "fecha": str(v.creado_en.date()) if v.creado_en else "", "detalle": detalle,
             "nivel": orden, "totalNiveles": total,
-            "ruta": "/creditos/configurar", "deepLink": {"clave": "configurar_abrir_producto", "valor": prod.id},
+            "ruta": f"{RUTA_FRONT}/configurar", "deepLink": {"clave": "configurar_abrir_producto", "valor": prod.id},
         })
 
     # --- Solicitudes de crédito ---
@@ -84,7 +87,7 @@ def _inbox(db: Session, user: models.Usuario) -> list[dict]:
             "estado": s.estado, "accion": "resolver", "solicitante": s.enviada_por or s.creado_por or "—",
             "fecha": str(s.creado_en.date()) if s.creado_en else "", "detalle": detalle,
             "nivel": orden, "totalNiveles": total,
-            "ruta": "/creditos/solicitudes-credito", "deepLink": {"clave": "solicitud_abrir", "valor": s.id},
+            "ruta": f"{RUTA_FRONT}/solicitudes-credito", "deepLink": {"clave": "solicitud_abrir", "valor": s.id},
         })
 
     # --- Pendientes de contrato (gate de DESEMBOLSO / REFINANCIACION) — se aprueban desde el propio inbox ---
@@ -186,9 +189,3 @@ def inbox(db: Session = Depends(get_db), user: models.Usuario = Depends(get_curr
     for t in items:
         porTipo[t["tipo"]] = porTipo.get(t["tipo"], 0) + 1
     return {"items": items, "total": len(items), "porTipo": porTipo}
-
-
-@router.get("/count")
-def count(db: Session = Depends(get_db), user: models.Usuario = Depends(get_current_user)):
-    """Sólo el número de tareas pendientes — para el badge de alertas del sistema (liviano)."""
-    return {"total": len(_inbox(db, user))}

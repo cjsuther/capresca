@@ -69,105 +69,6 @@ def situacion_cliente(db: Session, cliente_id: int) -> dict | None:
     }
 
 
-def vision_360(db: Session, cliente_id: int) -> dict | None:
-    """Visión 360° del cliente: datos personales/laborales + situación crediticia
-    (créditos, saldos, margen) + pólizas de seguro de vida + pagos en caja +
-    trámites. Reúne en una sola vista todo lo que el sistema sabe del cliente."""
-    cliente = db.get(models.Cliente, cliente_id)
-    if not cliente:
-        return None
-
-    sit = situacion_cliente(db, cliente_id) or {}
-    organismo = db.get(models.Organismo, cliente.organismo_id) if cliente.organismo_id else None
-
-    # Pólizas de seguro de vida colectivo (por CUIL).
-    from app.services.seguros import TIPOS_SEGURO
-    polizas = db.scalars(select(models.PolizaAgente).where(
-        models.PolizaAgente.cuil == cliente.cuil).order_by(models.PolizaAgente.codigo)).all()
-    polizas_out = [{
-        "no_poliza": p.no_poliza, "codigo": p.codigo,
-        "tipo": TIPOS_SEGURO.get(p.codigo, f"Tipo {p.codigo}"),
-        "estado": p.estado, "vigente": p.estado == "A" and not p.baja,
-        "fecha_alta": p.fecha_alta,
-    } for p in polizas]
-
-    # Pagos en caja (recibos emitidos del cliente).
-    recibos = db.scalars(select(models.Recibo).where(
-        models.Recibo.cliente_id == cliente_id, models.Recibo.estado == "E"
-    ).order_by(models.Recibo.fecha_pago.desc())).all()
-    total_pagado = sum((r.total for r in recibos), CERO)
-    pagos_out = [{"numero": r.numero, "fecha": r.fecha_pago, "total": r.total,
-                  "via_pago": r.via_pago, "credito_id": r.credito_id} for r in recibos[:15]]
-
-    # Egresos / liquidaciones históricas del cliente (ledger real por CUIL).
-    egresos = db.scalars(select(models.Egreso).where(
-        models.Egreso.cuil == cliente.cuil
-    ).order_by(models.Egreso.fecha_op.desc().nullslast())).all()
-    total_egresos = sum((e.total for e in egresos), CERO)
-    egresos_out = [{
-        "no_op": e.no_op, "no_liquida": e.no_liquida,
-        "fecha": e.fecha_op or e.fecha_liqu, "nro_res": e.nro_res,
-        "no_credito": e.no_credito, "total": e.total,
-        "pagado": e.pagado, "anulado": e.anulado,
-    } for e in egresos[:15]]
-
-    # Cuenta corriente de seguros (cargos por período, por CUIL).
-    cc_seg = db.execute(select(
-        func.count(), func.coalesce(func.sum(models.CtaCteSeguro.importe), 0)
-    ).where(models.CtaCteSeguro.cuil == cliente.cuil)).one()
-    seguros_ctacte = {"cantidad": int(cc_seg[0]), "total": Decimal(cc_seg[1])}
-
-    # Créditos totales (activos + históricos) y afectación del haber.
-    creditos_total = db.scalar(select(func.count()).select_from(models.Credito)
-                               .where(models.Credito.cliente_id == cliente_id)) or 0
-    afectado = sit.get("total_afectado", CERO)
-    afectacion_pct = None
-    if cliente.sueldo and cliente.sueldo > 0:
-        afectacion_pct = round(float(afectado) / float(cliente.sueldo) * 100, 1)
-
-    # Trámites de mesa de entradas asociados (por DNI o CUIL).
-    tramites_out = []
-    try:
-        from app.services import tramites as tramites_svc
-        clave = (cliente.dni or cliente.cuil or "").strip()
-        if clave:
-            tr = tramites_svc.consultar(db, q=clave, limit=15)
-            tramites_out = tr.get("items", [])
-    except Exception:
-        tramites_out = []
-
-    return {
-        "cliente": {
-            "id": cliente.id, "id_cliente": cliente.id_cliente,
-            "apellido_nombre": cliente.apellido_nombre, "cuil": cliente.cuil, "dni": cliente.dni,
-            "sexo": cliente.sexo, "fecha_nacimiento": cliente.fecha_nacimiento,
-            "domicilio": cliente.domicilio, "barrio": cliente.barrio, "localidad": cliente.localidad,
-            "telefono": cliente.telefono, "email": cliente.email, "cbu": cliente.cbu,
-            "debito_automatico": cliente.debito_automatico, "sueldo": cliente.sueldo,
-            "categoria_funcion": cliente.categoria_funcion, "fecha_ingreso": cliente.fecha_ingreso,
-            "tipo_cliente": cliente.tipo_cliente, "organismo": organismo.nombre if organismo else None,
-            "organismo_id": cliente.organismo_id, "baja": cliente.baja,
-        },
-        "credito": {
-            "creditos_activos": sit.get("creditos_activos", 0),
-            "creditos_total": creditos_total,
-            "saldo_total": sit.get("saldo_total", CERO),
-            "total_afectado": afectado,
-            "margen_disponible": sit.get("margen_disponible"),
-            "por_afecta": sit.get("por_afecta"),
-            "afectacion_pct": afectacion_pct,
-            "items": sit.get("creditos", []),
-        },
-        "seguros_ctacte": seguros_ctacte,
-        "seguros": {"cantidad": len(polizas_out),
-                    "vigentes": sum(1 for p in polizas_out if p["vigente"]),
-                    "items": polizas_out},
-        "pagos": {"cantidad": len(recibos), "total_pagado": total_pagado, "items": pagos_out},
-        "egresos": {"cantidad": len(egresos), "total": total_egresos, "items": egresos_out},
-        "tramites": {"cantidad": len(tramites_out), "items": tramites_out},
-    }
-
-
 def estadisticas_cartera(db: Session) -> dict:
     activos = db.scalar(select(func.count()).select_from(models.Credito).where(
         models.Credito.estado == "A")) or 0
@@ -198,21 +99,6 @@ def estadisticas_cartera(db: Session) -> dict:
         "capital_otorgado_total": Decimal(capital_total),
         "saldo_total": Decimal(saldo_total), "por_linea": por_linea,
     }
-
-
-def solicitudes_activas(db: Session) -> list[dict]:
-    """Solicitudes en estado ingresada/aprobada (VFP: frm315451500solactivas)."""
-    q = (
-        select(models.Solicitud, models.Cliente, models.LineaCredito)
-        .join(models.Cliente, models.Cliente.id == models.Solicitud.cliente_id)
-        .join(models.LineaCredito, models.LineaCredito.id == models.Solicitud.linea_id)
-        .where(models.Solicitud.estado.in_(("I", "A")))
-        .order_by(models.Solicitud.id.desc())
-    )
-    return [{"solicitud_id": s.id, "cliente": c.apellido_nombre, "cuil": c.cuil,
-             "linea": l.nombre, "monto": s.monto_solicitado,
-             "cuotas": s.cantidad_cuotas, "estado": s.estado,
-             "fecha": s.fecha_solicitud} for s, c, l in db.execute(q).all()]
 
 
 _LISTADO_COLS = {
@@ -468,21 +354,6 @@ def cuenta_corriente(db: Session, credito_id: int) -> dict:
                       "saldo": saldo})
     return {"credito_id": credito_id, "cantidad": len(items),
             "saldo_final": saldo, "movimientos": items}
-
-
-def previo_pago(db: Session) -> list[dict]:
-    """Solicitudes con previo pago (VFP: cb-prepag-linea) — desbloqueado por H-011."""
-    q = (
-        select(models.Solicitud, models.Cliente)
-        .join(models.Cliente, models.Cliente.id == models.Solicitud.cliente_id)
-        .where(models.Solicitud.credito_previo_pago.isnot(None),
-               models.Solicitud.importe_previo_pago > 0)
-        .order_by(models.Solicitud.id.desc())
-    )
-    return [{"solicitud_id": s.id, "cliente": c.apellido_nombre, "cuil": c.cuil,
-             "credito_cancelado": s.credito_previo_pago,
-             "importe_previo_pago": s.importe_previo_pago}
-            for s, c in db.execute(q).all()]
 
 
 def cuotas_en_mora(db: Session, fecha_corte: date) -> dict:

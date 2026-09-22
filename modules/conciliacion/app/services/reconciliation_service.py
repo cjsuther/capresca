@@ -61,7 +61,6 @@ def update_record(db: Session, record_id: int, data: RecordUpdate, user_id: int,
 
     # Remove links
     for link_id in data.ib_links_to_remove:
-        from app.models.reconciliation_ib_link import ReconciliationIbLink
         link = db.query(ReconciliationIbLink).filter(ReconciliationIbLink.id == link_id).first()
         if link and not link.unlinked_at:
             soft_delete_link(db, link, user_id)
@@ -81,7 +80,7 @@ def update_record(db: Session, record_id: int, data: RecordUpdate, user_id: int,
             reconciliation_record_id=record.id,
             ib_transaction_type=item.ib_transaction_type,
             ib_transaction_id=item.ib_transaction_id,
-            ib_amount=tx.get("amount", Decimal("0")),
+            ib_amount=Decimal(str(tx.get("amount", 0))),   # el payload de IB puede traerlo como texto
             ib_cbu=tx.get("cbu", ""),
             ib_concepto=tx.get("concepto"),
             match_type="MANUAL",
@@ -89,6 +88,7 @@ def update_record(db: Session, record_id: int, data: RecordUpdate, user_id: int,
         )
         db.add(link)
 
+    db.flush()   # la sesión no hace autoflush: sin esto el recálculo no ve los vínculos nuevos
     recalculate_depositado(db, record)
     record.modified_by_user_id = user_id
     record.modified_by_username = username

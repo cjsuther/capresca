@@ -301,9 +301,15 @@ def test_originacion_deja_a_liquidar_y_lote_desembolsa(client):
     assert client.get(f"/api/creditos/contratos/{cto['id']}", headers=hi).json()["estado"] == "ACTIVO"
 
 
-def test_alta_maestro_completa_cuil(client):
-    """H-137: el alta en el maestro de una solicitud express valida el CUIL (11 díg.) y crea el Cliente
-    con el CUIL/DNI confirmados por el asesor; la solicitud pasa a REGISTRADA."""
+def test_alta_maestro_completa_cuil(client, monkeypatch):
+    """H-137: el alta de una solicitud express valida el CUIL (11 díg.) y da de alta a la persona en el
+    PADRÓN (módulo Clientes) con el CUIL/DNI que confirmó el asesor; la solicitud pasa a REGISTRADA."""
+    from app.core import clientes_padron
+    monkeypatch.setattr(clientes_padron, "importar",
+                        lambda personas: {"creados": {personas[0]["documento"]: 5501}, "existentes": {}})
+    monkeypatch.setattr(clientes_padron, "ficha", lambda cid: {
+        "client_id": cid, "nombre": "JUAN CARLOS PEREZ", "documento": "20301234567",
+        "domicilio": "", "localidad": "", "telefono": "", "email": "", "cbu": "", "activo": True})
     h = _ingresar(client)
     p = _un_producto(client, h)
     body = {**CONSENT, "producto_id": p["id"], "monto": min(max(500000.0, p["monto_min"]), p["monto_max"]),
@@ -323,9 +329,10 @@ def test_alta_maestro_completa_cuil(client):
     cid = r.json()["clienteId"]
     from app.core.database import SessionLocal
     from app import models as _mm
+    assert cid == 5501                                   # el id lo asigna el padrón
     with SessionLocal() as db:
-        cli = db.get(_mm.Cliente, cid)
-        assert cli.cuil == "20301234567" and cli.dni == "30123456"
+        cli = db.get(_mm.Cliente, cid)                   # y acá queda el espejo
+        assert cli.cuil == "20301234567" and cli.apellido_nombre == "JUAN CARLOS PEREZ"
 
 
 def test_no_aprobar_cliente_no_registrado(client):
@@ -353,12 +360,8 @@ def test_lote_marca_pendientes_de_aprobacion(client):
     p = next((x for x in client.get("/api/creditos/portal/productos", headers=h).json() if "Flexible" in x["nombre"]), None)
     if p is None:
         import pytest as _pt; _pt.skip("sin producto WEB-elegible")
-    from app.core.database import SessionLocal
-    from app import models_productos as _m
-    with SessionLocal() as db:
-        r = db.query(_m.PPWorkflowRegla).filter_by(objeto="DESEMBOLSO").first()
-        assert r is not None, "falta la regla DESEMBOLSO sembrada"
-        r.activo = True; db.commit()
+    from tests.config_falsa import CONFIG
+    CONFIG.activar("DESEMBOLSO")   # regla del workflow, en Configuraciones
     try:
         body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "segmento": "AGENTE_PUBLICO", "edad": 40}
         numero = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "pend-t"}, json=body).json()["numero"]
@@ -379,9 +382,7 @@ def test_lote_marca_pendientes_de_aprobacion(client):
         assert ct["pendienteAprobacion"] is True and lote["pendientes"] >= 1
         assert client.get(f"/api/creditos/contratos/{cto['id']}", headers=hi).json()["estado"] == "A_LIQUIDAR"
     finally:
-        with SessionLocal() as db:
-            rr = db.query(_m.PPWorkflowRegla).filter_by(objeto="DESEMBOLSO").first()
-            rr.activo = False; db.commit()
+        CONFIG.activar("DESEMBOLSO", False)
 
 
 def test_pre_aprobado_respeta_afectacion(client):

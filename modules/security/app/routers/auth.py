@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, UserInfo, PermissionsPayload
 from app.services.auth_service import (
     authenticate_user, create_access_token, decode_token, blacklist_token, is_token_blacklisted
@@ -67,6 +68,11 @@ def refresh_token(
     jti = payload.get("jti")
     if jti and is_token_blacklisted(db, jti):
         raise HTTPException(status_code=401, detail="Token revocado")
+
+    # Un usuario desactivado no renueva: si no, la baja no corta la sesión (se renueva para siempre).
+    user = db.query(User).filter(User.id == int(payload["sub"]), User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuario inactivo")
 
     new_token = create_access_token(int(payload["sub"]), payload["username"])
     return {"access_token": new_token, "token_type": "bearer"}

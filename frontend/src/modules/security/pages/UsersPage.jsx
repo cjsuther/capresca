@@ -132,7 +132,7 @@ export default function UsersPage() {
 
       {/* Formulario de creación */}
       {showCreateForm && (
-        <form onSubmit={handleCreate} className="bg-white border rounded-xl p-5 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={handleCreate} className="bg-surface border rounded-xl p-5 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
             <input className="input w-full" value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })} required />
@@ -157,7 +157,7 @@ export default function UsersPage() {
       )}
 
       {/* Tabla de usuarios */}
-      <div className="bg-white border rounded-xl overflow-x-auto">
+      <div className="bg-surface border rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
@@ -266,7 +266,7 @@ export default function UsersPage() {
                         <p className="text-sm font-medium text-gray-700 mb-3">Asignar roles a <strong>{user.username}</strong></p>
                         <div className="flex flex-wrap gap-3 mb-4">
                           {allRoles.map((role) => (
-                            <label key={role.id} className="flex items-center gap-2 cursor-pointer bg-white border rounded-lg px-3 py-2 hover:border-purple-400 transition-colors">
+                            <label key={role.id} className="flex items-center gap-2 cursor-pointer bg-surface border rounded-lg px-3 py-2 hover:border-purple-400 transition-colors">
                               <input
                                 type="checkbox"
                                 checked={selectedRoles.has(role.id)}
@@ -281,7 +281,7 @@ export default function UsersPage() {
                           ))}
                         </div>
                         <div className="flex gap-2 justify-end">
-                          <button onClick={() => setRolesPanelId(null)} className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-white">
+                          <button onClick={() => setRolesPanelId(null)} className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-surface">
                             Cancelar
                           </button>
                           <button onClick={() => handleSaveRoles(user.id)} className="flex items-center gap-1 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">

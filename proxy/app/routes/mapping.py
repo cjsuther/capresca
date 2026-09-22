@@ -13,36 +13,40 @@ def _creditos_area(path_regex: str, area: str) -> list:
 
 
 def _creditos_rutas() -> list:
+    """Créditos publica sólo el circuito de créditos: todo pide `creditos:read` (GET) o `creditos:write`.
+    Las áreas de CCyPP que no se migraron (caja, contabilidad, tesorería, seguros, despacho, mesa, juegos,
+    general, seguridad) no tienen rutas: el gateway no las reenvía (404)."""
     url = settings.creditos_service_url
     base = r"^/api/creditos"
-    catalogos_general = r"(lineas|organismos|proveedores|companias|parametros|requisitos|gasistas|montos-periodo)"
     return [
-        ("GET",  base + r"/auth/mis-permisos$",                            url, "creditos:*"),
         # Aprobaciones: el módulo exige el rol de aprobación que pide cada nivel del workflow.
-        ("GET",  base + r"/aprobaciones/(inbox|count)$",                   url, "creditos:*"),
+        ("GET",  base + r"/aprobaciones/inbox$",                           url, "creditos:*"),
         ("POST", base + r"/aprobaciones/pendientes/[^/]+/(aprobar|rechazar)$", url, "creditos:*"),
         # Cambios de estado: mezclan acciones de edición y de aprobación; el módulo las gatea por acción.
         ("POST", base + r"/productos/[^/]+/estado$",                       url, "creditos:*"),
         ("POST", base + r"/solicitudes/[^/]+/estado$",                     url, "creditos:*"),
-        # Catálogos compartidos: los lee cualquier pantalla del módulo; se editan desde su área.
-        ("GET",  base + r"/(impuestos|indices|feriados)(/|$)",             url, "creditos:*"),
-        ("GET",  base + r"/admin/" + catalogos_general + r"(/|$)",         url, "creditos:*"),
-        *_creditos_area(base + r"/(impuestos|indices|feriados)(/|$)",      "contabilidad"),
-        *_creditos_area(base + r"/admin/" + catalogos_general + r"(/|$)",  "general"),
-        # Seguridad del módulo: auditoría y workflow.
-        *_creditos_area(base + r"/admin/(auditoria|auditoria-cambios)(/|$)", "seguridad"),
-        *_creditos_area(base + r"/(workflow|controles-version|migradores)(/|$)", "seguridad"),
-        # Áreas funcionales.
-        *_creditos_area(base + r"/(creditos|solicitudes|productos|contratos|sistema-calculos)(/|$)", "creditos"),
-        *_creditos_area(base + r"/clientes(/|$)",     "clientes"),
-        *_creditos_area(base + r"/caja(/|$)",         "caja"),
-        *_creditos_area(base + r"/egresos(/|$)",      "tesoreria"),
-        *_creditos_area(base + r"/contabilidad(/|$)", "contabilidad"),
-        *_creditos_area(base + r"/seguros(/|$)",      "seguros"),
-        *_creditos_area(base + r"/despacho(/|$)",     "despacho"),
-        *_creditos_area(base + r"/mesa(/|$)",         "mesa"),
-        *_creditos_area(base + r"/juegos(/|$)",       "juegos"),
+        # Catálogos de Configuraciones que usa el armado de productos: sólo lectura (Créditos los trae
+        # de Configuraciones; se editan allá, con sus permisos).
+        ("GET",  base + r"/(impuestos|indices)$",                         url, "creditos:creditos:read"),
+        *_creditos_area(base + r"/(clientes|creditos|solicitudes|productos|contratos|sistema-calculos)(/|$)",
+                        "creditos"),
+        # De `admin` y `caja` sólo se publica lo que usa el circuito de créditos.
+        *_creditos_area(base + r"/admin/(lineas|organismos|parametros)(/|$)", "creditos"),
+        *_creditos_area(base + r"/caja/(recibos|pendientes-cobro)(/|$)", "creditos"),
     ]
+
+
+def _configuraciones_rutas() -> list:
+    """Cada catálogo tiene su par de permisos: tener `indices:write` no habilita a tocar impuestos, y
+    el workflow (quién aprueba) se administra con un permiso propio, aparte de operar los módulos."""
+    url = settings.configuraciones_service_url
+    base = r"^/api/configuraciones"
+    rutas = []
+    for catalogo in ("impuestos", "indices", "feriados", "workflow"):
+        rx = base + rf"/{catalogo}(/|$)"
+        rutas += [("GET", rx, url, f"configuraciones:{catalogo}:read"),
+                  (None, rx, url, f"configuraciones:{catalogo}:write")]
+    return rutas
 
 
 # (method, pattern_regex) → (service_base_url, required_permission | None)
@@ -160,6 +164,9 @@ ROUTE_MAP = [
     # decide el módulo (aprobaciones, catálogos compartidos). El portal ciudadano NO pasa por
     # acá: nginx lo manda directo al módulo (realm propio). Las rutas no listadas dan 404.
     *_creditos_rutas(),
+
+    # ── Configuraciones: un par read/write por catálogo (impuestos, índices, feriados, workflow) ──
+    *_configuraciones_rutas(),
 ]
 
 
@@ -171,7 +178,8 @@ def get_service_url(method: str, path: str) -> str | None:
     return None
 
 
-def get_required_permission(method: str, path: str) -> str | None:
+def get_required_permission(method: str, path: str) -> str | tuple[str, ...] | None:
+    """Permiso exigido para la ruta. Una tupla significa "alcanza con cualquiera de estos"."""
     for entry in ROUTE_MAP:
         m, pattern, _, permission = entry
         if (m is None or m == method) and re.match(pattern, path):

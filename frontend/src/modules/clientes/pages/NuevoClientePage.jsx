@@ -43,7 +43,7 @@ export default function NuevoClientePage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Datos base */}
-        <div className="bg-white border rounded-xl p-6">
+        <div className="bg-surface border rounded-xl p-6">
           <h3 className="font-medium text-gray-700 mb-4">Datos de contacto</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -70,7 +70,7 @@ export default function NuevoClientePage() {
         </div>
 
         {/* Perfil específico */}
-        <div className="bg-white border rounded-xl p-6">
+        <div className="bg-surface border rounded-xl p-6">
           <h3 className="font-medium text-gray-700 mb-4">
             {isHuman ? "Datos personales" : "Datos de la empresa"}
           </h3>

@@ -22,14 +22,9 @@ CAJA = ("caja", "caja123")        # XCJ: ninguno
 
 def _activar_wf(objeto: str) -> None:
     """El cuatro-ojos se siembra INACTIVO (app nueva single-admin, H-141); los tests que ejercitan el
-    workflow lo activan explícitamente."""
-    from app.core.database import SessionLocal
-    from app import models_productos as _m
-    with SessionLocal() as db:
-        r = db.query(_m.PPWorkflowRegla).filter_by(objeto=objeto).first()
-        if r:
-            r.activo = True; db.commit()
-
+    workflow lo activan explícitamente en Configuraciones."""
+    from tests.config_falsa import CONFIG
+    CONFIG.activar(objeto)
 
 def test_catalogo_sembrado_y_permisos(client):
     h = _auth(client)

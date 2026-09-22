@@ -20,15 +20,10 @@ def _pers_id(client, h):
 
 
 def _activar_wf(objeto: str) -> None:
-    """El cuatro-ojos se siembra INACTIVO (app nueva single-admin, H-141); los tests que lo ejercitan
-    lo activan explícitamente."""
-    from app.core.database import SessionLocal
-    from app import models_productos as _m
-    with SessionLocal() as db:
-        r = db.query(_m.PPWorkflowRegla).filter_by(objeto=objeto).first()
-        if r:
-            r.activo = True; db.commit()
-
+    """El cuatro-ojos se siembra INACTIVO (app nueva single-admin, H-141); los tests que ejercitan el
+    workflow lo activan explícitamente en Configuraciones."""
+    from tests.config_falsa import CONFIG
+    CONFIG.activar(objeto)
 
 def _cliente_id(client, h):
     return client.get("/api/creditos/clientes", headers=h).json()["items"][0]["id"]
@@ -133,18 +128,46 @@ def test_no_originar_solicitud_no_aprobada(client):
     assert r.status_code == 409
 
 
-def test_promover_cliente_express_al_maestro(client):
+def test_promover_cliente_express_da_de_alta_en_el_padron(client, monkeypatch):
+    """La express se promueve dando de alta a la persona en el PADRÓN (módulo Clientes); Créditos
+    sólo espeja. No hay maestro de personas propio."""
+    from app.core import clientes_padron
+    pedidos = []
+
+    def _importar(personas):
+        pedidos.append(personas)
+        return {"creados": {personas[0]["documento"]: 4321}, "existentes": {}}
+
+    monkeypatch.setattr(clientes_padron, "importar", _importar)
+    monkeypatch.setattr(clientes_padron, "ficha", lambda cid: {
+        "client_id": cid, "nombre": "PEREZ, ANA", "documento": "27222222229",
+        "domicilio": "", "localidad": "", "telefono": "", "email": "", "cbu": "", "activo": True})
+
     h = _auth(client)
     s = client.post("/api/creditos/solicitudes", headers=h, json=_base(client, h, solicitante_tipo="NO_REGISTRADO", cliente_id=None,
                                                               cliente_datos={"apellido_nombre": "PEREZ, ANA", "cuil": "27222222229", "dni": "22222222"})).json()
     r = client.post(f"/api/creditos/solicitudes/{s['id']}/promover-cliente", headers=h, json={})
-    assert r.status_code == 200
-    assert r.json()["solicitud"]["solicitanteTipo"] == "REGISTRADO" and r.json()["clienteId"]
-    # H-169: el id_cliente en el maestro NO es el CUIL ni un N° de solicitud, es autogenerado (CL-<pk>)
-    cid = r.json()["clienteId"]
-    cli = client.get(f"/api/creditos/clientes/{cid}", headers=h).json()
-    assert cli["id_cliente"] == f"CL-{cid:06d}"
-    assert not cli["id_cliente"].startswith("SOL-") and cli["id_cliente"] != cli["cuil"]
+    assert r.status_code == 200, r.text
+    assert r.json()["solicitud"]["solicitanteTipo"] == "REGISTRADO"
+    assert r.json()["clienteId"] == 4321                  # el id es el que asignó el padrón
+    assert pedidos and pedidos[0][0]["documento"] == "27222222229"
+
+    cli = client.get("/api/creditos/clientes/4321", headers=h).json()
+    assert cli["apellido_nombre"] == "PEREZ, ANA"
+
+
+def test_promover_cliente_avisa_si_el_padron_no_responde(client, monkeypatch):
+    from app.core import clientes_padron
+
+    def _cae(_personas):
+        raise clientes_padron.PadronNoDisponible("connection refused")
+
+    monkeypatch.setattr(clientes_padron, "importar", _cae)
+    h = _auth(client)
+    s = client.post("/api/creditos/solicitudes", headers=h, json=_base(client, h, solicitante_tipo="NO_REGISTRADO", cliente_id=None,
+                                                              cliente_datos={"apellido_nombre": "SOSA, RAUL", "cuil": "20333333339", "dni": "33333333"})).json()
+    r = client.post(f"/api/creditos/solicitudes/{s['id']}/promover-cliente", headers=h, json={})
+    assert r.status_code == 503 and "padrón" in r.json()["detail"].lower()
 
 
 def test_promover_vincular_cliente_existente(client):

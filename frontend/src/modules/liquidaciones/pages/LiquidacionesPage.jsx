@@ -196,7 +196,7 @@ export default function LiquidacionesPage() {
 
         {/* Summary stats */}
         {batches.length > 0 && (
-          <div className="bg-white border rounded-xl p-4 mb-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
+          <div className="bg-surface border rounded-xl p-4 mb-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
             <div>
               <p className="text-xs text-gray-500 mb-1">Total Lotes</p>
               <p className="font-semibold text-gray-800">{batches.length}</p>
@@ -229,7 +229,7 @@ export default function LiquidacionesPage() {
         )}
 
         {/* Batches table */}
-        <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="bg-surface border rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b bg-gray-50">
             <h3 className="text-sm font-semibold text-gray-700">Lotes Procesados</h3>
           </div>
@@ -286,7 +286,7 @@ export default function LiquidacionesPage() {
 
       {/* Side panel */}
       {isPanelOpen && (
-        <div className="w-80 flex-shrink-0 bg-white border-l shadow-lg ml-5 rounded-xl overflow-y-auto max-h-[calc(100vh-120px)] sticky top-4 self-start">
+        <div className="w-80 flex-shrink-0 bg-surface border-l shadow-lg ml-5 rounded-xl overflow-y-auto max-h-[calc(100vh-120px)] sticky top-4 self-start">
           <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
             <h3 className="text-sm font-semibold text-gray-700">Detalle Lote #{selectedBatch.id}</h3>
             <button onClick={handleClosePanel} className="text-gray-400 hover:text-gray-600 p-1 rounded">
@@ -370,7 +370,7 @@ export default function LiquidacionesPage() {
                   <p className="text-xs font-semibold text-gray-700">Resumen por Agencia ({agencyList.length})</p>
                   <div className="max-h-48 overflow-y-auto space-y-1">
                     {agencyList.map((ag) => (
-                      <div key={ag.n_agen} className="flex items-center justify-between border rounded px-2 py-1.5 text-xs bg-white">
+                      <div key={ag.n_agen} className="flex items-center justify-between border rounded px-2 py-1.5 text-xs bg-surface">
                         <span className="font-mono text-gray-700">{ag.n_agen}</span>
                         <span className="font-mono text-gray-600">{fmt(ag.total)}</span>
                       </div>
@@ -422,7 +422,7 @@ export default function LiquidacionesPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black/30" onClick={() => !processLoading && setShowModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+          <div className="relative bg-surface rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800">Procesar Liquidación</h3>
               <button
