@@ -158,6 +158,42 @@
   }
 }
 
+/* ── Acentos de los módulos (Dashboard) ───────────────────────────────────────────────────────
+   Un color por módulo, todos con la misma construcción (mismo nivel de saturación y contraste) y
+   sin repetir. Van como tokens porque Tailwind sólo tiene tematizadas gris/azul/rojo/verde/amarillo
+   y ámbar: cualquier otra paleta quedaría clarísima en modo oscuro. */
+:root {
+  --acc-security: #7c3aed;        --acc-security-bg: #f3e8ff;
+  --acc-cajeros: #2563eb;         --acc-cajeros-bg: #dbeafe;
+  --acc-clientes: #0284c7;        --acc-clientes-bg: #e0f2fe;
+  --acc-interbanking: #4f46e5;    --acc-interbanking-bg: #e0e7ff;
+  --acc-conciliacion: #0f766e;    --acc-conciliacion-bg: #ccfbf1;
+  --acc-liquidaciones: #b45309;   --acc-liquidaciones-bg: #fef3c7;
+  --acc-legacy: #475569;          --acc-legacy-bg: #e2e8f0;
+  --acc-creditos: #be123c;        --acc-creditos-bg: #ffe4e6;
+  --acc-tesoreria: #15803d;       --acc-tesoreria-bg: #dcfce7;
+  --acc-contabilidad: #0e7490;    --acc-contabilidad-bg: #cffafe;
+  --acc-auditoria: #c2410c;       --acc-auditoria-bg: #ffedd5;
+  --acc-comunicacion: #a21caf;    --acc-comunicacion-bg: #fae8ff;
+  --acc-configuraciones: #4b5563; --acc-configuraciones-bg: #f3f4f6;
+}
+
+.dark {
+  --acc-security: #c4b5fd;        --acc-security-bg: #3b0764;
+  --acc-cajeros: #93c5fd;         --acc-cajeros-bg: #1e3a8a;
+  --acc-clientes: #7dd3fc;        --acc-clientes-bg: #0c4a6e;
+  --acc-interbanking: #a5b4fc;    --acc-interbanking-bg: #312e81;
+  --acc-conciliacion: #5eead4;    --acc-conciliacion-bg: #134e4a;
+  --acc-liquidaciones: #fcd34d;   --acc-liquidaciones-bg: #451a03;
+  --acc-legacy: #cbd5e1;          --acc-legacy-bg: #334155;
+  --acc-creditos: #fda4af;        --acc-creditos-bg: #4c0519;
+  --acc-tesoreria: #86efac;       --acc-tesoreria-bg: #14532d;
+  --acc-contabilidad: #67e8f9;    --acc-contabilidad-bg: #164e63;
+  --acc-auditoria: #fdba74;       --acc-auditoria-bg: #431407;
+  --acc-comunicacion: #f0abfc;    --acc-comunicacion-bg: #4a044e;
+  --acc-configuraciones: #d1d5db; --acc-configuraciones-bg: #374151;
+}
+
 body {
   @apply bg-gray-50 text-gray-900;
 }
