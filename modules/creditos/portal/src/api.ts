@@ -72,7 +72,8 @@ export type Haberes = { disponible: boolean; sueldo: number | null; antiguedad_m
 // Producto del product builder nuevo (pp_*), no la línea legacy.
 export type Producto = { id: string; nombre: string; codigo: string; sistema: string; tna: number; monto_min: number; monto_max: number; plazo_min: number; plazo_max: number };
 export type Cuota = { numero: number; vencimiento: string; capital: number; interes: number; cargos: number; impuestos: number; total: number };
-export type Datos = { segmento?: string; edad?: number; antiguedad_meses?: number; sueldo?: number };
+export type Datos = { segmento?: string; fecha_nacimiento?: string; antiguedad_meses?: number; sueldo?: number;
+                      email?: string; telefono?: string };
 export type PreAprobado = { monto_maximo: number; monto_min: number; cuota: number; afectacion: number; plazo: number };
 export type Simulacion = {
   producto: string; sistema: string; tna: number; monto: number; cantidad_cuotas: number;
@@ -80,7 +81,8 @@ export type Simulacion = {
   elegible: boolean | null; motivos: string[]; afectacion: number | null; cuotas: Cuota[];
 };
 export type SolicitudDetalle = Solicitud & {
-  sistema: string; destino: string; segmento: string; edad: number | null; antiguedad_meses: number | null;
+  sistema: string; destino: string; segmento: string; fecha_nacimiento: string | null; edad: number | null;
+  antiguedad_meses: number | null;
   sueldo: number | null; afectacion: number | null; total_a_pagar: number; cuotas: Cuota[];
 };
 

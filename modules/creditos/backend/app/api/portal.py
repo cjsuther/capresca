@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.descargas import disposicion
+from app.core.personas import edad_de
 from app.core.idempotency import con_idempotencia
 from app.core.numbering import crear_con_numero_unico
 from app.core.security import create_portal_token, create_state_token, decode_token
@@ -275,10 +276,11 @@ def pre_aprobado(req: schemas.PortalPreAprobadoIn, db: Session = Depends(get_db)
 def _evaluar_ciudadano(db: Session, v, datos: schemas.DatosSolicitante, cuota: float):
     """Elegibilidad (según los datos declarados, canal WEB) + afectación estimada (cuota/sueldo).
     Devuelve (elegible|None, motivos, afectacion%|None). elegible=None si no declaró datos."""
-    declaro = bool(datos.segmento or datos.edad is not None or datos.antiguedad_meses is not None)
+    edad = edad_de(datos.fecha_nacimiento)
+    declaro = bool(datos.segmento or edad is not None or datos.antiguedad_meses is not None)
     elegible, motivos = None, []
     if declaro:
-        ctx = _ctx(datos.segmento or None, "WEB", datos.edad, datos.antiguedad_meses)
+        ctx = _ctx(datos.segmento or None, "WEB", edad, datos.antiguedad_meses)
         ev = _elegibilidad(_disponibilidad(v), ctx)
         elegible, motivos = ev["elegible"], ev["motivos"]
     afectacion = round(cuota / datos.sueldo * 100, 1) if (datos.sueldo and datos.sueldo > 0) else None
@@ -360,11 +362,25 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
     if len(dni) not in (7, 8):
         raise HTTPException(422, "El DNI debe tener 7 u 8 dígitos.")
     apellido_nombre = f"{apellido}, {nombre}"
+    # Fecha de nacimiento (en vez de la edad: no envejece sola) y contacto, obligatorios para evaluar
+    # y para poder avisarle al ciudadano cómo siguió su trámite.
+    edad = edad_de(req.fecha_nacimiento)
+    if edad is None:
+        raise HTTPException(422, "Cargá tu fecha de nacimiento.")
+    if not (18 <= edad <= 99):
+        raise HTTPException(422, "La fecha de nacimiento no es válida (la edad debe estar entre 18 y 99 años).")
+    email = (req.email or "").strip() or (c.email or "")
+    telefono = "".join(ch for ch in (req.telefono or "") if ch.isdigit() or ch in "+")
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(422, "Cargá un email válido.")
+    if len(telefono.lstrip("+")) < 8:
+        raise HTTPException(422, "Cargá un teléfono de contacto (al menos 8 dígitos).")
     # H-202: bloqueo duro por elegibilidad. Si lo declarado por el ciudadano (segmento/edad/antigüedad) NO
     # cumple las condiciones de la línea, no puede enviar la solicitud. Misma fuente que el simulador; un
     # dato no declarado no bloquea (queda para la revisión del backoffice).
     _tmp = m.PPSolicitud(producto_id=prod.id, monto_solicitado=Decimal(str(req.monto)), plazo_solicitado=req.plazo,
-                         segmento=req.segmento or "", canal="WEB", edad=req.edad, antiguedad_meses=req.antiguedad_meses)
+                         segmento=req.segmento or "", canal="WEB", edad=edad,
+                         fecha_nacimiento=req.fecha_nacimiento, antiguedad_meses=req.antiguedad_meses)
     _ev = _evaluar_solicitud(db, _tmp)
     if not _ev.get("elegible"):
         raise HTTPException(422, "No cumplís las condiciones para esta línea: " + "; ".join(_ev.get("motivos", [])))
@@ -378,13 +394,15 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
             numero=numero, estado="EN_EVALUACION", solicitante_tipo="NO_REGISTRADO", cliente_id=None,
             # Identidad DECLARADA por el ciudadano (H-162): Mi Catamarca sólo confirma que existe, no da su
             # perfil. El CUIL no lo entrega el OIDC: queda para completar en el alta del backoffice.
-            cliente_datos={"apellido_nombre": apellido_nombre, "email": c.email,
-                           "cuil": "", "dni": dni},
+            cliente_datos={"apellido_nombre": apellido_nombre, "email": email, "telefono": telefono,
+                           "nacimiento": str(req.fecha_nacimiento), "cuil": "", "dni": dni},
             producto_id=prod.id, monto_solicitado=Decimal(str(req.monto)), plazo_solicitado=req.plazo,
             # Datos declarados por el ciudadano (Fase 3): alimentan la evaluación del backoffice.
-            segmento=req.segmento or "", canal="WEB", edad=req.edad, antiguedad_meses=req.antiguedad_meses,
+            segmento=req.segmento or "", canal="WEB", edad=edad, fecha_nacimiento=req.fecha_nacimiento,
+            antiguedad_meses=req.antiguedad_meses,
             origen="PORTAL", relacion="ESTANDAR",
             datos_adicionales={"portal_sub": c.sub, "portal_email": c.email,
+                               "email": email, "telefono": telefono,
                                "cuota_estimada": cuota_est, "tna": tna_est,
                                "sueldo_declarado": req.sueldo, "haberes_fuente": req.haberes_fuente,
                                "destino": destino,
@@ -447,6 +465,7 @@ def detalle_solicitud(numero: str, db: Session = Depends(get_db), c: Ciudadano =
     return schemas.PortalSolicitudDetalle(
         **base, sistema=sistema, destino=DESTINOS.get(da.get("destino", ""), ""),
         segmento=s.segmento or "", edad=s.edad,
+        fecha_nacimiento=str(s.fecha_nacimiento) if s.fecha_nacimiento else None,
         antiguedad_meses=s.antiguedad_meses, sueldo=da.get("sueldo_declarado"),
         afectacion=da.get("afectacion"), total_a_pagar=total, cuotas=cuotas)
 

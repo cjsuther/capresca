@@ -14,7 +14,20 @@ const TONO_ESTADO = {
   RECHAZADA: "crit", ORIGINADA: "brand", ANULADA: "neutral",
 };
 const RELACIONES = ["ESTANDAR", "PREFERENCIAL", "PREMIUM"];
-const TIPODOC = { DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo", OTRO: "Otro" };
+const TIPODOC = { DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", SELFIE_DNI: "Selfie con el DNI en la mano",
+                  RECIBO: "Recibo de sueldo", OTRO: "Otro" };
+
+/** Años cumplidos a hoy: la solicitud guarda la fecha de nacimiento y la edad se muestra calculada. */
+export function edadDe(fecha) {
+  if (!fecha) return null;
+  const n = new Date(`${String(fecha).slice(0, 10)}T00:00:00`);
+  if (isNaN(n.getTime())) return null;
+  const h = new Date();
+  let e = h.getFullYear() - n.getFullYear();
+  const m = h.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && h.getDate() < n.getDate())) e--;
+  return e;
+}
 const DESTINO = {
   VIVIENDA: "Vivienda / refacción", VEHICULO: "Vehículo", CONSUMO: "Consumo / gastos personales",
   EDUCACION: "Educación", SALUD: "Salud", REFINANCIACION: "Refinanciación de deudas",
@@ -30,7 +43,7 @@ const acotar = (v, min, max) => {
 
 const FORM_VACIO = {
   producto_id: "", monto_solicitado: 1000000, plazo_solicitado: 24,
-  segmento: "", canal: "SUCURSAL", edad: "", antiguedad_meses: "", relacion: "ESTANDAR",
+  segmento: "", canal: "SUCURSAL", fecha_nacimiento: "", antiguedad_meses: "", relacion: "ESTANDAR",
   datos_adicionales: { destino: "", cbu: "", observaciones: "" },
 };
 
@@ -108,11 +121,12 @@ export default function SolicitudesCreditoPage() {
     setCargandoCrono(true);
     creditos.ppSimPreview(sel.productoId, {
       monto: sel.monto, plazo: sel.plazo, segmento: sel.segmento || undefined, canal: sel.canal || undefined,
-      edad: sel.edad ?? undefined, antiguedad_meses: sel.antiguedadMeses ?? undefined,
+      fecha_nacimiento: sel.fechaNacimiento || undefined, antiguedad_meses: sel.antiguedadMeses ?? undefined,
     }).then((s) => setCrono(s.cuotas || [])).catch(() => setCrono([])).finally(() => setCargandoCrono(false));
   }, [sel?.id]); // eslint-disable-line
 
-  const edadInvalida = form.edad !== "" && (Number(form.edad) < 18 || Number(form.edad) > 99);
+  const edadForm = edadDe(form.fecha_nacimiento);
+  const edadInvalida = form.fecha_nacimiento !== "" && (edadForm === null || edadForm < 18 || edadForm > 99);
   const paso1OK = !!cliente && !edadInvalida;
   const paso2OK = !!form.producto_id && Number(form.monto_solicitado) > 0 && Number(form.plazo_solicitado) > 0;
 
@@ -123,7 +137,7 @@ export default function SolicitudesCreditoPage() {
       setSim(await creditos.ppSimPreview(form.producto_id, {
         monto: Number(form.monto_solicitado), plazo: Number(form.plazo_solicitado),
         segmento: form.segmento || undefined, canal: form.canal || undefined,
-        edad: form.edad ? Number(form.edad) : undefined,
+        fecha_nacimiento: form.fecha_nacimiento || undefined,
         antiguedad_meses: form.antiguedad_meses ? Number(form.antiguedad_meses) : undefined,
       }));
     } catch (e) { setSim(null); setError(e.message); }
@@ -152,7 +166,7 @@ export default function SolicitudesCreditoPage() {
         ...form,
         solicitante_tipo: "REGISTRADO",
         cliente_id: cliente.id,
-        edad: form.edad ? Number(form.edad) : null,
+        fecha_nacimiento: form.fecha_nacimiento || null,
         antiguedad_meses: form.antiguedad_meses ? Number(form.antiguedad_meses) : null,
       };
       let s = await creditos.ppSolicitudCrear(payload);
@@ -170,7 +184,7 @@ export default function SolicitudesCreditoPage() {
     const c = await creditos.ctoOriginar({
       producto_id: s.productoId, cliente_nombre: s.clienteNombre, monto: s.monto, plazo: s.plazo,
       segmento: s.segmento || undefined, canal: s.canal || undefined,
-      edad: s.edad ?? undefined, antiguedad_meses: s.antiguedadMeses ?? undefined,
+      fecha_nacimiento: s.fechaNacimiento || undefined, antiguedad_meses: s.antiguedadMeses ?? undefined,
       relacion: s.relacion || undefined, solicitud_pp_id: s.id,
       datos_adicionales: {
         destino: s.datosAdicionales?.destino || "", cbu: s.datosAdicionales?.cbu || "",
@@ -401,10 +415,13 @@ export default function SolicitudesCreditoPage() {
                     {cat.segmentos.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </Field>
-                <Field label="Edad (18–99)">
-                  <input type="number" min={18} max={99} className="input w-full" value={form.edad}
-                         onChange={(e) => setForm({ ...form, edad: acotar(e.target.value, 0, 99) })} />
-                  {edadInvalida && <span className="text-xs text-red-600">La edad debe estar entre 18 y 99.</span>}
+                <Field label="Fecha de nacimiento">
+                  <input type="date" className="input w-full" value={form.fecha_nacimiento || ""}
+                         max={new Date().toISOString().slice(0, 10)}
+                         onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} />
+                  {edadInvalida
+                    ? <span className="text-xs text-red-600">La edad debe estar entre 18 y 99 años.</span>
+                    : edadForm !== null && <span className="text-xs text-gray-500">{edadForm} años</span>}
                 </Field>
                 <Field label="Antigüedad (meses)">
                   <input type="number" min={0} max={1200} className="input w-full" value={form.antiguedad_meses}
@@ -583,6 +600,19 @@ export default function SolicitudesCreditoPage() {
             )}
             {sel.datosAdicionales?.cbu && (
               <div><dt className="text-xs text-gray-500">CBU</dt><dd className="font-medium">{sel.datosAdicionales.cbu}</dd></div>
+            )}
+            {sel.fechaNacimiento && (
+              <div><dt className="text-xs text-gray-500">Fecha de nacimiento</dt>
+                <dd className="font-medium">{fecha(sel.fechaNacimiento)}{edadDe(sel.fechaNacimiento) !== null
+                  ? ` · ${edadDe(sel.fechaNacimiento)} años` : ""}</dd></div>
+            )}
+            {(sel.clienteDatos?.email || sel.datosAdicionales?.email) && (
+              <div><dt className="text-xs text-gray-500">Email</dt>
+                <dd className="font-medium break-all">{sel.clienteDatos?.email || sel.datosAdicionales?.email}</dd></div>
+            )}
+            {(sel.clienteDatos?.telefono || sel.datosAdicionales?.telefono) && (
+              <div><dt className="text-xs text-gray-500">Teléfono</dt>
+                <dd className="font-medium">{sel.clienteDatos?.telefono || sel.datosAdicionales?.telefono}</dd></div>
             )}
           </dl>
 

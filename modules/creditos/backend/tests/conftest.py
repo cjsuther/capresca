@@ -9,6 +9,10 @@ import os
 # Fijar el entorno ANTES de importar la app (el engine se crea al importarla).
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///./_test_ccypp.db"
 os.environ["ENVIRONMENT"] = "development"
+# El contenedor trae las variables del compose: los tests fijan las suyas (si no, el desembolso se iría
+# a Tesorería y los contratos quedarían A_LIQUIDAR). Los tests de esa integración lo activan aparte.
+os.environ["DESEMBOLSO_VIA_TESORERIA"] = "false"
+os.environ["TESORERIA_INTERNAL_API_KEY"] = ""
 
 import pytest
 

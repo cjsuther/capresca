@@ -184,10 +184,27 @@ const DESTINOS: [string, string][] = [
 const DESTINO_LABEL = Object.fromEntries(DESTINOS);
 
 const TIPO_DOC: Record<string, string> = {
-  DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo",
+  DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)",
+  SELFIE_DNI: "Selfie con el DNI en la mano", RECIBO: "Recibo de sueldo",
+};
+const TIPO_DOC_AYUDA: Record<string, string> = {
+  SELFIE_DNI: "Una foto tuya sosteniendo el DNI, que se lean los datos.",
 };
 // Documentación del paso 3: exactamente un archivo por cada uno de estos (ni más, ni otros).
-const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "RECIBO"];
+const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO"];
+
+/** Años cumplidos a hoy (el backend calcula lo mismo con la fecha declarada). */
+function edadDe(nacimiento: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nacimiento)) return null;
+  const n = new Date(`${nacimiento}T00:00:00`);
+  if (isNaN(n.getTime())) return null;
+  const hoy = new Date();
+  let e = hoy.getFullYear() - n.getFullYear();
+  const m = hoy.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < n.getDate())) e--;
+  return e;
+}
+const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const PASOS = ["Tus datos", "Simulación", "Documentación", "Videos", "Confirmación"];
 type Paso = 1 | 2 | 3 | 4 | 5;
 type DocElegido = { file: File; tipo: string };
@@ -220,7 +237,7 @@ function DocsPicker({ docs, onChange }: { docs: DocElegido[]; onChange: (d: DocE
               <span className={"p-doc-ic" + (esPdf ? " pdf" : "")} aria-hidden>{d ? (esPdf ? "PDF" : "IMG") : "○"}</span>
               <div className="p-doc-meta">
                 <b>{TIPO_DOC[t]}</b>
-                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : "Falta adjuntar"}</span>
+                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : (TIPO_DOC_AYUDA[t] || "Falta adjuntar")}</span>
               </div>
               <label className={`p-btn-file${d ? " sec" : ""}`}>{d ? "Cambiar" : "＋ Adjuntar"}
                 <input type="file" accept={DOC_TYPES.join(",")} hidden aria-label={`Adjuntar ${TIPO_DOC[t]}`}
@@ -265,7 +282,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [dni, setDni] = useState("");
   const [segmento, setSegmento] = useState("");
   const [destino, setDestino] = useState("");
-  const [edad, setEdad] = useState("");
+  const [nacimiento, setNacimiento] = useState("");     // fecha; la edad se calcula (antes se pedía la edad)
+  const [email, setEmail] = useState(sesion.email || "");
+  const [telefono, setTelefono] = useState("");
   const [antiguedad, setAntiguedad] = useState("");
   const [sueldo, setSueldo] = useState("");
   const [pendingDocs, setPendingDocs] = useState<DocElegido[]>([]);   // adjuntos elegidos (se suben al enviar)
@@ -287,7 +306,11 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [aceptaDatos, setAceptaDatos] = useState(false);
   const cbuDigits = cbu.replace(/\D/g, "");
   const dniDigits = dni.replace(/\D/g, "");
-  const identidadOk = apellido.trim().length > 0 && nombre.trim().length > 0 && (dniDigits.length === 7 || dniDigits.length === 8);
+  const edad = edadDe(nacimiento);
+  const telDigits = telefono.replace(/[^\d+]/g, "");
+  const contactoOk = emailValido(email) && telDigits.replace("+", "").length >= 8;
+  const identidadOk = apellido.trim().length > 0 && nombre.trim().length > 0 && (dniDigits.length === 7 || dniDigits.length === 8)
+    && edad !== null && edad >= 18 && edad <= 99 && contactoOk;
   const puedeEnviar = identidadOk && cbuDigits.length === 22 && aceptaTerminos && aceptaDatos;
 
   // Borrador del portal: el ciudadano guarda la solicitud a medias y la retoma después (por dispositivo).
@@ -298,7 +321,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     try { const raw = localStorage.getItem(BORRADOR_KEY); if (raw) setBorrador(JSON.parse(raw)); } catch { /* ignore */ }
   }, []);
   function guardarBorrador() {
-    const d = { paso, apellido, nombre, dni, segmento, destino, edad, antiguedad, sueldo, prodId, monto, plazo, cbu, aceptaTerminos, aceptaDatos, savedAt: new Date().toISOString() };
+    const d = { paso, apellido, nombre, dni, segmento, destino, nacimiento, email, telefono, antiguedad, sueldo,
+                prodId, monto, plazo, cbu, aceptaTerminos, aceptaDatos, savedAt: new Date().toISOString() };
     try { localStorage.setItem(BORRADOR_KEY, JSON.stringify(d)); } catch { /* ignore */ }
     setBorrador(null); setBorradorMsg("Borrador guardado. Podés retomarlo más tarde desde este dispositivo.");
     setTimeout(() => setBorradorMsg(""), 4000);
@@ -306,7 +330,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   function retomarBorrador() {
     const d = borrador; if (!d) return;
     setApellido(d.apellido || ""); setNombre(d.nombre || ""); setDni(d.dni || "");
-    setSegmento(d.segmento || ""); setDestino(d.destino || ""); setEdad(d.edad || ""); setAntiguedad(d.antiguedad || "");
+    setSegmento(d.segmento || ""); setDestino(d.destino || ""); setNacimiento(d.nacimiento || "");
+    setEmail(d.email || sesion.email || ""); setTelefono(d.telefono || ""); setAntiguedad(d.antiguedad || "");
     setSueldo(d.sueldo || ""); if (d.prodId) setProdId(d.prodId);
     setMonto(d.monto || "500000"); setPlazo(d.plazo || "12"); setCbu(d.cbu || "");
     setAceptaTerminos(!!d.aceptaTerminos); setAceptaDatos(!!d.aceptaDatos);
@@ -319,7 +344,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const datos = () => ({
     apellido: apellido.trim(), nombre: nombre.trim(), dni: dniDigits,
     segmento: segmento || undefined,
-    edad: edad ? Number(edad) : undefined,
+    fecha_nacimiento: nacimiento || undefined,
+    email: email.trim(),
+    telefono: telDigits,
     antiguedad_meses: antiguedad ? Number(antiguedad) : undefined,
     sueldo: sueldo ? Number(sueldo) : undefined,
   });
@@ -372,6 +399,10 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     if (!apellido.trim() || !nombre.trim()) { setDatosErr("Cargá tu apellido y nombre."); return; }
     if (dniDigits.length !== 7 && dniDigits.length !== 8) { setDatosErr("El DNI debe tener 7 u 8 dígitos."); return; }
     if (!segmento) { setDatosErr("Elegí tu situación laboral para continuar."); return; }
+    if (edad === null) { setDatosErr("Cargá tu fecha de nacimiento."); return; }
+    if (edad < 18 || edad > 99) { setDatosErr("Revisá tu fecha de nacimiento: la edad tiene que estar entre 18 y 99 años."); return; }
+    if (!emailValido(email)) { setDatosErr("Cargá un email válido para que podamos contactarte."); return; }
+    if (telDigits.replace("+", "").length < 8) { setDatosErr("Cargá un teléfono de contacto."); return; }
     setDatosErr(""); setPaso(2);
   }
   function reiniciarWizard() { setPaso(1); setSim(null); }
@@ -605,8 +636,15 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <select value={segmento} onChange={(e) => setSegmento(e.target.value)}>
                 {SEGMENTOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select></label>
-            <label className="p-fld"><span>Edad</span>
-              <input type="number" min="18" max="99" value={edad} onChange={(e) => setEdad(e.target.value)} placeholder="—" /></label>
+            <label className="p-fld"><span>Fecha de nacimiento <b className="p-req">*</b></span>
+              <input type="date" value={nacimiento} max={new Date().toISOString().slice(0, 10)}
+                     onChange={(e) => setNacimiento(e.target.value)} />
+              {edad !== null && <span className="p-fine">{edad} años</span>}</label>
+            <label className="p-fld"><span>Email <b className="p-req">*</b></span>
+              <input type="email" value={email} maxLength={80} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@correo.com" /></label>
+            <label className="p-fld"><span>Teléfono <b className="p-req">*</b></span>
+              <input type="tel" inputMode="tel" value={telefono} maxLength={20}
+                     onChange={(e) => setTelefono(e.target.value)} placeholder="3834 000000" /></label>
             <label className="p-fld"><span>Antigüedad (meses)</span>
               <input type="number" min="0" value={antiguedad} onChange={(e) => setAntiguedad(e.target.value)} placeholder="—" /></label>
             <label className="p-fld"><span>Sueldo neto</span>
@@ -735,7 +773,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                 <div><span>DNI</span>{dniDigits || "—"}</div>
                 <div><span>Situación</span>{SEG_LABEL[segmento] || segmento || "—"}</div>
                 {destino && <div><span>Destino</span>{DESTINO_LABEL[destino] || destino}</div>}
-                {edad && <div><span>Edad</span>{edad} años</div>}
+                {edad !== null && <div><span>Edad</span>{edad} años</div>}
+                <div><span>Email</span>{email || "—"}</div>
+                <div><span>Teléfono</span>{telefono || "—"}</div>
                 {sueldo && <div><span>Sueldo declarado</span>{money(sueldo)}</div>}
                 {sim.afectacion != null && <div><span>Afectación</span>{sim.afectacion}%</div>}
               </div>

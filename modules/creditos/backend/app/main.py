@@ -88,6 +88,9 @@ def _migrar_iam() -> None:
         except Exception as e:  # pragma: no cover
             print(f"[migrar] no se pudo soltar el default de clientes.id: {e}")
 
+        # La solicitud guarda la FECHA DE NACIMIENTO y la edad se calcula (H-219). Idempotente.
+        conn.execute(text("ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE"))
+
         # Plan de cuentas: campos de la pantalla moderna (H-174). Idempotente.
         for col, ddl in (("descripcion", "TEXT DEFAULT ''"), ("alias", "VARCHAR(40) DEFAULT ''"),
                          ("moneda", "VARCHAR(3) DEFAULT 'ARS'"), ("clasificacion", "VARCHAR(30) DEFAULT 'Sin clasificar'"),

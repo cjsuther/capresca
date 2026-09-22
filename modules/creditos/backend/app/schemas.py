@@ -154,9 +154,10 @@ class PortalProductoOut(BaseModel):
 
 class DatosSolicitante(BaseModel):
     """Datos que el ciudadano declara (Fase 3) para evaluar elegibilidad/afectación.
-    Rangos: edad 18-99, antigüedad ≥0, sueldo >0 (H-146). Todos opcionales (None = no declarado)."""
+    Rangos: antigüedad ≥0, sueldo >0 (H-146). Todos opcionales (None = no declarado).
+    La edad no se pide: se calcula de `fecha_nacimiento` (H-219)."""
     segmento: str = ""            # relación laboral (AGENTE_PUBLICO, DOCENTE, JUBILADO…)
-    edad: int | None = Field(default=None, ge=18, le=99)
+    fecha_nacimiento: date | None = None
     antiguedad_meses: int | None = Field(default=None, ge=0, le=1200)
     sueldo: float | None = Field(default=None, gt=0)   # sueldo neto declarado (para afectación estimada)
 
@@ -239,6 +240,8 @@ class PortalSolicitudIn(DatosSolicitante):
     cbu: str = ""                       # CBU de acreditación (22 dígitos)
     acepta_terminos: bool = False       # consentimiento: términos y condiciones
     acepta_datos: bool = False          # consentimiento: tratamiento de datos personales
+    email: str = ""                     # contacto declarado (puede diferir del de Mi Catamarca)
+    telefono: str = ""                  # contacto declarado
     videos_vistos: list[str] = []       # ids de los videos obligatorios que vio completos (paso 4)
 
 
@@ -303,6 +306,7 @@ class PortalSolicitudDetalle(PortalSolicitudOut):
     sistema: str = ""
     destino: str = ""
     segmento: str = ""
+    fecha_nacimiento: str | None = None
     edad: int | None = None
     antiguedad_meses: int | None = None
     sueldo: float | None = None

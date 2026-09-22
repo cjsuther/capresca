@@ -7,6 +7,23 @@
 
 ---
 
+## H-219 · Solicitud: selfie con DNI, fecha de nacimiento (la edad se calcula) y contacto
+**Fecha:** 2026-09-22 · **Módulo:** Créditos / Portal · **Alcance:** pedido del usuario
+- **Vista previa de PDF (bug):** el visor mostraba el PDF en un `<iframe>` con el archivo ya descargado
+  (`blob:`) y la CSP de nginx (`default-src 'self'`) lo bloqueaba: descargaba pero no previsualizaba. Se
+  agregó `frame-src 'self' blob:` (el resto de la política queda igual; `object-src` sigue en `none`).
+- **Selfie con el DNI en la mano:** cuarto documento obligatorio del paso 3 (tipo `SELFIE_DNI`), con la
+  misma regla de uno por tipo. El backoffice lo lista y lo previsualiza como los demás.
+- **Fecha de nacimiento en vez de edad:** la solicitud guarda `fecha_nacimiento` y la edad se **calcula**
+  (`app/core/personas.edad_de`), así no envejece sola ni se pide dos veces. Se exige al enviar (18–99) y
+  alimenta la elegibilidad. El backoffice muestra la fecha con la edad al lado y también carga la fecha.
+  Las solicitudes viejas conservan su `edad` guardada.
+- **Email y teléfono** obligatorios en la solicitud del portal (el email viene precargado de Mi Catamarca
+  y se puede cambiar). Quedan en `cliente_datos` y precargan el alta del cliente en el módulo Clientes.
+- La columna nueva se agrega sola al arrancar (`ALTER TABLE … IF NOT EXISTS`, como el resto de Créditos).
+- Los tests del contenedor fijan sus variables: heredaban `DESEMBOLSO_VIA_TESORERIA=true` del compose y
+  dejaban los contratos A_LIQUIDAR (31 tests en rojo por una variable de entorno, no por el código).
+
 ## H-218 · El menú muestra sólo las pantallas creadas en la migración
 **Fecha:** 2026-09-22 · **Módulo:** Créditos · **Alcance:** pedido del usuario
 - El menú del sistema viejo (`menu.ts` de la SPA retirada) marcaba con `nuevo: true` las opciones
