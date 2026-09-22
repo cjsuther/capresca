@@ -136,7 +136,7 @@ def test_una_cuenta_que_no_esta_disponible_no_se_envia(client, lote_creditos, te
     assert client.get(f"/api/tesoreria/lotes/{lid}", headers=teso).json()["estado"] == "APROBADO"
 
 
-def test_en_modo_real_sin_cuentas_no_sale_a_ciegas(client, lote_creditos, teso, banco, cuentas_banco):
+def test_sin_cuentas_no_sale_a_ciegas(client, lote_creditos, teso, banco, cuentas_banco):
     cuentas_banco["items"] = []
     lid = _aprobado(client, lote_creditos, teso)
     r = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso)
@@ -144,11 +144,13 @@ def test_en_modo_real_sin_cuentas_no_sale_a_ciegas(client, lote_creditos, teso, 
     assert banco.enviados == []
 
 
-def test_en_simulacion_sin_cuentas_igual_se_puede_probar(client, lote_creditos, teso, cuentas_banco):
+def test_ni_siquiera_en_simulacion_se_envia_sin_cuenta(client, lote_creditos, teso, cuentas_banco):
+    """En simulación no se mueve dinero, pero el lote igual tiene que decir de dónde sale."""
     cuentas_banco["items"] = []
     lid = _aprobado(client, lote_creditos, teso)
-    d = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso).json()
-    assert d["estado"] == "ENVIADO" and d["cuenta_origen"] is None
+    r = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso)
+    assert r.status_code == 422
+    assert client.get(f"/api/tesoreria/lotes/{lid}", headers=teso).json()["estado"] == "APROBADO"
 
 
 def test_las_cuentas_disponibles_se_consultan_desde_la_pantalla(client, teso, cuentas_banco):

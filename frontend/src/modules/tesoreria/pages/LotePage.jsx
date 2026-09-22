@@ -210,12 +210,19 @@ export default function LotePage() {
                     ))}
                   </select>
                 </Field>
-                <Boton disabled={ocupado || !cuentas} onClick={() => setDialogo({ tipo: "enviar" })} className="flex items-center gap-1">
+                <Boton disabled={ocupado || !cuentas || !cuentaElegida} onClick={() => setDialogo({ tipo: "enviar" })}
+                       className="flex items-center gap-1">
                   <Send size={15} /> Enviar por Interbanking
                 </Boton>
               </>
             )}
           </div>
+          {cuentas?.items.length === 0 && (
+            <p className="text-sm text-red-600 mt-2">
+              No hay ninguna cuenta para pagar: cargá la cuenta de pagos en Interbanking → Configuración.
+              Sin cuenta de origen el lote no se envía.
+            </p>
+          )}
           {cuentas?.error && <p className="text-xs text-yellow-700 mt-2">{cuentas.error}</p>}
         </Card>
       )}

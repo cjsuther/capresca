@@ -109,10 +109,12 @@ describe("LotePage", () => {
     expect(api.enviarLote).toHaveBeenCalledWith(3, "46600513539");
   });
 
-  it("avisa si el banco no devolvió las cuentas", async () => {
+  it("sin cuentas no deja enviar y dice qué configurar", async () => {
     montar({ ...BASE, estado: "APROBADO" }, { items: [], error: "No se pudieron listar las cuentas del banco" });
-    expect(await screen.findByText("No se pudieron listar las cuentas del banco")).toBeInTheDocument();
+    expect(await screen.findByText(/cargá la cuenta de pagos en Interbanking/)).toBeInTheDocument();
+    expect(screen.getByText("No se pudieron listar las cuentas del banco")).toBeInTheDocument();
     expect(screen.getByLabelText("Cuenta desde la que se paga")).toHaveTextContent("Sin cuentas disponibles");
+    expect(screen.getByRole("button", { name: /Enviar por Interbanking/ })).toBeDisabled();
   });
 
   it("un lote en curso muestra desde qué cuenta se pagó", async () => {

@@ -22,7 +22,8 @@ PENDIENTE_APROBACION ──aprobar (workflow LOTE_PAGO)──▶ APROBADO ──
 - **Cuenta de origen:** al enviar, el tesorero elige desde qué cuenta sale el lote. Las cuentas salen de
   Interbanking (`/internal/interbanking/payment-accounts`: las del banco más la "cuenta de pagos"
   configurada, marcada como predeterminada). Sólo se acepta una cuenta de esa lista y queda guardada en el
-  lote y en su historial. En modo real, sin cuenta no se envía; en simulación se permite para poder probar.
+  lote y en su historial. Sin cuenta no se envía, ni siquiera en simulación: si la lista viene vacía hay que
+  cargar la cuenta de pagos en Interbanking → Configuración.
 - **Envío:** permiso `tesoreria:lotes:enviar`. Cada pago se toma con un `UPDATE … WHERE estado` atómico:
   dos envíos simultáneos no pagan dos veces.
 - **Pagos inciertos:** si se corta la comunicación con Interbanking (timeout, 5xx) no se sabe si la

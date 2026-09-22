@@ -13,8 +13,9 @@
   `/internal/interbanking/payment-accounts` (las cuentas del banco + la "cuenta de pagos" configurada,
   marcada como predeterminada) y `/internal/interbanking/payments` acepta `cuenta_origen`. La cuenta
   elegida se valida contra esa lista (no se envía a una cuenta arbitraria), queda guardada en el lote y
-  se ve en el historial y en la pantalla. En modo real sin cuentas no se envía; en simulación sí, para
-  poder probar el circuito. Si el banco no responde, igual se puede usar la configurada.
+  se ve en el historial y en la pantalla. **Sin cuenta de origen no se envía, ni siquiera en simulación**
+  (al principio se permitía para poder probar sin credenciales: era un permiso de más, lo marcó el
+  usuario). Si el banco no responde, igual se puede pagar desde la cuenta configurada.
 - **Botón "Inicio"** en la barra superior (salvo estando en el tablero) y arriba del menú lateral: hasta
   ahora sólo se volvía haciendo clic en el logo y los usuarios no lo descubrían.
 
