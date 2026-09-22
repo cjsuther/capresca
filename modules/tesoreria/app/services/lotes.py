@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies.auth import Usuario
-from app.services import avisos, interbanking, workflow
+from app.services import auditoria_central as central, avisos, interbanking, workflow
 
 # Estados de un pago que lo mantienen "vivo" (no se puede cargar de nuevo en otro lote).
 VIVOS = ("PENDIENTE", "ENVIANDO", "ENVIADO", "CONFIRMADO", "INCIERTO")
@@ -31,8 +31,17 @@ def _ahora() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def evento(db: Session, lote: models.Lote, usuario: str, accion: str, detalle: str = "") -> None:
+# Qué le pasó al lote, para la auditoría central (el resto son acciones de negocio).
+OPERACION_CENTRAL = {"ALTA": "ALTA", "APROBACIONES_REINICIADAS": "MODIFICACION"}
+
+
+def evento(db: Session, lote: models.Lote, usuario: str, accion: str, detalle: str = "",
+           request_id: str = "") -> None:
     db.add(models.Evento(lote_id=lote.id, usuario=usuario, accion=accion, detalle=detalle[:2000]))
+    central.registrar(usuario=usuario, operacion=OPERACION_CENTRAL.get(accion, "ACCION"),
+                      entidad="Lote", entidad_id=lote.codigo, request_id=request_id,
+                      descripcion=f"{accion.replace('_', ' ').capitalize()} · {lote.origen}",
+                      detalle=detalle[:2000])
 
 
 # ── Serialización ────────────────────────────────────────────────────────────────────────────────

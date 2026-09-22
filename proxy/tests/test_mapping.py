@@ -163,3 +163,22 @@ def test_rutas_de_grupos(metodo, ruta, permiso):
     assert get_service_url(metodo, ruta) == settings.security_service_url
     assert get_required_permission(metodo, ruta) == permiso
 
+
+@pytest.mark.parametrize("metodo,ruta", [
+    ("GET", "/api/auditoria/eventos"),
+    ("GET", "/api/auditoria/eventos/12"),
+    ("GET", "/api/auditoria/eventos/resumen"),
+    ("GET", "/api/auditoria/registros/creditos/Contrato/CTO-1"),
+])
+def test_la_auditoria_se_consulta_con_su_permiso(metodo, ruta):
+    assert get_service_url(metodo, ruta) == settings.auditoria_service_url
+    assert get_required_permission(metodo, ruta) == "auditoria:eventos:read"
+
+
+@pytest.mark.parametrize("metodo,ruta", [("DELETE", "/api/auditoria/eventos/12"),
+                                         ("POST", "/api/auditoria/eventos"),
+                                         ("PUT", "/api/auditoria/eventos/12"),
+                                         ("POST", "/internal/auditoria/eventos")])
+def test_el_registro_de_auditoria_no_se_escribe_desde_afuera(metodo, ruta):
+    assert get_service_url(metodo, ruta) is None
+

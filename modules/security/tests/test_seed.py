@@ -108,6 +108,13 @@ def test_creditos_tiene_el_permiso_de_pantallas_heredadas_pero_admin_no_lo_recib
     assert any(p.code == "creditos:read" for p in admin.permissions)      # el resto sí
 
 
+def test_la_auditoria_es_solo_de_lectura(correr_seed, db):
+    """El registro no se edita ni se borra: el módulo sólo publica el permiso de consulta."""
+    correr_seed()
+    mod = db.query(Module).filter_by(code="auditoria").one()
+    assert {p.code for p in db.query(Permission).filter_by(module_id=mod.id).all()} == {"eventos:read"}
+
+
 def test_seed_crea_los_tres_roles(correr_seed, db):
     correr_seed()
     assert {r.name for r in db.query(Role).all()} == {"admin", "cajero", "supervisor"}

@@ -177,6 +177,10 @@ ROUTE_MAP = [
     # ── Configuraciones: un par read/write por catálogo (impuestos, índices, feriados, workflow) ──
     *_configuraciones_rutas(),
 
+    # ── Auditoría: sólo consulta (el registro no se edita ni se borra desde ningún lado) ──
+    ("GET",  r"^/api/auditoria/eventos(/\d+|/resumen)?$",               settings.auditoria_service_url, "auditoria:eventos:read"),
+    ("GET",  r"^/api/auditoria/registros/[^/]+/[^/]+/[^/]+$",           settings.auditoria_service_url, "auditoria:eventos:read"),
+
     # ── Tesorería: ver lotes pide lectura; aprobar/rechazar y enviar los valida el módulo (workflow y
     #    permiso de envío), así el gateway sólo exige ser del módulo para esas acciones. ──
     ("GET",  r"^/api/tesoreria/lotes(/\d+)?$",                          settings.tesoreria_service_url, "tesoreria:lotes:read"),

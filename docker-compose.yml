@@ -16,6 +16,7 @@ volumes:
   creditos_data:
   configuraciones_data:
   tesoreria_data:
+  auditoria_data:
 
 services:
 
@@ -69,6 +70,9 @@ services:
       - CREDITOS_SERVICE_URL=http://creditos:8010
       - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
       - TESORERIA_SERVICE_URL=http://tesoreria:8012
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      # Auditoría central: el gateway registra toda operación que modifica datos.
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -83,6 +87,7 @@ services:
       - creditos
       - configuraciones
       - tesoreria
+      - auditoria
     networks:
       - app_network
     restart: unless-stopped
@@ -99,6 +104,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ALGORITHM=HS256
       - JWT_EXPIRE_HOURS=8
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_security:
         condition: service_healthy
@@ -168,6 +175,8 @@ services:
       - DATABASE_URL=postgresql://${CLIENTES_DB_USER}:${CLIENTES_DB_PASS}@db_clientes:5432/${CLIENTES_DB_NAME}
       - LEGACY_SERVICE_URL=http://legacy:8009
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_clientes:
         condition: service_healthy
@@ -410,6 +419,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${CONFIGURACIONES_DB_USER}:${CONFIGURACIONES_DB_PASS}@db_configuraciones:5432/${CONFIGURACIONES_DB_NAME}
       - INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_configuraciones:
         condition: service_healthy
@@ -435,6 +446,43 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────
+  # Módulo Auditoría — qué hace cada usuario con la información del sistema (API :8013)
+  # ──────────────────────────────────────────
+  auditoria:
+    build:
+      context: ./modules/auditoria
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${AUDITORIA_DB_USER}:${AUDITORIA_DB_PASS}@db_auditoria:5432/${AUDITORIA_DB_NAME}
+      # La presentan el gateway y los módulos para registrar. Sin clave, nadie puede escribir el registro.
+      - INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Retención: 5 años (1825 días). La purga corre sola, de madrugada.
+      - RETENCION_DIAS=${AUDITORIA_RETENCION_DIAS:-1825}
+    depends_on:
+      db_auditoria:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_auditoria:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${AUDITORIA_DB_NAME}
+      - POSTGRES_USER=${AUDITORIA_DB_USER}
+      - POSTGRES_PASSWORD=${AUDITORIA_DB_PASS}
+    volumes:
+      - auditoria_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUDITORIA_DB_USER} -d ${AUDITORIA_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
   # Módulo Tesorería — lotes de pagos: aprobación (workflow) y envío por Interbanking (API :8012)
   # ──────────────────────────────────────────
   tesoreria:
@@ -443,6 +491,8 @@ services:
       dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql://${TESORERIA_DB_USER}:${TESORERIA_DB_PASS}@db_tesoreria:5432/${TESORERIA_DB_NAME}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       # Autentica a los módulos que le mandan lotes y a los avisos de resultado que Tesorería les devuelve.
       - INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
       - INTERBANKING_SERVICE_URL=http://interbanking:8004
@@ -487,6 +537,8 @@ services:
     environment:
       - ENVIRONMENT=production
       - DATABASE_URL=postgresql+psycopg://${CREDITOS_DB_USER}:${CREDITOS_DB_PASS}@db_creditos:5432/${CREDITOS_DB_NAME}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       # Firma SOLO los tokens del portal ciudadano (realm propio). Debe ser distinto de JWT_SECRET:
       # los usuarios del backoffice los autentica el gateway de Portezuelo.
       - JWT_SECRET=${CREDITOS_PORTAL_JWT_SECRET}

@@ -21,6 +21,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.routes.mapping import get_service_url, get_required_permission
+from app.services import auditoria
 
 logger = logging.getLogger("proxy.auth")
 
@@ -67,6 +68,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # security devuelve permisos vacíos). Antes pasaba a las rutas sin permiso requerido.
         if not permissions.get("modules"):
             logger.warning("Usuario sin permisos user_id=%s ruta=%s", user_id, path)
+            self._auditar_rechazo(request, path, user_id, payload.get("username", ""))
             return JSONResponse(status_code=403, content={"detail": "Usuario sin permisos asignados"})
 
         # ── Verificar permiso requerido para la ruta ──────────────
@@ -74,6 +76,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if required and not self._has_permission(permissions, required):
             logger.warning("Acceso denegado user_id=%s ruta=%s permiso=%s", user_id, path, required)
             detalle = required if isinstance(required, str) else " | ".join(required)
+            self._auditar_rechazo(request, path, user_id, payload.get("username", ""), detalle)
             return JSONResponse(status_code=403, content={"detail": "Acceso denegado", "required": detalle})
 
         # Continuar al router de proxy (routes/proxy.py inyecta la identidad en los headers)
@@ -81,6 +84,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.state.username = payload.get("username", "")
         request.state.permissions = permissions
         return await call_next(request)
+
+    @staticmethod
+    def _auditar_rechazo(request: Request, path: str, user_id: int, username: str, permiso: str = "") -> None:
+        """Un intento de modificar algo sin permiso también es auditable (no llega al router)."""
+        if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+            return
+        partes = path.strip("/").split("/")
+        fwd = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        auditoria.registrar({
+            "usuario": username or f"usuario-{user_id}", "usuario_id": user_id,
+            "ip": (fwd or (request.client.host if request.client else ""))[:64],
+            "modulo": partes[1] if len(partes) > 1 else "", "metodo": request.method, "ruta": path,
+            "estado_http": 403, "exito": False, "origen": "GATEWAY",
+            "descripcion": f"Acceso denegado{f' (falta {permiso})' if permiso else ''}",
+        })
 
     def _decode_token(self, token: str) -> Optional[dict]:
         try:

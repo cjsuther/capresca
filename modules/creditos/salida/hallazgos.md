@@ -7,6 +7,26 @@
 
 ---
 
+## H-221 · Módulo Auditoría: qué hace cada usuario con la información del sistema
+**Fecha:** 2026-09-22 · **Módulo:** Auditoría (nuevo) / todos · **Alcance:** pedido del usuario
+- Nuevo módulo **Auditoría** (:8013): un evento por acción, con quién, qué módulo, qué registro
+  (entidad + id), qué cambió (antes/después), cuándo, desde qué IP y si salió bien. **Sólo lectura**:
+  no hay API ni pantalla para editar o borrar el registro.
+- **Dos fuentes que se cruzan por `request_id`** (el gateway lo genera y lo manda en `X-Request-Id`):
+  el **gateway** registra automáticamente toda operación que modifica datos, el login y los intentos
+  **rechazados** (403) — nadie se puede olvidar de auditar; los **módulos** agregan el detalle del
+  registro tocado.
+- La integración por módulo no toca endpoint por endpoint: un middleware guarda quién opera y un
+  **listener de SQLAlchemy** anota las filas insertadas/modificadas/borradas de cada transacción. Sólo
+  dentro de una request HTTP, así los ETL y seeds no generan ruido. Integrado en Seguridad, Clientes,
+  Configuraciones, Tesorería y Créditos (que además espeja su auditoría propia).
+- **Datos sensibles**: las claves no se guardan y CBU/CUIL/DNI quedan parciales (`•••5201`).
+- **Retención 5 años**, con purga automática de madrugada.
+- Nunca frena ni voltea una operación: los eventos van a una cola en memoria y los manda un hilo/tarea
+  aparte; si Auditoría está caída, se pierde el evento y queda en el log.
+- QA en local: alta, edición y baja de un grupo quedaron registradas con sus campos
+  (`description: ["prueba", "descripción cambiada"]`) y cruzadas con lo que registró el gateway.
+
 ## H-220 · Configurar Créditos: vista en tarjetas / en línea y menú de acciones por fila
 **Fecha:** 2026-09-22 · **Módulo:** Créditos · **Alcance:** pedido del usuario (paridad con el sistema anterior)
 - El catálogo vuelve a tener las **dos vistas** de la SPA retirada: **tarjetas** (con estado, familia,

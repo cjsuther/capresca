@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services import auditoria_central as central
 
 
 # --------------------- Auditoría de cambios (sistema nuevo) ---------------------
@@ -36,13 +37,22 @@ def _diff(antes: dict | None, despues: dict | None) -> dict:
     return cambios
 
 
+OPERACION_CENTRAL = {"ALTA": "ALTA", "CREAR": "ALTA", "CREACION": "ALTA", "MODIFICAR": "MODIFICACION",
+                     "MODIFICACION": "MODIFICACION", "EDITAR": "MODIFICACION", "BAJA": "BAJA",
+                     "BORRAR": "BAJA", "ELIMINAR": "BAJA", "ANULAR": "BAJA"}
+
+
 def registrar_cambio(db: Session, *, usuario: str, entidad: str, operacion: str,
                      entidad_id: str = "", perfil: str = "", ip: str = "",
                      antes: dict | None = None, despues: dict | None = None,
-                     resultado: str = "OK", detalle: str = "") -> None:
-    """Registra una mutación con su diff. Nunca interrumpe el flujo de negocio."""
+                     resultado: str = "OK", detalle: str = "", request_id: str = "") -> None:
+    """Registra una mutación con su diff (acá y en la Auditoría central). Nunca interrumpe el negocio."""
     try:
         a, d = _norm(antes), _norm(despues)
+        central.registrar(usuario=usuario, operacion=OPERACION_CENTRAL.get(operacion.upper(), "ACCION"),
+                          entidad=entidad, entidad_id=str(entidad_id), descripcion=operacion,
+                          cambios=_diff(a, d), detalle=detalle, ip=ip, request_id=request_id,
+                          exito=resultado == "OK")
         db.add(models.AuditoriaCambio(
             usuario=(usuario or "anonimo")[:40], perfil=(perfil or "")[:8], ip=(ip or "")[:64],
             entidad=entidad[:40], entidad_id=str(entidad_id)[:40], operacion=operacion[:30],

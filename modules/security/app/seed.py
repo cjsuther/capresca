@@ -24,6 +24,7 @@ MODULES = [
     {"code": "legacy", "name": "Legacy", "description": "Integración con el sistema legacy (VFP9) — interacciones IN/OUT", "icon": "database"},
     {"code": "creditos", "name": "Créditos", "description": "CCyPP: créditos, originación, cartera y portal ciudadano", "icon": "landmark"},
     {"code": "tesoreria", "name": "Tesorería", "description": "Lotes de pagos: aprobación y envío por Interbanking", "icon": "wallet"},
+    {"code": "auditoria", "name": "Auditoría", "description": "Qué hace cada usuario con la información del sistema", "icon": "clipboard-list"},
     {"code": "configuraciones", "name": "Configuraciones", "description": "Impuestos, índices, feriados y workflow de aprobaciones", "icon": "settings"},
 ]
 
@@ -104,6 +105,10 @@ PERMISSIONS = {
         ("lotes:enviar", "Tesorería · enviar lotes aprobados por Interbanking"),
         ("aprobaciones:aprobar", "Tesorería · aprobar lotes (rol APROBAR del workflow)"),
         ("aprobaciones:supervisar", "Tesorería · aprobar niveles de supervisión (rol SUPERVISAR)"),
+    ],
+    # La auditoría es sólo de lectura: nadie edita ni borra el registro (ni el administrador).
+    "auditoria": [
+        ("eventos:read", "Auditoría · ver el registro de lo que hace cada usuario"),
     ],
     # Un par por catálogo: el workflow (quién aprueba) se asigna aparte de operar los módulos.
     "configuraciones": [

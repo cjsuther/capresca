@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings, Wallet } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings, Wallet, ClipboardList } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -85,6 +85,15 @@ const ALL_MODULES = [
     color: "bg-green-50 border-green-200 text-green-700",
     iconColor: "text-green-500",
     path: "/modules/tesoreria",
+  },
+  {
+    code: "auditoria",
+    name: "Auditoría",
+    description: "Qué hace cada usuario con la información del sistema",
+    icon: ClipboardList,
+    color: "bg-amber-50 border-amber-200 text-amber-700",
+    iconColor: "text-amber-500",
+    path: "/modules/auditoria",
   },
   {
     code: "configuraciones",

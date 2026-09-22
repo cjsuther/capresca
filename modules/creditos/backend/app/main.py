@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.core.database import Base, engine, SessionLocal
+from app.services import auditoria_central as central
 from app.api import (clientes, creditos, caja, consultas, admin, productos, contratos,
                      impuestos, indices, sistema_calculos, solicitudes, aprobaciones, portal,
                      tesoreria_interna)
@@ -184,6 +185,11 @@ app.include_router(solicitudes.router)
 app.include_router(aprobaciones.router)
 app.include_router(portal.router)
 app.include_router(tesoreria_interna.router)
+
+# Auditoría central (H-221): qué registros agrega, cambia o borra cada usuario. Se excluyen las tablas
+# que ya son un registro en sí (la auditoría propia del módulo y el log migrado del VFP) y el espejo de
+# clientes, que se sincroniza solo desde el módulo Clientes.
+central.instalar(app, excluir={"auditoria_cambios", "eventos_auditoria", "clientes"})
 
 
 @app.get("/api/creditos/health", tags=["health"])

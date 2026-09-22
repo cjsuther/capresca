@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import auth, users, roles, groups, modules, permissions, internal
+from app.services import auditoria_central as central
 
 app = FastAPI(title="Security Module", version="1.0.0")
 
@@ -23,6 +24,10 @@ app.include_router(permissions.router, prefix="/api/security")
 
 # Rutas internas (solo accesibles desde el proxy dentro de la red Docker)
 app.include_router(internal.router)
+
+# Auditoría central: altas, cambios y bajas de usuarios, roles, grupos y permisos. La lista negra de
+# tokens es ruido de sesión (un registro por logout), no un cambio de información.
+central.instalar(app, excluir={"token_blacklist"})
 
 
 @app.get("/health")
