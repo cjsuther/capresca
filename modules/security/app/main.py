@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, users, roles, modules, permissions, internal
+from app.routers import auth, users, roles, groups, modules, permissions, internal
 
 app = FastAPI(title="Security Module", version="1.0.0")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api/security")
 app.include_router(roles.router, prefix="/api/security")
+app.include_router(groups.router, prefix="/api/security")
 app.include_router(modules.router, prefix="/api/security")
 app.include_router(permissions.router, prefix="/api/security")
 

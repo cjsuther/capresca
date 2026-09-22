@@ -14,6 +14,8 @@ endpoints ni permisos. Sus servicios que el crédito usa por dentro siguen: asie
 póliza al otorgar (`services/seguros`), orden de pago del desembolso (`services/egresos`) y recibo de la
 cancelación anticipada (`services/caja`). Permisos: `creditos:read` / `creditos:write` +
 `aprobaciones:aprobar|supervisar` (ver H-211).
+El **desembolso** sale por el módulo **Tesorería** de Portezuelo (`DESEMBOLSO_VIA_TESORERIA`, H-216): el
+contrato queda A_LIQUIDAR "en Tesorería" y pasa a ACTIVO con el aviso de transferencia acreditada.
 
 **Impuestos, índices de referencia, feriados y las reglas del workflow** son del módulo
 **Configuraciones** (`modules/configuraciones`, H-212): Créditos los lee con `app/core/configuraciones.py`

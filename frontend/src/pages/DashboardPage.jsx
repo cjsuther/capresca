@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings, Wallet } from "lucide-react";
 import clsx from "clsx";
 
 const ALL_MODULES = [
@@ -76,6 +76,15 @@ const ALL_MODULES = [
     color: "bg-rose-50 border-rose-200 text-rose-700",
     iconColor: "text-rose-500",
     path: "/modules/creditos",
+  },
+  {
+    code: "tesoreria",
+    name: "Tesorería",
+    description: "Lotes de pagos: aprobación y envío por Interbanking",
+    icon: Wallet,
+    color: "bg-green-50 border-green-200 text-green-700",
+    iconColor: "text-green-500",
+    path: "/modules/tesoreria",
   },
   {
     code: "configuraciones",

@@ -83,6 +83,20 @@ def test_configuraciones_tiene_un_par_de_permisos_por_catalogo(correr_seed, db):
     assert codigos == {f"{c}:{a}" for c in ("impuestos", "indices", "feriados", "workflow") for a in ("read", "write")}
 
 
+def test_tesoreria_separa_armar_enviar_y_aprobar(correr_seed, db):
+    correr_seed()
+    mod = db.query(Module).filter_by(code="tesoreria").one()
+    codigos = {p.code for p in db.query(Permission).filter_by(module_id=mod.id).all()}
+    assert codigos == {"lotes:read", "lotes:write", "lotes:enviar", "aprobaciones:aprobar", "aprobaciones:supervisar"}
+
+
+def test_seguridad_tiene_permisos_para_grupos(correr_seed, db):
+    correr_seed()
+    mod = db.query(Module).filter_by(code="security").one()
+    codigos = {p.code for p in db.query(Permission).filter_by(module_id=mod.id).all()}
+    assert {"groups:read", "groups:write"} <= codigos
+
+
 def test_seed_crea_los_tres_roles(correr_seed, db):
     correr_seed()
     assert {r.name for r in db.query(Role).all()} == {"admin", "cajero", "supervisor"}

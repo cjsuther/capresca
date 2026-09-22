@@ -7,7 +7,7 @@ import {
   listarWorkflow, editarRegla, agregarNivel, editarNivel, borrarNivel, agregarOverride, borrarOverride, mensajeDeError,
 } from "../../../api/configuraciones";
 
-const MODULOS = { creditos: "Créditos" };
+const MODULOS = { creditos: "Créditos", tesoreria: "Tesorería" };
 const ROLES = {
   APROBAR: "Aprobador (permiso aprobaciones:aprobar)",
   SUPERVISAR: "Supervisor (permiso aprobaciones:supervisar)",

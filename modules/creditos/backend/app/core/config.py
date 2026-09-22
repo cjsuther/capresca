@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     # Si Configuraciones no responde, se sigue con la última copia hasta este tope; sin copia, 503.
     configuraciones_copia_max_segundos: int = 600
 
+    # Desembolsos por Tesorería: con el flag activo, liquidar un contrato no lo activa en el acto; manda la
+    # transferencia a Tesorería (que la aprueba y la envía por Interbanking) y el contrato pasa a ACTIVO
+    # cuando Tesorería avisa que se acreditó. La misma clave autentica el envío y el aviso de vuelta.
+    desembolso_via_tesoreria: bool = False
+    tesoreria_service_url: str = "http://tesoreria:8012"
+    tesoreria_internal_api_key: str = ""
+    tesoreria_callback_url: str = "http://creditos:8010/internal/creditos/tesoreria/resultado"
+
     # Integraciones externas (secretos por entorno; ver README)
     intranet_auth_url: str = ""
     intranet_client_id: str = ""

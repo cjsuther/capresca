@@ -127,3 +127,38 @@ def test_documentos_del_cliente(metodo, ruta, permiso):
 def test_la_copia_interna_de_documentos_no_se_publica():
     assert get_service_url("POST", "/internal/clientes/7/documentos") is None
 
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/tesoreria/lotes", "tesoreria:lotes:read"),
+    ("GET", "/api/tesoreria/lotes/12", "tesoreria:lotes:read"),
+    ("POST", "/api/tesoreria/lotes", "tesoreria:lotes:write"),
+    ("POST", "/api/tesoreria/lotes/12/pagos/3/excluir", "tesoreria:lotes:write"),
+    ("POST", "/api/tesoreria/lotes/12/aprobar", "tesoreria:*"),
+    ("POST", "/api/tesoreria/lotes/12/enviar", "tesoreria:*"),
+    ("POST", "/api/tesoreria/lotes/12/pagos/3/resolver", "tesoreria:*"),
+])
+def test_rutas_de_tesoreria(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.tesoreria_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+
+
+@pytest.mark.parametrize("metodo,ruta", [("POST", "/internal/tesoreria/lotes"), ("DELETE", "/api/tesoreria/lotes/12"),
+                                         ("PUT", "/api/tesoreria/lotes/12")])
+def test_tesoreria_no_publica_lo_interno_ni_otras_operaciones(metodo, ruta):
+    assert get_service_url(metodo, ruta) is None
+
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/security/groups", "security:groups:read"),
+    ("POST", "/api/security/groups", "security:groups:write"),
+    ("PUT", "/api/security/groups/4", "security:groups:write"),
+    ("DELETE", "/api/security/groups/4", "security:groups:write"),
+    ("POST", "/api/security/groups/4/roles", "security:groups:write"),
+    ("POST", "/api/security/groups/4/users", "security:groups:write"),
+    ("POST", "/api/security/users/9/groups", "security:groups:write"),
+    ("GET", "/api/security/users/9/effective-permissions", "security:users:read"),
+])
+def test_rutas_de_grupos(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.security_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+

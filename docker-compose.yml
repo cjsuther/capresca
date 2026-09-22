@@ -15,6 +15,7 @@ volumes:
   legacy_data:
   creditos_data:
   configuraciones_data:
+  tesoreria_data:
 
 services:
 
@@ -67,6 +68,7 @@ services:
       - LEGACY_SERVICE_URL=http://legacy:8009
       - CREDITOS_SERVICE_URL=http://creditos:8010
       - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
+      - TESORERIA_SERVICE_URL=http://tesoreria:8012
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -80,6 +82,7 @@ services:
       - legacy
       - creditos
       - configuraciones
+      - tesoreria
     networks:
       - app_network
     restart: unless-stopped
@@ -277,6 +280,10 @@ services:
       # Poné AUTO_PAYMENTS_ENABLED=true y PAYMENTS_DRY_RUN=false para pagar de verdad.
       - AUTO_PAYMENTS_ENABLED=${CONCILIACION_AUTO_PAYMENTS_ENABLED:-false}
       - PAYMENTS_DRY_RUN=${CONCILIACION_PAYMENTS_DRY_RUN:-true}
+      # Con Tesorería los pagos van en un lote que aprueba el tesorero (PAYMENTS_DRY_RUN no aplica).
+      - PAYMENTS_VIA_TESORERIA=${CONCILIACION_PAYMENTS_VIA_TESORERIA:-true}
+      - TESORERIA_SERVICE_URL=http://tesoreria:8012
+      - TESORERIA_INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
     depends_on:
       db_conciliacion:
         condition: service_healthy
@@ -428,6 +435,48 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────
+  # Módulo Tesorería — lotes de pagos: aprobación (workflow) y envío por Interbanking (API :8012)
+  # ──────────────────────────────────────────
+  tesoreria:
+    build:
+      context: ./modules/tesoreria
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${TESORERIA_DB_USER}:${TESORERIA_DB_PASS}@db_tesoreria:5432/${TESORERIA_DB_NAME}
+      # Autentica a los módulos que le mandan lotes y a los avisos de resultado que Tesorería les devuelve.
+      - INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
+      - INTERBANKING_SERVICE_URL=http://interbanking:8004
+      - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
+      - CONFIGURACIONES_INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+      # true = simulación: aprueba y "envía" sin mover dinero. Poner false sólo con la cuenta de pagos lista.
+      - ENVIO_SIMULADO=${TESORERIA_ENVIO_SIMULADO:-true}
+    depends_on:
+      db_tesoreria:
+        condition: service_healthy
+      configuraciones:
+        condition: service_started
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_tesoreria:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${TESORERIA_DB_NAME}
+      - POSTGRES_USER=${TESORERIA_DB_USER}
+      - POSTGRES_PASSWORD=${TESORERIA_DB_PASS}
+    volumes:
+      - tesoreria_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TESORERIA_DB_USER} -d ${TESORERIA_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
   # Módulo Créditos (CCyPP) — API :8010 + portal ciudadano /portal-creditos/
   # (el backoffice es parte del frontend de Portezuelo: /modules/creditos/)
   # ──────────────────────────────────────────
@@ -451,6 +500,10 @@ services:
       # Impuestos, índices, feriados y reglas del workflow: los lee de Configuraciones (API interna).
       - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
       - CONFIGURACIONES_INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+      # Desembolsos por Tesorería: el contrato pasa a ACTIVO cuando se acredita la transferencia.
+      - DESEMBOLSO_VIA_TESORERIA=${CREDITOS_DESEMBOLSO_VIA_TESORERIA:-true}
+      - TESORERIA_SERVICE_URL=http://tesoreria:8012
+      - TESORERIA_INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
     volumes:
       # Backup DBF del sistema VFP para el ETL (read-only):
       #   docker compose exec creditos python3 -m app.etl.cargar_todo /bases

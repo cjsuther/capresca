@@ -16,3 +16,4 @@ class User(Base):
 
     roles = relationship("Role", secondary="user_roles", back_populates="users")
     direct_permissions = relationship("UserPermission", back_populates="user")
+    groups = relationship("Group", secondary="group_users", back_populates="users", order_by="Group.name")

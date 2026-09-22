@@ -23,6 +23,7 @@ MODULES = [
     {"code": "comunicacion", "name": "Comunicación", "description": "Chat con clientes vía WhatsApp Business", "icon": "message-circle"},
     {"code": "legacy", "name": "Legacy", "description": "Integración con el sistema legacy (VFP9) — interacciones IN/OUT", "icon": "database"},
     {"code": "creditos", "name": "Créditos", "description": "CCyPP: créditos, originación, cartera y portal ciudadano", "icon": "landmark"},
+    {"code": "tesoreria", "name": "Tesorería", "description": "Lotes de pagos: aprobación y envío por Interbanking", "icon": "wallet"},
     {"code": "configuraciones", "name": "Configuraciones", "description": "Impuestos, índices, feriados y workflow de aprobaciones", "icon": "settings"},
 ]
 
@@ -43,6 +44,8 @@ PERMISSIONS = {
         ("users:write", "Crear/editar usuarios"),
         ("roles:read", "Ver roles"),
         ("roles:write", "Crear/editar roles"),
+        ("groups:read", "Ver grupos de usuarios"),
+        ("groups:write", "Crear/editar grupos, sus integrantes y sus roles"),
         ("modules:read", "Ver módulos"),
     ],
     "cajeros": [
@@ -93,6 +96,14 @@ PERMISSIONS = {
         ("interactions:read", "Ver interacciones y estado de la integración legacy"),
         ("admin:read", "Ver outbox de escrituras"),
         ("admin:write", "Forzar sync y drenar el outbox"),
+    ],
+    # Tesorería: armar/revisar lotes, enviarlos al banco y aprobar (roles del workflow LOTE_PAGO).
+    "tesoreria": [
+        ("lotes:read", "Tesorería · ver lotes de pagos"),
+        ("lotes:write", "Tesorería · cargar lotes y excluir pagos"),
+        ("lotes:enviar", "Tesorería · enviar lotes aprobados por Interbanking"),
+        ("aprobaciones:aprobar", "Tesorería · aprobar lotes (rol APROBAR del workflow)"),
+        ("aprobaciones:supervisar", "Tesorería · aprobar niveles de supervisión (rol SUPERVISAR)"),
     ],
     # Un par por catálogo: el workflow (quién aprueba) se asigna aparte de operar los módulos.
     "configuraciones": [

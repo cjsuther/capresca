@@ -10,16 +10,30 @@ import { money, fecha, num } from "../../components/format";
 /**
  * Liquidación de préstamos por lote (H-135): los contratos originados quedan A_LIQUIDAR y se
  * liquidan agrupados por DÍA de originación. Al liquidar, cada crédito pasa a desembolso (si el
- * workflow lo exige, queda esperando aprobación).
+ * workflow lo exige, queda esperando aprobación). Con el desembolso por Tesorería (H-216) la
+ * transferencia va en un lote de Tesorería y el crédito se activa cuando se acredita.
  */
 const COLS_LOTES = [
   { key: "fecha", label: "Día de originación", sortable: true, render: (l) => <b>{fecha(l.fecha)}</b> },
   { key: "cantidad", label: "Créditos", align: "right", sortable: true },
   { key: "montoTotal", label: "Monto a liquidar", align: "right", sortable: true, render: (l) => money(l.montoTotal) },
-  { key: "estado", label: "Estado", render: (l) => (l.pendientes
-    ? <Pill tono="crit">{l.pendientes} esperando aprobación</Pill>
-    : <Pill tono="warn">A liquidar</Pill>) },
+  { key: "estado", label: "Estado", render: (l) => (
+    <div className="flex flex-wrap gap-1">
+      {!!l.pendientes && <Pill tono="crit">{l.pendientes} esperando aprobación</Pill>}
+      {!!l.enTesoreria && <Pill tono="brand">{l.enTesoreria} en Tesorería</Pill>}
+      {!!l.observados && <Pill tono="crit">{l.observados} observado(s)</Pill>}
+      {l.cantidad > (l.pendientes || 0) + (l.enTesoreria || 0) + (l.observados || 0) && <Pill tono="warn">A liquidar</Pill>}
+    </div>
+  ) },
 ];
+
+function EstadoContrato({ c }) {
+  const d = c.desembolso || {};
+  if (c.pendienteAprobacion) return <Pill tono="crit">Esperando aprobación</Pill>;
+  if (d.estado === "EN_TESORERIA") return <span title="Se activa cuando se acredite la transferencia"><Pill tono="brand">En Tesorería · {d.lote}</Pill></span>;
+  if (d.estado === "OBSERVADO") return <span title={d.motivo}><Pill tono="crit">Observado: {d.motivo}</Pill></span>;
+  return <Pill tono="warn">A liquidar</Pill>;
+}
 
 const COLS_CONTRATOS = [
   { key: "numero", label: "N° contrato", render: (c) => <b>{c.numero}</b> },
@@ -27,14 +41,13 @@ const COLS_CONTRATOS = [
   { key: "producto", label: "Producto" },
   { key: "plazo", label: "Plazo", align: "right" },
   { key: "monto", label: "Monto", align: "right", render: (c) => money(c.monto) },
-  { key: "estado", label: "Estado", render: (c) => (c.pendienteAprobacion
-    ? <Pill tono="crit">Esperando aprobación</Pill>
-    : <Pill tono="warn">A liquidar</Pill>) },
+  { key: "estado", label: "Estado", render: (c) => <EstadoContrato c={c} /> },
 ];
 
 export default function LiquidacionLotePage() {
   const puedeEscribir = usePuedeEscribir();
   const [lotes, setLotes] = useState([]);
+  const [viaTesoreria, setViaTesoreria] = useState(false);
   const [sel, setSel] = useState(null);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -47,6 +60,7 @@ export default function LiquidacionLotePage() {
     try {
       const d = await creditos.ctoLotesLiquidacion();
       setLotes(d.items);
+      setViaTesoreria(!!d.viaTesoreria);
       setSel((prev) => (prev ? d.items.find((l) => l.fecha === prev.fecha) || null : null));
     } catch (e) { setError(e.message); }
     finally { setCargando(false); }
@@ -57,7 +71,10 @@ export default function LiquidacionLotePage() {
     setError(""); setOk(""); setLiquidando(true);
     try {
       const r = await creditos.ctoLiquidarLote(sel.fecha);
-      const partes = [`Desembolsados: ${r.desembolsados.length}`];
+      const partes = [];
+      if (r.desembolsados.length || !r.enTesoreria?.length) partes.push(`Desembolsados: ${r.desembolsados.length}`);
+      if (r.enTesoreria?.length) partes.push(`Enviados a Tesorería: ${r.enTesoreria.length} (lote ${r.loteTesoreria}); se activan al acreditarse`);
+      if (r.yaEnTesoreria?.length) partes.push(`Ya estaban en Tesorería: ${r.yaEnTesoreria.length}`);
       if (r.pendientesAprobacion.length) partes.push(`Pendientes de aprobación: ${r.pendientesAprobacion.length}`);
       if (r.errores.length) partes.push(`Con error: ${r.errores.length}`);
       setOk(`Lote del ${fecha(sel.fecha)} procesado. ${partes.join(" · ")}`);
@@ -72,7 +89,9 @@ export default function LiquidacionLotePage() {
     <>
       <PageHeader
         titulo="Liquidación por lote"
-        descripcion="Créditos originados pendientes de liquidar, agrupados por día. Al liquidar el lote pasan a desembolso."
+        descripcion={viaTesoreria
+          ? "Créditos originados pendientes de liquidar, agrupados por día. Al liquidar, las transferencias van a Tesorería y cada crédito pasa a ACTIVO cuando se acredita."
+          : "Créditos originados pendientes de liquidar, agrupados por día. Al liquidar el lote pasan a desembolso."}
       />
 
       {error && <div className="mb-4"><Alerta>{error}</Alerta></div>}
@@ -108,6 +127,13 @@ export default function LiquidacionLotePage() {
             </>
           }
         >
+          {!!sel.enTesoreria && (
+            <div className="mb-3">
+              <Alerta tipo="warn">
+                {num(sel.enTesoreria)} crédito(s) ya están en Tesorería esperando la transferencia; volver a liquidar no los duplica.
+              </Alerta>
+            </div>
+          )}
           {!!sel.pendientes && (
             <div className="mb-3">
               <Alerta tipo="warn">
@@ -124,7 +150,9 @@ export default function LiquidacionLotePage() {
       {confirmando && (
         <Confirmacion
           titulo="Liquidar el lote"
-          mensaje={`Se liquidan ${num(sel?.cantidad)} crédito(s) del ${fecha(sel?.fecha)} por ${money(sel?.montoTotal)}.\nCada uno pasa a desembolso; si el workflow lo exige, queda esperando aprobación.`}
+          mensaje={`Se liquidan ${num(sel?.cantidad)} crédito(s) del ${fecha(sel?.fecha)} por ${money(sel?.montoTotal)}.\n${viaTesoreria
+            ? "Las transferencias se mandan a Tesorería para aprobarlas y enviarlas, y cada crédito pasa a ACTIVO cuando se acredita"
+            : "Cada uno pasa a desembolso"}; si el workflow lo exige, queda esperando aprobación.`}
           confirmar="Liquidar"
           danger={false}
           ocupado={liquidando}

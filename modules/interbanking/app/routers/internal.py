@@ -47,6 +47,24 @@ def create_payment(req: PaymentRequest, db: Session = Depends(get_db)):
     return {"id": transfer.id, "status": transfer.status, "id_operacion_ib": transfer.id_operacion_ib}
 
 
+@router.get("/internal/interbanking/payments/{transfer_id}")
+def payment_status(transfer_id: int, db: Session = Depends(get_db)):
+    """Estado de un pago saliente creado por /internal/interbanking/payments (lo consulta Tesorería).
+    Si hay operación en el banco, refresca el estado contra la API; si el banco no responde, devuelve
+    el último estado conocido."""
+    t = db.query(Transfer).filter(Transfer.id == transfer_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Transferencia no encontrada")
+    if t.id_operacion_ib:
+        try:
+            transfer_service.get_estado_transferencia(db, 0, t.id_operacion_ib, username="tesoreria")
+            db.refresh(t)
+        except Exception:
+            pass  # sin respuesta del banco: se informa el último estado guardado
+    return {"id": t.id, "status": t.status, "id_operacion_ib": t.id_operacion_ib,
+            "last_status_check": t.last_status_check.isoformat() if t.last_status_check else None}
+
+
 def _norm_movement(m: dict, fallback_date: str) -> dict:
     """Normaliza un item de `movements_detail` de Interbanking al shape que consume
     el matcher de conciliación.

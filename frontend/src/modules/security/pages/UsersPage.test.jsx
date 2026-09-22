@@ -11,10 +11,13 @@ vi.mock("../../../api/security", () => ({
   deleteUser: vi.fn(),
   assignRoles: vi.fn(),
   adminChangePassword: vi.fn(),
+  getGroups: vi.fn(),
+  assignUserGroups: vi.fn(),
 }));
 
 import {
   getUsers, getRoles, createUser, updateUser, deleteUser, assignRoles, adminChangePassword,
+  getGroups, assignUserGroups,
 } from "../../../api/security";
 import UsersPage from "./UsersPage";
 import { useAuthStore } from "../../../context/authStore";
@@ -73,8 +76,8 @@ describe("UsersPage", () => {
     expect(screen.getByText("Ana Gómez")).toBeInTheDocument();
     expect(within(filaDe("ana")).getByText("Activo")).toBeInTheDocument();
     expect(within(filaDe("beto")).getByText("Inactivo")).toBeInTheDocument();
-    // beto no tiene nombre ni roles: guiones
-    expect(within(filaDe("beto")).getAllByText("—")).toHaveLength(2);
+    // beto no tiene nombre, roles ni grupos: guiones
+    expect(within(filaDe("beto")).getAllByText("—")).toHaveLength(3);
     expect(within(filaDe("ana")).getByText("admin")).toBeInTheDocument();
   });
 
@@ -300,3 +303,50 @@ describe("UsersPage", () => {
     expect(adminChangePassword).not.toHaveBeenCalled();
   });
 });
+
+describe("UsersPage · grupos", () => {
+  const GRUPO = { id: 5, name: "Tesorería", is_active: true, roles: [{ id: 3, name: "tesorero" }], users: [] };
+  const conGrupo = { ...ana, groups: [GRUPO] };
+
+  beforeEach(() => {
+    getUsers.mockResolvedValue({ data: [conGrupo, beto], total: 2 });
+    getRoles.mockResolvedValue([ROL_ADMIN, ROL_CAJERO]);
+    getGroups.mockResolvedValue([GRUPO]);
+    assignRoles.mockResolvedValue({});
+    assignUserGroups.mockResolvedValue({});
+  });
+
+  it("muestra los grupos y los roles heredados de ellos", async () => {
+    sesion(["users:read", "users:write", "groups:read", "groups:write"]);
+    render(<MemoryRouter><UsersPage /></MemoryRouter>);
+    const fila = (await screen.findByText("ana@x.com")).closest("tr");
+    expect(within(fila).getByText("Tesorería")).toBeInTheDocument();
+    expect(within(fila).getByText("tesorero")).toHaveAttribute("title", "Heredado de: Tesorería");
+  });
+
+  it("desde el panel se eligen roles y grupos del usuario", async () => {
+    sesion(["users:read", "users:write", "groups:read", "groups:write"]);
+    render(<MemoryRouter><UsersPage /></MemoryRouter>);
+    const fila = (await screen.findByText("ana@x.com")).closest("tr");
+    await userEvent.click(within(fila).getByTitle("Gestionar roles"));
+    const casilla = screen.getByLabelText("Grupo Tesorería");
+    expect(casilla).toBeChecked();
+    await userEvent.click(casilla);
+    await userEvent.click(screen.getByRole("button", { name: /Guardar roles y grupos/ }));
+    await waitFor(() => expect(assignUserGroups).toHaveBeenCalledWith(10, []));
+    expect(assignRoles).toHaveBeenCalledWith(10, [1]);
+  });
+
+  it("sin permiso de grupos no los pide ni los ofrece", async () => {
+    sesion(["users:read", "users:write"]);
+    render(<MemoryRouter><UsersPage /></MemoryRouter>);
+    const fila = (await screen.findByText("ana@x.com")).closest("tr");
+    expect(getGroups).not.toHaveBeenCalled();
+    await userEvent.click(within(fila).getByTitle("Gestionar roles"));
+    expect(screen.queryByLabelText("Grupo Tesorería")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Guardar roles" }));
+    await waitFor(() => expect(assignRoles).toHaveBeenCalled());
+    expect(assignUserGroups).not.toHaveBeenCalled();
+  });
+});
+

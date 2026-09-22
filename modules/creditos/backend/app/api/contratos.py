@@ -4,6 +4,8 @@ Fase 5: ofrecer al cliente sólo productos PUBLICADOS y originar un contrato que
 el snapshot del producto y su cronograma. Fase 6: registrar actividades (pago, prepago,
 payoff, cambio de tasa) sobre el contrato.
 """
+import hashlib
+import re
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -22,6 +24,8 @@ from app.core import configuraciones as config
 from app.core.database import get_db
 from app.core.numbering import crear_con_numero_unico
 from app.core.idempotency import con_idempotencia
+from app.core import tesoreria
+from app.core.config import get_settings
 from app.core.permisos import requiere_permiso
 from app.deps import get_current_user
 from app import models, models_productos as m
@@ -471,17 +475,24 @@ def lotes_liquidacion(db: Session = Depends(get_db), user: models.Usuario = Depe
     lotes: dict[str, dict] = {}
     for c in rows:
         k = str(c.fecha_valor)
-        lote = lotes.setdefault(k, {"fecha": k, "cantidad": 0, "montoTotal": 0.0, "pendientes": 0, "contratos": []})
+        lote = lotes.setdefault(k, {"fecha": k, "cantidad": 0, "montoTotal": 0.0, "pendientes": 0,
+                                    "enTesoreria": 0, "observados": 0, "contratos": []})
         pendiente = c.id in pend_ids
+        des = desembolso_info(c)
         lote["cantidad"] += 1
         lote["montoTotal"] += float(c.monto_original or 0)
         if pendiente:
             lote["pendientes"] += 1
+        if des.get("estado") == "EN_TESORERIA":
+            lote["enTesoreria"] += 1
+        elif des.get("estado") == "OBSERVADO":
+            lote["observados"] += 1
         lote["contratos"].append({"id": c.id, "numero": c.numero_contrato, "cliente": c.cliente_nombre,
                                   "producto": (c.snapshot_producto or {}).get("producto", ""),
                                   "monto": float(c.monto_original or 0), "plazo": c.plazo,
-                                  "pendienteAprobacion": pendiente})
-    return {"items": sorted(lotes.values(), key=lambda x: x["fecha"], reverse=True)}
+                                  "pendienteAprobacion": pendiente,
+                                  "desembolso": {k2: des.get(k2) for k2 in ("estado", "lote", "motivo") if des.get(k2)}})
+    return {"items": sorted(lotes.values(), key=lambda x: x["fecha"], reverse=True), "viaTesoreria": via_tesoreria()}
 
 
 class LiquidarLoteIn(BaseModel):
@@ -508,7 +519,7 @@ def liquidar_lote(data: LiquidarLoteIn, db: Session = Depends(get_db),
         if not contratos:
             raise HTTPException(404, "No hay contratos por liquidar para ese día.")
         ids = [c.id for c in contratos]
-        desembolsados, pendientes, errores = [], [], []
+        desembolsados, pendientes, errores, a_tesoreria, ya_en_tesoreria = [], [], [], [], []
         for cid in ids:
             try:
                 # Tomar el contrato con lock y RE-CHEQUEAR estado dentro de la transacción: dos lotes
@@ -517,15 +528,25 @@ def liquidar_lote(data: LiquidarLoteIn, db: Session = Depends(get_db),
                 c = db.query(m.PPContrato).filter_by(id=cid).with_for_update().first()
                 if c is None or c.estado != "A_LIQUIDAR":
                     continue                              # otro proceso ya lo liquidó
+                if en_tesoreria(c):                       # ya mandado: espera la transferencia
+                    db.rollback(); ya_en_tesoreria.append(c.numero_contrato); continue
                 gate = _gate_workflow(db, "DESEMBOLSO", c, {}, user)
                 if gate is not None:                      # el workflow lo dejó pendiente de aprobación
                     db.commit(); pendientes.append(c.numero_contrato); continue
+                if via_tesoreria():
+                    db.rollback(); a_tesoreria.append(c.id); continue
                 _desembolsar(db, c, user); db.commit()
                 desembolsados.append(c.numero_contrato)
             except HTTPException as e:
                 db.rollback(); errores.append({"contrato": cid, "detalle": str(e.detail)})
+        teso = {"lote": None, "enviados": []}
+        if a_tesoreria:
+            listos = db.query(m.PPContrato).filter(m.PPContrato.id.in_(a_tesoreria)).order_by(m.PPContrato.numero_contrato).all()
+            teso = mandar_a_tesoreria(db, listos, user, f"Desembolsos de créditos originados el {data.fecha}")
+            errores += teso["errores"]
         return {"fecha": data.fecha, "total": len(ids), "desembolsados": desembolsados,
-                "pendientesAprobacion": pendientes, "errores": errores}
+                "pendientesAprobacion": pendientes, "errores": errores,
+                "enTesoreria": teso["enviados"], "loteTesoreria": teso["lote"], "yaEnTesoreria": ya_en_tesoreria}
 
     return con_idempotencia(db, idempotency_key, f"POST /api/contratos/liquidar-lote {data.fecha}",
                             _do, usuario=user.username)
@@ -683,6 +704,9 @@ def _originar_impl(db: Session, data: OriginarIn, user) -> dict:
     # originación directa (sin solicitud, p. ej. servicing/tests) mantiene el flag `desembolsar`.
     desde_solicitud = (sol_pp is not None) or (data.solicitud_id is not None)
     desembolsar_efectivo = data.desembolsar and not desde_solicitud
+    # Con Tesorería, el contrato no se activa al originar: queda A_LIQUIDAR y el desembolso va por ella.
+    enviar_a_tesoreria = desembolsar_efectivo and via_tesoreria()
+    desembolsar_efectivo = desembolsar_efectivo and not enviar_a_tesoreria
     def _mk_contrato(numero: str) -> m.PPContrato:
         c = m.PPContrato(
             producto_id=prod.id, producto_version_numero=v.numero_version,
@@ -704,6 +728,13 @@ def _originar_impl(db: Session, data: OriginarIn, user) -> dict:
     if desembolsar_efectivo:
         _desembolsar(db, c, user)   # asiento de otorgamiento + actividad de desembolso
     db.commit()
+    if enviar_a_tesoreria:
+        try:
+            _enviar_uno(db, c, user)
+        except HTTPException as e:   # el contrato ya existe: queda A_LIQUIDAR para liquidarlo después
+            db.rollback()
+            return {**_serial_contrato(c, db), "desembolso": {"estado": "SIN_ENVIAR", "motivo": str(e.detail)}}
+        return {**_serial_contrato(c, db), "desembolso": desembolso_info(c)}
     return _serial_contrato(c, db)
 
 
@@ -716,6 +747,96 @@ def _desembolsar(db: Session, c: m.PPContrato, user) -> None:
     c.estado = "ACTIVO"
     db.flush()
     _recompute(c)   # marca cuotas sin importe (p. ej. bullet) como saldadas desde el arranque
+
+
+# ----------------------- Desembolso por Tesorería (H-216) -----------------------
+# Con `desembolso_via_tesoreria`, liquidar no activa el contrato: se manda la transferencia a Tesorería
+# (aprobación + envío por Interbanking) y el contrato queda A_LIQUIDAR con
+# datos_adicionales.desembolso = {estado: EN_TESORERIA, lote}. Pasa a ACTIVO cuando Tesorería avisa que
+# la transferencia se acreditó (POST /internal/creditos/tesoreria/resultado). Si el pago falla o el
+# tesorero lo excluye, queda OBSERVADO y se puede volver a liquidar.
+def via_tesoreria() -> bool:
+    return get_settings().desembolso_via_tesoreria
+
+
+def desembolso_info(c: m.PPContrato) -> dict:
+    return dict((c.datos_adicionales or {}).get("desembolso") or {})
+
+
+def _set_desembolso(c: m.PPContrato, **cambios) -> None:
+    # JSON: se reasigna el dict entero para que SQLAlchemy detecte el cambio.
+    c.datos_adicionales = {**(c.datos_adicionales or {}), "desembolso": {**desembolso_info(c), **cambios}}
+
+
+def en_tesoreria(c: m.PPContrato) -> bool:
+    return desembolso_info(c).get("estado") == "EN_TESORERIA"
+
+
+def _solo_digitos(v) -> str:
+    return "".join(ch for ch in str(v or "") if ch.isdigit())
+
+
+def _pago_de(db: Session, c: m.PPContrato) -> tuple[dict | None, str]:
+    """Arma el pago del desembolso: al CBU del contrato, si no el de la solicitud, si no el del cliente."""
+    sol = db.query(m.PPSolicitud).filter(m.PPSolicitud.contrato_id == c.id).first()
+    cliente = db.get(models.Cliente, sol.cliente_id) if sol is not None and sol.cliente_id else None
+    cbu = (_solo_digitos((c.datos_adicionales or {}).get("cbu"))
+           or _solo_digitos(((sol.datos_adicionales if sol else None) or {}).get("cbu"))
+           or _solo_digitos(getattr(cliente, "cbu", "")))
+    if len(cbu) != 22:
+        return None, "Sin CBU de acreditación válido (22 dígitos) en el contrato, la solicitud ni el cliente."
+    datos = (sol.cliente_datos if sol else None) or {}
+    documento = _solo_digitos(datos.get("cuil") or datos.get("dni") or getattr(cliente, "cuil", "")
+                              or getattr(cliente, "dni", ""))
+    neto = ((c.snapshot_producto or {}).get("liquidacion") or {}).get("neto")
+    monto = round(float(neto if neto is not None else c.monto_original), 2)
+    return {"referencia_externa": c.id, "beneficiario": (c.cliente_nombre or "")[:160], "documento": documento[:20],
+            "cbu": cbu, "monto": monto, "concepto": f"Desembolso {c.numero_contrato}"[:120]}, ""
+
+
+def mandar_a_tesoreria(db: Session, contratos: list[m.PPContrato], user, descripcion: str) -> dict:
+    """Manda los desembolsos en un lote. Devuelve {lote, enviados:[numero], errores:[{contrato, detalle}]}.
+    La referencia sale de los contratos y su número de intento: un reintento del mismo pedido (p. ej. tras
+    un corte) cae en el mismo lote, y volver a liquidar después de un rechazo arma uno nuevo."""
+    pagos, errores, por_id = [], [], {}
+    for c in contratos:
+        pago, motivo = _pago_de(db, c)
+        if pago is None:
+            errores.append({"contrato": c.numero_contrato, "detalle": motivo})
+            continue
+        pagos.append(pago); por_id[c.id] = c
+    if not pagos:
+        return {"lote": None, "enviados": [], "errores": errores}
+    firma = ",".join(sorted(f"{cid}:{desembolso_info(c).get('intentos', 0)}" for cid, c in por_id.items()))
+    referencia = f"desembolsos {hashlib.sha1(firma.encode()).hexdigest()[:16]}"
+    try:
+        r = tesoreria.enviar_lote(referencia, descripcion, pagos, user.username)
+    except tesoreria.TesoreriaNoDisponible as e:
+        raise HTTPException(503, f"No se pudo enviar a Tesorería: {e}. Los contratos siguen A_LIQUIDAR.")
+    enviados = []
+    for p in r.get("pagos", []):
+        c = por_id.get(p["referencia_externa"])
+        if c is not None:
+            _set_desembolso(c, estado="EN_TESORERIA", lote=r["codigo"], motivo="", enviado_por=user.username)
+            enviados.append(c.numero_contrato)
+    for x in r.get("rechazados", []):
+        c = por_id.get(x.get("referencia_externa"))
+        if c is None:
+            continue
+        ya = re.search(r"Ya está en el lote (\S+)", x.get("motivo") or "")
+        if ya:   # ya estaba en camino (p. ej. un pedido anterior que se cortó): se registra, no se duplica
+            _set_desembolso(c, estado="EN_TESORERIA", lote=ya.group(1), motivo="")
+            enviados.append(c.numero_contrato)
+        else:
+            errores.append({"contrato": c.numero_contrato, "detalle": x.get("motivo") or "Rechazado por Tesorería"})
+    db.commit()
+    return {"lote": r.get("codigo"), "enviados": enviados, "errores": errores}
+
+
+def _enviar_uno(db: Session, c: m.PPContrato, user) -> None:
+    r = mandar_a_tesoreria(db, [c], user, f"Desembolso del contrato {c.numero_contrato}")
+    if r["errores"]:
+        raise HTTPException(422, r["errores"][0]["detalle"])
 
 
 def _gate_workflow(db: Session, objeto: str, c: m.PPContrato, datos: dict, user) -> dict | None:
@@ -741,6 +862,10 @@ def ejecutar_pendiente(db: Session, pend: m.PPWorkflowPendiente, user) -> dict:
     if pend.objeto == "DESEMBOLSO":
         if c.estado != "A_LIQUIDAR":
             raise HTTPException(409, f"El contrato está {c.estado}: no está pendiente de desembolso.")
+        if via_tesoreria():
+            if not en_tesoreria(c):
+                _enviar_uno(db, c, user)
+            return {**_serial_contrato(c, db), "desembolso": desembolso_info(c)}
         _desembolsar(db, c, user); db.commit()
         return _serial_contrato(c, db)
     if pend.objeto == "REFINANCIACION":
@@ -761,9 +886,17 @@ def desembolsar(contrato_id: str, db: Session = Depends(get_db),
             raise HTTPException(404, "Contrato no encontrado")
         if c.estado != "A_LIQUIDAR":
             raise HTTPException(409, f"El contrato está {c.estado}: no está pendiente de desembolso.")
+        if en_tesoreria(c):
+            raise HTTPException(409, f"El desembolso ya está en Tesorería (lote {desembolso_info(c).get('lote')}): "
+                                     "el contrato se activa cuando se acredite la transferencia.")
         gate = _gate_workflow(db, "DESEMBOLSO", c, {}, user)
         if gate is not None:
             return gate
+        if via_tesoreria():
+            _enviar_uno(db, c, user)
+            return {**_serial_contrato(c, db), "desembolso": desembolso_info(c),
+                    "mensaje": f"Desembolso enviado a Tesorería (lote {desembolso_info(c).get('lote')}). "
+                               "El contrato pasa a ACTIVO cuando se acredite la transferencia."}
         _desembolsar(db, c, user)
         db.commit()
         return _serial_contrato(c, db)

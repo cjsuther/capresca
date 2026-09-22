@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     legacy_service_url: str = "http://legacy:8009"
     creditos_service_url: str = "http://creditos:8010"
     configuraciones_service_url: str = "http://configuraciones:8011"
+    tesoreria_service_url: str = "http://tesoreria:8012"
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     permissions_cache_ttl: int = 60  # segundos

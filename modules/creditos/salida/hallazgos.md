@@ -7,6 +7,28 @@
 
 ---
 
+## H-216 · Desembolsos por Tesorería: el contrato se activa cuando se acredita la transferencia
+**Fecha:** 2026-09-22 · **Módulo:** Créditos / Tesorería (nuevo) · **Alcance:** pedido del usuario
+- Nuevo módulo **Tesorería** (:8012): recibe lotes de pagos de Créditos, Conciliación o carga manual; el
+  tesorero excluye pagos, aprueba según el workflow `tesoreria/LOTE_PAGO` (Configuraciones, cuatro ojos)
+  y los envía por Interbanking. Arranca en **simulación** (no mueve dinero).
+- **Créditos** (`DESEMBOLSO_VIA_TESORERIA=true`): liquidar el lote, desembolsar de a uno, ejecutar un
+  pendiente aprobado u originar con desembolso ya no activan el contrato: mandan el neto al CBU de
+  acreditación (contrato → solicitud → cliente) como lote de Tesorería y el contrato queda A_LIQUIDAR
+  "en Tesorería". Tesorería avisa por `/internal/creditos/tesoreria/resultado` (X-Api-Key):
+  CONFIRMADO → asiento + DISBURSEMENT y **ACTIVO** (aunque venga de un lote anterior: si la plata salió,
+  el contrato se activa); FALLIDO/EXCLUIDO/RECHAZADO → **OBSERVADO** con el motivo, se puede volver a liquidar.
+- **Sin doble pago:** la referencia del lote sale de los contratos y su número de intento (un reintento
+  tras un corte cae en el mismo lote); Tesorería no admite dos pagos vivos por contrato ni reintentar un
+  fallido que el origen ya reenvió; un contrato "en Tesorería" no se vuelve a mandar ni se desembolsa directo.
+- **Conciliación** (`PAYMENTS_VIA_TESORERIA=true`): los pagos a agencias con saldo a favor van en un lote
+  por corrida (estado EN_TESORERIA); acreditado → PAGADO; excluido/fallido → OBSERVADO, que no se reenvía
+  solo cada hora.
+- La pantalla "Liquidación por lote" y la ficha del contrato muestran "En Tesorería · LOT-…" u "Observado".
+- QA de punta a punta en local: contrato → lote → aprobación del tesorero (otro usuario, vía grupo) →
+  envío simulado → aviso → contrato ACTIVO. Encontró y corrigió un bug: las referencias "manual-N" de la
+  carga manual chocaban entre lotes y el segundo lote descartaba sus pagos.
+
 ## H-215 · Portal: un solo archivo por documento pedido
 **Fecha:** 2026-09-22 · **Módulo:** Portal del ciudadano · **Alcance:** pedido del usuario
 - El paso 3 pasa de "elegí el tipo y adjuntá (hasta 10, incluido Otro)" a **tres casilleros fijos**:

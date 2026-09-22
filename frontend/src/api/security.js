@@ -41,3 +41,25 @@ export const getPermissions = () =>
 
 export const getModules = () =>
   api.get("/security/modules").then((r) => r.data);
+
+export const assignUserGroups = (id, groupIds) =>
+  api.post(`/security/users/${id}/groups`, { group_ids: groupIds }).then((r) => r.data);
+
+// ── Grupos de usuarios: cada integrante hereda los roles del grupo ──
+export const getGroups = () =>
+  api.get("/security/groups").then((r) => r.data);
+
+export const createGroup = (data) =>
+  api.post("/security/groups", data).then((r) => r.data);
+
+export const updateGroup = (id, data) =>
+  api.put(`/security/groups/${id}`, data).then((r) => r.data);
+
+export const deleteGroup = (id) =>
+  api.delete(`/security/groups/${id}`);
+
+export const assignGroupRoles = (id, roleIds) =>
+  api.post(`/security/groups/${id}/roles`, { role_ids: roleIds }).then((r) => r.data);
+
+export const assignGroupMembers = (id, userIds) =>
+  api.post(`/security/groups/${id}/users`, { user_ids: userIds }).then((r) => r.data);

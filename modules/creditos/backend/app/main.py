@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 from app.core.config import get_settings
 from app.core.database import Base, engine, SessionLocal
 from app.api import (clientes, creditos, caja, consultas, admin, productos, contratos,
-                     impuestos, indices, sistema_calculos, solicitudes, aprobaciones, portal)
+                     impuestos, indices, sistema_calculos, solicitudes, aprobaciones, portal,
+                     tesoreria_interna)
 from app.core.configuraciones import ConfiguracionNoDisponible
 from app import models_productos  # noqa: F401  (registra tablas pp_* en Base.metadata)
 from app.seed import seed, seed_perfiles
@@ -179,6 +180,7 @@ app.include_router(sistema_calculos.router)
 app.include_router(solicitudes.router)
 app.include_router(aprobaciones.router)
 app.include_router(portal.router)
+app.include_router(tesoreria_interna.router)
 
 
 @app.get("/api/creditos/health", tags=["health"])

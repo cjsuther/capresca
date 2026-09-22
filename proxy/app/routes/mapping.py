@@ -59,6 +59,7 @@ ROUTE_MAP = [
     ("PUT",  r"^/api/security/users/me/password$",    settings.security_service_url, None),
     ("PUT",  r"^/api/security/users/\d+/password$",  settings.security_service_url, "security:users:write"),
     ("POST", r"^/api/security/users/\d+/roles$",     settings.security_service_url, "security:users:write"),
+    ("POST", r"^/api/security/users/\d+/groups$",    settings.security_service_url, "security:groups:write"),
     ("POST", r"^/api/security/users$",               settings.security_service_url, "security:users:write"),
     ("PUT",  r"^/api/security/users/",               settings.security_service_url, "security:users:write"),
     ("DELETE", r"^/api/security/users/",             settings.security_service_url, "security:users:write"),
@@ -67,6 +68,10 @@ ROUTE_MAP = [
     ("POST",   r"^/api/security/roles$",               settings.security_service_url, "security:roles:write"),
     ("PUT",    r"^/api/security/roles/",        settings.security_service_url, "security:roles:write"),
     ("DELETE", r"^/api/security/roles/",        settings.security_service_url, "security:roles:write"),
+    ("GET",    r"^/api/security/groups$",       settings.security_service_url, "security:groups:read"),
+    ("POST",   r"^/api/security/groups(/\d+/(roles|users))?$", settings.security_service_url, "security:groups:write"),
+    ("PUT",    r"^/api/security/groups/\d+$",   settings.security_service_url, "security:groups:write"),
+    ("DELETE", r"^/api/security/groups/\d+$",   settings.security_service_url, "security:groups:write"),
     ("GET",    r"^/api/security/permissions",   settings.security_service_url, "security:roles:read"),
     ("GET",    r"^/api/security/modules",       settings.security_service_url, "security:modules:read"),
 
@@ -171,6 +176,15 @@ ROUTE_MAP = [
 
     # ── Configuraciones: un par read/write por catálogo (impuestos, índices, feriados, workflow) ──
     *_configuraciones_rutas(),
+
+    # ── Tesorería: ver lotes pide lectura; aprobar/rechazar y enviar los valida el módulo (workflow y
+    #    permiso de envío), así el gateway sólo exige ser del módulo para esas acciones. ──
+    ("GET",  r"^/api/tesoreria/lotes(/\d+)?$",                          settings.tesoreria_service_url, "tesoreria:lotes:read"),
+    ("POST", r"^/api/tesoreria/lotes$",                                  settings.tesoreria_service_url, "tesoreria:lotes:write"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/pagos/\d+/(excluir|incluir)$",  settings.tesoreria_service_url, "tesoreria:lotes:write"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/(aprobar|rechazar)$",           settings.tesoreria_service_url, "tesoreria:*"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/(enviar|actualizar)$",          settings.tesoreria_service_url, "tesoreria:*"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/pagos/\d+/(reintentar|resolver)$", settings.tesoreria_service_url, "tesoreria:*"),
 ]
 
 

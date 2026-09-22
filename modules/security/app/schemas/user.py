@@ -26,6 +26,15 @@ class RoleRef(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GroupRef(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+    roles: List[RoleRef] = []
+
+    model_config = {"from_attributes": True}
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -33,7 +42,8 @@ class UserResponse(BaseModel):
     full_name: Optional[str]
     is_active: bool
     created_at: datetime
-    roles: List[RoleRef] = []
+    roles: List[RoleRef] = []          # asignados directamente al usuario
+    groups: List[GroupRef] = []        # cada grupo trae los roles que el usuario hereda de él
 
     model_config = {"from_attributes": True}
 
@@ -47,6 +57,10 @@ class UserListResponse(BaseModel):
 
 class AssignRolesRequest(BaseModel):
     role_ids: List[int]
+
+
+class AssignGroupsRequest(BaseModel):
+    group_ids: List[int]
 
 
 class AdminChangePasswordRequest(BaseModel):

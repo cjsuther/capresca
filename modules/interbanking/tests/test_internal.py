@@ -86,6 +86,16 @@ def test_pago_saliente_usa_el_concepto_por_defecto(client, db, cred):
     assert db.query(Transfer).one().concepto == "Pago Capresca"
 
 
+def test_estado_de_un_pago_saliente(client, db, cred, red):
+    """Tesorería consulta el estado de lo que envió; en modo mock el banco responde ACREDITADA."""
+    body = client.post(f"{BASE}/payments", json={"cbu_destino": "0" * 22, "monto": 10}).json()
+    r = client.get(f"{BASE}/payments/{body['id']}")
+    assert r.status_code == 200
+    assert r.json()["id"] == body["id"] and r.json()["id_operacion_ib"] == body["id_operacion_ib"]
+    assert r.json()["status"] in ("PENDING_AUTHORIZATION", "ACREDITADA")
+    assert client.get(f"{BASE}/payments/99999").status_code == 404
+
+
 # ──────────────────────── Transferencias del día (matcher) ─────────────────────
 
 def test_transacciones_del_dia_filtra_por_fecha(client, db):
