@@ -61,7 +61,7 @@ def test_al_definir_la_regla_se_contabiliza_lo_que_estaba_esperando(client, inte
     a = db.query(models.Asiento).order_by(models.Asiento.numero).first()
     assert a.numero == 1 and a.diario_codigo == "BANCO" and a.concepto == "Desembolso CTO-1"
     assert [(l.cuenta_codigo, float(l.debe), float(l.haber)) for l in a.lineas] == [
-        ("1.1.04", 102000.0, 0.0), ("1.1.02", 0.0, 100000.0), ("4.1.03", 0.0, 2000.0)]
+        ("1.1.05.01", 102000.0, 0.0), ("1.1.02", 0.0, 100000.0), ("4.1.03", 0.0, 2000.0)]
 
 
 def test_una_transaccion_nueva_se_contabiliza_al_llegar(client, interna, contador):
@@ -84,7 +84,7 @@ def test_las_lineas_en_cero_no_ensucian_el_asiento(client, interna, contador, db
     _definir(client, contador)
     _mandar(client, interna, referencia="CTO-3", datos={"capital": 50000, "gastos": 0, "iva": 0})
     a = db.query(models.Asiento).order_by(models.Asiento.id.desc()).first()
-    assert [l.cuenta_codigo for l in a.lineas] == ["1.1.04", "1.1.02"]
+    assert [l.cuenta_codigo for l in a.lineas] == ["1.1.05.01", "1.1.02"]
 
 
 def test_la_numeracion_es_correlativa_por_ejercicio(client, interna, contador, db):
@@ -97,7 +97,7 @@ def test_la_numeracion_es_correlativa_por_ejercicio(client, interna, contador, d
 # ── Definiciones: validación y prueba ────────────────────────────────────────────────────────────
 
 def test_una_definicion_sin_debe_y_haber_no_se_guarda(client, contador):
-    r = _definir(client, contador, lineas=[{"cuenta": "1.1.04", "dc": "DEBE", "importe": "capital"},
+    r = _definir(client, contador, lineas=[{"cuenta": "1.1.05.01", "dc": "DEBE", "importe": "capital"},
                                            {"cuenta": "1.1.02", "dc": "DEBE", "importe": "capital"}])
     assert r.status_code == 422 and "DEBE" in r.json()["detail"]
 
@@ -110,7 +110,7 @@ def test_una_definicion_con_cuenta_de_agrupacion_no_se_guarda(client, contador):
 
 def test_la_expresion_del_importe_no_ejecuta_codigo(client, contador):
     r = _definir(client, contador, lineas=[
-        {"cuenta": "1.1.04", "dc": "DEBE", "importe": "__import__('os').system('ls')"},
+        {"cuenta": "1.1.05.01", "dc": "DEBE", "importe": "__import__('os').system('ls')"},
         {"cuenta": "1.1.02", "dc": "HABER", "importe": "capital"}])
     assert r.status_code == 422
 
@@ -120,11 +120,11 @@ def test_la_definicion_se_prueba_antes_de_usarla(client, contador):
     r = client.post(f"{API}/definiciones/{d['id']}/probar", headers=contador,
                     json={"datos": {"capital": 1000, "gastos": 100}}).json()
     assert r["debe"] == r["haber"] == 1100.0
-    assert [l["cuenta"] for l in r["lineas"]] == ["1.1.04", "1.1.02", "4.1.03"]
+    assert [l["cuenta"] for l in r["lineas"]] == ["1.1.05.01", "1.1.02", "4.1.03"]
 
 
 def test_si_la_definicion_no_balancea_la_transaccion_queda_en_error(client, interna, contador, db):
-    _definir(client, contador, lineas=[{"cuenta": "1.1.04", "dc": "DEBE", "importe": "capital"},
+    _definir(client, contador, lineas=[{"cuenta": "1.1.05.01", "dc": "DEBE", "importe": "capital"},
                                        {"cuenta": "1.1.02", "dc": "HABER", "importe": "capital + gastos"}])
     r = _mandar(client, interna)
     assert r.json()["estado"] == "ERROR" and "no balancea" in r.json()["motivo"]
@@ -132,7 +132,7 @@ def test_si_la_definicion_no_balancea_la_transaccion_queda_en_error(client, inte
 
 
 def test_la_definicion_corregida_reprocesa_lo_que_habia_quedado_en_error(client, interna, contador):
-    d = _definir(client, contador, lineas=[{"cuenta": "1.1.04", "dc": "DEBE", "importe": "capital"},
+    d = _definir(client, contador, lineas=[{"cuenta": "1.1.05.01", "dc": "DEBE", "importe": "capital"},
                                            {"cuenta": "1.1.02", "dc": "HABER", "importe": "capital + gastos"}])
     _mandar(client, interna)
     r = client.put(f"{API}/definiciones/{d.json()['id']}", headers=contador, json=DEFINICION_DESEMBOLSO)

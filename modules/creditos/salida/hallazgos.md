@@ -38,6 +38,15 @@
 - Detalle contable: los **borradores no figuran** en los libros hasta publicarse; los **anulados sí**,
   junto a su contra-asiento (si se ocultara sólo el anulado, la reversa quedaría suelta y descuadraría
   el mayor).
+- **Plan de cuentas**: se reemplazó el plan propio por **el plan estándar del sistema anterior**, con su
+  misma codificación (1.2.01 créditos a cobrar, 4.1.01 intereses ganados, 2.1.01 IVA débito, 3.3
+  resultado del ejercicio…), que es la que usan los asientos de Créditos; se le sumaron las cuentas que
+  pedía la contabilidad argentina (retenciones/percepciones, amortizaciones, fondos de terceros, RECPAM).
+  Al arrancar, el seed saca las cuentas de la siembra anterior que ya no están en el plan **si nadie las
+  usa**; si tienen movimientos o las usa una definición, las deja y avisa en el log.
+  También se siembran los centros de costo del sistema anterior (ADM, COM, FIN, SEG).
+- **Definiciones de asiento**: pantalla propia (listado, alta, edición y prueba). Antes sólo se podían
+  crear desde una transacción pendiente; ahora también desde cero y desde el detalle de la transacción.
 - Pendiente: el motor de ajuste por inflación (la marca en el plan y la cuenta RECPAM ya están).
 
 ## H-221 · Módulo Auditoría: qué hace cada usuario con la información del sistema

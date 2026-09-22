@@ -17,6 +17,11 @@ originó (con los datos que mandó el módulo).
 
 ## Definición de asiento
 
+Se cargan desde **Contabilidad → Definiciones de asiento** (alta, edición y prueba) o directamente
+desde una transacción que está esperando, en **Transacciones** (ahí el formulario ya viene con el
+módulo, el tipo y los campos que mandó ese módulo, con valores de ejemplo).
+
+
 Por módulo y tipo de transacción, con vigencia. Cada línea dice cuenta, lado y **cómo se calcula el
 importe** con los campos que manda el módulo:
 

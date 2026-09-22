@@ -79,8 +79,28 @@ describe("Transacciones de los módulos", () => {
     render(<TransaccionesPage />);
     await u.click(await screen.findByRole("button", { name: "Definir asiento" }));
     const modal = screen.getByRole("dialog", { name: /Cómo se contabiliza/ });
+    await u.selectOptions(within(modal).getByLabelText("Cuenta 1"), "1.1.04");
+    await u.type(within(modal).getByLabelText("Importe 1"), "capital");
+    await u.selectOptions(within(modal).getByLabelText("Cuenta 2"), "1.1.02");
+    await u.type(within(modal).getByLabelText("Importe 2"), "capital");
     await u.click(within(modal).getByRole("button", { name: /Guardar y contabilizar/ }));
     expect(await within(modal).findByText("La cuenta 1 es de agrupación")).toBeInTheDocument();
+  });
+
+  it("se puede definir un asiento sin esperar a que llegue una transacción", async () => {
+    const u = userEvent.setup();
+    render(<TransaccionesPage />);
+    await u.click(await screen.findByRole("button", { name: /Definir un asiento/ }));
+    const modal = screen.getByRole("dialog", { name: "Nueva definición de asiento" });
+    await u.type(within(modal).getByLabelText("Módulo"), "tesoreria");
+    await u.type(within(modal).getByLabelText("Tipo de transacción"), "pago_proveedor");
+    await u.selectOptions(within(modal).getByLabelText("Cuenta 1"), "1.1.04");
+    await u.type(within(modal).getByLabelText("Importe 1"), "importe");
+    await u.selectOptions(within(modal).getByLabelText("Cuenta 2"), "1.1.02");
+    await u.type(within(modal).getByLabelText("Importe 2"), "importe");
+    await u.click(within(modal).getByRole("button", { name: /Guardar y contabilizar/ }));
+    await waitFor(() => expect(api.crearDefinicion).toHaveBeenCalledWith(
+      expect.objectContaining({ modulo: "tesoreria", tipo: "PAGO_PROVEEDOR" })));
   });
 
   it("el detalle muestra lo que mandó el módulo y el asiento generado", async () => {
@@ -101,9 +121,9 @@ describe("Transacciones de los módulos", () => {
   it("sin permiso de configurar no ofrece definir", async () => {
     sesion(["asientos:read"]);
     render(<TransaccionesPage />);
-    await screen.findByText("DESEMBOLSO");
+    await screen.findAllByText("DESEMBOLSO");
     expect(screen.queryByRole("button", { name: "Definir asiento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Definir un asiento/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Volver a procesar" })).not.toBeInTheDocument();
-    expect(api.listarCuentas).not.toHaveBeenCalled();
   });
 });

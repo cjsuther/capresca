@@ -79,11 +79,11 @@ def test_un_borrador_se_borra_y_un_registrado_no(client, contador):
 def _ejercicio_siguiente(client, contador):
     return client.post(f"{API}/ejercicios", headers=contador, json={
         "numero": ANIO + 1, "desde": f"{ANIO + 1}-01-01", "hasta": f"{ANIO + 1}-12-31",
-        "cuenta_resultado": "3.1.03"}).json()
+        "cuenta_resultado": "3.3"}).json()
 
 
 def test_el_ejercicio_nuevo_abre_con_los_saldos_patrimoniales_del_anterior(client, contador):
-    _asiento(client, contador, debe="1.1.01", haber="3.1.01", importe=50000)   # aporte de capital
+    _asiento(client, contador, debe="1.1.01", haber="3.1", importe=50000)   # aporte de capital
     ej_actual = client.get(f"{API}/ejercicios", headers=contador).json()["items"][0]
     client.post(f"{API}/ejercicios/{ej_actual['id']}/cerrar", headers=contador)
     nuevo = _ejercicio_siguiente(client, contador)
@@ -91,7 +91,7 @@ def test_el_ejercicio_nuevo_abre_con_los_saldos_patrimoniales_del_anterior(clien
     a = client.post(f"{API}/ejercicios/{nuevo['id']}/apertura", headers=contador).json()
 
     assert a["origen"] == "APERTURA" and a["debe"] == a["haber"] == 50000.0
-    assert {l["cuenta"] for l in a["lineas"]} == {"1.1.01", "3.1.01"}
+    assert {l["cuenta"] for l in a["lineas"]} == {"1.1.01", "3.1"}
     # No se abre dos veces.
     assert client.post(f"{API}/ejercicios/{nuevo['id']}/apertura", headers=contador).status_code == 422
 
@@ -188,21 +188,21 @@ def test_la_conciliacion_automatica_empareja_por_importe_y_fecha(client, contado
 
 def test_flujo_de_efectivo_por_caja_y_bancos(client, contador):
     _asiento(client, contador, debe="1.1.01", haber="4.1.04", importe=5000, concepto="Cobro")
-    _asiento(client, contador, debe="5.1.04", haber="1.1.02", importe=1200, concepto="Pago de servicios")
+    _asiento(client, contador, debe="5.1.03", haber="1.1.02", importe=1200, concepto="Pago de servicios")
 
     r = client.get(f"{API}/libros/flujo-efectivo", headers=contador).json()
 
     assert r["entradas"] == 5000.0 and r["salidas"] == 1200.0 and r["neto"] == 3800.0
     assert r["saldosPorCuenta"]["1.1.01"] == 5000.0 and r["saldosPorCuenta"]["1.1.02"] == -1200.0
-    assert any("Ingresos por servicios" in m["contrapartida"] for m in r["movimientos"])
+    assert any("Gastos administrativos" in m["contrapartida"] for m in r["movimientos"])
 
 
 def test_posicion_de_iva_del_periodo(client, contador, interna):
     """Débito contra crédito fiscal: lo que hay que pagar."""
     for libro, tipo, neto, iva, cuentas in [
-            ("VENTAS", "FACTURA_VENTA", 100000, 21000, [("1.1.03", "DEBE", "neto + iva"),
-                                                         ("4.1.04", "HABER", "neto"), ("2.1.02", "HABER", "iva")]),
-            ("COMPRAS", "FACTURA_COMPRA", 40000, 8400, [("5.1.04", "DEBE", "neto"), ("1.1.06", "DEBE", "iva"),
+            ("VENTAS", "FACTURA_VENTA", 100000, 21000, [("1.2.01", "DEBE", "neto + iva"),
+                                                         ("4.1.04", "HABER", "neto"), ("2.1.01", "HABER", "iva")]),
+            ("COMPRAS", "FACTURA_COMPRA", 40000, 8400, [("5.1.03", "DEBE", "neto"), ("1.2.04", "DEBE", "iva"),
                                                          ("2.1.01", "HABER", "neto + iva")])]:
         client.post(f"{API}/definiciones", headers=contador, json={
             "modulo": "compras", "tipo": tipo, "nombre": tipo, "diario_codigo": "VAR",
@@ -225,8 +225,8 @@ def test_analisis_por_centro_de_costo(client, contador):
     client.post(f"{API}/centros", headers=contador, json={"codigo": "SUC1", "nombre": "Sucursal Centro"})
     client.post(f"{API}/centros", headers=contador, json={"codigo": "SUC2", "nombre": "Sucursal Valle"})
     _asiento(client, contador, debe="1.1.01", haber="4.1.04", importe=9000, centro="SUC1")
-    _asiento(client, contador, debe="5.1.04", haber="1.1.01", importe=2000, centro="SUC1")
-    _asiento(client, contador, debe="5.1.04", haber="1.1.01", importe=500, centro="SUC2")
+    _asiento(client, contador, debe="5.1.03", haber="1.1.01", importe=2000, centro="SUC1")
+    _asiento(client, contador, debe="5.1.03", haber="1.1.01", importe=500, centro="SUC2")
 
     r = client.get(f"{API}/reportes/por-centro", headers=contador).json()
 
@@ -237,7 +237,12 @@ def test_analisis_por_centro_de_costo(client, contador):
 
 
 def test_el_centro_de_costo_se_edita(client, contador):
-    c = client.post(f"{API}/centros", headers=contador, json={"codigo": "ADM", "nombre": "Administracion"}).json()
+    """Los centros base vienen sembrados (ADM, COM, FIN, SEG), como en el sistema anterior."""
+    centros = client.get(f"{API}/centros", headers=contador).json()["items"]
+    assert {c["codigo"] for c in centros} >= {"ADM", "COM", "FIN", "SEG"}
+    assert client.post(f"{API}/centros", headers=contador,
+                       json={"codigo": "ADM", "nombre": "Otra"}).status_code == 409
+    c = next(x for x in centros if x["codigo"] == "ADM")
     r = client.put(f"{API}/centros/{c['id']}", headers=contador,
-                   json={"codigo": "ADM", "nombre": "Administración", "activo": False})
-    assert r.json()["nombre"] == "Administración" and r.json()["activo"] is False
+                   json={"codigo": "ADM", "nombre": "Administración general", "activo": False})
+    assert r.json()["nombre"] == "Administración general" and r.json()["activo"] is False

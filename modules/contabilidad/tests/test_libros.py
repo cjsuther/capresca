@@ -112,7 +112,7 @@ def test_estados_contables(client, contador):
         "lineas": [{"cuenta": "1.1.01", "debe": 10000}, {"cuenta": "4.1.04", "haber": 10000}]})
     client.post(f"{API}/asientos", headers=contador, json={
         "fecha": HOY, "concepto": "Gasto bancario",
-        "lineas": [{"cuenta": "5.1.01", "debe": 1500}, {"cuenta": "1.1.01", "haber": 1500}]})
+        "lineas": [{"cuenta": "5.2.02", "debe": 1500}, {"cuenta": "1.1.01", "haber": 1500}]})
 
     r = client.get(f"{API}/libros/estados", headers=contador).json()
 
@@ -129,9 +129,9 @@ def test_la_transaccion_con_comprobante_alimenta_el_libro_iva(client, interna, c
     client.post(f"{API}/definiciones", headers=contador, json={
         "modulo": "creditos", "tipo": "FACTURA", "nombre": "Factura de servicios", "diario_codigo": "VTA",
         "leyenda": "Factura {referencia}",
-        "lineas": [{"cuenta": "1.1.03", "dc": "DEBE", "importe": "neto + iva"},
+        "lineas": [{"cuenta": "1.2.01", "dc": "DEBE", "importe": "neto + iva"},
                    {"cuenta": "4.1.04", "dc": "HABER", "importe": "neto"},
-                   {"cuenta": "2.1.02", "dc": "HABER", "importe": "iva"}]})
+                   {"cuenta": "2.1.01", "dc": "HABER", "importe": "iva"}]})
     client.post("/internal/contabilidad/transacciones", headers=interna, json=transaccion(
         tipo="FACTURA", referencia="A-0001-00000123",
         datos={"neto": 100000, "iva": 21000,
