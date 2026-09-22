@@ -268,3 +268,33 @@ def importar_personas(payload: dict, db: Session = Depends(get_db)):
         "sin_documento": sin_documento,
         "total": len(creados) + len(existentes),
     }
+
+
+@router.post("/internal/clientes/{client_id}/documentos")
+def importar_documentos(client_id: int, payload: dict, db: Session = Depends(get_db)):
+    """
+    Documentos que llegan de otro modulo para la ficha del cliente (p.ej. los que el ciudadano adjunto a
+    su solicitud de credito). Contenido en base64. Idempotente: un archivo que el cliente ya tiene (mismo
+    contenido) no se duplica.
+    """
+    import base64
+    import binascii
+    from fastapi import HTTPException
+    from app.services import documentos as docs_svc
+
+    if not db.query(Client).filter(Client.id == client_id).first():
+        raise HTTPException(404, "Cliente no encontrado")
+    guardados, repetidos = [], []
+    for d in payload.get("documentos") or []:
+        try:
+            contenido = base64.b64decode(d.get("contenido_base64") or "", validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, f"Contenido inválido en {d.get('nombre')!r}")
+        doc, nuevo = docs_svc.guardar(db, client_id, contenido=contenido, nombre=d.get("nombre") or "documento",
+                                      content_type=d.get("content_type") or "", tipo=d.get("tipo") or "OTRO",
+                                      origen=d.get("origen") or "Otro módulo", user_id=d.get("usuario_id"))
+        db.flush()
+        (guardados if nuevo else repetidos).append(doc.id)
+    db.commit()
+    return {"guardados": len(guardados), "repetidos": len(repetidos), "ids": guardados + repetidos}
+

@@ -111,3 +111,19 @@ def test_rutas_de_configuraciones(metodo, ruta, permiso):
 @pytest.mark.parametrize("ruta", ["/internal/configuraciones/impuestos", "/api/configuraciones/otra-cosa"])
 def test_configuraciones_no_publica_lo_interno_ni_rutas_desconocidas(ruta):
     assert get_service_url("GET", ruta) is None
+
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/clientes/7/documentos", "clientes:clients:read"),
+    ("GET", "/api/clientes/7/documentos/12", "clientes:clients:read"),
+    ("POST", "/api/clientes/7/documentos", "clientes:clients:write"),
+    ("DELETE", "/api/clientes/7/documentos/12", "clientes:clients:write"),
+    ("POST", "/api/creditos/solicitudes/abc/documentos/copiar-al-cliente", "creditos:creditos:write"),
+])
+def test_documentos_del_cliente(metodo, ruta, permiso):
+    assert get_required_permission(metodo, ruta) == permiso
+
+
+def test_la_copia_interna_de_documentos_no_se_publica():
+    assert get_service_url("POST", "/internal/clientes/7/documentos") is None
+

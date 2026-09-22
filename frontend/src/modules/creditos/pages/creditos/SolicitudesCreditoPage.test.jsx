@@ -11,7 +11,7 @@ import { useAuthStore } from "../../../../context/authStore";
 vi.mock("../../../../api/creditos", () => ({
   creditos: {
     ppSolicitudes: vi.fn(), ppSolicitud: vi.fn(), ppSolicitudCrear: vi.fn(), ppSolicitudEstado: vi.fn(),
-    ppSolicitudPromover: vi.fn(), ppSolicitudDocs: vi.fn(), ppSolicitudDocAbrir: vi.fn(), ppSolicitudDocArchivo: vi.fn(),
+    ppSolicitudPromover: vi.fn(), ppSolicitudDocs: vi.fn(), ppSolicitudDocAbrir: vi.fn(), ppSolicitudDocArchivo: vi.fn(), ppSolicitudDocsAlCliente: vi.fn(),
     ppSimPreview: vi.fn(), ppOferta: vi.fn(), ctoSegmentos: vi.fn(), ctoOriginar: vi.fn(),
   },
 }));
@@ -123,6 +123,89 @@ describe("Solicitudes de crédito · documentación adjunta", () => {
   });
 });
 
+describe("Solicitudes de crédito · crear el cliente desde la solicitud", () => {
+  const EXPRESS_PORTAL = {
+    ...SOL_EXPRESS, clienteNombre: "PEREZ, JUAN CARLOS",
+    clienteDatos: { apellido_nombre: "PEREZ, JUAN CARLOS", dni: "30123456", cuil: "", email: "juan@example.com" },
+    datosAdicionales: { portal_email: "juan@example.com" },
+  };
+
+  beforeEach(() => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([EXPRESS_PORTAL]));
+    creditos.ppSolicitudDocs.mockResolvedValue({ items: [
+      { id: "doc-1", tipo: "DNI_FRENTE", nombre: "dni.png", tamano: 1000 },
+      { id: "doc-2", tipo: "RECIBO", nombre: "recibo.pdf", tamano: 1000 },
+    ] });
+  });
+
+  async function abrirAlta(u) {
+    montar();
+    await u.click(await screen.findByText("SOL-2"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, JUAN CARLOS" });
+    await u.click(within(detalle).getByRole("button", { name: "Crear cliente" }));
+    return screen.findByRole("dialog", { name: "Crear cliente con los datos de la solicitud" });
+  }
+
+  it("precarga lo que declaró el solicitante y crea el cliente con sus documentos", async () => {
+    creditos.ppSolicitudPromover.mockResolvedValue({
+      solicitud: { ...EXPRESS_PORTAL, solicitanteTipo: "REGISTRADO", clienteId: 4321 }, clienteId: 4321, yaExistia: false,
+      documentos: { guardados: 2, repetidos: 0 },
+    });
+    const u = userEvent.setup();
+    const alta = await abrirAlta(u);
+    expect(within(alta).getByLabelText("Apellido")).toHaveValue("PEREZ");
+    expect(within(alta).getByLabelText("Nombres")).toHaveValue("JUAN CARLOS");
+    expect(within(alta).getByLabelText("DNI")).toHaveValue("30123456");
+    expect(within(alta).getByLabelText("Email")).toHaveValue("juan@example.com");
+    expect(within(alta).getByLabelText(/Guardar los 2 documento/)).toBeChecked();
+
+    await u.type(within(alta).getByLabelText("CUIL"), "20-30123456-9");
+    await u.type(within(alta).getByLabelText("Localidad"), "Catamarca");
+    await u.click(within(alta).getByRole("button", { name: "Crear cliente" }));
+
+    await waitFor(() => expect(creditos.ppSolicitudPromover).toHaveBeenCalledWith("s2", expect.objectContaining({
+      apellido_nombre: "PEREZ, JUAN CARLOS", dni: "30123456", cuil: "20301234569", localidad: "Catamarca",
+      email: "juan@example.com", copiar_documentos: true })));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, JUAN CARLOS" });
+    expect(within(detalle).getByText(/Cliente creado en el módulo Clientes.*2 documento\(s\) guardado/)).toBeInTheDocument();
+    expect(within(detalle).getByRole("link", { name: "Ver ficha del cliente" })).toHaveAttribute("href", "/modules/clientes/4321");
+  });
+
+  it("valida el CUIL antes de enviar", async () => {
+    const u = userEvent.setup();
+    const alta = await abrirAlta(u);
+    await u.type(within(alta).getByLabelText("CUIL"), "123");
+    await u.click(within(alta).getByRole("button", { name: "Crear cliente" }));
+    expect(within(alta).getByText("El CUIL debe tener 11 dígitos.")).toBeInTheDocument();
+    expect(creditos.ppSolicitudPromover).not.toHaveBeenCalled();
+  });
+
+  it("si la copia de documentos falla, el cliente queda creado y lo avisa", async () => {
+    creditos.ppSolicitudPromover.mockResolvedValue({
+      solicitud: { ...EXPRESS_PORTAL, solicitanteTipo: "REGISTRADO", clienteId: 4321 }, clienteId: 4321, yaExistia: false,
+      documentos: { guardados: 0, repetidos: 0, error: "No se pudieron copiar los documentos al cliente: timeout" },
+    });
+    const u = userEvent.setup();
+    const alta = await abrirAlta(u);
+    await u.click(within(alta).getByRole("button", { name: "Crear cliente" }));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, JUAN CARLOS" });
+    expect(await within(detalle).findByText(/No se pudieron copiar.*Guardar en el cliente/)).toBeInTheDocument();
+  });
+
+  it("con el cliente ya vinculado, guarda los documentos en su ficha", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...EXPRESS_PORTAL, solicitanteTipo: "REGISTRADO", clienteId: 4321 }]));
+    creditos.ppSolicitudDocsAlCliente.mockResolvedValue({ clienteId: 4321, guardados: 0, repetidos: 2 });
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-2"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, JUAN CARLOS" });
+    expect(within(detalle).queryByRole("button", { name: "Crear cliente" })).toBeNull();
+    await u.click(await within(detalle).findByRole("button", { name: "Guardar en el cliente" }));
+    expect(await within(detalle).findByText(/0 nuevo\(s\), 2 ya estaba\(n\)/)).toBeInTheDocument();
+    expect(creditos.ppSolicitudDocsAlCliente).toHaveBeenCalledWith("s2");
+  });
+});
+
 describe("Solicitudes de crédito · alta", () => {
   it("el asistente exige elegir cliente del padrón antes de continuar", async () => {
     const u = userEvent.setup();
@@ -218,7 +301,7 @@ describe("Solicitudes de crédito · resolución", () => {
     expect(within(modal).getByRole("button", { name: "Aprobar" })).toBeDisabled();
     expect(within(modal).getByText(/El cliente no está en el padrón/)).toBeInTheDocument();
 
-    await u.click(within(modal).getByRole("button", { name: "Vincular cliente" }));
+    await u.click(within(modal).getByRole("button", { name: "Vincular existente" }));
     const vinc = await screen.findByRole("dialog", { name: /Vincular cliente/ });
     await u.type(within(vinc).getByPlaceholderText(/Buscar cliente/), "perez");
     await u.click(await screen.findByText(/Perez, Ana/));

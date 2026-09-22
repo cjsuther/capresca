@@ -11,6 +11,7 @@ import {
   ArrowLeft, User, Building2, Pencil, Check, X,
   UserPlus, Trash2, Search, CreditCard, Plus,
 } from "lucide-react";
+import { DocumentosCliente } from "../components/DocumentosCliente";
 
 // ── Campo editable ───────────────────────────────────────────────
 function Field({ label, value, editing, name, form, onChange, type = "text" }) {
@@ -445,6 +446,9 @@ export default function ClienteDetailPage() {
           )}
         </div>
       )}
+
+      {/* Documentos (DNI, recibo…): cargados acá o traídos de una solicitud de crédito */}
+      <DocumentosCliente clientId={Number(id)} />
 
       {/* Notas */}
       <div className="bg-surface border rounded-xl p-5">

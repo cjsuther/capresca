@@ -12,6 +12,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.services import auditoria as audit
 from app.services import documentos
 
 from app.core import clientes_padron
@@ -327,6 +328,31 @@ class PromoverIn(BaseModel):
     cuil: str = ""                # una web/express llega sin CUIL: el asesor lo completa acá
     dni: str = ""
     apellido_nombre: str = ""
+    email: str = ""
+    telefono: str = ""
+    domicilio: str = ""
+    localidad: str = ""
+    copiar_documentos: bool = True   # guardar los adjuntos de la solicitud en la ficha del cliente
+
+
+def _copiar_documentos(db: Session, s: m.PPSolicitud, cliente_id: int, usuario: str) -> dict:
+    """Pasa los adjuntos de la solicitud a la ficha del cliente en el módulo Clientes (idempotente).
+    Si Clientes no responde, no se deshace el alta/vínculo: se informa y se puede reintentar."""
+    import base64
+    docs = db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id).order_by(m.PPSolicitudDocumento.subido_en).all()
+    if not docs:
+        return {"guardados": 0, "repetidos": 0}
+    lote = [{"nombre": d.nombre, "content_type": d.content_type, "tipo": d.tipo,
+             "origen": f"Solicitud {s.numero}", "contenido_base64": base64.b64encode(d.contenido).decode()}
+            for d in docs]
+    try:
+        r = clientes_padron.copiar_documentos(cliente_id, lote)
+    except clientes_padron.PadronNoDisponible as e:
+        return {"guardados": 0, "repetidos": 0, "error": f"No se pudieron copiar los documentos al cliente: {e}"}
+    audit.registrar_cambio(db, usuario=usuario, entidad="Solicitud", entidad_id=s.numero, operacion="DOCUMENTOS_A_CLIENTE",
+                           resultado="OK", despues={"cliente_id": cliente_id, **{k: r.get(k) for k in ("guardados", "repetidos")}},
+                           detalle=f"Documentos de {s.numero} guardados en el cliente {cliente_id}")
+    return {"guardados": r.get("guardados", 0), "repetidos": r.get("repetidos", 0)}
 
 
 @router.post("/{sid}/promover-cliente")
@@ -347,7 +373,8 @@ def promover_cliente(sid: str, data: PromoverIn, db: Session = Depends(get_db),
             raise HTTPException(404, "Cliente del maestro no encontrado.")
         s.solicitante_tipo = "REGISTRADO"; s.cliente_id = cli.id; s.cliente_datos = {}
         db.commit(); db.refresh(s)
-        return {"solicitud": _serial(db, s), "clienteId": cli.id, "yaExistia": True}
+        documentos = _copiar_documentos(db, s, cli.id, user.username) if data.copiar_documentos else None
+        return {"solicitud": _serial(db, s), "clienteId": cli.id, "yaExistia": True, "documentos": documentos}
     cd = s.cliente_datos or {}
     nombre = (data.apellido_nombre or cd.get("apellido_nombre") or "").strip()
     if not nombre:
@@ -368,10 +395,10 @@ def promover_cliente(sid: str, data: PromoverIn, db: Session = Depends(get_db),
             "tipo_documento": "CUIL" if cuil else "DNI",
             "apellido": apellido.strip() or nombre,
             "nombres": nombres.strip(),
-            "email": cd.get("email") or "",
-            "telefono": cd.get("telefono") or "",
-            "domicilio": cd.get("domicilio") or "",
-            "localidad": cd.get("localidad") or "",
+            "email": (data.email or cd.get("email") or "").strip(),
+            "telefono": (data.telefono or cd.get("telefono") or "").strip(),
+            "domicilio": (data.domicilio or cd.get("domicilio") or "").strip(),
+            "localidad": (data.localidad or cd.get("localidad") or "").strip(),
         }])
     except Exception as e:                                   # el padrón no respondió
         raise HTTPException(503, f"No se pudo dar de alta en el padrón de clientes: {e}")
@@ -382,7 +409,25 @@ def promover_cliente(sid: str, data: PromoverIn, db: Session = Depends(get_db),
     cli = clientes_padron.sincronizar(db, int(cliente_id))
     s.solicitante_tipo = "REGISTRADO"; s.cliente_id = cli.id; s.cliente_datos = {}
     db.commit(); db.refresh(s)
-    return {"solicitud": _serial(db, s), "clienteId": cli.id, "yaExistia": ya_existia}
+    documentos = _copiar_documentos(db, s, cli.id, user.username) if data.copiar_documentos else None
+    return {"solicitud": _serial(db, s), "clienteId": cli.id, "yaExistia": ya_existia, "documentos": documentos}
+
+
+@router.post("/{sid}/documentos/copiar-al-cliente")
+def copiar_documentos_al_cliente(sid: str, db: Session = Depends(get_db),
+                                 user: models.Usuario = Depends(get_current_user)):
+    """Guarda (o vuelve a guardar) los adjuntos de una solicitud con cliente en la ficha del cliente.
+    Idempotente: lo que el cliente ya tiene no se duplica."""
+    _req_edita(db, user)
+    s = db.get(m.PPSolicitud, sid)
+    if not s:
+        raise HTTPException(404, "Solicitud no encontrada.")
+    if s.solicitante_tipo != "REGISTRADO" or not s.cliente_id:
+        raise HTTPException(409, "Primero creá o vinculá el cliente de la solicitud.")
+    r = _copiar_documentos(db, s, s.cliente_id, user.username)
+    if r.get("error"):
+        raise HTTPException(503, r["error"])
+    return {"clienteId": s.cliente_id, **r}
 
 
 # ---------------- Documentación adjunta (la sube el ciudadano; la ve el asesor) ----------------

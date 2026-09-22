@@ -13,6 +13,9 @@ import {
 } from "../../../api/clientes";
 
 vi.mock("../../../api/clientes", () => ({
+  // Documentos del cliente: la sección arranca vacía salvo que el test diga otra cosa.
+  getDocumentos: vi.fn(async () => ({ items: [] })),
+  subirDocumento: vi.fn(), getDocumentoArchivo: vi.fn(), borrarDocumento: vi.fn(),
   getClient: vi.fn(),
   getNotes: vi.fn(),
   addNote: vi.fn(),

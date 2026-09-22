@@ -559,6 +559,101 @@ def test_documento_con_nombre_no_ascii_se_abre(client):
     assert r.status_code == 200 and r.content == PNG and r.headers["content-type"].startswith("image/png")
 
 
+def _sol_portal_con_docs(client):
+    """Solicitud del portal (express) con DNI y recibo adjuntos; devuelve (numero, sid, headers backoffice)."""
+    h = _ingresar(client)
+    numero = _crear_sol(client, h)
+    for nombre, tipo, ct, contenido in (("dni.png", "DNI_FRENTE", "image/png", PNG),
+                                        ("recibo.pdf", "RECIBO", "application/pdf", b"%PDF-1.4\n" + b"1" * 100)):
+        client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=h,
+                    files={"archivo": (nombre, contenido, ct)}, data={"tipo": tipo})
+    tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
+    hi = {"Authorization": f"Bearer {tok}"}
+    sid = next(s for s in client.get("/api/creditos/solicitudes", headers=hi).json()["items"] if s["numero"] == numero)["id"]
+    return numero, sid, hi
+
+
+def _padron_falso(monkeypatch, cliente_id=4321):
+    """Módulo Clientes simulado: alta en el padrón, ficha y guardado de documentos (idempotente)."""
+    from app.core import clientes_padron
+    estado = {"importados": [], "guardados": {}}
+
+    def importar(personas):
+        estado["importados"].append(personas)
+        return {"creados": {personas[0]["documento"]: cliente_id}, "existentes": {}}
+
+    def copiar(cid, docs):
+        ya = estado["guardados"].setdefault(cid, set())
+        nuevos = [d for d in docs if d["contenido_base64"] not in ya]
+        ya.update(d["contenido_base64"] for d in docs)
+        estado.setdefault("lotes", []).append((cid, docs))
+        return {"guardados": len(nuevos), "repetidos": len(docs) - len(nuevos)}
+
+    monkeypatch.setattr(clientes_padron, "importar", importar)
+    monkeypatch.setattr(clientes_padron, "copiar_documentos", copiar)
+    monkeypatch.setattr(clientes_padron, "ficha", lambda cid: {
+        "client_id": cid, "nombre": "PEREZ, JUAN CARLOS", "documento": "20301234569", "domicilio": "Sarmiento 100",
+        "localidad": "Catamarca", "telefono": "3834000000", "email": "juan@example.com", "cbu": "", "activo": True})
+    return estado
+
+
+def test_crear_cliente_desde_la_solicitud_lleva_datos_y_documentos(client, monkeypatch):
+    """El asesor crea el cliente en el módulo Clientes con lo que trajo la solicitud (completando el CUIL y el
+    contacto) y los adjuntos del ciudadano quedan guardados en la ficha del cliente."""
+    import base64
+    estado = _padron_falso(monkeypatch)
+    numero, sid, hi = _sol_portal_con_docs(client)
+    r = client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={
+        "cuil": "20-30123456-9", "telefono": "3834000000", "domicilio": "Sarmiento 100", "localidad": "Catamarca"})
+    assert r.status_code == 200, r.text
+    assert r.json()["clienteId"] == 4321 and r.json()["documentos"] == {"guardados": 2, "repetidos": 0}
+    persona = estado["importados"][0][0]
+    assert persona["documento"] == "20301234569" and persona["tipo_documento"] == "CUIL"
+    assert persona["apellido"] == "PEREZ" and persona["nombres"] == "JUAN CARLOS"
+    assert persona["telefono"] == "3834000000" and persona["localidad"] == "Catamarca"
+    assert persona["email"]                     # el mail del ciudadano (Mi Catamarca) viaja solo
+    cid, docs = estado["lotes"][0]
+    assert cid == 4321 and [d["tipo"] for d in docs] == ["DNI_FRENTE", "RECIBO"]
+    assert {d["origen"] for d in docs} == {f"Solicitud {numero}"}
+    assert base64.b64decode(docs[0]["contenido_base64"]) == PNG
+
+
+def test_guardar_documentos_en_el_cliente_es_idempotente(client, monkeypatch):
+    estado = _padron_falso(monkeypatch)
+    _, sid, hi = _sol_portal_con_docs(client)
+    # sin cliente todavía → primero hay que crearlo o vincularlo
+    assert client.post(f"/api/creditos/solicitudes/{sid}/documentos/copiar-al-cliente", headers=hi).status_code == 409
+    client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={"cuil": "20301234569"})
+    r = client.post(f"/api/creditos/solicitudes/{sid}/documentos/copiar-al-cliente", headers=hi)
+    assert r.status_code == 200 and r.json() == {"clienteId": 4321, "guardados": 0, "repetidos": 2}
+    assert len(estado["lotes"]) == 2
+
+
+def test_vincular_un_cliente_existente_tambien_guarda_los_documentos(client, monkeypatch):
+    estado = _padron_falso(monkeypatch)
+    _, sid, hi = _sol_portal_con_docs(client)
+    cid = client.get("/api/creditos/clientes", headers=hi).json()["items"][0]["id"]
+    r = client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={"cliente_id": cid})
+    assert r.status_code == 200 and r.json()["documentos"]["guardados"] == 2
+    assert estado["lotes"][0][0] == cid
+
+
+def test_si_clientes_no_guarda_los_documentos_el_alta_igual_queda(client, monkeypatch):
+    """El alta no se deshace porque falle la copia de documentos: se informa y se puede reintentar."""
+    from app.core import clientes_padron
+    _padron_falso(monkeypatch)
+
+    def cae(_cid, _docs):
+        raise clientes_padron.PadronNoDisponible("timeout")
+
+    monkeypatch.setattr(clientes_padron, "copiar_documentos", cae)
+    _, sid, hi = _sol_portal_con_docs(client)
+    r = client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={"cuil": "20301234569"})
+    assert r.status_code == 200 and r.json()["solicitud"]["solicitanteTipo"] == "REGISTRADO"
+    assert "No se pudieron copiar" in r.json()["documentos"]["error"]
+    assert client.post(f"/api/creditos/solicitudes/{sid}/documentos/copiar-al-cliente", headers=hi).status_code == 503
+
+
 def test_documento_valida_formato_y_owner(client):
     """Rechaza formatos no permitidos (422) y solicitudes ajenas (404); permite borrar el propio."""
     h = _ingresar(client)

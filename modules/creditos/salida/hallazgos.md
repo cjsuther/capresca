@@ -7,6 +7,22 @@
 
 ---
 
+## H-214 · Crear el cliente desde la solicitud y documentos en la ficha del cliente
+**Fecha:** 2026-09-22 · **Módulo:** Créditos / Clientes · **Alcance:** pedido del usuario
+- **Crear cliente desde la solicitud:** el backend ya daba de alta la persona en el módulo Clientes
+  (`promover-cliente`, H-203), pero la pantalla rehecha sólo ofrecía "Vincular". Vuelve "Crear cliente",
+  con un formulario precargado con lo declarado (apellido, nombres, DNI, email) donde el asesor completa
+  CUIL, teléfono, domicilio y localidad. Si el documento ya existe en Clientes, se vincula (no duplica).
+- **Documentos en el módulo Clientes:** tabla `client_documents` (bytes en la base, como en Créditos),
+  API para listar/subir/ver/borrar (`/api/clientes/{id}/documentos`, permisos `clients:read|write`) y
+  sección "Documentos" en la ficha, con el mismo visor. Cada documento guarda su origen
+  ("Solicitud SOL-…" o "Carga manual"). No se guarda dos veces el mismo archivo (sha256 por cliente).
+- **Traspaso:** al crear o vincular el cliente, Créditos le copia los adjuntos de la solicitud por la API
+  interna de Clientes (base64, idempotente). Si Clientes no responde, el alta no se deshace: se avisa y
+  se reintenta con "Guardar en el cliente" (también disponible en solicitudes que ya tienen cliente).
+- El CBU de acreditación no se carga en el cliente: la ficha sólo muestra CBUs de personas jurídicas y
+  quedaría invisible; Créditos lo toma de la solicitud.
+
 ## H-213 · Portal: documentación en su propio paso y videos obligatorios antes de confirmar
 **Fecha:** 2026-09-22 · **Módulo:** Portal del ciudadano · **Alcance:** pedido del usuario
 - El trámite pasa a 5 pasos: Tus datos → Simulación → **Documentación** → **Videos** → Confirmación.

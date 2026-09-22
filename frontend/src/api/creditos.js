@@ -158,6 +158,7 @@ export const creditos = {
   ppSolicitudEditar: (id, d) => req(`/solicitudes/${id}`, { method: "PUT", body: JSON.stringify(d) }),
   ppSolicitudEstado: (id, accion, motivo = "", observacion = "") => req(`/solicitudes/${id}/estado`, { method: "POST", body: JSON.stringify({ accion, motivo, observacion }) }),
   ppSolicitudPromover: (id, d = {}) => req(`/solicitudes/${id}/promover-cliente`, { method: "POST", body: JSON.stringify(d) }),
+  ppSolicitudDocsAlCliente: (id) => req(`/solicitudes/${id}/documentos/copiar-al-cliente`, { method: "POST" }),
   ppSolicitudDocs: (sid) => req(`/solicitudes/${sid}/documentos`),
   ppSolicitudDocAbrir: (sid, docId) => abrirArchivo(`${API}/solicitudes/${sid}/documentos/${docId}`),
   ppSolicitudDocArchivo: (sid, docId) => traerArchivo(`${API}/solicitudes/${sid}/documentos/${docId}`),

@@ -63,6 +63,18 @@ def importar(personas: list[dict]) -> dict:
     return r.json()
 
 
+def copiar_documentos(cliente_id: int, documentos: list[dict]) -> dict:
+    """Guarda documentos en la ficha del cliente (módulo Clientes). Idempotente: lo que ya tiene no se
+    duplica. Cada documento: {nombre, content_type, tipo, origen, contenido_base64}."""
+    try:
+        r = httpx.post(_url(f"/internal/clientes/{cliente_id}/documentos"),
+                       json={"documentos": documentos}, timeout=60.0)
+        r.raise_for_status()
+        return r.json()
+    except httpx.HTTPError as e:
+        raise PadronNoDisponible(str(e)) from e
+
+
 def _aplicar(espejo: models.Cliente, f: dict) -> models.Cliente:
     """Vuelca la ficha del padrón sobre el espejo (sólo los campos de identidad)."""
     espejo.apellido_nombre = (f.get("nombre") or "")[:80]

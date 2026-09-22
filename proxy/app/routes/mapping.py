@@ -88,6 +88,10 @@ ROUTE_MAP = [
     ("GET",  r"^/api/notifications",                 settings.notifications_service_url, None),
 
     # ── Clientes ────────────────────────────────────────────────
+    # Documentos del cliente (DNI, recibo…): verlos pide lectura; cargarlos o borrarlos, escritura.
+    ("GET",    r"^/api/clientes/\d+/documentos(/\d+)?$",  settings.clientes_service_url, "clientes:clients:read"),
+    ("POST",   r"^/api/clientes/\d+/documentos$",         settings.clientes_service_url, "clientes:clients:write"),
+    ("DELETE", r"^/api/clientes/\d+/documentos/\d+$",     settings.clientes_service_url, "clientes:clients:write"),
     ("GET",    r"^/api/clientes/\d+/cbus$",         settings.clientes_service_url, "clientes:clients:read"),
     ("POST",   r"^/api/clientes/\d+/cbus$",         settings.clientes_service_url, "clientes:clients:write"),
     ("PUT",    r"^/api/clientes/\d+/cbus/\d+$",     settings.clientes_service_url, "clientes:clients:write"),
