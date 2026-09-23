@@ -141,6 +141,24 @@ class PadronResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PadronUpdate(BaseModel):
+    """Lo editable de la ficha de revista. La baja no se toca desde acá: es un cambio de estado del
+    cliente, no un dato más del padrón."""
+    organismo_numero: Optional[int] = None
+    organismo_codigo: Optional[str] = None
+    categoria_numero: Optional[int] = None
+    categoria: Optional[str] = None
+    sueldo: Optional[Decimal] = None
+    fecha_ingreso: Optional[date] = None
+    tipo_cliente: Optional[int] = None
+    situacion: Optional[int] = None
+    agente: Optional[int] = None
+    sucursal: Optional[int] = None
+    cuenta: Optional[int] = None
+    beneficio: Optional[str] = None
+    debito_automatico: Optional[bool] = None
+
+
 class LegacyRefResponse(BaseModel):
     """Cada registro que la persona tenía en el sistema viejo (uno por organismo)."""
     cidcliente: str

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, KeyRound, ChevronDown, Home, Menu, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { LogOut, KeyRound, ChevronDown, Menu, X } from "lucide-react";
 import { useAuthStore } from "../context/authStore";
 import { useUser } from "../context/usePermissions";
 import { logout as apiLogout } from "../api/auth";
@@ -11,8 +11,6 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export function Layout({ children, sidebar }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const enInicio = pathname.startsWith("/dashboard");
   const logoutStore = useAuthStore((s) => s.logout);
   const user = useUser();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -50,17 +48,8 @@ export function Layout({ children, sidebar }) {
             <img src="/logo-condor.svg" alt="Portezuelo" className="logo-marca h-8 w-auto" />
             <span className="hidden sm:inline font-semibold text-sm text-gray-800">Portezuelo</span>
           </Link>
-          {/* Botón explícito: no todos saben que el logo vuelve al inicio. */}
-          {!enInicio && (
-            <Link
-              to="/dashboard"
-              title="Volver al inicio"
-              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-900"
-            >
-              <Home size={16} />
-              <span className="hidden sm:inline">Inicio</span>
-            </Link>
-          )}
+          {/* La vuelta al inicio está en el menú de cada módulo (Sidebar) y en el logo: acá sería
+              un tercer botón para lo mismo. */}
         </div>
 
         {/* Notificaciones + Menú de usuario */}

@@ -81,6 +81,10 @@ export const getDocumentoArchivo = (clientId, docId) =>
 export const borrarDocumento = (clientId, docId) =>
   api.delete(`/clientes/${clientId}/documentos/${docId}`);
 
+/** Corrige la ficha de revista que vino del padrón del sistema anterior. */
+export const updatePadron = (id, data) =>
+  api.put(`/clientes/${id}/padron`, data).then((r) => r.data);
+
 // ── Padrón del sistema anterior (importación masiva) ──
 export const subirPadron = (archivo, onProgreso) => {
   const f = new FormData();

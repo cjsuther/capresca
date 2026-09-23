@@ -10,14 +10,14 @@ from app.schemas.client import (
     HumanProfileCreate, LegalProfileCreate,
     ContactCreate, ContactResponse,
     NoteCreate, NoteResponse,
-    ClientResponse, ClientDetailResponse, ClientListResponse,
+    ClientResponse, ClientDetailResponse, ClientListResponse, PadronUpdate,
     MemberCreate, MemberResponse,
 )
 from app.services.client_service import (
     list_clients, get_client,
     create_human_client, create_legal_client,
     update_client_base, update_human_profile, update_legal_profile,
-    deactivate_client,
+    deactivate_client, update_padron,
     add_contact, remove_contact,
     add_note, get_notes,
     get_members, add_member, remove_member,
@@ -78,6 +78,13 @@ def detail(client_id: int, db: Session = Depends(get_db)):
                             .filter(ClientLegacyRef.client_id == client_id)
                             .order_by(ClientLegacyRef.cidcliente).all())
     return salida
+
+
+@router.put("/{client_id}/padron", response_model=ClientDetailResponse)
+def update_padron_ficha(client_id: int, data: PadronUpdate, db: Session = Depends(get_db)):
+    """Corrige la ficha de revista que vino del padrón del sistema anterior."""
+    update_padron(db, client_id, data)
+    return detail(client_id, db)
 
 
 @router.put("/{client_id}", response_model=ClientResponse)

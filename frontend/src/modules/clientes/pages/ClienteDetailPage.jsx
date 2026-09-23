@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getClient, getNotes, addNote,
-  updateClient, updateHumanProfile, updateLegalProfile,
+  updateClient, updateHumanProfile, updateLegalProfile, updatePadron,
   getMembers, addMember, removeMember,
   searchClients, getCbus, addCbu, deleteCbu,
 } from "../../../api/clientes";
@@ -35,34 +35,39 @@ function Field({ label, value, editing, name, form, onChange, type = "text", opt
   const claseError = error ? "border-red-400 focus:ring-red-400" : "";
   return (
     <div className="text-sm py-0.5">
-      <div className="flex justify-between items-center gap-3">
+      {/* Etiqueta y valor en dos columnas, ambos alineados a la izquierda: los datos se leen en
+          columna y no “pegados al borde derecho”, que costaba seguir. */}
+      <div className="grid grid-cols-[9rem_1fr] items-center gap-3">
         <dt className="text-gray-500">
           {label}{requerido && editing && <span className="text-red-500 ml-0.5">*</span>}
         </dt>
-        <dd className="text-right">
-          {!editing ? (value || "—")
+        <dd className="text-left min-w-0">
+          {!editing ? <span className="break-words">{value || "—"}</span>
             : options ? (
-              <select className={`input text-sm w-44 ${claseError}`} aria-label={label}
+              <select className={`input text-sm w-full ${claseError}`} aria-label={label}
                       value={form[name] ?? ""} onChange={(e) => onChange(name, e.target.value)}>
                 <option value="">(sin especificar)</option>
-                {options.map(([v, etiqueta]) => <option key={v} value={v}>{etiqueta}</option>)}
+                {options.map(([v, etiquetaOpcion]) => (
+                  <option key={v} value={v}>{etiquetaOpcion}</option>
+                ))}
               </select>
             ) : (
               <input type={type} max={max} aria-label={label}
-                     className={`input text-sm text-right w-44 ${claseError}`}
+                     className={`input text-sm w-full ${claseError}`}
                      value={form[name] ?? ""} onChange={(e) => onChange(name, e.target.value)} />
             )}
+          {editing && (error || warn) && (
+            <p className={`text-xs mt-0.5 ${error ? "text-red-600" : "text-amber-600"}`}
+               role={error ? "alert" : "status"}>
+              {error || warn}
+            </p>
+          )}
         </dd>
       </div>
-      {editing && (error || warn) && (
-        <p className={`text-xs mt-0.5 text-right ${error ? "text-red-600" : "text-amber-600"}`}
-           role={error ? "alert" : "status"}>
-          {error || warn}
-        </p>
-      )}
     </div>
   );
 }
+
 
 export default function ClienteDetailPage() {
   const { id } = useParams();
@@ -80,6 +85,8 @@ export default function ClienteDetailPage() {
   // Edición perfil
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({});
+  const [editingPadron, setEditingPadron] = useState(false);
+  const [padronForm, setPadronForm] = useState({});
 
   // Miembros (solo PJ)
   const [members, setMembers] = useState([]);
@@ -104,6 +111,7 @@ export default function ClienteDetailPage() {
                     country: c.country || "" });
       const p = c.client_type === "HUMAN" ? c.human_profile : c.legal_profile;
       setProfileForm(p ? { ...p } : {});
+      setPadronForm(c.padron ? { ...c.padron, debito_automatico: String(!!c.padron.debito_automatico) } : {});
     });
 
   const loadMembers = () => getMembers(id).then(setMembers);
@@ -167,6 +175,30 @@ export default function ClienteDetailPage() {
   };
 
   // ── Guardar perfil ───────────────────────────────────────────
+  const handleSavePadron = async () => {
+    setError("");
+    const sueldo = String(padronForm.sueldo ?? "").trim();
+    if (sueldo && !(Number(sueldo) >= 0)) {
+      setError("El sueldo tiene que ser un número.");
+      return;
+    }
+    try {
+      // Lo que se deja vacío se manda en null: es la forma de borrar un dato del padrón.
+      const limpio = Object.fromEntries(Object.entries(padronForm).map(([k, v]) => {
+        if (v === "" || v == null) return [k, null];
+        if (["organismo_numero", "categoria_numero", "tipo_cliente", "situacion",
+             "agente", "sucursal", "cuenta"].includes(k)) return [k, Number(v)];
+        if (k === "debito_automatico") return [k, v === "true" || v === true];
+        return [k, v];
+      }));
+      await updatePadron(id, limpio);
+      setEditingPadron(false);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Error al guardar la ficha del padrón");
+    }
+  };
+
   const handleSaveProfile = async () => {
     setError("");
     if (validacion.hayBloqueo) {
@@ -237,6 +269,7 @@ export default function ClienteDetailPage() {
   const setBase = (k, v) => setBaseForm((f) => ({ ...f, [k]: v }));
   const setProf = (k, v) => setProfileForm((f) => ({ ...f, [k]: v }));
   const msg = (campo) => ({ error: validacion.bloquean[campo], warn: validacion.avisos[campo] });
+  const setPad = (k, v) => setPadronForm((f) => ({ ...f, [k]: v }));
   // Se valida contra lo guardado: un dato que ya venía mal del padrón y no se tocó avisa, no traba.
   const validacion = validarPerfil(profileForm, profile || {}, isHuman);
 
@@ -348,21 +381,45 @@ export default function ClienteDetailPage() {
         <div className="bg-surface border rounded-xl p-5 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="font-medium text-gray-700">Padrón (sistema anterior)</h3>
-            {client.padron.baja && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
-                Dado de baja{client.padron.motivo_baja ? `: ${client.padron.motivo_baja}` : ""}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {client.padron.baja && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                  Dado de baja{client.padron.motivo_baja ? `: ${client.padron.motivo_baja}` : ""}
+                </span>
+              )}
+              <PermissionGate moduleCode="clientes" action="clients:write">
+                {editingPadron ? (
+                  <div className="flex gap-1">
+                    <button onClick={handleSavePadron} className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700">
+                      <Check size={12} /> Guardar
+                    </button>
+                    <button onClick={() => { setEditingPadron(false); load(); }} className="p-1 text-gray-400 hover:text-gray-600 border rounded-lg">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingPadron(true)} aria-label="Editar padrón"
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                    <Pencil size={14} />
+                  </button>
+                )}
+              </PermissionGate>
+            </div>
           </div>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-            <Field label="Organismo"   value={[client.padron.organismo_numero, client.padron.organismo_codigo].filter(Boolean).join(" · ")} />
-            <Field label="Categoría"   value={client.padron.categoria} />
-            <Field label="Sueldo"      value={client.padron.sueldo != null ? money(client.padron.sueldo) : null} />
-            <Field label="Ingreso"     value={client.padron.fecha_ingreso} />
-            <Field label="Beneficio"   value={client.padron.beneficio} />
-            <Field label="Sucursal / cuenta" value={[client.padron.sucursal, client.padron.cuenta].filter(Boolean).join(" / ")} />
-            <Field label="Débito automático" value={client.padron.debito_automatico ? "Sí" : "No"} />
-            <Field label="Situación"   value={client.padron.situacion} />
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+            <Field label="Organismo"   value={client.padron.organismo_numero} editing={editingPadron} name="organismo_numero" form={padronForm} onChange={setPad} />
+            <Field label="Cód. organismo" value={client.padron.organismo_codigo} editing={editingPadron} name="organismo_codigo" form={padronForm} onChange={setPad} />
+            <Field label="Categoría"   value={client.padron.categoria} editing={editingPadron} name="categoria" form={padronForm} onChange={setPad} />
+            <Field label="Nro. categoría" value={client.padron.categoria_numero} editing={editingPadron} name="categoria_numero" form={padronForm} onChange={setPad} />
+            <Field label="Sueldo"      value={client.padron.sueldo != null ? money(client.padron.sueldo) : null} editing={editingPadron} name="sueldo" form={padronForm} onChange={setPad} />
+            <Field label="Ingreso"     value={client.padron.fecha_ingreso} editing={editingPadron} name="fecha_ingreso" form={padronForm} onChange={setPad} type="date" max={hoyISO()} />
+            <Field label="Beneficio"   value={client.padron.beneficio} editing={editingPadron} name="beneficio" form={padronForm} onChange={setPad} />
+            <Field label="Tipo"        value={client.padron.tipo_cliente} editing={editingPadron} name="tipo_cliente" form={padronForm} onChange={setPad} />
+            <Field label="Situación"   value={client.padron.situacion} editing={editingPadron} name="situacion" form={padronForm} onChange={setPad} />
+            <Field label="Agente"      value={client.padron.agente} editing={editingPadron} name="agente" form={padronForm} onChange={setPad} />
+            <Field label="Sucursal"    value={client.padron.sucursal} editing={editingPadron} name="sucursal" form={padronForm} onChange={setPad} />
+            <Field label="Cuenta"      value={client.padron.cuenta} editing={editingPadron} name="cuenta" form={padronForm} onChange={setPad} />
+            <Field label="Débito automático" value={client.padron.debito_automatico ? "Sí" : "No"} editing={editingPadron} name="debito_automatico" form={padronForm} onChange={setPad} options={[["true", "Sí"], ["false", "No"]]} />
           </dl>
 
           {client.legacy_refs?.length > 0 && (

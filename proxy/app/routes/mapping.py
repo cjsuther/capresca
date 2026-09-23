@@ -94,6 +94,7 @@ ROUTE_MAP = [
 
     # ── Clientes ────────────────────────────────────────────────
     # Documentos del cliente (DNI, recibo…): verlos pide lectura; cargarlos o borrarlos, escritura.
+    ("PUT",    r"^/api/clientes/\d+/padron$",           settings.clientes_service_url, "clientes:clients:write"),
     # Padrón: importación masiva del maestro del sistema anterior (permiso propio).
     ("POST",   r"^/api/clientes/padron/importaciones$",  settings.clientes_service_url, "clientes:padron:importar"),
     ("GET",    r"^/api/clientes/padron/importaciones(/\d+(/rechazos)?)?$", settings.clientes_service_url, "clientes:padron:importar"),

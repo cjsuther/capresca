@@ -69,28 +69,28 @@ describe("Layout", () => {
     expect(screen.getByText("tablero")).toBeInTheDocument();
   });
 
-  it("hay un botón Inicio que vuelve al tablero", async () => {
+  // El Inicio vive en el menú de cada módulo (todos usan el mismo Sidebar). En la barra de arriba
+  // sería un tercer camino para lo mismo, además del logo.
+  it("la barra de arriba no repite el botón Inicio", () => {
     montar();
-    const boton = screen.getByRole("link", { name: "Inicio" });
-    expect(boton).toHaveAttribute("href", "/dashboard");
-    await userEvent.click(boton);
-    expect(await screen.findByText("tablero")).toBeInTheDocument();
-  });
-
-  it("estando en el inicio no se muestra el botón Inicio", () => {
-    render(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <Routes>
-          <Route path="/dashboard" element={<Layout><p>tablero</p></Layout>} />
-        </Routes>
-      </MemoryRouter>,
-    );
     expect(screen.queryByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
   });
 
-  it("el menú lateral también ofrece volver al inicio", () => {
+  it("el logo vuelve al tablero", async () => {
+    montar();
+    const logo = screen.getByRole("link", { name: /Portezuelo/ });
+    expect(logo).toHaveAttribute("href", "/dashboard");
+    await userEvent.click(logo);
+    expect(await screen.findByText("tablero")).toBeInTheDocument();
+  });
+
+  it("el menú lateral ofrece volver al inicio", async () => {
     montar({ sidebar: <Sidebar menuItems={[]} moduleCode="security" /> });
-    expect(screen.getAllByRole("link", { name: "Inicio" }).length).toBeGreaterThan(1);
+    // El layout dibuja el menú dos veces: el fijo de escritorio y el cajón del celular.
+    const inicios = screen.getAllByRole("link", { name: "Inicio" });
+    expect(inicios[0]).toHaveAttribute("href", "/dashboard");
+    await userEvent.click(inicios[0]);
+    expect(await screen.findByText("tablero")).toBeInTheDocument();
   });
 
   it("el menú de usuario se abre y se cierra con el overlay", async () => {

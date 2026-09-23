@@ -4,6 +4,7 @@ from sqlalchemy import or_
 from fastapi import HTTPException
 
 from app.models.client import Client, HumanClient, LegalClient, ClientContact, ClientNote, ClientType, LegalClientMember
+from app.models.padron import ClientPadron
 from app.schemas.client import (
     HumanClientCreate, LegalClientCreate, ClientBaseUpdate,
     ContactCreate, NoteCreate, MemberCreate
@@ -60,6 +61,23 @@ def list_clients(db: Session, client_type: str = None, search: str = None,
     clients = (q.order_by(Client.id)
                 .offset((page - 1) * per_page).limit(per_page).all())
     return clients, total
+
+
+def update_padron(db: Session, client_id: int, data) -> Client:
+    """Corrige la ficha de revista del cliente. Si todavía no tenía (alta manual), se crea.
+
+    Sólo se tocan los campos que vienen en el pedido: mandar uno en null lo borra, no mandarlo lo
+    deja como estaba."""
+    cliente = get_client(db, client_id)
+    ficha = db.get(ClientPadron, client_id)
+    if ficha is None:
+        ficha = ClientPadron(client_id=client_id)
+        db.add(ficha)
+    for campo, valor in data.model_dump(exclude_unset=True).items():
+        setattr(ficha, campo, valor)
+    db.commit()
+    db.refresh(cliente)
+    return cliente
 
 
 def get_client(db: Session, client_id: int) -> Client:

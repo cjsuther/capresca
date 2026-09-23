@@ -7,7 +7,7 @@ import ClienteDetailPage from "./ClienteDetailPage";
 import { useAuthStore } from "../../../context/authStore";
 import {
   getClient, getNotes, addNote,
-  updateClient, updateHumanProfile, updateLegalProfile,
+  updateClient, updateHumanProfile, updateLegalProfile, updatePadron,
   getMembers, addMember, removeMember,
   searchClients, getCbus, addCbu, deleteCbu,
 } from "../../../api/clientes";
@@ -22,6 +22,7 @@ vi.mock("../../../api/clientes", () => ({
   updateClient: vi.fn(),
   updateHumanProfile: vi.fn(),
   updateLegalProfile: vi.fn(),
+  updatePadron: vi.fn(),
   getMembers: vi.fn(),
   addMember: vi.fn(),
   removeMember: vi.fn(),
@@ -642,11 +643,12 @@ describe("ClienteDetailPage — miembros (solo persona jurídica)", () => {
     montar("3");
 
     expect(await screen.findByText("Padrón (sistema anterior)")).toBeInTheDocument();
-    expect(screen.getByText("13 · ACA")).toBeInTheDocument();
+    expect(screen.getByText("13")).toBeInTheDocument();          // organismo
+    expect(screen.getByText("ACA")).toBeInTheDocument();
     expect(screen.getByText("AGENTE")).toBeInTheDocument();
     expect(screen.getByText("$ 910.000,00")).toBeInTheDocument();
-    expect(screen.getByText("2 / 4501")).toBeInTheDocument();
-    expect(screen.getByText("Sí")).toBeInTheDocument();          // débito automático
+    expect(screen.getByText("4501")).toBeInTheDocument();         // cuenta
+    expect(screen.getByText("Sí")).toBeInTheDocument();           // débito automático
     expect(screen.getByText(/Registros que tenía en el sistema anterior \(2\)/)).toBeInTheDocument();
     expect(screen.getByText(/ACA20305047571M/)).toBeInTheDocument();
     expect(screen.getByText(/AGJ20305047571M · org 9/)).toBeInTheDocument();
@@ -779,5 +781,42 @@ describe("ClienteDetailPage — miembros (solo persona jurídica)", () => {
     expect(await within(ficha).findByText(/El CUIT no es válido/)).toBeInTheDocument();
     await user.click(within(ficha).getByRole("button", { name: /Guardar/ }));
     expect(updateLegalProfile).not.toHaveBeenCalled();
+  });
+
+  it("la ficha del padrón se puede corregir", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue(IMPORTADO);
+    updatePadron.mockResolvedValue(IMPORTADO);
+    montar("3");
+    await screen.findByText("Padrón (sistema anterior)");
+
+    await user.click(screen.getByRole("button", { name: "Editar padrón" }));
+    const categoria = screen.getByLabelText("Categoría");
+    await user.clear(categoria);
+    await user.type(categoria, "JEFE DE DEPARTAMENTO");
+    expect(screen.getByLabelText("Ingreso")).toHaveAttribute("type", "date");
+    await user.selectOptions(screen.getByLabelText("Débito automático"), "false");
+
+    await user.click(screen.getAllByRole("button", { name: /Guardar/ })[0]);
+    await waitFor(() => expect(updatePadron).toHaveBeenCalledTimes(1));
+    expect(updatePadron).toHaveBeenCalledWith("3", expect.objectContaining({
+      categoria: "JEFE DE DEPARTAMENTO", debito_automatico: false,
+    }));
+  });
+
+  it("no guarda la ficha con un sueldo que no es número", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue(IMPORTADO);
+    montar("3");
+    await screen.findByText("Padrón (sistema anterior)");
+
+    await user.click(screen.getByRole("button", { name: "Editar padrón" }));
+    const sueldo = screen.getByLabelText("Sueldo");
+    await user.clear(sueldo);
+    await user.type(sueldo, "mil pesos");
+    await user.click(screen.getAllByRole("button", { name: /Guardar/ })[0]);
+
+    expect(await screen.findByText(/El sueldo tiene que ser un número/)).toBeInTheDocument();
+    expect(updatePadron).not.toHaveBeenCalled();
   });
 });

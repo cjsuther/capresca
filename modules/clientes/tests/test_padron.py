@@ -329,3 +329,40 @@ def test_el_listado_no_trae_el_padron(client, h, db, correr):
     correr([fila("A1", "20305047571", "CORDOBA, EDGARDO", 30504757)])
     fila_listado = client.get("/api/clientes", headers=h).json()["data"][0]
     assert "padron" not in fila_listado
+
+
+def test_se_corrige_la_ficha_de_revista(client, h, db, correr):
+    """El padrón viejo trae datos flojos (categorías vacías, sueldos desactualizados): la ficha se
+    tiene que poder corregir a mano."""
+    correr([fila("A1", "20305047571", "CORDOBA, EDGARDO", 30504757, NORGANO=13, NSUELDO=900000)])
+    cid = db.query(Client).one().id
+
+    r = client.put(f"/api/clientes/{cid}/padron", headers=h,
+                   json={"categoria": "JEFE DE DEPARTAMENTO", "sueldo": 1250000.5,
+                         "debito_automatico": False, "fecha_ingreso": "2005-03-01"})
+    assert r.status_code == 200, r.text
+    p = r.json()["padron"]
+    assert p["categoria"] == "JEFE DE DEPARTAMENTO" and float(p["sueldo"]) == 1250000.5
+    assert p["debito_automatico"] is False and p["fecha_ingreso"] == "2005-03-01"
+    assert p["organismo_numero"] == 13, "lo que no se manda no se toca"
+
+    # Quedó guardado de verdad.
+    assert client.get(f"/api/clientes/{cid}", headers=h).json()["padron"]["categoria"] == "JEFE DE DEPARTAMENTO"
+
+
+def test_un_cliente_sin_ficha_la_recibe_al_corregirla(client, h, crear_ph):
+    """Un cliente cargado a mano no tiene ficha de padrón; si se le cargan datos, se crea."""
+    cli = crear_ph(nombre="Ana", apellido="Manual", documento="28111222")
+    r = client.put(f"/api/clientes/{cli['id']}/padron", headers=h,
+                   json={"organismo_numero": 9, "categoria": "CONTRATADO"})
+    assert r.status_code == 200
+    assert r.json()["padron"]["organismo_numero"] == 9
+
+
+def test_la_baja_no_se_cambia_desde_la_ficha(client, h, db, correr):
+    """Dar de baja es un cambio de estado del cliente, no un campo más del padrón."""
+    correr([fila("A1", "20305047571", "CORDOBA, EDGARDO", 30504757)])
+    cid = db.query(Client).one().id
+    r = client.put(f"/api/clientes/{cid}/padron", headers=h, json={"baja": True, "categoria": "X"})
+    assert r.status_code == 200
+    assert r.json()["padron"]["baja"] is False and r.json()["padron"]["categoria"] == "X"
