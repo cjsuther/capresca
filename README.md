@@ -276,6 +276,31 @@ docker compose down
 docker compose down -v
 ```
 
+## HTTPS
+
+En desarrollo el sitio va por HTTP y no hace falta nada. En un servidor con dominio propio:
+
+1. `NGINX_CONF=nginx.ssl.conf` y `CREDITOS_PUBLIC_URL=https://<dominio>` en el `.env`.
+2. El dominio tiene que resolver a la IP del servidor y el puerto 80 quedar abierto: por ahí viaja
+   el desafío de Let's Encrypt (`nginx/acme.conf`), que es lo único que no se redirige a HTTPS.
+3. Emitir el certificado, una sola vez:
+
+```bash
+docker run --rm -v sistema-modular_certbot_conf:/etc/letsencrypt \
+  -v sistema-modular_certbot_www:/var/www/certbot certbot/certbot certonly \
+  --webroot -w /var/www/certbot -d <dominio> --email <mail> --agree-tos --no-eff-email -n
+docker compose up -d nginx
+```
+
+4. Renovación: `/opt/renovar-certificado.sh` en cron, dos veces por día. Certbot renueva recién
+   cuando faltan menos de 30 días de los 90 que dura, y nginx se recarga sólo si cambió.
+
+Los certificados viven en los volúmenes `certbot_conf` y `certbot_www`, **no** en el árbol del
+código: el deploy hace `rsync --delete` y se los llevaría puestos. El dominio está escrito en
+`nginx/nginx.ssl.conf`; si cambia, se cambia ahí y se vuelve a emitir.
+
+En el servidor de desarrollo esto ya está hecho: **https://dev.ccypp.gob.ar**.
+
 ## Acceso remoto (túnel ngrok)
 
 Por defecto el sistema solo escucha en el puerto 80 del host (accesible desde la
