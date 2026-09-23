@@ -1,5 +1,7 @@
+from decimal import Decimal
+
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from app.models.client import ClientType
 
@@ -42,6 +44,7 @@ class HumanProfileCreate(BaseModel):
     last_name: str
     document_type: Optional[str] = None
     document_number: Optional[str] = None
+    cuil: Optional[str] = None
     birth_date: Optional[str] = None
     gender: Optional[str] = None
     nationality: Optional[str] = None
@@ -52,6 +55,7 @@ class HumanProfileResponse(BaseModel):
     last_name: str
     document_type: Optional[str]
     document_number: Optional[str]
+    cuil: Optional[str] = None
     birth_date: Optional[str]
     gender: Optional[str]
     nationality: Optional[str]
@@ -89,7 +93,10 @@ class ClientBaseUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    neighborhood: Optional[str] = None
     city: Optional[str] = None
+    department: Optional[str] = None
+    postal_code: Optional[str] = None
     country: Optional[str] = None
 
 
@@ -112,6 +119,37 @@ class LegalClientCreate(BaseModel):
     profile: LegalProfileCreate
 
 
+# ── Padrón del sistema anterior ─────────────────────────────────
+class PadronResponse(BaseModel):
+    """Datos de revista que trae el maestro de CCyPP. Sólo los tienen los clientes importados."""
+    organismo_numero: Optional[int] = None
+    organismo_codigo: Optional[str] = None
+    categoria_numero: Optional[int] = None
+    categoria: Optional[str] = None
+    sueldo: Optional[Decimal] = None
+    fecha_ingreso: Optional[date] = None
+    tipo_cliente: Optional[int] = None
+    situacion: Optional[int] = None
+    agente: Optional[int] = None
+    sucursal: Optional[int] = None
+    cuenta: Optional[int] = None
+    beneficio: Optional[str] = None
+    debito_automatico: bool = False
+    baja: bool = False
+    motivo_baja: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class LegacyRefResponse(BaseModel):
+    """Cada registro que la persona tenía en el sistema viejo (uno por organismo)."""
+    cidcliente: str
+    organismo_numero: Optional[int] = None
+    beneficio: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 # ── Respuesta completa ──────────────────────────────────────────
 class ClientResponse(BaseModel):
     id: int
@@ -120,7 +158,10 @@ class ClientResponse(BaseModel):
     email: Optional[str]
     phone: Optional[str]
     address: Optional[str]
+    neighborhood: Optional[str] = None
     city: Optional[str]
+    department: Optional[str] = None
+    postal_code: Optional[str] = None
     country: Optional[str]
     is_active: bool
     created_at: datetime
@@ -130,6 +171,13 @@ class ClientResponse(BaseModel):
     contacts: List[ContactResponse] = []
 
     model_config = {"from_attributes": True}
+
+
+class ClientDetailResponse(ClientResponse):
+    """El detalle agrega lo del padrón. Va aparte del listado a propósito: traerlo por fila serían
+    dos consultas más por cada cliente de la página."""
+    padron: Optional[PadronResponse] = None
+    legacy_refs: List[LegacyRefResponse] = []
 
 
 class ClientListResponse(BaseModel):

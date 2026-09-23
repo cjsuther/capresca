@@ -48,6 +48,28 @@ const HUMANO = {
   },
 };
 
+// Cliente que vino de la importación del padrón: trae CUIL, domicilio completo, ficha de revista
+// y los registros que la persona tenía en el sistema viejo (uno por organismo).
+const IMPORTADO = {
+  ...HUMANO,
+  id: 3,
+  code: "PAD20305047571",
+  neighborhood: "CENTRO",
+  department: "CAPITAL",
+  postal_code: "K4700",
+  human_profile: { ...HUMANO.human_profile, cuil: "20305047571" },
+  padron: {
+    organismo_numero: 13, organismo_codigo: "ACA", categoria: "AGENTE",
+    sueldo: "910000.00", fecha_ingreso: "2005-03-01", beneficio: "BEN-1",
+    sucursal: 2, cuenta: 4501, debito_automatico: true, situacion: 1,
+    baja: false, motivo_baja: null,
+  },
+  legacy_refs: [
+    { cidcliente: "ACA20305047571M", organismo_numero: 13, beneficio: null },
+    { cidcliente: "AGJ20305047571M", organismo_numero: 9, beneficio: null },
+  ],
+};
+
 const JURIDICO = {
   id: 2,
   code: "CLI-0002",
@@ -612,5 +634,47 @@ describe("ClienteDetailPage — miembros (solo persona jurídica)", () => {
     expect(screen.queryByPlaceholderText("Buscar por nombre o documento...")).not.toBeInTheDocument();
     const fila = screen.getByText("Juan Gómez").closest("div.bg-gray-50");
     expect(within(fila).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  // ── Padrón del sistema anterior ─────────────────────────────────────────
+  it("muestra la ficha del padrón y los registros del sistema viejo", async () => {
+    getClient.mockResolvedValue(IMPORTADO);
+    montar("3");
+
+    expect(await screen.findByText("Padrón (sistema anterior)")).toBeInTheDocument();
+    expect(screen.getByText("13 · ACA")).toBeInTheDocument();
+    expect(screen.getByText("AGENTE")).toBeInTheDocument();
+    expect(screen.getByText("$ 910.000,00")).toBeInTheDocument();
+    expect(screen.getByText("2 / 4501")).toBeInTheDocument();
+    expect(screen.getByText("Sí")).toBeInTheDocument();          // débito automático
+    expect(screen.getByText(/Registros que tenía en el sistema anterior \(2\)/)).toBeInTheDocument();
+    expect(screen.getByText(/ACA20305047571M/)).toBeInTheDocument();
+    expect(screen.getByText(/AGJ20305047571M · org 9/)).toBeInTheDocument();
+  });
+
+  it("muestra el CUIL y el domicilio completo del padrón", async () => {
+    getClient.mockResolvedValue(IMPORTADO);
+    montar("3");
+
+    expect(await screen.findByText("20305047571")).toBeInTheDocument();
+    expect(screen.getByText("CENTRO")).toBeInTheDocument();
+    expect(screen.getByText("CAPITAL")).toBeInTheDocument();
+    expect(screen.getByText("K4700")).toBeInTheDocument();
+  });
+
+  it("un cliente cargado a mano no muestra la ficha de padrón", async () => {
+    getClient.mockResolvedValue(HUMANO);
+    montar();
+    await screen.findByText("Ana Pérez");
+    expect(screen.queryByText("Padrón (sistema anterior)")).not.toBeInTheDocument();
+  });
+
+  it("avisa cuando la persona está dada de baja en el padrón", async () => {
+    getClient.mockResolvedValue({
+      ...IMPORTADO,
+      padron: { ...IMPORTADO.padron, baja: true, motivo_baja: "RENUNCIA" },
+    });
+    montar("3");
+    expect(await screen.findByText("Dado de baja: RENUNCIA")).toBeInTheDocument();
   });
 });

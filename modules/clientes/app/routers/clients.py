@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.db.session import get_db
+from app.models import ClientLegacyRef, ClientPadron
 from app.dependencies.current_user import get_current_user_id
 from app.schemas.client import (
     HumanClientCreate, LegalClientCreate, ClientBaseUpdate,
     HumanProfileCreate, LegalProfileCreate,
     ContactCreate, ContactResponse,
     NoteCreate, NoteResponse,
-    ClientResponse, ClientListResponse,
+    ClientResponse, ClientDetailResponse, ClientListResponse,
     MemberCreate, MemberResponse,
 )
 from app.services.client_service import (
@@ -67,9 +68,16 @@ def create_legal(
     return create_legal_client(db, data, user_id)
 
 
-@router.get("/{client_id}", response_model=ClientResponse)
+@router.get("/{client_id}", response_model=ClientDetailResponse)
 def detail(client_id: int, db: Session = Depends(get_db)):
-    return get_client(db, client_id)
+    """El cliente con lo del padrón del sistema anterior, si vino de ahí."""
+    cliente = get_client(db, client_id)
+    salida = ClientDetailResponse.model_validate(cliente)
+    salida.padron = db.get(ClientPadron, client_id)
+    salida.legacy_refs = (db.query(ClientLegacyRef)
+                            .filter(ClientLegacyRef.client_id == client_id)
+                            .order_by(ClientLegacyRef.cidcliente).all())
+    return salida
 
 
 @router.put("/{client_id}", response_model=ClientResponse)

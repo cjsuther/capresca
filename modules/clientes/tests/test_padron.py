@@ -298,3 +298,34 @@ def test_procesa_de_a_lotes_y_va_guardando_el_avance(db, correr, monkeypatch):
     imp = correr([fila(f"A{i}", f"203050475{i:02d}", f"UNO{i}, UNO", 30504700 + i) for i in range(5)])
     assert (imp.procesados, imp.creados) == (5, 5)
     assert db.query(Client).count() == 5
+
+
+# --------------------------------------------------------------------------- lo que ve la pantalla
+def test_el_detalle_devuelve_los_datos_del_padron(client, h, db, correr):
+    """De nada sirve importar 39 campos si la API no los muestra: el detalle tiene que traer el CUIL,
+    el domicilio completo, la ficha de revista y los registros que la persona tenía en el sistema
+    viejo (uno por organismo)."""
+    correr([
+        fila("ACA20305047571M", "20305047571", "CORDOBA, EDGARDO", 30504757, NORGANO=13,
+             CDOMICILIO="SAN MARTIN 123", CBARRIO="CENTRO", CLOCALIDAD="SFV CATAMARCA",
+             CDEPTO="CAPITAL", CCPA="K4700", NSUELDO=850000, CCATFUN="AGENTE", LDEBAUTO=True),
+        # Segundo organismo de la misma persona: su ficha de revista es la que queda (el maestro
+        # viejo manda en esos datos), y por eso el sueldo esperado es el de esta fila.
+        fila("AGJ20305047571M", "20305047571", "CORDOBA, EDGARDO", 30504757, NORGANO=9,
+             NSUELDO=910000, LDEBAUTO=True),
+    ])
+    cid = db.query(Client).one().id
+
+    d = client.get(f"/api/clientes/{cid}", headers=h).json()
+    assert d["human_profile"]["cuil"] == "20305047571"
+    assert (d["neighborhood"], d["department"], d["postal_code"]) == ("CENTRO", "CAPITAL", "K4700")
+    assert d["padron"]["categoria"] == "AGENTE" and float(d["padron"]["sueldo"]) == 910000
+    assert d["padron"]["debito_automatico"] is True
+    assert [r["cidcliente"] for r in d["legacy_refs"]] == ["ACA20305047571M", "AGJ20305047571M"]
+
+
+def test_el_listado_no_trae_el_padron(client, h, db, correr):
+    """Traerlo por fila serían dos consultas más por cada cliente de la página."""
+    correr([fila("A1", "20305047571", "CORDOBA, EDGARDO", 30504757)])
+    fila_listado = client.get("/api/clientes", headers=h).json()["data"][0]
+    assert "padron" not in fila_listado

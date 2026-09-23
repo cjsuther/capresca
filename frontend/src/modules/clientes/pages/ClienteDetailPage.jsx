@@ -14,6 +14,9 @@ import {
 import { DocumentosCliente } from "../components/DocumentosCliente";
 
 // ── Campo editable ───────────────────────────────────────────────
+const money = (n) =>
+  `$ ${Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 function Field({ label, value, editing, name, form, onChange, type = "text" }) {
   return (
     <div className="flex justify-between items-center text-sm">
@@ -67,7 +70,10 @@ export default function ClienteDetailPage() {
   const load = () =>
     getClient(id).then((c) => {
       setClient(c);
-      setBaseForm({ email: c.email || "", phone: c.phone || "", address: c.address || "", city: c.city || "", country: c.country || "" });
+      setBaseForm({ email: c.email || "", phone: c.phone || "", address: c.address || "",
+                    neighborhood: c.neighborhood || "", city: c.city || "",
+                    department: c.department || "", postal_code: c.postal_code || "",
+                    country: c.country || "" });
       const p = c.client_type === "HUMAN" ? c.human_profile : c.legal_profile;
       setProfileForm(p ? { ...p } : {});
     });
@@ -246,7 +252,10 @@ export default function ClienteDetailPage() {
             <Field label="Email"     value={client.email}   editing={editingBase} name="email"   form={baseForm} onChange={setBase} />
             <Field label="Teléfono"  value={client.phone}   editing={editingBase} name="phone"   form={baseForm} onChange={setBase} />
             <Field label="Dirección" value={client.address} editing={editingBase} name="address" form={baseForm} onChange={setBase} />
+            <Field label="Barrio"    value={client.neighborhood} editing={editingBase} name="neighborhood" form={baseForm} onChange={setBase} />
             <Field label="Ciudad"    value={client.city}    editing={editingBase} name="city"    form={baseForm} onChange={setBase} />
+            <Field label="Departamento" value={client.department} editing={editingBase} name="department" form={baseForm} onChange={setBase} />
+            <Field label="Código postal" value={client.postal_code} editing={editingBase} name="postal_code" form={baseForm} onChange={setBase} />
             <Field label="País"      value={client.country} editing={editingBase} name="country" form={baseForm} onChange={setBase} />
           </dl>
         </div>
@@ -278,6 +287,7 @@ export default function ClienteDetailPage() {
               <Field label="Apellido"     value={profile?.last_name}       editing={editingProfile} name="last_name"       form={profileForm} onChange={setProf} />
               <Field label="Tipo doc."    value={profile?.document_type}   editing={editingProfile} name="document_type"   form={profileForm} onChange={setProf} />
               <Field label="Nro. doc."    value={profile?.document_number} editing={editingProfile} name="document_number" form={profileForm} onChange={setProf} />
+              <Field label="CUIL"         value={profile?.cuil}            editing={editingProfile} name="cuil"            form={profileForm} onChange={setProf} />
               <Field label="Nacimiento"   value={profile?.birth_date}      editing={editingProfile} name="birth_date"      form={profileForm} onChange={setProf} />
               <Field label="Nacionalidad" value={profile?.nationality}     editing={editingProfile} name="nationality"     form={profileForm} onChange={setProf} />
             </dl>
@@ -295,6 +305,47 @@ export default function ClienteDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Padrón del sistema anterior: sólo lo tienen los clientes que vinieron de la importación. */}
+      {client.padron && (
+        <div className="bg-surface border rounded-xl p-5 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h3 className="font-medium text-gray-700">Padrón (sistema anterior)</h3>
+            {client.padron.baja && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                Dado de baja{client.padron.motivo_baja ? `: ${client.padron.motivo_baja}` : ""}
+              </span>
+            )}
+          </div>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+            <Field label="Organismo"   value={[client.padron.organismo_numero, client.padron.organismo_codigo].filter(Boolean).join(" · ")} />
+            <Field label="Categoría"   value={client.padron.categoria} />
+            <Field label="Sueldo"      value={client.padron.sueldo != null ? money(client.padron.sueldo) : null} />
+            <Field label="Ingreso"     value={client.padron.fecha_ingreso} />
+            <Field label="Beneficio"   value={client.padron.beneficio} />
+            <Field label="Sucursal / cuenta" value={[client.padron.sucursal, client.padron.cuenta].filter(Boolean).join(" / ")} />
+            <Field label="Débito automático" value={client.padron.debito_automatico ? "Sí" : "No"} />
+            <Field label="Situación"   value={client.padron.situacion} />
+          </dl>
+
+          {client.legacy_refs?.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              {/* En el sistema viejo la persona figuraba una vez por organismo. */}
+              <p className="text-xs text-gray-500 mb-2">
+                Registros que tenía en el sistema anterior ({client.legacy_refs.length})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {client.legacy_refs.map((r) => (
+                  <span key={r.cidcliente}
+                        className="font-mono text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600">
+                    {r.cidcliente}{r.organismo_numero ? ` · org ${r.organismo_numero}` : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Miembros (solo PJ) */}
       {!isHuman && (
