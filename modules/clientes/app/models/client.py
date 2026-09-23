@@ -18,7 +18,10 @@ class Client(Base):
     email = Column(String(255), nullable=True, index=True)
     phone = Column(String(64), nullable=True)
     address = Column(String(255), nullable=True)
+    neighborhood = Column(String(64), nullable=True)      # barrio (padrón CCyPP)
     city = Column(String(128), nullable=True)
+    department = Column(String(64), nullable=True)        # departamento de la provincia
+    postal_code = Column(String(12), nullable=True)
     country = Column(String(64), nullable=True, default="AR")
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -41,6 +44,9 @@ class HumanClient(Base):
     last_name = Column(String(128), nullable=False)
     document_type = Column(String(32), nullable=True)
     document_number = Column(String(64), nullable=True, index=True)
+    # CUIL: es con lo que se unifica el padrón (en el sistema viejo la misma persona aparece una vez
+    # por organismo, siempre con el mismo CUIL).
+    cuil = Column(String(11), nullable=True, index=True)
     birth_date = Column(String(16), nullable=True)
     gender = Column(String(16), nullable=True)
     nationality = Column(String(64), nullable=True)

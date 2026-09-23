@@ -80,3 +80,25 @@ export const getDocumentoArchivo = (clientId, docId) =>
 
 export const borrarDocumento = (clientId, docId) =>
   api.delete(`/clientes/${clientId}/documentos/${docId}`);
+
+// ── Padrón del sistema anterior (importación masiva) ──
+export const subirPadron = (archivo, onProgreso) => {
+  const f = new FormData();
+  f.append("file", archivo);
+  return api.post("/clientes/padron/importaciones", f, {
+    headers: { "Content-Type": "multipart/form-data" },
+    // El ZIP son ~10 MB: la barra muestra la subida antes de que empiece a procesarse.
+    onUploadProgress: (e) => onProgreso?.(e.total ? Math.round((e.loaded * 100) / e.total) : 0),
+  }).then((r) => r.data);
+};
+
+export const getImportaciones = () =>
+  api.get("/clientes/padron/importaciones").then((r) => r.data);
+
+export const getImportacion = (id) =>
+  api.get(`/clientes/padron/importaciones/${id}`).then((r) => r.data);
+
+export const getRechazosUrl = (id) => `/clientes/padron/importaciones/${id}/rechazos`;
+
+export const descargarRechazos = (id) =>
+  api.get(getRechazosUrl(id), { responseType: "blob" }).then((r) => r.data);

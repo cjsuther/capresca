@@ -171,7 +171,7 @@ Abrir el navegador en `http://localhost` e iniciar sesion con las credenciales p
 |--------|--------|-------------|
 | **Security** | 8001 | Autenticacion JWT, gestion de usuarios, grupos, roles y permisos. Los roles se asignan a usuarios o a grupos (cada integrante hereda los del grupo) |
 | **Cajeros** | 8002 | Reglas de autorizacion y transacciones de cajeros |
-| **Clientes** | 8003 | Gestion de clientes (personas fisicas y juridicas), CBUs |
+| **Clientes** | 8003 | Gestion de clientes (personas fisicas y juridicas), CBUs, documentos e importacion del padron del sistema anterior. Ver [modules/clientes/README.md](modules/clientes/README.md) |
 | **Interbanking** | 8004 | Integracion con Interbanking: cuentas, transferencias, pagos |
 | **Notificaciones** | 8005 | Servicio transversal de notificaciones (campanita en el menu) |
 | **Conciliacion** | 8006 | Conciliacion de juego: cruza liquidaciones con transacciones IB por CBU |

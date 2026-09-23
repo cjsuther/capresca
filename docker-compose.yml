@@ -18,6 +18,7 @@ volumes:
   tesoreria_data:
   auditoria_data:
   contabilidad_data:
+  clientes_padron:      # archivos del padrón subidos por la web (importación de clientes)
 
 services:
 
@@ -182,6 +183,10 @@ services:
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - PADRON_IMPORT_DIR=/data/padron
+    volumes:
+      # Padrón subido por la web: queda en disco para poder reprocesarlo si el módulo se reinicia.
+      - clientes_padron:/data/padron
     depends_on:
       db_clientes:
         condition: service_healthy

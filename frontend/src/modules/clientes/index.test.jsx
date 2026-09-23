@@ -27,6 +27,9 @@ vi.mock("../../api/clientes", () => ({
   deleteCbu: vi.fn(),
   createHumanClient: vi.fn(),
   createLegalClient: vi.fn(),
+  // Padrón: la pantalla de importación consulta el listado al montarse.
+  getImportaciones: vi.fn(async () => ({ items: [] })),
+  getImportacion: vi.fn(), subirPadron: vi.fn(), descargarRechazos: vi.fn(),
 }));
 
 vi.mock("../../api/notifications", () => ({
@@ -59,15 +62,27 @@ describe("ClientesModule", () => {
     sesion(["clients:read", "clients:write"]);
   });
 
-  it("el menú declara las tres secciones con sus permisos", () => {
+  it("el menú declara cada sección con su permiso", () => {
     expect(clientesMenu.map((i) => i.permission)).toEqual([
-      "clients:read", "clients:write", "clients:write",
+      "clients:read", "clients:write", "clients:write", "padron:importar",
     ]);
     expect(clientesMenu.map((i) => i.path)).toEqual([
       "/modules/clientes/lista",
       "/modules/clientes/nuevo/humano",
       "/modules/clientes/nuevo/juridico",
+      "/modules/clientes/padron",
     ]);
+  });
+
+  it("importar el padrón pide su propio permiso: con clients:write no aparece", async () => {
+    sesion(["clients:read", "clients:write"]);
+    montar("/modules/clientes/lista");
+    await screen.findByText("Sin resultados");
+    expect(screen.queryByText("Importar padrón")).not.toBeInTheDocument();
+
+    sesion(["clients:read", "padron:importar"]);
+    montar("/modules/clientes/padron");
+    expect(await screen.findByRole("heading", { name: "Importar padrón" })).toBeInTheDocument();
   });
 
   it("la raíz del módulo redirige al listado", async () => {

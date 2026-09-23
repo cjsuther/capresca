@@ -63,6 +63,7 @@ PERMISSIONS = {
     "clientes": [
         ("clients:read", "Ver clientes"),
         ("clients:write", "Crear/editar clientes"),
+        ("padron:importar", "Importar el padrón del sistema anterior"),
         ("contacts:read", "Ver contactos"),
         ("contacts:write", "Gestionar contactos"),
         ("notes:read", "Ver notas"),
