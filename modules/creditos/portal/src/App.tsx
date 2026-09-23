@@ -6,6 +6,26 @@ import { api, nuevoId, token, Video, Ciudadano, Producto, Simulacion, Solicitud,
 const money = (v: string | number) =>
   Number(v).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
 
+/** Lo tecleado ("1.234,56", "1234.56") al número que viaja al backend ("1234.56"). */
+const aNumero = (texto: string) => {
+  const limpio = texto.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".");
+  const n = Number(limpio);
+  return limpio === "" || isNaN(n) ? "" : String(n);
+};
+
+/** El sueldo ya cargado, con separador de miles y dos decimales. */
+const formatoMoneda = (v: string | number) =>
+  v === "" || v == null || isNaN(Number(v)) ? "" :
+    Number(v).toLocaleString("es-AR", { style: "currency", currency: "ARS",
+                                        minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Antigüedad: hasta dos dígitos de años (con medio año, por eso el decimal). */
+const acotarAnios = (texto: string) => {
+  const n = texto.replace(/[^\d.,]/g, "").replace(",", ".");
+  const entero = n.split(".")[0];
+  return entero.length > 2 ? entero.slice(0, 2) + (n.includes(".") ? "." + n.split(".")[1] : "") : n;
+};
+
 // Isotipo institucional — vector oficial (navy #1a3258 + verde #81bc26).
 function PortalLogo({ size = 40 }: { size?: number }) {
   const h = Math.round(size * 325 / 540);
@@ -277,10 +297,12 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [dni, setDni] = useState("");
   const [segmento, setSegmento] = useState("");
   const [nacimiento, setNacimiento] = useState("");     // fecha; la edad se calcula (antes se pedía la edad)
-  const [email, setEmail] = useState(sesion.email || "");
+  const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
   const [antiguedad, setAntiguedad] = useState("");
   const [sueldo, setSueldo] = useState("");
+  // El sueldo se guarda como número y se muestra con formato de moneda (se saca al editarlo).
+  const [sueldoTexto, setSueldoTexto] = useState("");
   const [pendingDocs, setPendingDocs] = useState<DocElegido[]>([]);   // adjuntos elegidos (se suben al enviar)
   const [docsErr, setDocsErr] = useState("");
   const docsFaltantes = DOCS_REQUERIDOS.filter((t) => !pendingDocs.some((d) => d.tipo === t));
@@ -325,8 +347,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     const d = borrador; if (!d) return;
     setApellido(d.apellido || ""); setNombre(d.nombre || ""); setDni(d.dni || "");
     setSegmento(d.segmento || ""); setNacimiento(d.nacimiento || "");
-    setEmail(d.email || sesion.email || ""); setTelefono(d.telefono || ""); setAntiguedad(d.antiguedad || "");
-    setSueldo(d.sueldo || ""); if (d.prodId) setProdId(d.prodId);
+    setEmail(d.email || ""); setTelefono(d.telefono || ""); setAntiguedad(d.antiguedad || "");
+    setSueldo(d.sueldo || ""); setSueldoTexto(d.sueldo ? formatoMoneda(d.sueldo) : "");
+    if (d.prodId) setProdId(d.prodId);
     setMonto(d.monto || "500000"); setPlazo(d.plazo || "12"); setCbu(d.cbu || "");
     setAceptaTerminos(!!d.aceptaTerminos); setAceptaDatos(!!d.aceptaDatos);
     // Los archivos no se guardan en el borrador: se retoma, como mucho, en Documentación.
@@ -638,12 +661,16 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <input type="email" value={email} maxLength={80} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@correo.com" /></label>
             <label className="p-fld"><span>Teléfono <b className="p-req">*</b></span>
               <input type="tel" inputMode="tel" value={telefono} maxLength={20}
-                     onChange={(e) => setTelefono(e.target.value)} placeholder="3834 000000" /></label>
+                     onChange={(e) => setTelefono(e.target.value)} /></label>
             <label className="p-fld"><span>Antigüedad laboral (años)</span>
-              <input type="number" min="0" step="0.5" value={antiguedad}
-                     onChange={(e) => setAntiguedad(e.target.value)} placeholder="—" /></label>
+              <input type="number" min="0" max="99" step="0.5" value={antiguedad}
+                     onChange={(e) => setAntiguedad(acotarAnios(e.target.value))} placeholder="—" /></label>
             <label className="p-fld"><span>Sueldo neto</span>
-              <input type="number" min="0" step="1000" value={sueldo} onChange={(e) => setSueldo(e.target.value)} placeholder="—" /></label>
+              <input inputMode="decimal" value={sueldoTexto}
+                     onChange={(e) => { setSueldoTexto(e.target.value); setSueldo(aNumero(e.target.value)); }}
+                     onBlur={() => setSueldoTexto(sueldo ? formatoMoneda(sueldo) : "")}
+                     onFocus={() => setSueldoTexto(sueldo)}
+                     placeholder="$ 0,00" /></label>
             {datosErr && <div className="p-col2 p-alert">{datosErr}</div>}
             <div className="p-col2 p-actions"><button className="p-btn" onClick={irASimulacion}>Continuar →</button></div>
           </div>

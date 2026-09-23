@@ -123,6 +123,49 @@ async function completarDatos(u: ReturnType<typeof userEvent.setup>) {
 }
 
 // ---------------------------------------------------------------------------
+describe("paso 1 · datos del solicitante", () => {
+  it("el email arranca vacío, aunque Mi Catamarca traiga uno", async () => {
+    // El correo de la cuenta de Mi Catamarca puede no ser el que usa: lo escribe él.
+    await montarLogueado();
+    expect(screen.getByLabelText(/Email/)).toHaveValue("");
+  });
+
+  it("el teléfono no lleva un número de ejemplo adentro", async () => {
+    await montarLogueado();
+    expect(screen.getByLabelText(/Teléfono/)).not.toHaveAttribute("placeholder");
+  });
+
+  it("la antigüedad admite hasta dos dígitos de años", async () => {
+    const u = await montarLogueado();
+    const campo = screen.getByLabelText(/Antigüedad/);
+    await u.type(campo, "123");
+    expect(campo).toHaveValue(12);          // es un campo numérico: no deja pasar el tercer dígito
+    expect(campo).toHaveAttribute("max", "99");
+  });
+
+  it("el sueldo se muestra con formato de moneda y dos decimales", async () => {
+    const u = await montarLogueado();
+    const campo = screen.getByLabelText(/Sueldo neto/);
+    await u.type(campo, "900000");
+    await u.tab();                                   // al salir del campo se formatea
+    // El formato es-AR separa el símbolo con un espacio duro.
+    expect((campo as HTMLInputElement).value.replace(/\u00a0/g, " ")).toBe("$ 900.000,00");
+
+    await u.click(campo);                            // al volver a editarlo, el número pelado
+    expect(campo).toHaveValue("900000");
+  });
+
+  it("el sueldo formateado viaja como número al simular", async () => {
+    const u = await montarLogueado();
+    await u.type(screen.getByLabelText(/Sueldo neto/), "1.234.567,89");
+    await u.tab();
+    await completarDatos(u);
+    await waitFor(() => expect(api.simular).toHaveBeenCalledWith(
+      expect.objectContaining({ sueldo: 1234567.89 })));
+  });
+});
+
+// ---------------------------------------------------------------------------
 describe("arranque de sesión", () => {
   it("sin token muestra el login de Mi Catamarca", async () => {
     render(<App />);
