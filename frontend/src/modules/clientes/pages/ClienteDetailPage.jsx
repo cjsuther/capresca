@@ -8,6 +8,9 @@ import {
 } from "../../../api/clientes";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import {
+  SEXOS, TIPOS_DOCUMENTO, TIPOS_ID_FISCAL, hoyISO, validarPerfil,
+} from "../validaciones";
+import {
   ArrowLeft, User, Building2, Pencil, Check, X,
   UserPlus, Trash2, Search, CreditCard, Plus,
 } from "lucide-react";
@@ -17,21 +20,46 @@ import { DocumentosCliente } from "../components/DocumentosCliente";
 const money = (n) =>
   `$ ${Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-function Field({ label, value, editing, name, form, onChange, type = "text" }) {
+/**
+ * Una fila de la ficha. En edición puede ser texto, una lista de opciones (`options`) o una fecha
+ * (`type="date"`), y muestra debajo lo que haya que corregir: en rojo lo que impide guardar, en
+ * ámbar lo que ya venía mal del padrón viejo y sólo se avisa.
+ */
+/** Texto visible de un valor de combo ("M" → "Masculino"). */
+function etiqueta(opciones, valor) {
+  return opciones.find(([v]) => v === valor)?.[1] || valor;
+}
+
+function Field({ label, value, editing, name, form, onChange, type = "text", options,
+                 error, warn, max, requerido }) {
+  const claseError = error ? "border-red-400 focus:ring-red-400" : "";
   return (
-    <div className="flex justify-between items-center text-sm">
-      <dt className="text-gray-500">{label}</dt>
-      <dd>
-        {editing
-          ? <input
-              type={type}
-              className="input text-sm text-right w-44"
-              value={form[name] ?? ""}
-              onChange={(e) => onChange(name, e.target.value)}
-            />
-          : (value || "—")
-        }
-      </dd>
+    <div className="text-sm py-0.5">
+      <div className="flex justify-between items-center gap-3">
+        <dt className="text-gray-500">
+          {label}{requerido && editing && <span className="text-red-500 ml-0.5">*</span>}
+        </dt>
+        <dd className="text-right">
+          {!editing ? (value || "—")
+            : options ? (
+              <select className={`input text-sm w-44 ${claseError}`} aria-label={label}
+                      value={form[name] ?? ""} onChange={(e) => onChange(name, e.target.value)}>
+                <option value="">(sin especificar)</option>
+                {options.map(([v, etiqueta]) => <option key={v} value={v}>{etiqueta}</option>)}
+              </select>
+            ) : (
+              <input type={type} max={max} aria-label={label}
+                     className={`input text-sm text-right w-44 ${claseError}`}
+                     value={form[name] ?? ""} onChange={(e) => onChange(name, e.target.value)} />
+            )}
+        </dd>
+      </div>
+      {editing && (error || warn) && (
+        <p className={`text-xs mt-0.5 text-right ${error ? "text-red-600" : "text-amber-600"}`}
+           role={error ? "alert" : "status"}>
+          {error || warn}
+        </p>
+      )}
     </div>
   );
 }
@@ -141,6 +169,10 @@ export default function ClienteDetailPage() {
   // ── Guardar perfil ───────────────────────────────────────────
   const handleSaveProfile = async () => {
     setError("");
+    if (validacion.hayBloqueo) {
+      setError("Revisá los datos marcados en rojo antes de guardar.");
+      return;
+    }
     try {
       if (client.client_type === "HUMAN") {
         await updateHumanProfile(id, profileForm);
@@ -204,6 +236,9 @@ export default function ClienteDetailPage() {
 
   const setBase = (k, v) => setBaseForm((f) => ({ ...f, [k]: v }));
   const setProf = (k, v) => setProfileForm((f) => ({ ...f, [k]: v }));
+  const msg = (campo) => ({ error: validacion.bloquean[campo], warn: validacion.avisos[campo] });
+  // Se valida contra lo guardado: un dato que ya venía mal del padrón y no se tocó avisa, no traba.
+  const validacion = validarPerfil(profileForm, profile || {}, isHuman);
 
   return (
     <div className="max-w-4xl">
@@ -283,21 +318,23 @@ export default function ClienteDetailPage() {
           </div>
           {isHuman && (
             <dl className="space-y-2">
-              <Field label="Nombre"       value={profile?.first_name}      editing={editingProfile} name="first_name"      form={profileForm} onChange={setProf} />
-              <Field label="Apellido"     value={profile?.last_name}       editing={editingProfile} name="last_name"       form={profileForm} onChange={setProf} />
-              <Field label="Tipo doc."    value={profile?.document_type}   editing={editingProfile} name="document_type"   form={profileForm} onChange={setProf} />
-              <Field label="Nro. doc."    value={profile?.document_number} editing={editingProfile} name="document_number" form={profileForm} onChange={setProf} />
-              <Field label="CUIL"         value={profile?.cuil}            editing={editingProfile} name="cuil"            form={profileForm} onChange={setProf} />
-              <Field label="Nacimiento"   value={profile?.birth_date}      editing={editingProfile} name="birth_date"      form={profileForm} onChange={setProf} />
+              <Field label="Nombre"       value={profile?.first_name}      editing={editingProfile} name="first_name"      form={profileForm} onChange={setProf} requerido {...msg("first_name")} />
+              <Field label="Apellido"     value={profile?.last_name}       editing={editingProfile} name="last_name"       form={profileForm} onChange={setProf} requerido {...msg("last_name")} />
+              <Field label="Tipo doc."    value={etiqueta(TIPOS_DOCUMENTO, profile?.document_type)} editing={editingProfile} name="document_type"   form={profileForm} onChange={setProf} options={TIPOS_DOCUMENTO} {...msg("document_type")} />
+              <Field label="Nro. doc."    value={profile?.document_number} editing={editingProfile} name="document_number" form={profileForm} onChange={setProf} {...msg("document_number")} />
+              <Field label="CUIL"         value={profile?.cuil}            editing={editingProfile} name="cuil"            form={profileForm} onChange={setProf} {...msg("cuil")} />
+              <Field label="Nacimiento"   value={profile?.birth_date}      editing={editingProfile} name="birth_date"      form={profileForm} onChange={setProf} type="date" max={hoyISO()} {...msg("birth_date")} />
+              <Field label="Sexo"         value={etiqueta(SEXOS, profile?.gender)} editing={editingProfile} name="gender" form={profileForm} onChange={setProf} options={SEXOS} {...msg("gender")} />
               <Field label="Nacionalidad" value={profile?.nationality}     editing={editingProfile} name="nationality"     form={profileForm} onChange={setProf} />
             </dl>
           )}
           {!isHuman && (
             <dl className="space-y-2">
-              <Field label="Razón social"  value={profile?.legal_name}          editing={editingProfile} name="legal_name"          form={profileForm} onChange={setProf} />
+              <Field label="Razón social"  value={profile?.legal_name}          editing={editingProfile} name="legal_name"          form={profileForm} onChange={setProf} requerido {...msg("legal_name")} />
               <Field label="Nombre com."   value={profile?.trade_name}          editing={editingProfile} name="trade_name"          form={profileForm} onChange={setProf} />
-              <Field label="Tipo ID fiscal" value={profile?.tax_id_type}        editing={editingProfile} name="tax_id_type"         form={profileForm} onChange={setProf} />
-              <Field label="ID Fiscal"     value={profile?.tax_id}              editing={editingProfile} name="tax_id"              form={profileForm} onChange={setProf} />
+              <Field label="Tipo ID fiscal" value={profile?.tax_id_type}        editing={editingProfile} name="tax_id_type"         form={profileForm} onChange={setProf} options={TIPOS_ID_FISCAL} {...msg("tax_id_type")} />
+              <Field label="ID Fiscal"     value={profile?.tax_id}              editing={editingProfile} name="tax_id"              form={profileForm} onChange={setProf} {...msg("tax_id")} />
+              <Field label="Constitución"  value={profile?.incorporation_date}  editing={editingProfile} name="incorporation_date"  form={profileForm} onChange={setProf} type="date" max={hoyISO()} {...msg("incorporation_date")} />
               <Field label="Representante" value={profile?.legal_representative} editing={editingProfile} name="legal_representative" form={profileForm} onChange={setProf} />
               <Field label="Sector"        value={profile?.industry_sector}     editing={editingProfile} name="industry_sector"     form={profileForm} onChange={setProf} />
               <Field label="Nro. Agencia"  value={profile?.agency_number}       editing={editingProfile} name="agency_number"       form={profileForm} onChange={setProf} />

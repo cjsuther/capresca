@@ -677,4 +677,107 @@ describe("ClienteDetailPage — miembros (solo persona jurídica)", () => {
     montar("3");
     expect(await screen.findByText("Dado de baja: RENUNCIA")).toBeInTheDocument();
   });
+
+  // ── Validaciones, combos y fechas de "Datos personales" ─────────────────
+  const editarPerfil = async (user) => {
+    await user.click(lapizDe("Datos personales"));
+    return panel("Datos personales");
+  };
+
+  it("el tipo de documento y el sexo son listas, y el nacimiento un selector de fecha", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue({ ...HUMANO, human_profile: { ...HUMANO.human_profile, gender: "F" } });
+    montar();
+    await screen.findByText("Ana Pérez");
+    const ficha = await editarPerfil(user);
+
+    const tipoDoc = within(ficha).getByLabelText("Tipo doc.");
+    expect(tipoDoc.tagName).toBe("SELECT");
+    expect([...tipoDoc.options].map((o) => o.value)).toContain("PASAPORTE");
+
+    const sexo = within(ficha).getByLabelText("Sexo");
+    expect(sexo.tagName).toBe("SELECT");
+    expect(sexo.value).toBe("F");
+
+    const nacimiento = within(ficha).getByLabelText("Nacimiento");
+    expect(nacimiento).toHaveAttribute("type", "date");
+    expect(nacimiento).toHaveAttribute("max");      // no deja elegir una fecha futura
+  });
+
+  it("fuera de edición el combo se ve con su etiqueta, no con el código", async () => {
+    getClient.mockResolvedValue({ ...HUMANO, human_profile: { ...HUMANO.human_profile, gender: "F" } });
+    montar();
+    expect(await screen.findByText("Femenino")).toBeInTheDocument();
+  });
+
+  it("no guarda un CUIL inválido y lo marca", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue(HUMANO);
+    montar();
+    await screen.findByText("Ana Pérez");
+    const ficha = await editarPerfil(user);
+
+    const cuil = within(ficha).getByLabelText("CUIL");
+    await user.clear(cuil);
+    await user.type(cuil, "20305047572");           // dígito verificador equivocado
+    expect(await within(ficha).findByText(/El CUIL no es válido/)).toBeInTheDocument();
+
+    await user.click(within(ficha).getByRole("button", { name: /Guardar/ }));
+    expect(updateHumanProfile).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Revisá los datos marcados en rojo/)).toBeInTheDocument();
+  });
+
+  it("no guarda sin nombre ni con una fecha de nacimiento futura", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue(HUMANO);
+    montar();
+    await screen.findByText("Ana Pérez");
+    const ficha = await editarPerfil(user);
+
+    await user.clear(within(ficha).getByLabelText("Nombre"));
+    expect(await within(ficha).findByText(/nombre es obligatorio/)).toBeInTheDocument();
+    await user.click(within(ficha).getByRole("button", { name: /Guardar/ }));
+    expect(updateHumanProfile).not.toHaveBeenCalled();
+  });
+
+  // Los 56 CUIL que el padrón viejo trae mal no pueden trabar la corrección de otro campo.
+  it("un CUIL que ya venía mal se avisa pero deja guardar otro campo", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue({
+      ...HUMANO, human_profile: { ...HUMANO.human_profile, cuil: "20305047572" },
+    });
+    updateHumanProfile.mockResolvedValue({});
+    montar();
+    await screen.findByText("Ana Pérez");
+    const ficha = await editarPerfil(user);
+
+    expect(await within(ficha).findByText(/El CUIL no es válido/)).toBeInTheDocument();
+    const nombre = within(ficha).getByLabelText("Nombre");
+    await user.clear(nombre);
+    await user.type(nombre, "Anabel");
+    await user.click(within(ficha).getByRole("button", { name: /Guardar/ }));
+
+    await waitFor(() => expect(updateHumanProfile).toHaveBeenCalledTimes(1));
+  });
+
+  it("la empresa valida el CUIT y tiene fecha de constitución", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue(JURIDICO);
+    getMembers.mockResolvedValue([]);
+    getCbus.mockResolvedValue([]);
+    montar("2");
+    await screen.findByRole("heading", { name: "Agencia Sur SRL" });
+
+    await user.click(lapizDe("Datos de la empresa"));
+    const ficha = panel("Datos de la empresa");
+    expect(within(ficha).getByLabelText("Constitución")).toHaveAttribute("type", "date");
+    expect(within(ficha).getByLabelText("Tipo ID fiscal").tagName).toBe("SELECT");
+
+    const cuit = within(ficha).getByLabelText("ID Fiscal");
+    await user.clear(cuit);
+    await user.type(cuit, "30711222334");
+    expect(await within(ficha).findByText(/El CUIT no es válido/)).toBeInTheDocument();
+    await user.click(within(ficha).getByRole("button", { name: /Guardar/ }));
+    expect(updateLegalProfile).not.toHaveBeenCalled();
+  });
 });
