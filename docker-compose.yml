@@ -37,6 +37,7 @@ services:
       # (HTTPS + redirección, el servidor). Las rutas viven en locations.conf, que usan las dos.
       - ./nginx/${NGINX_CONF:-nginx.conf}:/etc/nginx/nginx.conf:ro
       - ./nginx/locations.conf:/etc/nginx/locations.conf:ro
+      - ./nginx/acme.conf:/etc/nginx/acme.conf:ro
       # Certificados de Let's Encrypt y la carpeta del desafío ACME. Van en volúmenes con nombre
       # para que el deploy (que hace rsync --delete del código) no los borre.
       - certbot_conf:/etc/letsencrypt:ro
