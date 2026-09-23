@@ -63,6 +63,40 @@ def test_state_no_reutilizable(client):
     assert r2.status_code == 400          # replay: rechazado
 
 
+def test_el_login_guarda_el_desafio_en_el_servidor(client):
+    """PKCE y el nonce OIDC se guardan del lado del servidor: al navegador sólo le llega el state
+    firmado (y, con el proveedor real, el hash del verifier). El verifier nunca sale de acá."""
+    from app import models_productos as mp
+    from app.core.database import SessionLocal
+    from app.core.security import decode_token
+
+    url = client.get("/api/creditos/portal/auth/login").json()["authorize_url"]
+    state = url.split("state=")[1]
+    nonce = decode_token(state)["nonce"]
+    with SessionLocal() as db:
+        rec = db.get(mp.PPIdempotencia, f"oidc-state:{nonce}")
+        assert rec is not None and rec.respuesta["code_verifier"]
+        assert rec.respuesta["code_verifier"] not in url
+        assert rec.respuesta["nonce"]
+
+    client.get("/api/creditos/portal/auth/callback", params={"code": "mock-code", "state": state},
+               follow_redirects=False)
+    with SessionLocal() as db:      # consumido: el desafío no queda disponible para un replay
+        assert db.get(mp.PPIdempotencia, f"oidc-state:{nonce}") is None
+
+
+def test_callback_con_error_vuelve_al_portal_con_aviso(client):
+    """El ciudadano cancela en Mi Catamarca: vuelve al login con un aviso, no a una pantalla de error."""
+    r = client.get("/api/creditos/portal/auth/callback",
+                   params={"error": "access_denied", "error_description": "El usuario canceló"},
+                   follow_redirects=False)
+    assert r.status_code in (302, 307) and "#error=sso" in r.headers["location"]
+
+
+def test_callback_sin_parametros_es_400(client):
+    assert client.get("/api/creditos/portal/auth/callback", follow_redirects=False).status_code == 400
+
+
 def test_realms_separados(client):
     """Un token de portal NO abre el backoffice; un token interno NO abre el portal."""
     h_portal = _ingresar(client)
@@ -718,9 +752,13 @@ def _bo(client):
     return {"Authorization": f"Bearer {tok}"}
 
 
-def _publicar_con_canales(client, hb, nombre, canales, **extra):
+def _publicar_con_canales(client, hb, nombre, canales, cfg=None, **extra):
     """Crea y publica (backoffice) un producto con Disponibilidad → canales dados (+ reglas extra)."""
     pid = client.post("/api/creditos/productos", headers=hb, json={"nombre": nombre}).json()["id"]
+    if cfg:
+        base = client.get(f"/api/creditos/productos/{pid}", headers=hb).json()["cfg"]
+        assert client.put(f"/api/creditos/productos/{pid}/config", headers=hb,
+                          json={**base, **cfg}).status_code == 200
     det = client.get(f"/api/creditos/productos/{pid}", headers=hb).json()
     comps = [{"codigo": c["codigo"], "config": c["config"], "activo": c["activo"], "heredado": c.get("heredado", False)}
              for c in det["componentes"]]
@@ -874,3 +912,29 @@ def test_tope_del_credito_se_configura_por_linea(client):
     ok = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "tope-2"},
                      json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"], "plazo": plazo, "sueldo": sueldo})
     assert ok.status_code == 201, ok.text
+
+
+def test_el_maximo_del_pre_aprobado_se_puede_enviar(client):
+    """El pre-aprobado y el envío tienen que medir la afectación con la MISMA cuota: la primera, que es
+    la más alta. Con la promedio, en un sistema alemán el portal ofrecía un máximo que después el envío
+    rechazaba por pasarse del tope."""
+    hb, hp = _bo(client), _ingresar(client)
+    pid = _publicar_con_canales(client, hb, "Aleman Tope QA", ["WEB"], afectacionMaxPct=25,
+                                cfg={"sistema": "ALEMAN", "tna": 48, "montoMin": 100000,
+                                     "montoMax": 5000000, "plazoMin": 6, "plazoMax": 60})
+    sueldo, plazo = 900000, 18
+    r = client.post("/api/creditos/portal/pre-aprobado", headers=hp,
+                    json={"producto_id": pid, "plazo": plazo, "sueldo": sueldo}).json()
+    assert r["monto_maximo"] > 0 and r["afectacion"] <= 25
+
+    sim = client.post("/api/creditos/portal/simular", headers=hp,
+                      json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"],
+                            "plazo": plazo, "sueldo": sueldo}).json()
+    assert sim["elegible"] is True and sim["afectacion"] <= 25
+    # La afectación que se muestra es la de la primera cuota, no la del promedio (en alemán difieren).
+    assert sim["afectacion"] >= round(sim["cuota_promedio"] / sueldo * 100, 1)
+
+    env = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "aleman-1"},
+                      json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"],
+                            "plazo": plazo, "sueldo": sueldo})
+    assert env.status_code == 201, env.text

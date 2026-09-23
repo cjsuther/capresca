@@ -602,6 +602,11 @@ services:
       # habilite el proveedor MOCK (sólo demo/QA: deja entrar a cualquiera como un ciudadano de prueba).
       - MICATAMARCA_CLIENT_ID=${MICATAMARCA_CLIENT_ID:-}
       - MICATAMARCA_CLIENT_SECRET=${MICATAMARCA_CLIENT_SECRET:-}
+      # Entorno del proveedor: producción api-mi… / desarrollo develop-api-mi…; de acá salen los
+      # endpoints /authorize, /token, /userinfo y /jwks.
+      - MICATAMARCA_ISSUER=${MICATAMARCA_ISSUER:-https://api-mi.catamarca.gob.ar/openid}
+      - MICATAMARCA_SCOPES=${MICATAMARCA_SCOPES:-openid profile email}
+      - MICATAMARCA_PKCE=${MICATAMARCA_PKCE:-true}
       - MICATAMARCA_REDIRECT_URI=${CREDITOS_PUBLIC_URL:-http://localhost}/api/creditos/portal/auth/callback
       - PORTAL_WEB_URL=${CREDITOS_PUBLIC_URL:-http://localhost}/portal-creditos
       - PORTAL_MOCK_SSO=${CREDITOS_PORTAL_MOCK_SSO:-false}

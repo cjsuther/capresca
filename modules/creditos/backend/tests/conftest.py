@@ -16,6 +16,11 @@ os.environ["TESORERIA_INTERNAL_API_KEY"] = ""
 # Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
 # saldría a la red en cada flush.
 os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
+# SSO del portal: los tests usan el proveedor MOCK o arman su propio Settings. Si el contenedor trae
+# credenciales o endpoints de Mi Catamarca desde el compose, no tienen que filtrarse acá.
+for _v in ("MICATAMARCA_CLIENT_ID", "MICATAMARCA_CLIENT_SECRET", "MICATAMARCA_AUTHORIZATION_ENDPOINT",
+           "MICATAMARCA_TOKEN_ENDPOINT", "MICATAMARCA_USERINFO_ENDPOINT", "MICATAMARCA_JWKS_ENDPOINT"):
+    os.environ[_v] = ""
 
 import pytest
 

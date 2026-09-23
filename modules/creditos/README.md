@@ -63,7 +63,26 @@ lee por su API interna. Tras levantarlo por primera vez, migrar lo que había en
 **Portal ciudadano.** Tiene su propio realm (SSO Mi Catamarca, tokens `scope=portal` firmados con
 `CREDITOS_PORTAL_JWT_SECRET`) y nginx lo manda directo al módulo, sin gateway. Sin credenciales de Mi
 Catamarca el login del portal responde 503, salvo `CREDITOS_PORTAL_MOCK_SSO=true` (sólo demo/QA).
-Registrar en Mi Catamarca el callback `${CREDITOS_PUBLIC_URL}/api/creditos/portal/auth/callback`.
+
+#### SSO Mi Catamarca (OIDC)
+
+Authorization Code + PKCE contra el proveedor de la Dirección Provincial de Sistema. El navegador nunca
+ve el `code` ni el secreto: el callback es del backend (`app/api/portal.py`) y el proveedor vive en
+`app/services/mi_catamarca.py`.
+
+| Variable | Para qué |
+|---|---|
+| `MICATAMARCA_CLIENT_ID` / `MICATAMARCA_CLIENT_SECRET` | Credenciales del cliente (sólo por entorno, nunca en el repo) |
+| `MICATAMARCA_ISSUER` | Entorno del proveedor. Producción `https://api-mi.catamarca.gob.ar/openid`; desarrollo `https://develop-api-mi.catamarca.gob.ar/openid`. Los endpoints (`/authorize`, `/token`, `/userinfo`, `/jwks`) se derivan de acá |
+| `MICATAMARCA_SCOPES` | `openid profile email` (lo concedido a este cliente; pedir `phone` sin tenerlo otorgado hace fallar la autorización) |
+| `MICATAMARCA_PKCE` | `true` por defecto; apagarlo sólo si el proveedor rechaza el `code_challenge` |
+| `CREDITOS_PUBLIC_URL` | De acá sale el callback que hay que **registrar en Mi Catamarca**: `${CREDITOS_PUBLIC_URL}/api/creditos/portal/auth/callback` |
+
+Del ID Token se verifican firma y claims (`iss`, `aud`, `exp`, `nonce`) y que el `sub` del `/userinfo`
+sea el mismo. El proveedor está detrás de un WAF que desafía a los clientes que no son navegador: si el
+`/jwks` no se puede traer, los claims se validan igual y queda el aviso en el log (el token llegó por el
+canal trasero TLS de `/token`, la excepción de OIDC Core 3.1.3.7). Si el WAF también bloquea `/token`,
+hay que pedirle a la Dirección de Sistema que habilite la IP del servidor.
 
 ### Puesta en marcha
 

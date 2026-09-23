@@ -51,21 +51,26 @@ const SISTEMA: Record<string, string> = { FRANCES: "Francés", ALEMAN: "Alemán"
 
 // Captura el token del fragmento tras el callback OIDC (<base>/ingreso#token=...) y limpia la URL.
 // La base es /portal-creditos/ (vite.config.ts): Portezuelo publica el portal ahí.
-function capturarTokenDeCallback() {
+/** Vuelta de Mi Catamarca: con el token entra; con error, se avisa en el login. */
+function capturarTokenDeCallback(): string {
   const base = import.meta.env.BASE_URL;
-  if (window.location.pathname === `${base}ingreso` && window.location.hash.includes("token=")) {
-    const t = new URLSearchParams(window.location.hash.slice(1)).get("token");
-    if (t) token.set(t);
-    window.history.replaceState({}, "", base);
-  }
+  if (window.location.pathname !== `${base}ingreso`) return "";
+  const h = new URLSearchParams(window.location.hash.slice(1));
+  const t = h.get("token");
+  if (t) token.set(t);
+  window.history.replaceState({}, "", base);
+  return !t && h.get("error")
+    ? "No se pudo completar el ingreso con Mi Catamarca. Probá de nuevo."
+    : "";
 }
 
 export default function App() {
   const [sesion, setSesion] = useState<Ciudadano | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [errSso, setErrSso] = useState("");
 
   useEffect(() => {
-    capturarTokenDeCallback();
+    setErrSso(capturarTokenDeCallback());
     if (!token.get()) { setCargando(false); return; }
     api.me().then(setSesion).catch(() => token.clear()).finally(() => setCargando(false));
   }, []);
@@ -78,7 +83,7 @@ export default function App() {
   }, []);
 
   if (cargando) return <Marco><p className="p-muted">Cargando…</p></Marco>;
-  if (!sesion) return <Login />;
+  if (!sesion) return <Login aviso={errSso} />;
   return <Simulador sesion={sesion} onSalir={() => { token.clear(); setSesion(null); }} />;
 }
 
@@ -91,8 +96,8 @@ function Marco({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Login() {
-  const [err, setErr] = useState("");
+function Login({ aviso = "" }: { aviso?: string }) {
+  const [err, setErr] = useState(aviso);
   const [yendo, setYendo] = useState(false);
   async function ingresar() {
     setYendo(true); setErr("");

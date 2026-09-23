@@ -63,14 +63,23 @@ class Settings(BaseSettings):
     intranet_data_url: str = ""
 
     # Portal del ciudadano · SSO Mi Catamarca (OIDC). Secretos SIEMPRE por entorno.
-    # Endpoints reales del discovery: https://api-mi.catamarca.gob.ar/openid/.well-known/openid-configuration
+    # Un solo valor cambia de entorno (producción / desarrollo); los endpoints salen de ahí, tal como
+    # los publica el discovery: <issuer>/.well-known/openid-configuration
+    #   producción:  https://api-mi.catamarca.gob.ar/openid
+    #   desarrollo:  https://develop-api-mi.catamarca.gob.ar/openid
     micatamarca_issuer: str = "https://api-mi.catamarca.gob.ar/openid"
-    micatamarca_authorization_endpoint: str = "https://api-mi.catamarca.gob.ar/openid/authorize"
-    micatamarca_token_endpoint: str = "https://api-mi.catamarca.gob.ar/openid/token"
-    micatamarca_userinfo_endpoint: str = "https://api-mi.catamarca.gob.ar/openid/userinfo"
+    # Vacíos = se derivan del issuer. Se completan sólo si el proveedor mueve alguna ruta.
+    micatamarca_authorization_endpoint: str = ""
+    micatamarca_token_endpoint: str = ""
+    micatamarca_userinfo_endpoint: str = ""
+    micatamarca_jwks_endpoint: str = ""
     micatamarca_client_id: str = ""       # ← MICATAMARCA_CLIENT_ID por entorno
     micatamarca_client_secret: str = ""   # ← MICATAMARCA_CLIENT_SECRET por entorno (rotar el filtrado)
-    micatamarca_scopes: str = "openid email profile phone"
+    # El scope concedido a este cliente. `phone` no está otorgado: pedirlo hace fallar la autorización.
+    micatamarca_scopes: str = "openid profile email"
+    # PKCE (lo pide el documento de integración). El discovery no lo anuncia; mandar el challenge es
+    # inocuo si el proveedor lo ignora, pero queda el interruptor por si alguna vez rechaza el parámetro.
+    micatamarca_pkce: bool = True
     # Callback = backend (el SPA nunca ve el authorization code). Registrar ESTA URL en Mi Catamarca.
     micatamarca_redirect_uri: str = "http://localhost/api/creditos/portal/auth/callback"
     portal_web_url: str = "http://localhost/portal-creditos"   # SPA del portal, para redirigir tras el login
@@ -85,6 +94,25 @@ class Settings(BaseSettings):
     def micatamarca_configurado(self) -> bool:
         """Hay credenciales reales. Si no, el portal usa el proveedor MOCK (dev/demo/tests)."""
         return bool(self.micatamarca_client_id and self.micatamarca_client_secret)
+
+    def _mc(self, ruta: str, explicito: str) -> str:
+        return explicito or f"{self.micatamarca_issuer.rstrip('/')}/{ruta}"
+
+    @property
+    def mc_authorize_url(self) -> str:
+        return self._mc("authorize", self.micatamarca_authorization_endpoint)
+
+    @property
+    def mc_token_url(self) -> str:
+        return self._mc("token", self.micatamarca_token_endpoint)
+
+    @property
+    def mc_userinfo_url(self) -> str:
+        return self._mc("userinfo", self.micatamarca_userinfo_endpoint)
+
+    @property
+    def mc_jwks_url(self) -> str:
+        return self._mc("jwks", self.micatamarca_jwks_endpoint)
 
     # Fuente de haberes (sueldo/antigüedad) — Mi Catamarca u otro RRHH. Aún no existe el scope/API;
     # sin configurar, el portal usa un proveedor MOCK (el ciudadano igual puede declarar sus datos).

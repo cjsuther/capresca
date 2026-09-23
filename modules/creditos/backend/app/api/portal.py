@@ -10,6 +10,7 @@ Superficie PÚBLICA y separada del backoffice:
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date
 from decimal import Decimal
@@ -30,7 +31,7 @@ from app.deps import Ciudadano, get_ciudadano
 from app.services import auditoria as audit
 from app.services import documentos
 from app.services import haberes as haberes_svc
-from app.services.mi_catamarca import get_provider
+from app.services.mi_catamarca import Desafio, get_provider
 from app.services.productos_calc import cronograma, resumen
 # Motor y helpers del PRODUCT BUILDER (lo nuevo): la simulación del portal usa exactamente
 # el mismo cronograma que la originación del contrato (pp_contrato) → simulado == contratado.
@@ -42,6 +43,7 @@ from app.api.solicitudes import _numero as _numero_solicitud, _evaluar as _evalu
 from app import models_productos as m, schemas
 
 router = APIRouter(prefix="/api/creditos/portal", tags=["portal"])
+log = logging.getLogger("creditos.portal")
 
 # Tope de la cuota sobre el sueldo cuando la línea no configuró el suyo (componente Disponibilidad).
 AFECTACION_MAX_DEFECTO = 30
@@ -69,23 +71,29 @@ def _destino_norm(v: str) -> str:
 # H-158: anti-replay del state OIDC. El state va firmado (CSRF stateless) pero además el `nonce` se guarda
 # al emitirlo y se CONSUME (borra) en el callback: un state válido no expirado no puede reusarse (one-time).
 # Se usa el store genérico de claves vistas (pp_idempotencia), cuya PK es árbitro de la unicidad.
-def _reservar_nonce(db: Session, nonce: str) -> None:
+def _reservar_nonce(db: Session, nonce: str, desafio: Desafio) -> None:
+    """Guarda el intento de login: el nonce (que es de un solo uso) y, con él, el nonce OIDC y el
+    code_verifier de PKCE, que el callback necesita y que NUNCA viajan al navegador."""
     from app import models_productos as mp
     try:
-        db.add(mp.PPIdempotencia(clave=f"oidc-state:{nonce}", endpoint="oidc-state", usuario="portal"))
+        db.add(mp.PPIdempotencia(clave=f"oidc-state:{nonce}", endpoint="oidc-state", usuario="portal",
+                                 respuesta={"nonce": desafio.nonce,
+                                            "code_verifier": desafio.code_verifier}))
         db.commit()
     except Exception:
         db.rollback()   # colisión de nonce (imposible en la práctica): que el callback lo rechace
 
 
-def _consumir_nonce(db: Session, nonce: str) -> bool:
-    """True si el nonce estaba pendiente (se consume); False si ya fue usado o es desconocido (replay)."""
+def _consumir_nonce(db: Session, nonce: str) -> Desafio | None:
+    """El desafío guardado si el nonce estaba pendiente (se consume); None si ya fue usado o es
+    desconocido (replay)."""
     from app import models_productos as mp
     rec = db.get(mp.PPIdempotencia, f"oidc-state:{nonce}")
     if rec is None:
-        return False
+        return None
+    guardado = rec.respuesta or {}
     db.delete(rec); db.commit()
-    return True
+    return Desafio(nonce=guardado.get("nonce", ""), code_verifier=guardado.get("code_verifier", ""))
 
 
 @router.get("/auth/login")
@@ -93,9 +101,10 @@ def login(db: Session = Depends(get_db)):
     """Devuelve la URL de autorización de Mi Catamarca (el SPA redirige ahí)."""
     prov = get_provider()
     nonce = uuid.uuid4().hex
-    _reservar_nonce(db, nonce)
+    desafio = Desafio()
+    _reservar_nonce(db, nonce, desafio)
     state = create_state_token(nonce)
-    return {"authorize_url": prov.authorize_url(state), "mock": prov.mock}
+    return {"authorize_url": prov.authorize_url(state, desafio), "mock": prov.mock}
 
 
 @router.get("/auth/mock-authorize")
@@ -109,8 +118,16 @@ def mock_authorize(state: str):
 
 
 @router.get("/auth/callback")
-def callback(code: str, state: str, request: Request, db: Session = Depends(get_db)):
+def callback(request: Request, db: Session = Depends(get_db), code: str = "", state: str = "",
+             error: str = "", error_description: str = ""):
     """Callback OIDC: valida el state, intercambia el code y emite el token de sesión del portal."""
+    s_cfg = get_settings()
+    # El ciudadano canceló o el proveedor rechazó: se vuelve al portal con el aviso, no con un error 500.
+    if error:
+        log.info("Mi Catamarca no autorizó el ingreso: %s (%s)", error, error_description)
+        return RedirectResponse(f"{s_cfg.portal_web_url}/ingreso#error=sso")
+    if not code or not state:
+        raise HTTPException(400, "Faltan parámetros del callback")
     try:
         st = decode_token(state)
     except InvalidTokenError:
@@ -118,18 +135,22 @@ def callback(code: str, state: str, request: Request, db: Session = Depends(get_
     if st.get("scope") != "oidc-state":
         raise HTTPException(400, "state inválido")
     # H-158: one-time. Consumir el nonce; si ya se usó (o es desconocido), es un replay → rechazar.
-    if not _consumir_nonce(db, st.get("nonce") or ""):
+    desafio = _consumir_nonce(db, st.get("nonce") or "")
+    if desafio is None:
         raise HTTPException(400, "state ya utilizado o desconocido")
 
     try:
-        ident = get_provider().identidad_desde_code(code)
-    except Exception:
+        ident = get_provider().identidad_desde_code(code, desafio)
+    except Exception as e:
+        log.warning("Mi Catamarca: falló el intercambio del code: %s", e)
         # No filtramos el detalle del proveedor al navegador.
         audit.registrar_cambio(db, usuario="ciudadano", ip=audit.ip_de(request),
                                entidad="Ciudadano", operacion="LOGIN", resultado="ERROR",
                                detalle="Fallo el intercambio de code con Mi Catamarca")
         raise HTTPException(502, "No se pudo completar el ingreso con Mi Catamarca")
 
+    if not ident.sub:
+        raise HTTPException(502, "Mi Catamarca no devolvió la identidad del ciudadano")
     token = create_portal_token(ident.sub, ident.email, ident.nombre, ident.documento)
     audit.registrar_cambio(db, usuario=ident.email or ident.sub, ip=audit.ip_de(request),
                            entidad="Ciudadano", entidad_id=ident.sub, operacion="LOGIN", resultado="OK",
@@ -231,7 +252,8 @@ def simular(req: schemas.PortalSimularIn, db: Session = Depends(get_db),
         cargos=round(float(f["cargos"]), 2), impuestos=round(float(f.get("impuestos", 0)), 2),
         total=round(float(f["total"]), 2)) for f in filas]
     cuota_prom = round(r["totalCuotas"] / len(filas), 2) if filas else 0.0
-    elegible, motivos, afectacion = _evaluar_ciudadano(db, v, req, cuota_prom)
+    # La afectación se mide con la primera cuota (la más alta), igual que al evaluar la solicitud.
+    elegible, motivos, afectacion = _evaluar_ciudadano(db, v, req, r["primeraCuota"])
     return schemas.PortalSimulacionOut(
         producto=prod.nombre, sistema=sistema, tna=round(tna, 4), monto=req.monto,
         cantidad_cuotas=len(filas), total_a_pagar=r["totalCuotas"], total_interes=r["totalInteres"],
@@ -260,7 +282,7 @@ def pre_aprobado(req: schemas.PortalPreAprobadoIn, db: Session = Depends(get_db)
     afectacion_max = min([x for x in (tope, req.afectacion_max) if x] or [AFECTACION_MAX_DEFECTO])
     target = req.sueldo * afectacion_max / 100
     lo, hi = float(v.monto_minimo), float(v.monto_maximo)
-    cuota_de = lambda monto: _cuota_estimada(db, v, monto, req.plazo)[0]
+    cuota_de = lambda monto: _cuota_estimada(db, v, monto, req.plazo)[2]   # la primera cuota
     if cuota_de(lo) > target:                       # ni el mínimo entra en el margen
         return schemas.PortalPreAprobadoOut(monto_maximo=0, monto_min=lo, cuota=cuota_de(lo),
                                             afectacion=round(cuota_de(lo) / req.sueldo * 100, 1), plazo=req.plazo,
@@ -308,14 +330,18 @@ def _marca(c: Ciudadano) -> str:
     return f"portal:{c.sub}"
 
 
-def _cuota_estimada(db: Session, v, monto: float, plazo: int) -> tuple[float, float]:
-    """(cuota promedio, TNA) con el MISMO cronograma del simulador (independiente de la elegibilidad)."""
+def _cuota_estimada(db: Session, v, monto: float, plazo: int) -> tuple[float, float, float]:
+    """(cuota promedio, TNA, primera cuota) con el MISMO cronograma del simulador.
+
+    La **primera** es la que manda para la afectación: es la más alta (sistema alemán, cargos de la
+    primera cuota) y es la que mira la evaluación de la solicitud. Medir la afectación con el promedio
+    hacía que el portal ofreciera un máximo que después el envío rechazaba."""
     sistema = _calc_codigo_por_version(db).get(v.calculador_version_id, "FRANCES")
     tna = _tna_base(db, v)
     filas = cronograma(sistema, monto, plazo, tna, _cargo(v, "OTORGAMIENTO"), date.today(),
                        **_params_cronograma(v, _feriados_engine(db), decimales_calculo(db)))
     r = resumen(filas, monto, v.frecuencia_pago or "MENSUAL", tna)
-    return (round(r["totalCuotas"] / len(filas), 2) if filas else 0.0, round(tna, 4))
+    return (round(r["totalCuotas"] / len(filas), 2) if filas else 0.0, round(tna, 4), r["primeraCuota"])
 
 
 def _serial_portal_solicitud(db: Session, s: m.PPSolicitud) -> dict:
@@ -399,7 +425,7 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
     destino = _destino_norm(req.destino)
     marca = _marca(c)
     ip = audit.ip_de(request)
-    cuota_est, tna_est = _cuota_estimada(db, v, req.monto, req.plazo)   # la que el ciudadano vio al simular
+    cuota_est, tna_est, primera = _cuota_estimada(db, v, req.monto, req.plazo)   # la que vio al simular
 
     def _construir(numero: str) -> m.PPSolicitud:
         s = m.PPSolicitud(
@@ -421,7 +447,7 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
                                "cbu": cbu, "consentimiento": {"terminos": True, "datos": True,
                                                               "fecha": str(date.today())},
                                "videos_vistos": {"videos": requeridos, "fecha": str(date.today())},
-                               "afectacion": (round(cuota_est / req.sueldo * 100, 1)
+                               "afectacion": (round(primera / req.sueldo * 100, 1)
                                               if (req.sueldo and req.sueldo > 0) else None)},
             creado_por=marca, enviada_por=marca)
         s.evaluacion = _evaluar_solicitud(db, s)
