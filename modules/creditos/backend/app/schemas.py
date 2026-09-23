@@ -209,10 +209,11 @@ class PortalPreAprobadoIn(BaseModel):
     producto_id: str
     plazo: int = Field(gt=0, le=240)
     sueldo: float = Field(gt=0)
-    afectacion_max: float = 30           # % del sueldo que puede ocupar la cuota
+    afectacion_max: float | None = None  # % del sueldo que puede ocupar la cuota; por defecto, el de la línea
 
 
 class PortalPreAprobadoOut(BaseModel):
+    afectacion_max: float = 30           # tope de la línea: % del sueldo que puede ocupar la cuota
     monto_maximo: float                  # 0 = ni el mínimo entra en el margen
     monto_min: float
     cuota: float

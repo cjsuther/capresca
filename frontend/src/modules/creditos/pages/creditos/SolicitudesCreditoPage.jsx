@@ -15,7 +15,8 @@ const TONO_ESTADO = {
 };
 const RELACIONES = ["ESTANDAR", "PREFERENCIAL", "PREMIUM"];
 const TIPODOC = { DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", SELFIE_DNI: "Selfie con el DNI en la mano",
-                  RECIBO: "Recibo de sueldo", OTRO: "Otro" };
+                  RECIBO: "Recibo de sueldo", CERTIFICADO_SERVICIOS: "Certificado de servicios",
+                  CONSTANCIA_CBU: "Constancia de CBU", OTRO: "Otro" };
 
 /** Años cumplidos a hoy: la solicitud guarda la fecha de nacimiento y la edad se muestra calculada. */
 export function edadDe(fecha) {
@@ -35,10 +36,10 @@ const DESTINO = {
 };
 const PASOS = ["Solicitante", "Simulación", "Confirmación"];
 
-/** Sólo dígitos, acotado al rango que valida el backend. Vacío = sin valor (H-200). */
-const acotar = (v, min, max) => {
-  const d = String(v).replace(/\D/g, "");
-  return d === "" ? "" : String(Math.max(min, Math.min(max, parseInt(d, 10))));
+/** Años declarados → meses, que es como lo guarda la solicitud. Vacío = sin valor. */
+const aniosAMeses = (v) => {
+  const n = parseFloat(String(v).replace(",", "."));
+  return String(v).trim() === "" || isNaN(n) ? "" : String(Math.max(0, Math.min(1200, Math.round(n * 12))));
 };
 
 const FORM_VACIO = {
@@ -423,9 +424,11 @@ export default function SolicitudesCreditoPage() {
                     ? <span className="text-xs text-red-600">La edad debe estar entre 18 y 99 años.</span>
                     : edadForm !== null && <span className="text-xs text-gray-500">{edadForm} años</span>}
                 </Field>
-                <Field label="Antigüedad (meses)">
-                  <input type="number" min={0} max={1200} className="input w-full" value={form.antiguedad_meses}
-                         onChange={(e) => setForm({ ...form, antiguedad_meses: acotar(e.target.value, 0, 1200) })} />
+                {/* Se declara en años (lo que dice el recibo); el formulario la guarda en meses. */}
+                <Field label="Antigüedad laboral (años)">
+                  <input type="number" min={0} max={100} step="0.5" className="input w-full"
+                         value={form.antiguedad_meses === "" ? "" : Number(form.antiguedad_meses) / 12}
+                         onChange={(e) => setForm({ ...form, antiguedad_meses: aniosAMeses(e.target.value) })} />
                 </Field>
                 <Field label="Relación">
                   <select className="input w-full" value={form.relacion}
@@ -499,14 +502,8 @@ export default function SolicitudesCreditoPage() {
                   </>
                 )}
               </dl>
+              {/* El destino del crédito ya no se pregunta; las solicitudes viejas lo siguen mostrando. */}
               <div className="grid gap-3 sm:grid-cols-2 mt-4">
-                <Field label="Destino">
-                  <select className="input w-full" value={form.datos_adicionales.destino}
-                          onChange={(e) => setForm({ ...form, datos_adicionales: { ...form.datos_adicionales, destino: e.target.value } })}>
-                    <option value="">(sin especificar)</option>
-                    {Object.entries(DESTINO).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </Field>
                 <Field label="Relación">
                   <select className="input w-full" value={form.relacion}
                           onChange={(e) => setForm({ ...form, relacion: e.target.value })}>

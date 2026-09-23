@@ -61,8 +61,9 @@ class OriginarIn(BaseModel):
     desembolsar: bool = True          # False = otorgar y dejar A_LIQUIDAR (desembolso en paso aparte)
 
 
-def _ctx(segmento=None, canal=None, edad=None, antiguedad_meses=None) -> dict:
-    return {"segmento": segmento, "canal": canal, "edad": edad, "antiguedad_meses": antiguedad_meses}
+def _ctx(segmento=None, canal=None, edad=None, antiguedad_meses=None, afectacion=None) -> dict:
+    return {"segmento": segmento, "canal": canal, "edad": edad, "antiguedad_meses": antiguedad_meses,
+            "afectacion": afectacion}
 
 
 def _liquidacion(monto: float, cargo_otorg_pct: float, params: dict) -> dict:

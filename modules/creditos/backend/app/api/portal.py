@@ -43,7 +43,11 @@ from app import models_productos as m, schemas
 
 router = APIRouter(prefix="/api/creditos/portal", tags=["portal"])
 
-# Destinos del crédito ofrecidos en el portal (código → etiqueta para el ciudadano/backoffice).
+# Tope de la cuota sobre el sueldo cuando la línea no configuró el suyo (componente Disponibilidad).
+AFECTACION_MAX_DEFECTO = 30
+
+# Destinos del crédito. El portal ya NO los pregunta (se sacó del formulario); se dejan porque las
+# solicitudes viejas lo tienen guardado y el backoffice sigue mostrándolo.
 DESTINOS: dict[str, str] = {
     "VIVIENDA": "Vivienda / refacción",
     "VEHICULO": "Vehículo",
@@ -250,12 +254,17 @@ def pre_aprobado(req: schemas.PortalPreAprobadoIn, db: Session = Depends(get_db)
         raise HTTPException(409, "El producto no está disponible.")
     if not (v.plazo_minimo <= req.plazo <= v.plazo_maximo):
         raise HTTPException(422, f"Plazo fuera de rango ({v.plazo_minimo}–{v.plazo_maximo}).")
-    target = req.sueldo * req.afectacion_max / 100
+    # El tope lo fija la línea de crédito (componente Disponibilidad, "Tope del crédito"). El portal ya
+    # no lo manda; si igual viene un valor, vale el más estricto de los dos.
+    tope = (_disponibilidad(v) or {}).get("afectacionMaxPct")
+    afectacion_max = min([x for x in (tope, req.afectacion_max) if x] or [AFECTACION_MAX_DEFECTO])
+    target = req.sueldo * afectacion_max / 100
     lo, hi = float(v.monto_minimo), float(v.monto_maximo)
     cuota_de = lambda monto: _cuota_estimada(db, v, monto, req.plazo)[0]
     if cuota_de(lo) > target:                       # ni el mínimo entra en el margen
         return schemas.PortalPreAprobadoOut(monto_maximo=0, monto_min=lo, cuota=cuota_de(lo),
-                                            afectacion=round(cuota_de(lo) / req.sueldo * 100, 1), plazo=req.plazo)
+                                            afectacion=round(cuota_de(lo) / req.sueldo * 100, 1), plazo=req.plazo,
+                                            afectacion_max=afectacion_max)
     if cuota_de(hi) <= target:                       # entra hasta el máximo de la línea
         best = hi
     else:
@@ -270,7 +279,8 @@ def pre_aprobado(req: schemas.PortalPreAprobadoIn, db: Session = Depends(get_db)
     cuota = cuota_de(best)
     return schemas.PortalPreAprobadoOut(
         monto_maximo=best, monto_min=float(v.monto_minimo), cuota=round(cuota, 2),
-        afectacion=round(cuota / req.sueldo * 100, 1), plazo=req.plazo)
+        afectacion=round(cuota / req.sueldo * 100, 1), plazo=req.plazo,
+        afectacion_max=afectacion_max)
 
 
 def _evaluar_ciudadano(db: Session, v, datos: schemas.DatosSolicitante, cuota: float):
@@ -278,12 +288,13 @@ def _evaluar_ciudadano(db: Session, v, datos: schemas.DatosSolicitante, cuota: f
     Devuelve (elegible|None, motivos, afectacion%|None). elegible=None si no declaró datos."""
     edad = edad_de(datos.fecha_nacimiento)
     declaro = bool(datos.segmento or edad is not None or datos.antiguedad_meses is not None)
+    afectacion = round(cuota / datos.sueldo * 100, 1) if (datos.sueldo and datos.sueldo > 0) else None
     elegible, motivos = None, []
-    if declaro:
+    if declaro or afectacion is not None:
         ctx = _ctx(datos.segmento or None, "WEB", edad, datos.antiguedad_meses)
+        ctx["afectacion"] = afectacion          # el tope de la línea también decide la elegibilidad
         ev = _elegibilidad(_disponibilidad(v), ctx)
         elegible, motivos = ev["elegible"], ev["motivos"]
-    afectacion = round(cuota / datos.sueldo * 100, 1) if (datos.sueldo and datos.sueldo > 0) else None
     return elegible, motivos, afectacion
 
 
@@ -380,7 +391,8 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
     # dato no declarado no bloquea (queda para la revisión del backoffice).
     _tmp = m.PPSolicitud(producto_id=prod.id, monto_solicitado=Decimal(str(req.monto)), plazo_solicitado=req.plazo,
                          segmento=req.segmento or "", canal="WEB", edad=edad,
-                         fecha_nacimiento=req.fecha_nacimiento, antiguedad_meses=req.antiguedad_meses)
+                         fecha_nacimiento=req.fecha_nacimiento, antiguedad_meses=req.antiguedad_meses,
+                         datos_adicionales={"sueldo_declarado": req.sueldo})
     _ev = _evaluar_solicitud(db, _tmp)
     if not _ev.get("elegible"):
         raise HTTPException(422, "No cumplís las condiciones para esta línea: " + "; ".join(_ev.get("motivos", [])))

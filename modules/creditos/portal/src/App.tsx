@@ -169,29 +169,19 @@ const SEGMENTOS: [string, string][] = [
 ];
 const SEG_LABEL = Object.fromEntries(SEGMENTOS);
 
-// Destino del crédito (opcional) — códigos alineados con DESTINOS del backend (portal.py).
-const DESTINOS: [string, string][] = [
-  ["", "Preferís no decirlo"],
-  ["VIVIENDA", "Vivienda / refacción"],
-  ["VEHICULO", "Vehículo"],
-  ["CONSUMO", "Consumo / gastos personales"],
-  ["EDUCACION", "Educación"],
-  ["SALUD", "Salud"],
-  ["REFINANCIACION", "Refinanciación de deudas"],
-  ["EMPRENDIMIENTO", "Emprendimiento / negocio"],
-  ["OTRO", "Otro"],
-];
-const DESTINO_LABEL = Object.fromEntries(DESTINOS);
-
 const TIPO_DOC: Record<string, string> = {
   DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)",
   SELFIE_DNI: "Selfie con el DNI en la mano", RECIBO: "Recibo de sueldo",
+  CERTIFICADO_SERVICIOS: "Certificado de servicios", CONSTANCIA_CBU: "Constancia de CBU",
 };
 const TIPO_DOC_AYUDA: Record<string, string> = {
   SELFIE_DNI: "Una foto tuya sosteniendo el DNI, que se lean los datos.",
+  CERTIFICADO_SERVICIOS: "El que emite tu empleador con tu antigüedad y situación de revista.",
+  CONSTANCIA_CBU: "La que baja tu banco o Home Banking con el CBU a tu nombre.",
 };
 // Documentación del paso 3: exactamente un archivo por cada uno de estos (ni más, ni otros).
-const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO"];
+const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO",
+                         "CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU"];
 
 /** Años cumplidos a hoy (el backend calcula lo mismo con la fecha declarada). */
 function edadDe(nacimiento: string): number | null {
@@ -281,7 +271,6 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [nombre, setNombre] = useState("");
   const [dni, setDni] = useState("");
   const [segmento, setSegmento] = useState("");
-  const [destino, setDestino] = useState("");
   const [nacimiento, setNacimiento] = useState("");     // fecha; la edad se calcula (antes se pedía la edad)
   const [email, setEmail] = useState(sesion.email || "");
   const [telefono, setTelefono] = useState("");
@@ -321,7 +310,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     try { const raw = localStorage.getItem(BORRADOR_KEY); if (raw) setBorrador(JSON.parse(raw)); } catch { /* ignore */ }
   }, []);
   function guardarBorrador() {
-    const d = { paso, apellido, nombre, dni, segmento, destino, nacimiento, email, telefono, antiguedad, sueldo,
+    const d = { paso, apellido, nombre, dni, segmento, nacimiento, email, telefono, antiguedad, sueldo,
                 prodId, monto, plazo, cbu, aceptaTerminos, aceptaDatos, savedAt: new Date().toISOString() };
     try { localStorage.setItem(BORRADOR_KEY, JSON.stringify(d)); } catch { /* ignore */ }
     setBorrador(null); setBorradorMsg("Borrador guardado. Podés retomarlo más tarde desde este dispositivo.");
@@ -330,7 +319,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   function retomarBorrador() {
     const d = borrador; if (!d) return;
     setApellido(d.apellido || ""); setNombre(d.nombre || ""); setDni(d.dni || "");
-    setSegmento(d.segmento || ""); setDestino(d.destino || ""); setNacimiento(d.nacimiento || "");
+    setSegmento(d.segmento || ""); setNacimiento(d.nacimiento || "");
     setEmail(d.email || sesion.email || ""); setTelefono(d.telefono || ""); setAntiguedad(d.antiguedad || "");
     setSueldo(d.sueldo || ""); if (d.prodId) setProdId(d.prodId);
     setMonto(d.monto || "500000"); setPlazo(d.plazo || "12"); setCbu(d.cbu || "");
@@ -347,7 +336,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     fecha_nacimiento: nacimiento || undefined,
     email: email.trim(),
     telefono: telDigits,
-    antiguedad_meses: antiguedad ? Number(antiguedad) : undefined,
+    antiguedad_meses: antiguedad ? Math.round(Number(antiguedad) * 12) : undefined,   // se declara en años
     sueldo: sueldo ? Number(sueldo) : undefined,
   });
 
@@ -375,7 +364,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   useEffect(() => {
     const s = Number(sueldo);
     if (paso !== 2 || !prodId || !s) { setPreap(null); return; }
-    api.preAprobado({ producto_id: prodId, plazo: Number(plazo), sueldo: s, afectacion_max: 30 })
+    api.preAprobado({ producto_id: prodId, plazo: Number(plazo), sueldo: s })
       .then(setPreap).catch(() => setPreap(null));
   }, [paso, prodId, plazo, sueldo]);
 
@@ -415,7 +404,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     if (!prodId || !idem) return;
     setEnviando(true); setErr("");
     try {
-      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), destino, cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, videos_vistos: vistos, ...datos() }, idem);
+      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, videos_vistos: vistos, ...datos() }, idem);
       // Subir los documentos del paso 3 (best-effort: si alguno falla, avisamos sin frenar).
       let fallos = 0;
       for (const d of pendingDocs) {
@@ -517,7 +506,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                     <div className="p-kpi"><span>Cuotas</span><b>{detalle.plazo}</b></div>
                     <div className="p-kpi"><span>Total a pagar</span><b>{money(detalle.total_a_pagar)}</b></div>
                   </div>
-                  <p className="p-fine">Sistema {SISTEMA[detalle.sistema] || detalle.sistema} · TNA {detalle.tna}%{detalle.segmento ? ` · ${SEG_LABEL[detalle.segmento] || detalle.segmento}` : ""}{detalle.destino ? ` · destino: ${detalle.destino}` : ""}{detalle.afectacion != null ? ` · afectación ${detalle.afectacion}%` : ""}</p>
+                  <p className="p-fine">Sistema {SISTEMA[detalle.sistema] || detalle.sistema} · TNA {detalle.tna}%{detalle.segmento ? ` · ${SEG_LABEL[detalle.segmento] || detalle.segmento}` : ""}{detalle.afectacion != null ? ` · afectación ${detalle.afectacion}%` : ""}</p>
                   {detalle.cuotas.length > 0 && (
                     <div className="p-tablewrap">
                       <table className="p-table">
@@ -645,14 +634,11 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
             <label className="p-fld"><span>Teléfono <b className="p-req">*</b></span>
               <input type="tel" inputMode="tel" value={telefono} maxLength={20}
                      onChange={(e) => setTelefono(e.target.value)} placeholder="3834 000000" /></label>
-            <label className="p-fld"><span>Antigüedad (meses)</span>
-              <input type="number" min="0" value={antiguedad} onChange={(e) => setAntiguedad(e.target.value)} placeholder="—" /></label>
+            <label className="p-fld"><span>Antigüedad laboral (años)</span>
+              <input type="number" min="0" step="0.5" value={antiguedad}
+                     onChange={(e) => setAntiguedad(e.target.value)} placeholder="—" /></label>
             <label className="p-fld"><span>Sueldo neto</span>
               <input type="number" min="0" step="1000" value={sueldo} onChange={(e) => setSueldo(e.target.value)} placeholder="—" /></label>
-            <label className="p-fld p-col2"><span>¿Para qué lo necesitás? <em className="p-fine">(opcional)</em></span>
-              <select value={destino} onChange={(e) => setDestino(e.target.value)}>
-                {DESTINOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select></label>
             {datosErr && <div className="p-col2 p-alert">{datosErr}</div>}
             <div className="p-col2 p-actions"><button className="p-btn" onClick={irASimulacion}>Continuar →</button></div>
           </div>
@@ -674,7 +660,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                       <div><b>Podés pedir hasta {money(preap.monto_maximo)}</b><span> · cuota {money(preap.cuota)} ({preap.afectacion}% de tu sueldo)</span></div>
                       <button type="button" className="p-preap-btn" onClick={() => setMonto(String(preap.monto_maximo))}>Usar el máximo</button>
                     </>
-                  ) : <span>Con este sueldo y plazo la cuota supera tu margen; probá un plazo más largo.</span>}
+                  ) : <span>Con este sueldo y plazo la cuota se pasa del {preap.afectacion_max}% de tu sueldo, que es el máximo de este crédito; probá un plazo más largo.</span>}
                 </div>
               )}
 
@@ -772,7 +758,6 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                 <div><span>Solicitante</span>{apellido || nombre ? `${apellido}, ${nombre}` : "—"}</div>
                 <div><span>DNI</span>{dniDigits || "—"}</div>
                 <div><span>Situación</span>{SEG_LABEL[segmento] || segmento || "—"}</div>
-                {destino && <div><span>Destino</span>{DESTINO_LABEL[destino] || destino}</div>}
                 {edad !== null && <div><span>Edad</span>{edad} años</div>}
                 <div><span>Email</span>{email || "—"}</div>
                 <div><span>Teléfono</span>{telefono || "—"}</div>
@@ -1003,6 +988,11 @@ function Estilos() {
     .p-video.on .p-video-n { background:var(--p-brand); color:var(--p-brand-ink); }
     .p-video.ok .p-video-n { background:var(--p-ok); color:#fff; }
     .p-video video { width:100%; max-height:62vh; border-radius:10px; background:#000; display:block; }
+    /* Controles propios: sin la barra nativa no se puede arrastrar para adelantar (en el celular sí se podía). */
+    .p-video-ctrl { display:flex; align-items:center; gap:10px; margin-top:8px; }
+    .p-video-play { width:44px; height:44px; border-radius:999px; border:none; cursor:pointer; font-size:1rem;
+                    background:var(--p-brand); color:var(--p-brand-ink); display:grid; place-items:center; }
+    .p-video-play:active { transform:scale(.96); }
     .p-video-bar { height:6px; border-radius:999px; background:var(--p-bg); overflow:hidden; margin-top:8px; }
     .p-video-bar span { display:block; height:100%; background:var(--p-green); transition:width .3s; }
     .p-video-aviso { margin:8px 0 0; font-size:.8rem; color:var(--p-warn); font-weight:600; }

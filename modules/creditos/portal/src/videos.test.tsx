@@ -73,6 +73,25 @@ describe("video obligatorio", () => {
     expect(onCompleto).toHaveBeenCalledWith("video1");
   });
 
+  it("sin ver, no muestra la barra nativa: sólo el play/pausa propio (en el celular se adelantaba)", () => {
+    const { video } = montar();
+    expect(video.hasAttribute("controls")).toBe(false);
+    const play = screen.getByRole("button", { name: "Reproducir video 1" });
+    const reproducir = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(video, "paused", { configurable: true, get: () => true });
+    video.play = reproducir;
+    fireEvent.click(play);
+    expect(reproducir).toHaveBeenCalled();
+    fireEvent.play(video);
+    expect(screen.getByRole("button", { name: "Pausar video 1" })).toBeInTheDocument();
+  });
+
+  it("uno ya visto vuelve a tener los controles normales", () => {
+    const { video } = montar({ completo: true });
+    expect(video.hasAttribute("controls")).toBe(true);
+    expect(screen.queryByRole("button", { name: /Reproducir video/ })).toBeNull();
+  });
+
   it("uno ya visto se puede recorrer libremente", () => {
     const { video, onCompleto } = montar({ completo: true });
     const { estado } = reloj(video);

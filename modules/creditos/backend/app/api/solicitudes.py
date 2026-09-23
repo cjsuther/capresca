@@ -92,10 +92,6 @@ def _evaluar(db: Session, s: m.PPSolicitud) -> dict:
         motivos.append(f"Monto fuera de rango ({float(v.monto_minimo):.0f}–{float(v.monto_maximo):.0f}).")
     if not (v.plazo_minimo <= plazo <= v.plazo_maximo):
         motivos.append(f"Plazo fuera de rango ({v.plazo_minimo}–{v.plazo_maximo}).")
-    elig = _elegibilidad(_disponibilidad(v), _ctx(s.segmento or None, s.canal or None,
-                                                 edad_de(s.fecha_nacimiento) or s.edad, s.antiguedad_meses))
-    if not elig.get("elegible", True):
-        motivos += elig.get("motivos", [])
     # TNA base efectiva: fija = tasa_default; VARIABLE = índice + margen (H-200). Antes usaba `_tasa` (sólo
     # tasa_default → 0 en productos de tasa variable), así la cuota estimada de la solicitud ignoraba el
     # interés y no coincidía con la simulación ni con la originación (que usan `_tna_base`). Motor único.
@@ -108,6 +104,14 @@ def _evaluar(db: Session, s: m.PPSolicitud) -> dict:
                            **_params_cronograma(v, _feriados_engine(db), decimales_calculo(db)))
         res = resumen(filas, monto, v.frecuencia_pago or "MENSUAL", tna)
         cuota_est, tna_ef = res["primeraCuota"], res["tna"]
+    # La afectación (cuota sobre el sueldo declarado) se evalúa con el resto: el tope lo fija la línea.
+    sueldo = float((s.datos_adicionales or {}).get("sueldo_declarado") or 0)
+    ctx = _ctx(s.segmento or None, s.canal or None,
+               edad_de(s.fecha_nacimiento) or s.edad, s.antiguedad_meses)
+    ctx["afectacion"] = round(cuota_est / sueldo * 100, 1) if (sueldo > 0 and cuota_est) else None
+    elig = _elegibilidad(_disponibilidad(v), ctx)
+    if not elig.get("elegible", True):
+        motivos += elig.get("motivos", [])
     return {"elegible": not motivos, "motivos": motivos,
             "tna_ofrecida": round(tna_ef or tna, 4), "cuota_estimada": round(cuota_est, 2)}
 

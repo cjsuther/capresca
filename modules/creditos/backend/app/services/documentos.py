@@ -6,11 +6,15 @@ from __future__ import annotations
 
 MAX_BYTES = 5 * 1024 * 1024   # 5 MB por archivo
 ALLOWED = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
-TIPOS = {"DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO", "OTRO"}
+TIPOS = {"DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO", "CERTIFICADO_SERVICIOS",
+         "CONSTANCIA_CBU", "OTRO"}
 # Lo que adjunta el ciudadano desde el portal: uno de cada uno, y nada más.
-TIPOS_PORTAL = ("DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO")
+TIPOS_PORTAL = ("DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO", "CERTIFICADO_SERVICIOS",
+                "CONSTANCIA_CBU")
 ETIQUETAS = {"DNI_FRENTE": "el DNI (frente)", "DNI_DORSO": "el DNI (dorso)",
              "SELFIE_DNI": "la selfie con el DNI en la mano", "RECIBO": "el recibo de sueldo",
+             "CERTIFICADO_SERVICIOS": "el certificado de servicios",
+             "CONSTANCIA_CBU": "la constancia de CBU",
              "OTRO": "otro documento"}
 
 

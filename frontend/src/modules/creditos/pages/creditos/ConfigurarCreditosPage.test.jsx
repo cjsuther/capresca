@@ -284,6 +284,36 @@ describe("Configurar Créditos · builder", () => {
       expect.objectContaining({ activo: true, canales: ["SUCURSAL", "WEB"] })));
   });
 
+  it("el tope del crédito (% del sueldo) se configura por línea y se guarda", async () => {
+    creditos.editarDisponibilidad.mockResolvedValue(PUBLICADO);
+    const u = userEvent.setup();
+    render(<ConfigurarCreditosPage />);
+    await abrirLinea(u, "Personal Publicado");
+
+    await u.click(await screen.findByText("Disponibilidad"));
+    const tope = screen.getByLabelText("Tope del crédito (% del sueldo)");
+    await u.clear(tope);
+    await u.type(tope, "25");
+    await u.click(screen.getByRole("button", { name: "Guardar disponibilidad" }));
+
+    await waitFor(() => expect(creditos.editarDisponibilidad).toHaveBeenCalledWith("p2",
+      expect.objectContaining({ afectacionMaxPct: 25 })));
+  });
+
+  it("la antigüedad mínima se declara en años y viaja en meses", async () => {
+    creditos.editarDisponibilidad.mockResolvedValue(PUBLICADO);
+    const u = userEvent.setup();
+    render(<ConfigurarCreditosPage />);
+    await abrirLinea(u, "Personal Publicado");
+
+    await u.click(await screen.findByText("Disponibilidad"));
+    await u.type(screen.getByLabelText("Antigüedad mín. (años)"), "2");
+    await u.click(screen.getByRole("button", { name: "Guardar disponibilidad" }));
+
+    await waitFor(() => expect(creditos.editarDisponibilidad).toHaveBeenCalledWith("p2",
+      expect.objectContaining({ antiguedadMinMeses: 24 })));
+  });
+
   it("la prueba en vivo muestra validaciones y cronograma", async () => {
     const u = userEvent.setup();
     render(<ConfigurarCreditosPage />);

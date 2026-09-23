@@ -74,7 +74,9 @@ export type Producto = { id: string; nombre: string; codigo: string; sistema: st
 export type Cuota = { numero: number; vencimiento: string; capital: number; interes: number; cargos: number; impuestos: number; total: number };
 export type Datos = { segmento?: string; fecha_nacimiento?: string; antiguedad_meses?: number; sueldo?: number;
                       email?: string; telefono?: string };
-export type PreAprobado = { monto_maximo: number; monto_min: number; cuota: number; afectacion: number; plazo: number };
+// `afectacion_max`: el tope que fija la línea de crédito (% del sueldo que puede ocupar la cuota).
+export type PreAprobado = { monto_maximo: number; monto_min: number; cuota: number; afectacion: number;
+                            plazo: number; afectacion_max: number };
 export type Simulacion = {
   producto: string; sistema: string; tna: number; monto: number; cantidad_cuotas: number;
   total_a_pagar: number; total_interes: number; cuota_promedio: number; tea: number; cft: number;

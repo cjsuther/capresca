@@ -683,17 +683,21 @@ def test_un_solo_documento_de_cada_uno_de_los_pedidos(client):
     url = f"/api/creditos/portal/solicitudes/{numero}/documentos"
     subir = lambda tipo, nombre="x.png": client.post(url, headers=h, files={"archivo": (nombre, PNG, "image/png")},
                                                       data={"tipo": tipo} if tipo is not None else None)
-    for tipo in ("OTRO", "CONSTANCIA", None):          # sin tipo cae en OTRO
+    for tipo in ("OTRO", "LIBRETA", None):            # sin tipo cae en OTRO
         r = subir(tipo)
         assert r.status_code == 422 and "DNI" in r.json()["detail"]
-    for tipo in ("DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO"):
+    for tipo in ("DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO",
+                 "CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU"):
         assert subir(tipo).status_code == 201
     r = subir("DNI_FRENTE", "otra-foto.png")
     assert r.status_code == 409 and "Ya adjuntaste el DNI (frente)" in r.json()["detail"]
     r = subir("SELFIE_DNI", "otra-selfie.png")
     assert r.status_code == 409 and "Ya adjuntaste la selfie con el DNI en la mano" in r.json()["detail"]
+    r = subir("CONSTANCIA_CBU", "otro-cbu.png")
+    assert r.status_code == 409 and "Ya adjuntaste la constancia de CBU" in r.json()["detail"]
     tipos = [d["tipo"] for d in client.get(url, headers=h).json()["items"]]
-    assert sorted(tipos) == ["DNI_DORSO", "DNI_FRENTE", "RECIBO", "SELFIE_DNI"]
+    assert sorted(tipos) == ["CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU", "DNI_DORSO", "DNI_FRENTE",
+                             "RECIBO", "SELFIE_DNI"]
 
 
 def test_mis_solicitudes_solo_las_propias(client):
@@ -714,8 +718,8 @@ def _bo(client):
     return {"Authorization": f"Bearer {tok}"}
 
 
-def _publicar_con_canales(client, hb, nombre, canales):
-    """Crea y publica (backoffice) un producto con Disponibilidad → canales dados."""
+def _publicar_con_canales(client, hb, nombre, canales, **extra):
+    """Crea y publica (backoffice) un producto con Disponibilidad → canales dados (+ reglas extra)."""
     pid = client.post("/api/creditos/productos", headers=hb, json={"nombre": nombre}).json()["id"]
     det = client.get(f"/api/creditos/productos/{pid}", headers=hb).json()
     comps = [{"codigo": c["codigo"], "config": c["config"], "activo": c["activo"], "heredado": c.get("heredado", False)}
@@ -724,7 +728,7 @@ def _publicar_con_canales(client, hb, nombre, canales):
     if av is None:
         av = {"codigo": "AVAILABILITY", "config": {}, "activo": True, "heredado": False}; comps.append(av)
     av["activo"] = True
-    av["config"] = {**(av["config"] or {}), "canales": canales}
+    av["config"] = {**(av["config"] or {}), "canales": canales, **extra}
     assert client.put(f"/api/creditos/productos/{pid}/config", headers=hb, json={**det["cfg"], "componentes": comps}).status_code == 200
     for acc in ("revisar", "aprobar", "publicar"):
         assert client.post(f"/api/creditos/productos/{pid}/estado", headers=hb, json={"accion": acc}).status_code == 200
@@ -841,3 +845,32 @@ def test_la_edad_se_calcula_y_no_envejece_sola(client):
     assert edad_de(date(1986, 9, 23), al=date(2026, 9, 23)) == 40
     assert edad_de(None) is None
 
+
+
+def test_tope_del_credito_se_configura_por_linea(client):
+    """El tope de la cuota sobre el sueldo NO está fijo en 30%: lo fija cada línea en Disponibilidad
+    ('Tope del crédito'). El portal ya no lo manda; el pre-aprobado y el envío usan el de la línea."""
+    hb, hp = _bo(client), _ingresar(client)
+    pid = _publicar_con_canales(client, hb, "Tope 25 QA", ["WEB"], afectacionMaxPct=25)
+    p = next(x for x in client.get("/api/creditos/portal/productos", headers=hp).json() if x["id"] == pid)
+
+    sueldo, plazo = 900000, 18
+    r = client.post("/api/creditos/portal/pre-aprobado", headers=hp,
+                    json={"producto_id": pid, "plazo": plazo, "sueldo": sueldo}).json()
+    assert r["afectacion_max"] == 25
+    assert r["afectacion"] <= 25.5           # el máximo ofrecido respeta el tope de la línea, no el 30%
+
+    # Un monto cuya cuota se pasa del 25% no se puede enviar, y el motivo lo dice.
+    monto = min(p["monto_max"], max(p["monto_min"], r["monto_maximo"] * 1.4))
+    sim = client.post("/api/creditos/portal/simular", headers=hp,
+                      json={**CONSENT, "producto_id": pid, "monto": monto, "plazo": plazo, "sueldo": sueldo}).json()
+    assert sim["afectacion"] > 25 and sim["elegible"] is False
+    assert any("25%" in m for m in sim["motivos"])
+    env = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "tope-1"},
+                      json={**CONSENT, "producto_id": pid, "monto": monto, "plazo": plazo, "sueldo": sueldo})
+    assert env.status_code == 422 and "25%" in env.text
+
+    # Con la cuota dentro del tope, la misma línea deja enviar.
+    ok = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "tope-2"},
+                     json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"], "plazo": plazo, "sueldo": sueldo})
+    assert ok.status_code == 201, ok.text
