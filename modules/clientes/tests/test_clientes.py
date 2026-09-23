@@ -550,3 +550,37 @@ def test_baja_de_miembro_inexistente_es_404(client, crear_pj):
     r = client.delete(f"/api/clientes/{pj['id']}/members/9999")
     assert r.status_code == 404
     assert r.json()["detail"] == "Miembro no encontrado"
+
+
+# ── Paginación del listado ────────────────────────────────────────────────────
+# El padrón importado son decenas de miles de clientes: el listado tiene que pedirse por página y,
+# sobre todo, devolver siempre el mismo orden (sin ORDER BY, Postgres no lo garantiza y al pasar de
+# página algunos clientes se repiten y otros no aparecen nunca).
+def test_el_listado_pagina_y_no_repite_ni_saltea(client, h, crear_ph):
+    for i in range(25):
+        crear_ph(nombre=f"N{i:02d}", apellido="PAGINA", documento=f"400000{i:02d}")
+
+    vistos, paginas = [], []
+    for p in range(1, 4):
+        r = client.get("/api/clientes", params={"page": p, "per_page": 10}, headers=h)
+        assert r.status_code == 200
+        d = r.json()
+        assert d["total"] == 25 and d["page"] == p and d["per_page"] == 10
+        paginas.append([c["id"] for c in d["data"]])
+        vistos += paginas[-1]
+
+    assert [len(x) for x in paginas] == [10, 10, 5]
+    assert len(set(vistos)) == 25, "una página repitió clientes de otra"
+    assert vistos == sorted(vistos), "el orden entre páginas no es estable"
+
+
+def test_se_busca_por_cuil(client, h, crear_ph, db):
+    from app.models import HumanClient
+    cli = crear_ph(nombre="Juana", apellido="Perez", documento="30504757")
+    perfil = db.query(HumanClient).filter(HumanClient.client_id == cli["id"]).first()
+    perfil.cuil = "27305047571"
+    db.commit()
+
+    r = client.get("/api/clientes", params={"search": "27305047571"}, headers=h)
+    assert r.status_code == 200 and r.json()["total"] == 1
+    assert r.json()["data"][0]["id"] == cli["id"]

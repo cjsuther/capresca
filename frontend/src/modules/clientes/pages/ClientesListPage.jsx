@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getClients } from "../../../api/clientes";
-import { Search, User, Building2 } from "lucide-react";
+import { Search, User, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+
+const num = (n) => Number(n || 0).toLocaleString("es-AR");
 
 export default function ClientesListPage() {
   const navigate = useNavigate();
@@ -9,26 +11,35 @@ export default function ClientesListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  // El padrón son decenas de miles de clientes: la lista se pide de a una página al servidor.
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [buscado, setBuscado] = useState(0);   // sube al apretar Buscar; dispara la recarga
 
-  const load = (params = {}) => {
+  useEffect(() => {
+    let vigente = true;
     setLoading(true);
-    getClients({ search, client_type: typeFilter, ...params })
-      .then(setData)
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(load, []);
+    getClients({ search, client_type: typeFilter, page, per_page: perPage })
+      .then((d) => { if (vigente) setData(d); })
+      .finally(() => { if (vigente) setLoading(false); });
+    return () => { vigente = false; };   // una búsqueda vieja no pisa el resultado de la nueva
+  }, [page, perPage, buscado]);          // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (e) => {
     e.preventDefault();
-    load();
+    setPage(1);                          // una búsqueda nueva arranca en la primera página
+    setBuscado((n) => n + 1);
   };
+
+  const paginas = Math.max(1, Math.ceil(data.total / perPage));
+  const desde = data.total === 0 ? 0 : (page - 1) * perPage + 1;
+  const hasta = Math.min(page * perPage, data.total);
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Clientes</h2>
-        <span className="text-sm text-gray-500">{data.total} registros</span>
+        <span className="text-sm text-gray-500">{num(data.total)} registros</span>
       </div>
 
       <form onSubmit={handleSearch} className="flex flex-wrap gap-3 mb-6">
@@ -99,6 +110,38 @@ export default function ClientesListPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+        <p className="text-sm text-gray-500 tabular-nums">
+          {data.total === 0 ? "Sin resultados" : `${num(desde)}–${num(hasta)} de ${num(data.total)}`}
+        </p>
+
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-500">
+            Por página
+            <select className="input py-1" value={perPage} aria-label="Clientes por página"
+                    onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}>
+              {[20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label="Página anterior" disabled={page <= 1 || loading}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="p-2 rounded-lg border border-gray-300 text-gray-600 enabled:hover:bg-gray-50 disabled:opacity-40">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-sm text-gray-600 tabular-nums px-2">
+              {num(page)} de {num(paginas)}
+            </span>
+            <button type="button" aria-label="Página siguiente" disabled={page >= paginas || loading}
+                    onClick={() => setPage((p) => Math.min(paginas, p + 1))}
+                    className="p-2 rounded-lg border border-gray-300 text-gray-600 enabled:hover:bg-gray-50 disabled:opacity-40">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

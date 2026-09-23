@@ -57,7 +57,7 @@ describe("ClientesListPage", () => {
   it("pide el listado al montar, sin filtros", async () => {
     montar();
     await waitFor(() => expect(getClients).toHaveBeenCalledTimes(1));
-    expect(getClients).toHaveBeenCalledWith({ search: "", client_type: "" });
+    expect(getClients).toHaveBeenCalledWith({ search: "", client_type: "", page: 1, per_page: 20 });
   });
 
   it("muestra el total de registros y una fila por cliente", async () => {
@@ -105,12 +105,85 @@ describe("ClientesListPage", () => {
     await screen.findByText("Ana Pérez");
 
     await user.type(screen.getByPlaceholderText("Buscar por nombre, documento, email..."), "perez");
-    await user.selectOptions(screen.getByRole("combobox"), "HUMAN");
+    await user.selectOptions(screen.getByRole("combobox", { name: "" }), "HUMAN");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
 
     await waitFor(() =>
-      expect(getClients).toHaveBeenLastCalledWith({ search: "perez", client_type: "HUMAN" })
+      expect(getClients).toHaveBeenLastCalledWith(
+        { search: "perez", client_type: "HUMAN", page: 1, per_page: 20 })
     );
+  });
+
+  // ── Paginación ────────────────────────────────────────────────────────────
+  // El padrón importado son ~72.000 clientes: la lista los pide de a una página.
+  const muchos = (total) => ({
+    data: [HUMANO, JURIDICO],
+    total,
+  });
+
+  it("muestra el rango y la cantidad de páginas", async () => {
+    getClients.mockResolvedValue(muchos(72100));
+    montar();
+    expect(await screen.findByText("1–20 de 72.100")).toBeInTheDocument();
+    expect(screen.getByText("1 de 3.605")).toBeInTheDocument();
+    expect(screen.getByText("72.100 registros")).toBeInTheDocument();
+  });
+
+  it("pasa a la página siguiente y vuelve", async () => {
+    const user = userEvent.setup();
+    getClients.mockResolvedValue(muchos(72100));
+    montar();
+    await screen.findByText("1–20 de 72.100");
+
+    await user.click(screen.getByRole("button", { name: "Página siguiente" }));
+    await waitFor(() => expect(getClients).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, per_page: 20 })));
+    expect(await screen.findByText("21–40 de 72.100")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Página anterior" }));
+    await waitFor(() => expect(getClients).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1 })));
+  });
+
+  it("en la primera página no se puede retroceder y en la última no se puede avanzar", async () => {
+    getClients.mockResolvedValue(muchos(25));
+    const user = userEvent.setup();
+    montar();
+    await screen.findByText("1–20 de 25");
+    expect(screen.getByRole("button", { name: "Página anterior" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Página siguiente" }));
+    expect(await screen.findByText("21–25 de 25")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Página siguiente" })).toBeDisabled();
+  });
+
+  it("cambiar el tamaño de página vuelve a la primera", async () => {
+    const user = userEvent.setup();
+    getClients.mockResolvedValue(muchos(72100));
+    montar();
+    await screen.findByText("1–20 de 72.100");
+
+    await user.click(screen.getByRole("button", { name: "Página siguiente" }));
+    await waitFor(() => expect(getClients).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })));
+
+    await user.selectOptions(screen.getByLabelText("Clientes por página"), "100");
+    await waitFor(() => expect(getClients).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, per_page: 100 })));
+    expect(await screen.findByText("1–100 de 72.100")).toBeInTheDocument();
+  });
+
+  it("una búsqueda nueva vuelve a la primera página", async () => {
+    const user = userEvent.setup();
+    getClients.mockResolvedValue(muchos(72100));
+    montar();
+    await screen.findByText("1–20 de 72.100");
+    await user.click(screen.getByRole("button", { name: "Página siguiente" }));
+    await waitFor(() => expect(getClients).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })));
+
+    await user.type(screen.getByPlaceholderText("Buscar por nombre, documento, email..."), "30123456");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    await waitFor(() => expect(getClients).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "30123456", page: 1 })));
   });
 
   it("al hacer click en una fila navega al detalle del cliente", async () => {

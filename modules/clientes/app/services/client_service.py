@@ -31,6 +31,7 @@ def list_clients(db: Session, client_type: str = None, search: str = None,
                     HumanClient.first_name.ilike(f"%{search}%"),
                     HumanClient.last_name.ilike(f"%{search}%"),
                     HumanClient.document_number.ilike(f"%{search}%"),
+                    HumanClient.cuil.ilike(f"%{search}%"),
                 )
             ).subquery()
         )
@@ -54,7 +55,10 @@ def list_clients(db: Session, client_type: str = None, search: str = None,
         )
 
     total = q.count()
-    clients = q.offset((page - 1) * per_page).limit(per_page).all()
+    # Sin un orden fijo, Postgres no garantiza el mismo orden entre consultas: con 72.000 clientes
+    # eso hace que al pasar de página algunos se repitan y otros no aparezcan nunca.
+    clients = (q.order_by(Client.id)
+                .offset((page - 1) * per_page).limit(per_page).all())
     return clients, total
 
 
