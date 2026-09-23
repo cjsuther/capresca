@@ -6,7 +6,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.db.base import Base
-from app.models import user, role, module, permission  # noqa: F401 – registra modelos
+from app.models import user, role, module, permission, group  # noqa: F401 – registra modelos
 
 config = context.config
 

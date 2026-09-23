@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { getUsers, createUser, updateUser, deleteUser, getRoles, assignRoles, adminChangePassword } from "../../../api/security";
+import {
+  getUsers, createUser, updateUser, deleteUser, getRoles, assignRoles, adminChangePassword, getGroups, assignUserGroups,
+} from "../../../api/security";
+import { useHasPermission } from "../../../context/usePermissions";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { ChangePasswordModal } from "../../../components/ChangePasswordModal";
 import {
@@ -7,9 +10,27 @@ import {
   ShieldCheck, Check, X, ChevronDown, ChevronUp, KeyRound,
 } from "lucide-react";
 
+/** Roles que el usuario recibe por sus grupos activos y no tiene asignados directamente. */
+function heredados(user) {
+  const propios = new Set(user.roles.map((r) => r.id));
+  const por = new Map();
+  for (const g of user.groups || []) {
+    if (!g.is_active) continue;
+    for (const r of g.roles || []) {
+      if (propios.has(r.id)) continue;
+      if (!por.has(r.id)) por.set(r.id, { rol: r, grupos: [] });
+      por.get(r.id).grupos.push(g.name);
+    }
+  }
+  return [...por.values()];
+}
+
 export default function UsersPage() {
   const [data, setData] = useState({ data: [], total: 0 });
   const [allRoles, setAllRoles] = useState([]);
+  const [allGroups, setAllGroups] = useState([]);
+  const verGrupos = useHasPermission("security", "groups:read");
+  const editarGrupos = useHasPermission("security", "groups:write");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -24,14 +45,15 @@ export default function UsersPage() {
   // Panel de roles
   const [rolesPanelId, setRolesPanelId] = useState(null);
   const [selectedRoles, setSelectedRoles] = useState(new Set());
+  const [selectedGroups, setSelectedGroups] = useState(new Set());
 
   // Modal cambio de contraseña por admin
   const [passwordTarget, setPasswordTarget] = useState(null); // { id, username }
 
   const load = () => {
     setLoading(true);
-    Promise.all([getUsers(), getRoles()])
-      .then(([u, r]) => { setData(u); setAllRoles(r); })
+    Promise.all([getUsers(1, 100), getRoles(), verGrupos ? getGroups() : Promise.resolve([])])
+      .then(([u, r, g]) => { setData(u); setAllRoles(r); setAllGroups(g); })
       .catch(() => setError("Error al cargar datos"))
       .finally(() => setLoading(false));
   };
@@ -88,6 +110,7 @@ export default function UsersPage() {
     if (rolesPanelId === user.id) { setRolesPanelId(null); return; }
     setRolesPanelId(user.id);
     setSelectedRoles(new Set(user.roles.map((r) => r.id)));
+    setSelectedGroups(new Set((user.groups || []).map((g) => g.id)));
     setEditingId(null);
   };
 
@@ -99,10 +122,19 @@ export default function UsersPage() {
     });
   };
 
+  const toggleGroup = (groupId) => {
+    setSelectedGroups((prev) => {
+      const next = new Set(prev);
+      next.has(groupId) ? next.delete(groupId) : next.add(groupId);
+      return next;
+    });
+  };
+
   const handleSaveRoles = async (userId) => {
     setError("");
     try {
       await assignRoles(userId, [...selectedRoles]);
+      if (editarGrupos) await assignUserGroups(userId, [...selectedGroups]);
       setRolesPanelId(null);
       load();
     } catch (err) {
@@ -166,12 +198,13 @@ export default function UsersPage() {
               <th className="text-left px-4 py-3 font-medium">Nombre</th>
               <th className="text-left px-4 py-3 font-medium">Estado</th>
               <th className="text-left px-4 py-3 font-medium">Roles</th>
+              <th className="text-left px-4 py-3 font-medium">Grupos</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
             ) : data.data.map((user) => (
               <>
                 {/* Fila principal */}
@@ -206,9 +239,27 @@ export default function UsersPage() {
                   </td>
 
                   <td className="px-4 py-3 text-gray-500">
-                    {user.roles.length > 0
-                      ? user.roles.map((r) => (
-                        <span key={r.id} className="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded mr-1">{r.name}</span>
+                    {user.roles.length > 0 || heredados(user).length > 0
+                      ? <>
+                        {user.roles.map((r) => (
+                          <span key={r.id} className="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded mr-1">{r.name}</span>
+                        ))}
+                        {heredados(user).map(({ rol, grupos }) => (
+                          <span key={`h-${rol.id}`} title={`Heredado de: ${grupos.join(", ")}`}
+                                className="inline-block border border-dashed border-purple-300 text-purple-600 text-xs px-2 py-0.5 rounded mr-1">
+                            {rol.name}
+                          </span>
+                        ))}
+                      </>
+                      : <span className="text-gray-300">—</span>
+                    }
+                  </td>
+
+                  <td className="px-4 py-3 text-gray-500">
+                    {(user.groups || []).length > 0
+                      ? user.groups.map((g) => (
+                        <span key={g.id} className={`inline-block text-xs px-2 py-0.5 rounded mr-1 ${
+                          g.is_active ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-400 line-through"}`}>{g.name}</span>
                       ))
                       : <span className="text-gray-300">—</span>
                     }
@@ -261,7 +312,7 @@ export default function UsersPage() {
                 {/* Panel de roles expandible */}
                 {rolesPanelId === user.id && (
                   <tr key={`${user.id}-roles`}>
-                    <td colSpan={6} className="px-4 pb-4 bg-purple-50 border-b">
+                    <td colSpan={7} className="px-4 pb-4 bg-purple-50 border-b">
                       <div className="pt-3">
                         <p className="text-sm font-medium text-gray-700 mb-3">Asignar roles a <strong>{user.username}</strong></p>
                         <div className="flex flex-wrap gap-3 mb-4">
@@ -280,12 +331,40 @@ export default function UsersPage() {
                             </label>
                           ))}
                         </div>
+                        {editarGrupos && (
+                          <>
+                            <p className="text-sm font-medium text-gray-700 mb-3">
+                              Grupos <span className="font-normal text-gray-500">(hereda los roles de cada grupo activo)</span>
+                            </p>
+                            <div className="flex flex-wrap gap-3 mb-4">
+                              {allGroups.length === 0 && <span className="text-sm text-gray-400">No hay grupos creados</span>}
+                              {allGroups.map((group) => (
+                                <label key={group.id} className="flex items-center gap-2 cursor-pointer bg-surface border rounded-lg px-3 py-2 hover:border-blue-400 transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedGroups.has(group.id)}
+                                    onChange={() => toggleGroup(group.id)}
+                                    className="rounded text-blue-600"
+                                    aria-label={`Grupo ${group.name}`}
+                                  />
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-800">{group.name}</span>
+                                    <p className="text-xs text-gray-400">
+                                      {group.roles.length ? group.roles.map((r) => r.name).join(", ") : "sin roles"}
+                                      {!group.is_active && " · inactivo"}
+                                    </p>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          </>
+                        )}
                         <div className="flex gap-2 justify-end">
                           <button onClick={() => setRolesPanelId(null)} className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-surface">
                             Cancelar
                           </button>
                           <button onClick={() => handleSaveRoles(user.id)} className="flex items-center gap-1 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                            <Check size={14} /> Guardar roles
+                            <Check size={14} /> {editarGrupos ? "Guardar roles y grupos" : "Guardar roles"}
                           </button>
                         </div>
                       </div>

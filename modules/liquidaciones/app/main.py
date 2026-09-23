@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import liquidaciones, internal
 from app import scheduler
+from app.services import auditoria_central as central
 
 
 @asynccontextmanager
@@ -28,6 +29,10 @@ app.add_middleware(
 PREFIX = "/api/liquidaciones"
 app.include_router(liquidaciones.router, prefix=PREFIX)
 app.include_router(internal.router)
+
+# Auditoría central: lotes y validaciones. El detalle crudo del ZIP (miles de filas por archivo) no se
+# audita fila por fila: queda el lote con su resultado.
+central.instalar(app, excluir={"liquidacion_detalle_raw", "liquidacion_resumen_raw", "liquidacion_procesadas"})
 
 
 @app.get("/health")

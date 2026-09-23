@@ -79,7 +79,10 @@ const archivo = (nombre: string, tipo: string, tam = 1000) => {
   Object.defineProperty(f, "size", { value: tam });
   return f;
 };
-const ETIQUETA: Record<string, string> = { DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo" };
+const ETIQUETA: Record<string, string> = { DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)",
+                                           SELFIE_DNI: "Selfie con el DNI en la mano", RECIBO: "Recibo de sueldo",
+                                           CERTIFICADO_SERVICIOS: "Certificado de servicios",
+                                           CONSTANCIA_CBU: "Constancia de CBU" };
 const casillero = (tipo: string) => screen.getByLabelText(`Adjuntar ${ETIQUETA[tipo]}`) as HTMLInputElement;
 
 /** Adjunta un archivo en el casillero del documento indicado (paso 3). */
@@ -87,10 +90,12 @@ async function adjuntar(_u: ReturnType<typeof userEvent.setup>, tipo: string, f:
   fireEvent.change(casillero(tipo), { target: { files: [f] } });
 }
 
-/** Adjunta la documentación obligatoria (DNI frente y dorso + recibo). */
+/** Adjunta toda la documentación obligatoria (los seis documentos del paso 3). */
 async function adjuntarRequeridos(u: ReturnType<typeof userEvent.setup>) {
   const docs = { DNI_FRENTE: archivo("dni-frente.jpg", "image/jpeg"), DNI_DORSO: archivo("dni-dorso.jpg", "image/jpeg"),
-                 RECIBO: archivo("recibo.pdf", "application/pdf") };
+                 SELFIE_DNI: archivo("selfie.jpg", "image/jpeg"), RECIBO: archivo("recibo.pdf", "application/pdf"),
+                 CERTIFICADO_SERVICIOS: archivo("certificado.pdf", "application/pdf"),
+                 CONSTANCIA_CBU: archivo("cbu.pdf", "application/pdf") };
   for (const [t, f] of Object.entries(docs)) await adjuntar(u, t, f);
   return docs;
 }
@@ -102,12 +107,18 @@ async function llegarADocumentacion(u: ReturnType<typeof userEvent.setup>) {
   expect(await screen.findByText(/obligatoria para continuar/)).toBeInTheDocument();
 }
 
-/** Completa el paso 1 (identidad + situación) y pasa a la simulación. */
+/** Completa el paso 1 (identidad + situación + nacimiento y contacto) y pasa a la simulación. */
+const NACIMIENTO = `${new Date().getFullYear() - 40}-01-01`;
+
 async function completarDatos(u: ReturnType<typeof userEvent.setup>) {
   await u.type(screen.getByLabelText(/Apellido/), "Prueba");
   await u.type(screen.getByLabelText(/^Nombre/), "Ana");
-  await u.type(screen.getByLabelText(/DNI/), "30123456");
+  await u.type(screen.getByLabelText(/^DNI/), "30123456");
   await u.selectOptions(screen.getByLabelText(/Situación laboral/), "AGENTE_PUBLICO");
+  fireEvent.change(screen.getByLabelText(/Fecha de nacimiento/), { target: { value: NACIMIENTO } });
+  await u.clear(screen.getByLabelText(/Email/));
+  await u.type(screen.getByLabelText(/Email/), "ana@example.com");
+  await u.type(screen.getByLabelText(/Teléfono/), "3834123456");
   await u.click(screen.getByRole("button", { name: /Continuar/ }));
 }
 
@@ -226,12 +237,15 @@ describe("paso 3 · documentación", () => {
     expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 
-  it("pide exactamente tres documentos: DNI frente, DNI dorso y recibo (sin otros tipos)", async () => {
+  it("pide exactamente los seis documentos del trámite (sin otros tipos)", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
     const lista = screen.getByRole("list", { name: "Documentación requerida" });
-    expect(within(lista).getAllByRole("listitem")).toHaveLength(3);
-    expect(document.querySelectorAll('input[type="file"]')).toHaveLength(3);
+    expect(within(lista).getAllByRole("listitem")).toHaveLength(6);
+    expect(document.querySelectorAll('input[type="file"]')).toHaveLength(6);
+    expect(within(lista).getByText("Selfie con el DNI en la mano")).toBeInTheDocument();
+    expect(within(lista).getByText("Certificado de servicios")).toBeInTheDocument();
+    expect(within(lista).getByText("Constancia de CBU")).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Tipo de documento" })).toBeNull();
     expect(screen.queryByText("Otro")).toBeNull();
   });
@@ -245,7 +259,7 @@ describe("paso 3 · documentación", () => {
     await adjuntar(u, "DNI_FRENTE", archivo("dni-mejor.jpg", "image/jpeg"));
     expect(within(slot("DNI_FRENTE")).getByText(/dni-mejor\.jpg/)).toBeInTheDocument();
     expect(screen.queryByText(/dni\.png/)).toBeNull();
-    expect(screen.getByText("Te faltan 2 documentos.")).toBeInTheDocument();
+    expect(screen.getByText("Te faltan 5 documentos.")).toBeInTheDocument();
   });
 
   it("rechaza formatos que no son imagen ni PDF", async () => {
@@ -272,17 +286,18 @@ describe("paso 3 · documentación", () => {
     expect(within(slot("DNI_DORSO")).getByText("Falta adjuntar")).toBeInTheDocument();
   });
 
-  it("no deja seguir sin el DNI (frente y dorso) y el recibo", async () => {
+  it("no deja seguir si falta alguno de los documentos", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
     await adjuntar(u, "DNI_FRENTE", archivo("dni.jpg", "image/jpeg"));
-    expect(screen.getByText("Te faltan 2 documentos.")).toBeInTheDocument();
+    expect(screen.getByText("Te faltan 5 documentos.")).toBeInTheDocument();
     await u.click(screen.getByRole("button", { name: /Continuar/ }));
-    expect(screen.getByText("Falta adjuntar: DNI (dorso), Recibo de sueldo.")).toBeInTheDocument();
+    expect(screen.getByText("Falta adjuntar: DNI (dorso), Selfie con el DNI en la mano, Recibo de sueldo, "
+                            + "Certificado de servicios, Constancia de CBU.")).toBeInTheDocument();
     expect(screen.queryByText(/Mirá los videos/)).toBeNull();
   });
 
-  it("con los tres documentos pasa a los videos", async () => {
+  it("con los seis documentos pasa a los videos", async () => {
     const u = await montarLogueado();
     await llegarADocumentacion(u);
     await adjuntarRequeridos(u);
@@ -401,11 +416,13 @@ describe("paso 2 · simulación", () => {
   });
 
   it("si el sueldo no alcanza lo dice en lugar de ofrecer un máximo", async () => {
-    api.preAprobado.mockResolvedValue({ monto_maximo: 0, monto_min: 100000, cuota: 0, afectacion: 0, plazo: 12 });
+    api.preAprobado.mockResolvedValue({ monto_maximo: 0, monto_min: 100000, cuota: 0, afectacion: 0, plazo: 12, afectacion_max: 25 });
     const u = await montarLogueado();
     await u.type(screen.getByLabelText(/Sueldo neto/), "100000");
     await completarDatos(u);
-    expect(await screen.findByText(/la cuota supera tu margen/)).toBeInTheDocument();
+    // El tope que muestra es el de la línea (25%), no un 30% fijo del portal.
+    expect(await screen.findByText(/la cuota se pasa del 25% de tu sueldo/)).toBeInTheDocument();
+    expect(api.preAprobado).toHaveBeenCalledWith(expect.not.objectContaining({ afectacion_max: expect.anything() }));
   });
 
   it("se puede volver al paso 1 sin perder los datos", async () => {
@@ -467,9 +484,12 @@ describe("paso 5 · confirmación y envío", () => {
     await u.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos/ }));
     await u.click(screen.getByRole("button", { name: /Confirmar y enviar/ }));
 
-    await waitFor(() => expect(api.docSubir).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(api.docSubir).toHaveBeenCalledTimes(6));
     expect(api.docSubir).toHaveBeenCalledWith("SOL-8", docs.DNI_FRENTE, "DNI_FRENTE");
+    expect(api.docSubir).toHaveBeenCalledWith("SOL-8", docs.SELFIE_DNI, "SELFIE_DNI");
     expect(api.docSubir).toHaveBeenCalledWith("SOL-8", docs.RECIBO, "RECIBO");
+    expect(api.docSubir).toHaveBeenCalledWith("SOL-8", docs.CERTIFICADO_SERVICIOS, "CERTIFICADO_SERVICIOS");
+    expect(api.docSubir).toHaveBeenCalledWith("SOL-8", docs.CONSTANCIA_CBU, "CONSTANCIA_CBU");
     expect(await screen.findByText(/No se pudieron adjuntar 1 archivo/)).toBeInTheDocument();
   });
 
@@ -555,7 +575,7 @@ describe("mis solicitudes", () => {
     api.misSolicitudes.mockResolvedValue([SOL]);
     api.solicitudDetalle.mockResolvedValue({
       ...SOL, estado: "APROBADA", sistema: "FRANCES", destino: "VIVIENDA", segmento: "AGENTE_PUBLICO",
-      edad: 40, antiguedad_meses: 60, sueldo: 900000, afectacion: 25, total_a_pagar: 700000,
+      fecha_nacimiento: NACIMIENTO, edad: 40, antiguedad_meses: 60, sueldo: 900000, afectacion: 25, total_a_pagar: 700000,
       cuotas: [{ numero: 1, vencimiento: "2026-04-10", capital: 30000, interes: 28333, cargos: 0, impuestos: 0, total: 58333 }],
     });
     const u = await montarLogueado();
@@ -573,7 +593,7 @@ describe("mis solicitudes", () => {
     api.misSolicitudes.mockResolvedValue([SOL]);
     api.solicitudDetalle.mockResolvedValue({
       ...SOL, estado: "RECHAZADA", motivo_rechazo: "Deuda en otra entidad", sistema: "FRANCES", destino: "",
-      segmento: "", edad: null, antiguedad_meses: null, sueldo: null, afectacion: null, total_a_pagar: 0, cuotas: [],
+      segmento: "", fecha_nacimiento: null, edad: null, antiguedad_meses: null, sueldo: null, afectacion: null, total_a_pagar: 0, cuotas: [],
     });
     const u = await montarLogueado();
     await u.click(screen.getByRole("button", { name: "Mis solicitudes" }));

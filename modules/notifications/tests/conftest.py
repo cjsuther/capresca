@@ -3,6 +3,9 @@ import os
 
 # La config se lee al importar la app: el DATABASE_URL de test va antes.
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

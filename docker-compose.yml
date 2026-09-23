@@ -15,6 +15,9 @@ volumes:
   legacy_data:
   creditos_data:
   configuraciones_data:
+  tesoreria_data:
+  auditoria_data:
+  contabilidad_data:
 
 services:
 
@@ -67,6 +70,11 @@ services:
       - LEGACY_SERVICE_URL=http://legacy:8009
       - CREDITOS_SERVICE_URL=http://creditos:8010
       - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
+      - TESORERIA_SERVICE_URL=http://tesoreria:8012
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      # Auditoría central: el gateway registra toda operación que modifica datos.
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
     depends_on:
@@ -80,6 +88,9 @@ services:
       - legacy
       - creditos
       - configuraciones
+      - tesoreria
+      - auditoria
+      - contabilidad
     networks:
       - app_network
     restart: unless-stopped
@@ -96,6 +107,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ALGORITHM=HS256
       - JWT_EXPIRE_HOURS=8
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_security:
         condition: service_healthy
@@ -130,6 +143,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${CAJEROS_DB_USER}:${CAJEROS_DB_PASS}@db_cajeros:5432/${CAJEROS_DB_NAME}
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_cajeros:
         condition: service_healthy
@@ -165,6 +180,8 @@ services:
       - DATABASE_URL=postgresql://${CLIENTES_DB_USER}:${CLIENTES_DB_PASS}@db_clientes:5432/${CLIENTES_DB_NAME}
       - LEGACY_SERVICE_URL=http://legacy:8009
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_clientes:
         condition: service_healthy
@@ -202,6 +219,8 @@ services:
       - INTERBANKING_AUTH_URL=${INTERBANKING_AUTH_URL}
       - ENCRYPTION_KEY=${INTERBANKING_ENCRYPTION_KEY}
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_interbanking:
         condition: service_healthy
@@ -235,6 +254,8 @@ services:
       dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql://notif_user:notif_pass@db_notifications:5432/notifications_db
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_notifications:
         condition: service_healthy
@@ -273,10 +294,16 @@ services:
       - LEGACY_SERVICE_URL=http://legacy:8009
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       # Pagos salientes automáticos. Arrancan seguros: apagados y en simulación.
       # Poné AUTO_PAYMENTS_ENABLED=true y PAYMENTS_DRY_RUN=false para pagar de verdad.
       - AUTO_PAYMENTS_ENABLED=${CONCILIACION_AUTO_PAYMENTS_ENABLED:-false}
       - PAYMENTS_DRY_RUN=${CONCILIACION_PAYMENTS_DRY_RUN:-true}
+      # Con Tesorería los pagos van en un lote que aprueba el tesorero (PAYMENTS_DRY_RUN no aplica).
+      - PAYMENTS_VIA_TESORERIA=${CONCILIACION_PAYMENTS_VIA_TESORERIA:-true}
+      - TESORERIA_SERVICE_URL=http://tesoreria:8012
+      - TESORERIA_INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
     depends_on:
       db_conciliacion:
         condition: service_healthy
@@ -318,6 +345,8 @@ services:
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
       - INBOX_DIR=/data/liquidaciones/inbox
       - INBOX_CRON_HOUR=${LIQUIDACIONES_INBOX_CRON_HOUR:-7}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     volumes:
       - ./externalfiles:/data/externalfiles:ro
       # Carpeta de entrada del archivo diario de liquidación. Apuntar
@@ -363,6 +392,8 @@ services:
       - WRITE_MODE=${LEGACY_WRITE_MODE:-outbox_only}
       - ALLOW_REAL_DRAIN=${LEGACY_ALLOW_REAL_DRAIN:-false}
       - SANDBOX_WRITE_ROOT=/data/agjs_sandbox
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     volumes:
       # Montaje SMB/CIFS del share legacy hecho en el HOST, bind-mount read-only.
       # Ajustar la ruta del host (${LEGACY_SHARE_HOST_PATH}) al punto de montaje real.
@@ -403,6 +434,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${CONFIGURACIONES_DB_USER}:${CONFIGURACIONES_DB_PASS}@db_configuraciones:5432/${CONFIGURACIONES_DB_NAME}
       - INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
     depends_on:
       db_configuraciones:
         condition: service_healthy
@@ -428,6 +461,126 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────
+  # Módulo Contabilidad — transacciones de los módulos → asientos, libros y estados (API :8014)
+  # ──────────────────────────────────────────
+  contabilidad:
+    build:
+      context: ./modules/contabilidad
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${CONTABILIDAD_DB_USER}:${CONTABILIDAD_DB_PASS}@db_contabilidad:5432/${CONTABILIDAD_DB_NAME}
+      # La presentan los módulos al mandar sus transacciones (nunca asientos).
+      - INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+    depends_on:
+      db_contabilidad:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_contabilidad:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${CONTABILIDAD_DB_NAME}
+      - POSTGRES_USER=${CONTABILIDAD_DB_USER}
+      - POSTGRES_PASSWORD=${CONTABILIDAD_DB_PASS}
+    volumes:
+      - contabilidad_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CONTABILIDAD_DB_USER} -d ${CONTABILIDAD_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Auditoría — qué hace cada usuario con la información del sistema (API :8013)
+  # ──────────────────────────────────────────
+  auditoria:
+    build:
+      context: ./modules/auditoria
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${AUDITORIA_DB_USER}:${AUDITORIA_DB_PASS}@db_auditoria:5432/${AUDITORIA_DB_NAME}
+      # La presentan el gateway y los módulos para registrar. Sin clave, nadie puede escribir el registro.
+      - INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Retención: 5 años (1825 días). La purga corre sola, de madrugada.
+      - RETENCION_DIAS=${AUDITORIA_RETENCION_DIAS:-1825}
+    depends_on:
+      db_auditoria:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_auditoria:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${AUDITORIA_DB_NAME}
+      - POSTGRES_USER=${AUDITORIA_DB_USER}
+      - POSTGRES_PASSWORD=${AUDITORIA_DB_PASS}
+    volumes:
+      - auditoria_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUDITORIA_DB_USER} -d ${AUDITORIA_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Tesorería — lotes de pagos: aprobación (workflow) y envío por Interbanking (API :8012)
+  # ──────────────────────────────────────────
+  tesoreria:
+    build:
+      context: ./modules/tesoreria
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${TESORERIA_DB_USER}:${TESORERIA_DB_PASS}@db_tesoreria:5432/${TESORERIA_DB_NAME}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
+      - CONTABILIDAD_INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
+      # Autentica a los módulos que le mandan lotes y a los avisos de resultado que Tesorería les devuelve.
+      - INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
+      - INTERBANKING_SERVICE_URL=http://interbanking:8004
+      - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
+      - CONFIGURACIONES_INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+      # true = simulación: aprueba y "envía" sin mover dinero. Poner false sólo con la cuenta de pagos lista.
+      - ENVIO_SIMULADO=${TESORERIA_ENVIO_SIMULADO:-true}
+    depends_on:
+      db_tesoreria:
+        condition: service_healthy
+      configuraciones:
+        condition: service_started
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_tesoreria:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${TESORERIA_DB_NAME}
+      - POSTGRES_USER=${TESORERIA_DB_USER}
+      - POSTGRES_PASSWORD=${TESORERIA_DB_PASS}
+    volumes:
+      - tesoreria_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TESORERIA_DB_USER} -d ${TESORERIA_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
   # Módulo Créditos (CCyPP) — API :8010 + portal ciudadano /portal-creditos/
   # (el backoffice es parte del frontend de Portezuelo: /modules/creditos/)
   # ──────────────────────────────────────────
@@ -438,6 +591,10 @@ services:
     environment:
       - ENVIRONMENT=production
       - DATABASE_URL=postgresql+psycopg://${CREDITOS_DB_USER}:${CREDITOS_DB_PASS}@db_creditos:5432/${CREDITOS_DB_NAME}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
+      - CONTABILIDAD_INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
       # Firma SOLO los tokens del portal ciudadano (realm propio). Debe ser distinto de JWT_SECRET:
       # los usuarios del backoffice los autentica el gateway de Portezuelo.
       - JWT_SECRET=${CREDITOS_PORTAL_JWT_SECRET}
@@ -445,12 +602,21 @@ services:
       # habilite el proveedor MOCK (sólo demo/QA: deja entrar a cualquiera como un ciudadano de prueba).
       - MICATAMARCA_CLIENT_ID=${MICATAMARCA_CLIENT_ID:-}
       - MICATAMARCA_CLIENT_SECRET=${MICATAMARCA_CLIENT_SECRET:-}
+      # Entorno del proveedor: producción api-mi… / desarrollo develop-api-mi…; de acá salen los
+      # endpoints /authorize, /token, /userinfo y /jwks.
+      - MICATAMARCA_ISSUER=${MICATAMARCA_ISSUER:-https://api-mi.catamarca.gob.ar/openid}
+      - MICATAMARCA_SCOPES=${MICATAMARCA_SCOPES:-openid profile email}
+      - MICATAMARCA_PKCE=${MICATAMARCA_PKCE:-true}
       - MICATAMARCA_REDIRECT_URI=${CREDITOS_PUBLIC_URL:-http://localhost}/api/creditos/portal/auth/callback
       - PORTAL_WEB_URL=${CREDITOS_PUBLIC_URL:-http://localhost}/portal-creditos
       - PORTAL_MOCK_SSO=${CREDITOS_PORTAL_MOCK_SSO:-false}
       # Impuestos, índices, feriados y reglas del workflow: los lee de Configuraciones (API interna).
       - CONFIGURACIONES_SERVICE_URL=http://configuraciones:8011
       - CONFIGURACIONES_INTERNAL_API_KEY=${CONFIGURACIONES_INTERNAL_API_KEY}
+      # Desembolsos por Tesorería: el contrato pasa a ACTIVO cuando se acredita la transferencia.
+      - DESEMBOLSO_VIA_TESORERIA=${CREDITOS_DESEMBOLSO_VIA_TESORERIA:-true}
+      - TESORERIA_SERVICE_URL=http://tesoreria:8012
+      - TESORERIA_INTERNAL_API_KEY=${TESORERIA_INTERNAL_API_KEY}
     volumes:
       # Backup DBF del sistema VFP para el ETL (read-only):
       #   docker compose exec creditos python3 -m app.etl.cargar_todo /bases

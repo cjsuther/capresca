@@ -37,7 +37,7 @@ def test_listado_no_expone_el_hash(client, crear_usuario):
 
 def test_listado_valida_los_parametros_de_paginado(client):
     assert client.get(BASE, params={"page": 0}).status_code == 422
-    assert client.get(BASE, params={"per_page": 101}).status_code == 422
+    assert client.get(BASE, params={"per_page": 501}).status_code == 422
 
 
 # ── Alta ─────────────────────────────────────────────────────────────

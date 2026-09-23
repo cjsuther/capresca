@@ -313,6 +313,7 @@ def _disponibilidad(v: m.PPVersion) -> dict | None:
         "edadMin": cfg.get("edadMin") or None,
         "edadMax": cfg.get("edadMax") or None,
         "antiguedadMinMeses": cfg.get("antiguedadMinMeses") or None,
+        "afectacionMaxPct": cfg.get("afectacionMaxPct") or None,
         "requiereGarante": bool(cfg.get("requiereGarante", False)),
         "vigenteDesde": cfg.get("vigenteDesde") or "",
         "vigenteHasta": cfg.get("vigenteHasta") or "",
@@ -347,7 +348,14 @@ def _elegibilidad(disp: dict | None, ctx: dict) -> dict:
             motivos.append(f"Edad máxima {disp['edadMax']} (solicitante {edad}).")
     ant = ctx.get("antiguedad_meses")
     if ant is not None and disp["antiguedadMinMeses"] and ant < disp["antiguedadMinMeses"]:
-        motivos.append(f"Antigüedad mínima {disp['antiguedadMinMeses']} meses (solicitante {ant}).")
+        anios = disp["antiguedadMinMeses"] / 12
+        motivos.append(f"Antigüedad mínima {anios:g} año(s) (solicitante {ant / 12:g}).")
+    # Tope del crédito: la cuota no puede pasarse del % del sueldo que fija la línea.
+    afectacion = ctx.get("afectacion")
+    tope = disp.get("afectacionMaxPct")
+    if afectacion is not None and tope and afectacion > tope:
+        motivos.append(f"La cuota ocupa el {afectacion:g}% del sueldo y el máximo de esta línea "
+                       f"es {tope:g}%.")
     return {"elegible": not motivos, "motivos": motivos}
 
 
@@ -871,6 +879,7 @@ class DisponibilidadIn(BaseModel):
     edadMin: int | None = None
     edadMax: int | None = None
     antiguedadMinMeses: int | None = None
+    afectacionMaxPct: float | None = None    # tope del crédito: % del sueldo que puede ocupar la cuota
     requiereGarante: bool = False
     vigenteDesde: str = ""
     vigenteHasta: str = ""
@@ -892,7 +901,8 @@ def editar_disponibilidad(producto_id: str, data: DisponibilidadIn, db: Session 
         "canales": [str(c).strip().upper() for c in (data.canales or []) if str(c).strip()],
         "segmentos": [str(s).strip() for s in (data.segmentos or []) if str(s).strip()],
         "edadMin": data.edadMin, "edadMax": data.edadMax,
-        "antiguedadMinMeses": data.antiguedadMinMeses, "requiereGarante": bool(data.requiereGarante),
+        "antiguedadMinMeses": data.antiguedadMinMeses, "afectacionMaxPct": data.afectacionMaxPct,
+        "requiereGarante": bool(data.requiereGarante),
         "vigenteDesde": data.vigenteDesde or "", "vigenteHasta": data.vigenteHasta or "",
     }
     row = next((c for c in v.componentes if c.componente_codigo == "AVAILABILITY"), None)

@@ -1,15 +1,20 @@
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
 import { MENU } from "./menu";
+import { usePuedeVerHeredadas } from "./permisos";
 
 const BASE = "/modules/creditos";
 
 /** Menú del módulo Créditos, agrupado (Consultas, Reportes…). */
 export function CreditosSidebar({ onClose }) {
+  const verHeredadas = usePuedeVerHeredadas();
+  const grupos = MENU
+    .map((g) => ({ ...g, items: g.items.filter((i) => verHeredadas || !i.heredada) }))
+    .filter((g) => g.items.length);
   return (
     <aside className="w-56 min-h-screen bg-surface border-r border-gray-200 pt-4 md:pt-6 overflow-y-auto">
       <nav className="flex flex-col px-2 pb-8">
-        {MENU.map((g) => (
+        {grupos.map((g) => (
           <div key={g.label} className="mb-3">
             <p className="px-3 py-1 text-[10px] uppercase tracking-wide text-gray-400 font-semibold">{g.label}</p>
             {g.items.map((i) => (

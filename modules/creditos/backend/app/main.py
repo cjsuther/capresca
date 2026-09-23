@@ -7,8 +7,10 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.core.database import Base, engine, SessionLocal
+from app.services import auditoria_central as central
 from app.api import (clientes, creditos, caja, consultas, admin, productos, contratos,
-                     impuestos, indices, sistema_calculos, solicitudes, aprobaciones, portal)
+                     impuestos, indices, sistema_calculos, solicitudes, aprobaciones, portal,
+                     tesoreria_interna)
 from app.core.configuraciones import ConfiguracionNoDisponible
 from app import models_productos  # noqa: F401  (registra tablas pp_* en Base.metadata)
 from app.seed import seed, seed_perfiles
@@ -86,6 +88,9 @@ def _migrar_iam() -> None:
             conn.execute(text("ALTER TABLE clientes ALTER COLUMN id DROP DEFAULT"))
         except Exception as e:  # pragma: no cover
             print(f"[migrar] no se pudo soltar el default de clientes.id: {e}")
+
+        # La solicitud guarda la FECHA DE NACIMIENTO y la edad se calcula (H-219). Idempotente.
+        conn.execute(text("ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE"))
 
         # Plan de cuentas: campos de la pantalla moderna (H-174). Idempotente.
         for col, ddl in (("descripcion", "TEXT DEFAULT ''"), ("alias", "VARCHAR(40) DEFAULT ''"),
@@ -179,6 +184,12 @@ app.include_router(sistema_calculos.router)
 app.include_router(solicitudes.router)
 app.include_router(aprobaciones.router)
 app.include_router(portal.router)
+app.include_router(tesoreria_interna.router)
+
+# Auditoría central (H-221): qué registros agrega, cambia o borra cada usuario. Se excluyen las tablas
+# que ya son un registro en sí (la auditoría propia del módulo y el log migrado del VFP) y el espejo de
+# clientes, que se sincroniza solo desde el módulo Clientes.
+central.instalar(app, excluir={"auditoria_cambios", "eventos_auditoria", "clientes"})
 
 
 @app.get("/api/creditos/health", tags=["health"])

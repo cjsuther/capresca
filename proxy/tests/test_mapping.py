@@ -127,3 +127,101 @@ def test_documentos_del_cliente(metodo, ruta, permiso):
 def test_la_copia_interna_de_documentos_no_se_publica():
     assert get_service_url("POST", "/internal/clientes/7/documentos") is None
 
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/tesoreria/lotes", "tesoreria:lotes:read"),
+    ("GET", "/api/tesoreria/lotes/12", "tesoreria:lotes:read"),
+    ("GET", "/api/tesoreria/lotes/cuentas-origen", "tesoreria:lotes:read"),
+    ("POST", "/api/tesoreria/lotes", "tesoreria:lotes:write"),
+    ("POST", "/api/tesoreria/lotes/12/pagos/3/excluir", "tesoreria:lotes:write"),
+    ("POST", "/api/tesoreria/lotes/12/aprobar", "tesoreria:*"),
+    ("POST", "/api/tesoreria/lotes/12/enviar", "tesoreria:*"),
+    ("POST", "/api/tesoreria/lotes/12/pagos/3/resolver", "tesoreria:*"),
+])
+def test_rutas_de_tesoreria(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.tesoreria_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+
+
+@pytest.mark.parametrize("metodo,ruta", [("POST", "/internal/tesoreria/lotes"), ("DELETE", "/api/tesoreria/lotes/12"),
+                                         ("PUT", "/api/tesoreria/lotes/12")])
+def test_tesoreria_no_publica_lo_interno_ni_otras_operaciones(metodo, ruta):
+    assert get_service_url(metodo, ruta) is None
+
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/security/groups", "security:groups:read"),
+    ("POST", "/api/security/groups", "security:groups:write"),
+    ("PUT", "/api/security/groups/4", "security:groups:write"),
+    ("DELETE", "/api/security/groups/4", "security:groups:write"),
+    ("POST", "/api/security/groups/4/roles", "security:groups:write"),
+    ("POST", "/api/security/groups/4/users", "security:groups:write"),
+    ("POST", "/api/security/users/9/groups", "security:groups:write"),
+    ("GET", "/api/security/users/9/effective-permissions", "security:users:read"),
+])
+def test_rutas_de_grupos(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.security_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+
+
+@pytest.mark.parametrize("metodo,ruta", [
+    ("GET", "/api/auditoria/eventos"),
+    ("GET", "/api/auditoria/eventos/12"),
+    ("GET", "/api/auditoria/eventos/resumen"),
+    ("GET", "/api/auditoria/registros/creditos/Contrato/CTO-1"),
+])
+def test_la_auditoria_se_consulta_con_su_permiso(metodo, ruta):
+    assert get_service_url(metodo, ruta) == settings.auditoria_service_url
+    assert get_required_permission(metodo, ruta) == "auditoria:eventos:read"
+
+
+@pytest.mark.parametrize("metodo,ruta", [("DELETE", "/api/auditoria/eventos/12"),
+                                         ("POST", "/api/auditoria/eventos"),
+                                         ("PUT", "/api/auditoria/eventos/12"),
+                                         ("POST", "/internal/auditoria/eventos")])
+def test_el_registro_de_auditoria_no_se_escribe_desde_afuera(metodo, ruta):
+    assert get_service_url(metodo, ruta) is None
+
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/contabilidad/asientos", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/libros/diario", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/transacciones/sin-definir", "contabilidad:asientos:read"),
+    ("POST", "/api/contabilidad/asientos", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/asientos/4/anular", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/transacciones/reprocesar", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/cuentas", "contabilidad:definiciones:write"),
+    ("PUT", "/api/contabilidad/definiciones/4", "contabilidad:definiciones:write"),
+    ("POST", "/api/contabilidad/definiciones/4/probar", "contabilidad:definiciones:write"),
+    ("POST", "/api/contabilidad/ejercicios", "contabilidad:ejercicios:write"),
+    ("POST", "/api/contabilidad/ejercicios/4/cerrar", "contabilidad:ejercicios:write"),
+])
+def test_rutas_de_contabilidad(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.contabilidad_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+
+
+def test_las_transacciones_contables_solo_entran_por_la_api_interna():
+    """Ningún módulo manda asientos ni transacciones por el gateway: van por la red interna."""
+    assert get_service_url("POST", "/internal/contabilidad/transacciones") is None
+
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/contabilidad/conciliacion", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/libros/flujo-efectivo", "contabilidad:asientos:read"),
+    ("GET", "/api/contabilidad/reportes/por-centro", "contabilidad:asientos:read"),
+    ("POST", "/api/contabilidad/asientos/4/publicar", "contabilidad:asientos:write"),
+    ("DELETE", "/api/contabilidad/asientos/4", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/conciliacion/extracto", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/conciliacion/automatica", "contabilidad:asientos:write"),
+    ("DELETE", "/api/contabilidad/conciliacion/extracto/4", "contabilidad:asientos:write"),
+    ("POST", "/api/contabilidad/empresas", "contabilidad:definiciones:write"),
+    ("PUT", "/api/contabilidad/centros/4", "contabilidad:definiciones:write"),
+    ("DELETE", "/api/contabilidad/cuentas/4", "contabilidad:definiciones:write"),
+    ("POST", "/api/contabilidad/ejercicios/4/reabrir", "contabilidad:ejercicios:write"),
+    ("POST", "/api/contabilidad/ejercicios/4/apertura", "contabilidad:ejercicios:write"),
+])
+def test_rutas_nuevas_de_contabilidad(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.contabilidad_service_url
+    assert get_required_permission(metodo, ruta) == permiso
+

@@ -44,7 +44,11 @@ export function ContratoServicing({ c, onChange, onReload, soloLectura }) {
   }
   async function desembolsar() {
     setError("");
-    try { aplicar(await creditos.ctoDesembolsar(c.id)); } catch (e) { setError(e.message); }
+    try {
+      const r = await creditos.ctoDesembolsar(c.id);
+      if (r?.mensaje) setOk(r.mensaje);
+      aplicar(r);
+    } catch (e) { setError(e.message); }
   }
   async function reversar(a) {
     setError("");
@@ -116,8 +120,17 @@ export function ContratoServicing({ c, onChange, onReload, soloLectura }) {
 
         {soloLectura ? (
           <Pill>Sólo lectura</Pill>
+        ) : c.estado === "A_LIQUIDAR" && c.datos_adicionales?.desembolso?.estado === "EN_TESORERIA" ? (
+          <span title="El contrato pasa a ACTIVO cuando se acredite la transferencia">
+            <Pill tono="brand">Desembolso en Tesorería · {c.datos_adicionales.desembolso.lote}</Pill>
+          </span>
         ) : c.estado === "A_LIQUIDAR" ? (
-          <Boton onClick={desembolsar}>Desembolsar (neto {money(c.liquidacion?.neto || 0)})</Boton>
+          <>
+            {c.datos_adicionales?.desembolso?.estado === "OBSERVADO" && (
+              <Pill tono="crit">Tesorería no lo pagó: {c.datos_adicionales.desembolso.motivo}</Pill>
+            )}
+            <Boton onClick={desembolsar}>Desembolsar (neto {money(c.liquidacion?.neto || 0)})</Boton>
+          </>
         ) : (
           <>
             <Field label="Fecha valor (backdating)">

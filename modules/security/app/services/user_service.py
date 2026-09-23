@@ -9,7 +9,7 @@ from fastapi import HTTPException
 def get_users(db: Session, page: int = 1, per_page: int = 20):
     offset = (page - 1) * per_page
     total = db.query(User).count()
-    users = db.query(User).offset(offset).limit(per_page).all()
+    users = db.query(User).order_by(User.username).offset(offset).limit(per_page).all()
     return users, total
 
 

@@ -221,3 +221,120 @@ def test_solo_se_pagan_los_registros_de_la_fecha_pedida(db, servicios, motor_enc
 
     assert res["simulados"] == 1
     assert db.query(ReconciliationPayment).one().client_id == 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Por Tesorería (H-216): el pago no sale directo al banco, va en un lote a aprobar
+# ─────────────────────────────────────────────────────────────────────────────
+from app.models.reconciliation_record import ReconciliationRecord
+from app.services import tesoreria_client
+
+CLAVE_TESO = "clave-teso"
+AVISO = "/internal/conciliacion/tesoreria/resultado"
+
+
+class TesoreriaFalsa:
+    def __init__(self):
+        self.lotes, self.caida, self.rechazar = [], False, {}
+
+    def __call__(self, referencia, descripcion, pagos):
+        if self.caida:
+            raise tesoreria_client.TesoreriaNoDisponible("connection refused")
+        self.lotes.append({"referencia": referencia, "pagos": pagos})
+        ok = [p for p in pagos if p["referencia_externa"] not in self.rechazar]
+        return {"codigo": f"LOT-2026-{len(self.lotes):05d}",
+                "pagos": [{"referencia_externa": p["referencia_externa"], "estado": "PENDIENTE"} for p in ok],
+                "rechazados": [{"referencia_externa": r, "motivo": m} for r, m in self.rechazar.items()]}
+
+
+@pytest.fixture
+def teso(monkeypatch):
+    monkeypatch.setattr(settings, "auto_payments_enabled", True)
+    monkeypatch.setattr(settings, "payments_dry_run", True)          # no aplica con Tesorería
+    monkeypatch.setattr(settings, "payments_via_tesoreria", True)
+    monkeypatch.setattr(settings, "tesoreria_internal_api_key", CLAVE_TESO)
+    falsa = TesoreriaFalsa()
+    monkeypatch.setattr(tesoreria_client, "enviar_lote", falsa)
+    return falsa
+
+
+def _avisar(client, lote, rec, estado, motivo="", clave=CLAVE_TESO):
+    return client.post(AVISO, headers={"X-Api-Key": clave}, json={
+        "lote": lote, "pagos": [{"referencia_externa": f"rec-{rec.id}", "estado": estado, "motivo": motivo}]})
+
+
+def test_por_tesoreria_arma_un_lote_y_no_paga_directo(db, servicios, teso):
+    servicios.agencias = [agencia(1, "A001", "0720099620000001234501", tax_id="30-11111111-7")]
+    rec = agencia_con_saldo_a_favor(db, adeudado="1000", depositado="1500")
+
+    res = correr(db)
+
+    assert res["en_tesoreria"] == 1 and res["lote"] == "LOT-2026-00001" and res["errores"] == 0
+    assert servicios.pagos_ejecutados == []
+    p = teso.lotes[0]["pagos"][0]
+    assert p == {"referencia_externa": f"rec-{rec.id}", "beneficiario": "Agencia A001 S.A.", "documento": "30111111117",
+                 "cbu": "0720099620000001234501", "monto": 500.0, "concepto": "Pago Capresca A001 2026-03-10"}
+    pago = db.query(ReconciliationPayment).one()
+    assert pago.status == "EN_TESORERIA" and pago.tesoreria_lote == "LOT-2026-00001"
+    correr(db)
+    assert len(teso.lotes) == 1                                      # no lo manda dos veces
+
+
+def test_confirmado_por_tesoreria_queda_pagado(client, db, servicios, teso):
+    servicios.agencias = [agencia(1, "A001", "0720099620000001234501")]
+    rec = agencia_con_saldo_a_favor(db)
+    correr(db)
+
+    assert _avisar(client, "LOT-2026-00001", rec, "CONFIRMADO").json()["pagados"] == 1
+    db.expire_all()
+    assert db.query(ReconciliationPayment).one().status == "ENVIADO"
+    assert db.get(ReconciliationRecord, rec.id).status == "PAGADO"
+    assert _avisar(client, "LOT-2026-00001", rec, "CONFIRMADO").json()["ignorados"] == 1
+
+
+def test_el_aviso_exige_la_clave(client, db, servicios, teso):
+    servicios.agencias = [agencia(1, "A001", "0720099620000001234501")]
+    rec = agencia_con_saldo_a_favor(db)
+    correr(db)
+    assert _avisar(client, "LOT-2026-00001", rec, "CONFIRMADO", clave="otra").status_code == 401
+    assert db.query(ReconciliationPayment).one().status == "EN_TESORERIA"
+
+
+def test_excluido_queda_observado_y_no_se_reenvia_solo(client, db, servicios, teso):
+    servicios.agencias = [agencia(1, "A001", "0720099620000001234501")]
+    rec = agencia_con_saldo_a_favor(db)
+    correr(db)
+    assert _avisar(client, "LOT-VIEJO", rec, "EXCLUIDO").json()["ignorados"] == 1    # otro lote: no aplica
+
+    _avisar(client, "LOT-2026-00001", rec, "EXCLUIDO", "Monto a revisar")
+    db.expire_all()
+    pago = db.query(ReconciliationPayment).one()
+    assert pago.status == "OBSERVADO" and "Monto a revisar" in pago.error_message
+    correr(db)
+    assert len(teso.lotes) == 1
+    # Si el tesorero lo reintentó allá y se acreditó, igual queda pagado.
+    _avisar(client, "LOT-2026-00001", rec, "CONFIRMADO")
+    db.expire_all()
+    assert db.query(ReconciliationPayment).one().status == "ENVIADO"
+
+
+def test_tesoreria_caida_deja_error_y_se_reintenta_en_la_proxima_corrida(db, servicios, teso):
+    servicios.agencias = [agencia(1, "A001", "0720099620000001234501")]
+    agencia_con_saldo_a_favor(db)
+    teso.caida = True
+    assert correr(db)["errores"] == 1
+    assert db.query(ReconciliationPayment).one().status == "ERROR"
+    teso.caida = False
+    assert correr(db)["en_tesoreria"] == 1
+
+
+def test_rechazo_de_tesoreria_al_cargar(db, servicios, teso):
+    servicios.agencias = [agencia(1, "A001", "0720099620000001234501"), agencia(2, "A002", "0720099620000001234502")]
+    r1 = agencia_con_saldo_a_favor(db, client_id=1, agency_number="A001")
+    r2 = agencia_con_saldo_a_favor(db, client_id=2, agency_number="A002")
+    teso.rechazar = {f"rec-{r1.id}": "CBU inválido.", f"rec-{r2.id}": "Ya está en el lote LOT-2026-00009 (PENDIENTE)."}
+    res = correr(db)
+    assert res["errores"] == 1 and res["en_tesoreria"] == 1
+    por_rec = {p.reconciliation_record_id: p for p in db.query(ReconciliationPayment).all()}
+    assert por_rec[r1.id].status == "ERROR" and "CBU inválido" in por_rec[r1.id].error_message
+    assert por_rec[r2.id].status == "EN_TESORERIA" and por_rec[r2.id].tesoreria_lote == "LOT-2026-00009"

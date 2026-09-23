@@ -5,6 +5,9 @@ import pathlib
 # La config se lee al importar la app: todo el entorno va antes del primer import de `app`.
 # Se pisa (no setdefault) porque el contenedor trae los valores reales del compose.
 os.environ.update({
+    # Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría saldría
+    # a la red en cada flush.
+    "AUDITORIA_INTERNAL_API_KEY": "",
     "DATABASE_URL": "sqlite+pysqlite:///:memory:",
     "INTERNAL_API_KEY": "clave-de-test",
     "CONCILIACION_SERVICE_URL": "http://conciliacion-test:8006",

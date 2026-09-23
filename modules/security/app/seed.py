@@ -23,6 +23,9 @@ MODULES = [
     {"code": "comunicacion", "name": "Comunicación", "description": "Chat con clientes vía WhatsApp Business", "icon": "message-circle"},
     {"code": "legacy", "name": "Legacy", "description": "Integración con el sistema legacy (VFP9) — interacciones IN/OUT", "icon": "database"},
     {"code": "creditos", "name": "Créditos", "description": "CCyPP: créditos, originación, cartera y portal ciudadano", "icon": "landmark"},
+    {"code": "tesoreria", "name": "Tesorería", "description": "Lotes de pagos: aprobación y envío por Interbanking", "icon": "wallet"},
+    {"code": "contabilidad", "name": "Contabilidad", "description": "Plan de cuentas, asientos, libros y estados contables", "icon": "book-open"},
+    {"code": "auditoria", "name": "Auditoría", "description": "Qué hace cada usuario con la información del sistema", "icon": "clipboard-list"},
     {"code": "configuraciones", "name": "Configuraciones", "description": "Impuestos, índices, feriados y workflow de aprobaciones", "icon": "settings"},
 ]
 
@@ -43,6 +46,8 @@ PERMISSIONS = {
         ("users:write", "Crear/editar usuarios"),
         ("roles:read", "Ver roles"),
         ("roles:write", "Crear/editar roles"),
+        ("groups:read", "Ver grupos de usuarios"),
+        ("groups:write", "Crear/editar grupos, sus integrantes y sus roles"),
         ("modules:read", "Ver módulos"),
     ],
     "cajeros": [
@@ -94,6 +99,26 @@ PERMISSIONS = {
         ("admin:read", "Ver outbox de escrituras"),
         ("admin:write", "Forzar sync y drenar el outbox"),
     ],
+    # Tesorería: armar/revisar lotes, enviarlos al banco y aprobar (roles del workflow LOTE_PAGO).
+    "tesoreria": [
+        ("lotes:read", "Tesorería · ver lotes de pagos"),
+        ("lotes:write", "Tesorería · cargar lotes y excluir pagos"),
+        ("lotes:enviar", "Tesorería · enviar lotes aprobados por Interbanking"),
+        ("aprobaciones:aprobar", "Tesorería · aprobar lotes (rol APROBAR del workflow)"),
+        ("aprobaciones:supervisar", "Tesorería · aprobar niveles de supervisión (rol SUPERVISAR)"),
+    ],
+    # Contabilidad: consultar (libros), registrar asientos manuales, definir cómo se contabiliza cada
+    # transacción y administrar los ejercicios (incluido el cierre).
+    "contabilidad": [
+        ("asientos:read", "Contabilidad · ver asientos, libros y estados contables"),
+        ("asientos:write", "Contabilidad · registrar asientos manuales y anular"),
+        ("definiciones:write", "Contabilidad · plan de cuentas y definiciones de asiento"),
+        ("ejercicios:write", "Contabilidad · abrir y cerrar ejercicios"),
+    ],
+    # La auditoría es sólo de lectura: nadie edita ni borra el registro (ni el administrador).
+    "auditoria": [
+        ("eventos:read", "Auditoría · ver el registro de lo que hace cada usuario"),
+    ],
     # Un par por catálogo: el workflow (quién aprueba) se asigna aparte de operar los módulos.
     "configuraciones": [
         ("impuestos:read", "Configuraciones · ver impuestos"),
@@ -112,8 +137,13 @@ PERMISSIONS = {
         )],
         ("aprobaciones:aprobar", "Créditos · aprobar (workflow, rol APROBAR)"),
         ("aprobaciones:supervisar", "Créditos · aprobar niveles de supervisión (workflow, rol SUPERVISAR)"),
+        ("heredadas:read", "Créditos · ver las pantallas heredadas del sistema anterior (ocultas por defecto)"),
     ],
 }
+
+# Permisos que existen para poder asignarlos a mano, pero que NO se le dan al rol admin: habilitan
+# pantallas heredadas del sistema viejo que por defecto están ocultas (ver el menú de Créditos).
+FUERA_DEL_ADMIN = {("creditos", "heredadas:read")}
 
 
 def run():
@@ -164,12 +194,12 @@ def run():
             admin_role = Role(name="admin", description="Administrador del sistema")
             db.add(admin_role)
             db.flush()
-            admin_role.permissions = list(perm_map.values())
+            admin_role.permissions = [p for k, p in perm_map.items() if k not in FUERA_DEL_ADMIN]
         else:
             # Solo agregar permisos nuevos sin quitar los existentes
             existing_ids = {p.id for p in admin_role.permissions}
-            for perm in perm_map.values():
-                if perm.id not in existing_ids:
+            for clave, perm in perm_map.items():
+                if perm.id not in existing_ids and clave not in FUERA_DEL_ADMIN:
                     admin_role.permissions.append(perm)
 
         # ── Rol cajero ───────────────────────────────────────────

@@ -4,6 +4,7 @@ import { PageHeader, Card, Field, Boton, Alerta, Modal } from "../../components/
 import { Pill } from "../../components/Pill";
 import { Confirmacion } from "../../components/Confirmacion";
 import { DataTable } from "../../components/DataTable";
+import { MenuAcciones } from "../../components/MenuAcciones";
 import { useSoloLectura } from "../../permisos";
 import { fecha } from "../../components/format";
 import { EditorComponente } from "./configurar/EditorComponente";
@@ -31,6 +32,11 @@ export default function ConfigurarCreditosPage() {
   const [ok, setOk] = useState("");
 
   const [vista, setVista] = useState("catalogo");
+  // Vista del catálogo: tarjetas (como el sistema anterior) o en línea. Se recuerda por usuario/navegador.
+  const [catVista, setCatVista] = useState(() => {
+    try { return localStorage.getItem("creditos_cfg_vista") || "tarjetas"; } catch { return "tarjetas"; }
+  });
+  const cambiarVista = (v) => { setCatVista(v); try { localStorage.setItem("creditos_cfg_vista", v); } catch { /* ignore */ } };
   const [activoId, setActivoId] = useState(null);
   const [nuevaVerDe, setNuevaVerDe] = useState(null);
   const [filtro, setFiltro] = useState("TODOS");
@@ -271,6 +277,33 @@ export default function ConfigurarCreditosPage() {
     return "pend";
   };
 
+  /** Acciones de una línea, para el menú "⋯" de la grilla y de las tarjetas. */
+  function accionesDe(p) {
+    const edita = permisos.edita && !soloLectura;
+    return [
+      { label: "Abrir", onClick: () => abrir(p) },
+      { label: "Continuar edición", onClick: () => abrir(p), oculta: !edita || p.estado !== "BORRADOR" },
+      { label: "⧉ Duplicar (préstamo nuevo)", oculta: !edita,
+        onClick: () => { setDuplicando(p); setNombreCopia(`${p.nombre} — copia`); } },
+      { label: "Crear derivado (hereda)", oculta: !edita,
+        onClick: () => { setNuevo({ nombre: `${p.nombre} (derivado)`, familia_id: "", copiar_de: p.id, heredar: true }); setNuevoOpen(true); } },
+      { label: "Retirar línea", danger: true, oculta: !permisos.aprueba || p.estado !== "PUBLICADO",
+        onClick: () => setConfirmando({
+          titulo: "Retirar línea",
+          mensaje: `Retirar "${p.nombre}". Deja de ofrecerse a clientes nuevos; los contratos ya originados no se afectan.`,
+          confirmar: "Retirar", onSi: () => retirar(p) }) },
+      { label: "Reactivar línea", oculta: !permisos.aprueba || p.estado !== "RETIRADO", onClick: () => reactivar(p) },
+      { label: p.publicadas?.length ? "Borrar esta versión" : "Borrar línea", danger: true,
+        oculta: !edita || !["BORRADOR", "EN_REVISION"].includes(p.estado),
+        onClick: () => setConfirmando({
+          titulo: "Descartar la línea",
+          mensaje: p.publicadas?.length
+            ? `Borrar la versión v${p.version} (borrador). La versión publicada anterior queda intacta.`
+            : `Borrar definitivamente la línea "${p.nombre}" (nunca se publicó).`,
+          confirmar: "Borrar", onSi: () => borrar(p) }) },
+    ];
+  }
+
   // ───────────────────────── Catálogo ─────────────────────────
   if (vista === "catalogo" || !activo) {
     const lista = productos.filter((p) => filtro === "TODOS" || p.estado === filtro);
@@ -313,13 +346,68 @@ export default function ConfigurarCreditosPage() {
               </select>
             </Field>
             <span className="ml-auto text-sm text-gray-500">{lista.length} de {productos.length} líneas</span>
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden" role="group" aria-label="Vista">
+              {[["tarjetas", "▦ Tarjetas"], ["lista", "≣ En línea"]].map(([v, t]) => (
+                <button key={v} type="button" aria-pressed={catVista === v} onClick={() => cambiarVista(v)}
+                        className={`px-3 py-1.5 text-sm ${catVista === v
+                          ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"}`}>{t}</button>
+              ))}
+            </div>
           </div>
           <div className="p-4">
-            {cargando ? <p className="text-gray-500">Cargando catálogo…</p> : (
+            {cargando && <p className="text-gray-500">Cargando catálogo…</p>}
+            {!cargando && catVista === "lista" && (
               <DataTable columns={COLS} rows={lista} rowKey={(p) => p.id} onRowClick={(p) => abrir(p)}
                          rowClass={(p) => (p.estado === "RETIRADO" ? "opacity-60" : "")}
+                         acciones={accionesDe}
                          clientSort pageSize={50} defaultSort="nombre"
                          emptyText="Sin líneas. Creá la primera con “＋ Nueva línea”." />
+            )}
+            {!cargando && catVista === "tarjetas" && (
+              lista.length === 0
+                ? <p className="py-8 text-center text-sm text-gray-400">Sin líneas. Creá la primera con “＋ Nueva línea”.</p>
+                : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {lista.map((p) => (
+                      <div key={p.id}
+                           className={`border border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors ${
+                             p.estado === "RETIRADO" ? "opacity-60" : ""}`}>
+                        <div className="flex items-start gap-2">
+                          <button onClick={() => abrir(p)} className="text-left min-w-0 flex-1">
+                            <h3 className="font-semibold text-gray-800 truncate">{p.nombre}</h3>
+                            <p className="text-xs text-gray-400">{p.codigo} · v{p.version}</p>
+                          </button>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <Pill tono={ESTADO_TONO[p.estado]}>{ESTADO_LABEL[p.estado]}</Pill>
+                            {p.vigentePortal == null && p.estado !== "RETIRADO" && (
+                              <span title="Ninguna versión publicada y vigente: no se ofrece en el portal"><Pill>no ofrecido</Pill></span>
+                            )}
+                          </div>
+                          <MenuAcciones acciones={accionesDe(p)} etiqueta={`Acciones de ${p.nombre}`} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Familia <b>{p.familia}</b> · {p.componentes.filter((c) => c.activo).length} componentes
+                        </p>
+                        {p.padre && <p className="text-xs text-blue-700 mt-0.5">Deriva de <b>{p.padre.nombre}</b></p>}
+                        <dl className="grid grid-cols-2 gap-2 mt-3 text-sm">
+                          <div><dt className="text-xs text-gray-500">Sistema</dt><dd className="font-medium">{p.cfg.sistema}</dd></div>
+                          <div><dt className="text-xs text-gray-500">TNA</dt><dd className="font-medium tabular-nums">{p.cfg.tna}%</dd></div>
+                          <div><dt className="text-xs text-gray-500">Monto</dt>
+                            <dd className="font-medium tabular-nums">{money(p.cfg.montoMin)}–{money(p.cfg.montoMax)}</dd></div>
+                          <div><dt className="text-xs text-gray-500">Plazo</dt>
+                            <dd className="font-medium tabular-nums">{p.cfg.plazoMin}–{p.cfg.plazoMax}</dd></div>
+                        </dl>
+                        <div className="flex justify-end gap-2 mt-3">
+                          <Boton variante="secundario" className="!px-3 !py-1.5 text-xs" onClick={() => abrir(p)}>Abrir</Boton>
+                          {p.estado === "BORRADOR" && puedeEditar && (
+                            <Boton className="!px-3 !py-1.5 text-xs" onClick={() => abrir(p)}>Continuar edición</Boton>
+                          )}
+                          {p.estado === "RETIRADO" && permisos.aprueba && (
+                            <Boton className="!px-3 !py-1.5 text-xs" onClick={() => reactivar(p)}>Reactivar</Boton>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
             )}
           </div>
         </Card>
@@ -374,6 +462,30 @@ export default function ConfigurarCreditosPage() {
               )}
             </div>
           </Modal>
+        )}
+
+        {duplicando && (
+          <Modal titulo="Duplicar como préstamo nuevo" ancho="max-w-md" onClose={() => setDuplicando(null)}
+                 footer={<>
+                   <span className="flex-1" />
+                   <Boton variante="secundario" onClick={() => setDuplicando(null)}>Cancelar</Boton>
+                   <Boton disabled={!nombreCopia.trim()} onClick={duplicar}>Crear copia</Boton>
+                 </>}>
+            <p className="text-sm text-gray-500 mb-3">
+              Se crea un préstamo independiente con la configuración de “{duplicando.nombre}”. El original queda intacto.
+            </p>
+            <Field label="Nombre del préstamo nuevo">
+              <input className="input w-full" value={nombreCopia} autoFocus
+                     onChange={(e) => setNombreCopia(e.target.value)} />
+            </Field>
+          </Modal>
+        )}
+
+        {confirmando && (
+          <Confirmacion
+            titulo={confirmando.titulo} mensaje={confirmando.mensaje} confirmar={confirmando.confirmar}
+            onConfirmar={confirmando.onSi} onCancelar={() => setConfirmando(null)}
+          />
         )}
       </>
     );

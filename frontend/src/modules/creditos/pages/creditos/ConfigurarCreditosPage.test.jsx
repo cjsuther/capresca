@@ -56,6 +56,7 @@ const sesion = (acciones) =>
 beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
   sesion(["creditos:read", "creditos:write"]);
   creditos.ppCatalogo.mockResolvedValue({ items: [BORRADOR, PUBLICADO], permisos: { edita: true, aprueba: true }, usuario: "ana" });
   creditos.ppFamilias.mockResolvedValue({ items: [{ id: "f1", grupo: "LENDING", nombre: "PERSONALES" }] });
@@ -77,14 +78,75 @@ beforeEach(() => {
 const abrirLinea = async (u, nombre = "Préstamo Personal") => u.click(await screen.findByText(nombre));
 
 describe("Configurar Créditos · catálogo", () => {
-  it("lista las líneas con su estado y marca las que no se ofrecen", async () => {
+  it("arranca en tarjetas, con los datos de cada línea y las que no se ofrecen marcadas", async () => {
     render(<ConfigurarCreditosPage />);
-    expect(await screen.findByText("Préstamo Personal")).toBeInTheDocument();
-    // "Borrador"/"Publicado" también son opciones del filtro: se miran en la tabla.
+    expect(await screen.findByRole("heading", { name: "Préstamo Personal" })).toBeInTheDocument();
+    expect(screen.queryByRole("table")).toBeNull();
+    const tarjeta = screen.getByRole("heading", { name: "Préstamo Personal" }).closest("div.border");
+    expect(within(tarjeta).getByText("Borrador")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("no ofrecido")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("FRANCES")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("52%")).toBeInTheDocument();
+  });
+
+  it("se cambia a la vista en línea y la elección se recuerda", async () => {
+    const u = userEvent.setup();
+    const { unmount } = render(<ConfigurarCreditosPage />);
+    await screen.findByRole("heading", { name: "Préstamo Personal" });
+
+    await u.click(screen.getByRole("button", { name: /En línea/ }));
     const tabla = screen.getByRole("table");
     expect(within(tabla).getByText("Borrador")).toBeInTheDocument();
     expect(within(tabla).getByText("Publicado")).toBeInTheDocument();
     expect(within(tabla).getByText("no ofrecido")).toBeInTheDocument();
+    expect(localStorage.getItem("creditos_cfg_vista")).toBe("lista");
+
+    unmount();
+    render(<ConfigurarCreditosPage />);
+    expect(await screen.findByRole("table")).toBeInTheDocument();     // vuelve como la dejó
+  });
+
+  it("cada línea tiene su menú de acciones, según estado y permisos", async () => {
+    const u = userEvent.setup();
+    render(<ConfigurarCreditosPage />);
+    await screen.findByRole("heading", { name: "Préstamo Personal" });
+
+    await u.click(screen.getByRole("button", { name: "Acciones de Préstamo Personal" }));
+    let menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Continuar edición" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Borrar línea" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "Retirar línea" })).toBeNull();   // no está publicada
+
+    await u.keyboard("{Escape}");
+    await u.click(screen.getByRole("button", { name: "Acciones de Personal Publicado" }));
+    menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Retirar línea" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: /Borrar/ })).toBeNull();          // publicada: no se borra
+  });
+
+  it("desde el menú se retira una línea publicada, con confirmación", async () => {
+    const u = userEvent.setup();
+    creditos.ppEstado.mockResolvedValue({ ...PUBLICADO, estado: "RETIRADO" });
+    render(<ConfigurarCreditosPage />);
+    await screen.findByRole("heading", { name: "Personal Publicado" });
+
+    await u.click(screen.getByRole("button", { name: "Acciones de Personal Publicado" }));
+    await u.click(screen.getByRole("menuitem", { name: "Retirar línea" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Retirar línea" });
+    await u.click(within(dialogo).getByRole("button", { name: "Retirar" }));
+    await waitFor(() => expect(creditos.ppEstado).toHaveBeenCalledWith("p2", "retirar"));
+  });
+
+  it("sólo lectura: las tarjetas no ofrecen acciones que modifiquen", async () => {
+    const u = userEvent.setup();
+    sesion(["creditos:read"]);
+    creditos.ppCatalogo.mockResolvedValue({ items: [BORRADOR, PUBLICADO], permisos: { edita: false, aprueba: false }, usuario: "ana" });
+    render(<ConfigurarCreditosPage />);
+    await screen.findByRole("heading", { name: "Préstamo Personal" });
+
+    await u.click(screen.getByRole("button", { name: "Acciones de Préstamo Personal" }));
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Abrir"]);
   });
 
   it("filtra por estado", async () => {
@@ -220,6 +282,36 @@ describe("Configurar Créditos · builder", () => {
 
     await waitFor(() => expect(creditos.editarDisponibilidad).toHaveBeenCalledWith("p2",
       expect.objectContaining({ activo: true, canales: ["SUCURSAL", "WEB"] })));
+  });
+
+  it("el tope del crédito (% del sueldo) se configura por línea y se guarda", async () => {
+    creditos.editarDisponibilidad.mockResolvedValue(PUBLICADO);
+    const u = userEvent.setup();
+    render(<ConfigurarCreditosPage />);
+    await abrirLinea(u, "Personal Publicado");
+
+    await u.click(await screen.findByText("Disponibilidad"));
+    const tope = screen.getByLabelText("Tope del crédito (% del sueldo)");
+    await u.clear(tope);
+    await u.type(tope, "25");
+    await u.click(screen.getByRole("button", { name: "Guardar disponibilidad" }));
+
+    await waitFor(() => expect(creditos.editarDisponibilidad).toHaveBeenCalledWith("p2",
+      expect.objectContaining({ afectacionMaxPct: 25 })));
+  });
+
+  it("la antigüedad mínima se declara en años y viaja en meses", async () => {
+    creditos.editarDisponibilidad.mockResolvedValue(PUBLICADO);
+    const u = userEvent.setup();
+    render(<ConfigurarCreditosPage />);
+    await abrirLinea(u, "Personal Publicado");
+
+    await u.click(await screen.findByText("Disponibilidad"));
+    await u.type(screen.getByLabelText("Antigüedad mín. (años)"), "2");
+    await u.click(screen.getByRole("button", { name: "Guardar disponibilidad" }));
+
+    await waitFor(() => expect(creditos.editarDisponibilidad).toHaveBeenCalledWith("p2",
+      expect.objectContaining({ antiguedadMinMeses: 24 })));
   });
 
   it("la prueba en vivo muestra validaciones y cronograma", async () => {

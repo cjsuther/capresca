@@ -11,6 +11,9 @@ import LiquidacionesModule from "./modules/liquidaciones";
 import LegacyModule from "./modules/legacy";
 import CreditosModule from "./modules/creditos";
 import ConfiguracionesModule from "./modules/configuraciones";
+import TesoreriaModule from "./modules/tesoreria";
+import AuditoriaModule from "./modules/auditoria";
+import ContabilidadModule from "./modules/contabilidad";
 
 export default function App() {
   return (
@@ -95,6 +98,33 @@ export default function App() {
           element={
             <ModuleRoute moduleCode="creditos">
               <CreditosModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/contabilidad/*"
+          element={
+            <ModuleRoute moduleCode="contabilidad">
+              <ContabilidadModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/auditoria/*"
+          element={
+            <ModuleRoute moduleCode="auditoria">
+              <AuditoriaModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/tesoreria/*"
+          element={
+            <ModuleRoute moduleCode="tesoreria">
+              <TesoreriaModule />
             </ModuleRoute>
           }
         />

@@ -6,6 +6,7 @@ alembic==1.14.0
 pydantic==2.10.4
 pydantic-settings==2.7.0
 PyJWT==2.10.1
+cryptography==44.0.0   # firma RS256 del ID Token de Mi Catamarca (JWKS)
 bcrypt==4.2.1
 python-multipart==0.0.20
 pytest==8.3.4

@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     legacy_service_url: str = "http://legacy:8009"
     creditos_service_url: str = "http://creditos:8010"
     configuraciones_service_url: str = "http://configuraciones:8011"
+    tesoreria_service_url: str = "http://tesoreria:8012"
+    auditoria_service_url: str = "http://auditoria:8013"
+    contabilidad_service_url: str = "http://contabilidad:8014"
+    # Auditoría central: el gateway registra TODA operación que modifica datos. Sin clave, no registra.
+    auditoria_internal_api_key: str = ""
+    auditoria_habilitada: bool = True
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     permissions_cache_ttl: int = 60  # segundos

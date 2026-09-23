@@ -14,6 +14,8 @@ endpoints ni permisos. Sus servicios que el crédito usa por dentro siguen: asie
 póliza al otorgar (`services/seguros`), orden de pago del desembolso (`services/egresos`) y recibo de la
 cancelación anticipada (`services/caja`). Permisos: `creditos:read` / `creditos:write` +
 `aprobaciones:aprobar|supervisar` (ver H-211).
+El **desembolso** sale por el módulo **Tesorería** de Portezuelo (`DESEMBOLSO_VIA_TESORERIA`, H-216): el
+contrato queda A_LIQUIDAR "en Tesorería" y pasa a ACTIVO con el aviso de transferencia acreditada.
 
 **Impuestos, índices de referencia, feriados y las reglas del workflow** son del módulo
 **Configuraciones** (`modules/configuraciones`, H-212): Créditos los lee con `app/core/configuraciones.py`
@@ -40,6 +42,9 @@ reintroducir pantallas fuera del frontend del sistema. El portal ciudadano (`por
   (`Boton variante="danger"`).
 - **Permisos**: `usePuedeVer` / `usePuedeEscribir` / `useSoloLectura` (`permisos.js`); toda pantalla
   nueva se registra en `menu.js` + `rutas.jsx`.
+- **Pantallas heredadas** (las que vienen del VFP, `heredada: true` en `menu.js`): ocultas salvo que el
+  rol tenga `creditos:heredadas:read`, que no se asigna por defecto (H-218). Las pantallas creadas en la
+  migración van sin la marca.
 
 ## Antes de decidir algo estructural — Principios de arquitectura (obligatorio)
 - **Unicidad concurrente**: los IDs únicos se generan con "primer libre" + **reintento sobre SAVEPOINT**

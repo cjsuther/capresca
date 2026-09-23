@@ -6,10 +6,20 @@ from app.models.permission import Permission, UserPermission
 from app.models.module import Module
 
 
+def roles_efectivos(user: User) -> list:
+    """Roles del usuario: los asignados directamente más los de cada grupo activo al que pertenece."""
+    roles = {r.id: r for r in user.roles}
+    for grupo in user.groups:
+        if grupo.is_active:
+            for r in grupo.roles:
+                roles.setdefault(r.id, r)
+    return list(roles.values())
+
+
 def get_user_permissions(db: Session, user_id: int) -> dict:
     """
     Calcula los permisos efectivos de un usuario combinando:
-    - Permisos heredados por roles
+    - Permisos heredados por roles (los asignados al usuario y los de sus grupos activos)
     - Permisos directos (overrides: granted=True/False)
 
     Retorna: { "modules": [...], "actions": { "module_code": [...] } }
@@ -20,7 +30,7 @@ def get_user_permissions(db: Session, user_id: int) -> dict:
 
     # Permisos por roles
     role_perm_ids: set[int] = set()
-    for role in user.roles:
+    for role in roles_efectivos(user):
         if not role.is_active:
             continue
         for perm in role.permissions:

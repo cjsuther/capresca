@@ -278,9 +278,18 @@ export function EditorComponente({
               <input type="number" className="input w-full" disabled={!editableDisp} value={comp.config.edadMax ?? ""}
                      onChange={(e) => setCompCfg(comp.codigo, { edadMax: Number(e.target.value) || 0 })} />
             </Field>
-            <Field label="Antigüedad mín. (meses)">
-              <input type="number" className="input w-full" disabled={!editableDisp} value={comp.config.antiguedadMinMeses ?? ""}
-                     onChange={(e) => setCompCfg(comp.codigo, { antiguedadMinMeses: Number(e.target.value) || 0 })} />
+            {/* Se declara y se muestra en años (lo que dice el recibo); adentro sigue siendo meses. */}
+            <Field label="Antigüedad mín. (años)">
+              <input type="number" min="0" step="0.5" className="input w-full" disabled={!editableDisp}
+                     value={comp.config.antiguedadMinMeses ? comp.config.antiguedadMinMeses / 12 : ""}
+                     onChange={(e) => setCompCfg(comp.codigo, {
+                       antiguedadMinMeses: Math.round((Number(e.target.value) || 0) * 12) })} />
+            </Field>
+            {/* Tope del crédito: la cuota no puede pasarse de este % del sueldo declarado. */}
+            <Field label="Tope del crédito (% del sueldo)">
+              <input type="number" min="1" max="100" step="1" className="input w-full" disabled={!editableDisp}
+                     value={comp.config.afectacionMaxPct ?? ""}
+                     onChange={(e) => setCompCfg(comp.codigo, { afectacionMaxPct: Number(e.target.value) || 0 })} />
             </Field>
             <Field label="Requiere garante">
               <select className="input w-full" disabled={!editableDisp} value={String(!!comp.config.requiereGarante)}

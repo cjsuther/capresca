@@ -6,6 +6,9 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("JWT_SECRET", "secreto-de-test")
 os.environ.setdefault("JWT_ALGORITHM", "HS256")
 os.environ.setdefault("JWT_EXPIRE_HOURS", "8")
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

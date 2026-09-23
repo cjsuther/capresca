@@ -7,6 +7,151 @@
 
 ---
 
+## H-222 · Módulo Contabilidad: el asiento se arma acá, desde la transacción del módulo
+**Fecha:** 2026-09-22 · **Módulo:** Contabilidad (nuevo) / Créditos / Tesorería · **Alcance:** pedido del usuario
+- Nuevo módulo **Contabilidad** (:8014). **Ningún módulo manda asientos**: mandan la transacción que
+  ocurrió (`POST /internal/contabilidad/transacciones`, idempotente por módulo+tipo+referencia) y acá se
+  resuelve con la **definición** de ese tipo. Sin definición, la transacción queda
+  **PENDIENTE_CONFIGURACION**; al cargar la regla se contabiliza sola (y lo mismo con las que fallaron).
+- La definición dice, por línea, cuenta, lado y cómo se calcula el importe con los campos que manda el
+  módulo (`capital + gastos`). Las expresiones son un mini-lenguaje seguro (números, campos y `+ - * /`):
+  una definición cargada por pantalla no ejecuta código. Se puede **probar** con una transacción real.
+- Trazabilidad en los dos sentidos: la transacción muestra su asiento y el asiento, la operación que lo
+  originó con los datos que llegaron.
+- Lo que pide una contabilidad argentina: plan de cuentas por rubro con cuentas de agrupación y marca de
+  ajustable (RT 6), partida doble obligatoria, ejercicios con cierre y refundición de resultados,
+  numeración correlativa, libro inalterable (se anula con contra-asiento), libro diario, mayor, sumas y
+  saldos, estados contables con control de la ecuación, **libro IVA ventas y compras** con totales por
+  alícuota, centros de costo, diarios y CUIT/condición frente al IVA del ente.
+- Integrado: **Créditos** (desembolso, devengamiento, cobranza, cancelación anticipada) y **Tesorería**
+  (pago acreditado). Créditos conserva su contabilidad interna (cuenta corriente y reportes del módulo);
+  al módulo Contabilidad le manda transacciones, nunca asientos.
+- QA de punta a punta en local: contrato → Tesorería → pago acreditado → Créditos desembolsa → llegaron
+  las dos transacciones; la de Créditos ya tenía definición y salió el asiento (1.1.04 a 1.1.02 por
+  $300.000), la de Tesorería quedó esperando y se contabilizó al definirla. Sumas y saldos balanceado.
+- **Paridad con el sistema anterior** (segunda vuelta, a pedido del usuario): conciliación bancaria
+  (extracto vs. mayor, manual y automática por importe/fecha), asientos en **borrador** con publicación
+  y descarte, **apertura** del ejercicio con los saldos patrimoniales del anterior y **reapertura** (que
+  anula el asiento de cierre), **flujo de efectivo**, **posición de IVA** del período (débito vs.
+  crédito, a pagar o a favor), **análisis por centro de costo**, ABM de **entes contables** (CUIT y
+  condición frente al IVA) y baja de cuentas del plan (una cuenta con movimientos no se borra).
+- Detalle contable: los **borradores no figuran** en los libros hasta publicarse; los **anulados sí**,
+  junto a su contra-asiento (si se ocultara sólo el anulado, la reversa quedaría suelta y descuadraría
+  el mayor).
+- **Plan de cuentas**: se reemplazó el plan propio por **el plan estándar del sistema anterior**, con su
+  misma codificación (1.2.01 créditos a cobrar, 4.1.01 intereses ganados, 2.1.01 IVA débito, 3.3
+  resultado del ejercicio…), que es la que usan los asientos de Créditos; se le sumaron las cuentas que
+  pedía la contabilidad argentina (retenciones/percepciones, amortizaciones, fondos de terceros, RECPAM).
+  Al arrancar, el seed saca las cuentas de la siembra anterior que ya no están en el plan **si nadie las
+  usa**; si tienen movimientos o las usa una definición, las deja y avisa en el log.
+  También se siembran los centros de costo del sistema anterior (ADM, COM, FIN, SEG).
+- **Definiciones de asiento**: pantalla propia (listado, alta, edición y prueba). Antes sólo se podían
+  crear desde una transacción pendiente; ahora también desde cero y desde el detalle de la transacción.
+- Pendiente: el motor de ajuste por inflación (la marca en el plan y la cuenta RECPAM ya están).
+
+## H-221 · Módulo Auditoría: qué hace cada usuario con la información del sistema
+**Fecha:** 2026-09-22 · **Módulo:** Auditoría (nuevo) / todos · **Alcance:** pedido del usuario
+- Nuevo módulo **Auditoría** (:8013): un evento por acción, con quién, qué módulo, qué registro
+  (entidad + id), qué cambió (antes/después), cuándo, desde qué IP y si salió bien. **Sólo lectura**:
+  no hay API ni pantalla para editar o borrar el registro.
+- **Dos fuentes que se cruzan por `request_id`** (el gateway lo genera y lo manda en `X-Request-Id`):
+  el **gateway** registra automáticamente toda operación que modifica datos, el login y los intentos
+  **rechazados** (403) — nadie se puede olvidar de auditar; los **módulos** agregan el detalle del
+  registro tocado.
+- La integración por módulo no toca endpoint por endpoint: un middleware guarda quién opera y un
+  **listener de SQLAlchemy** anota las filas insertadas/modificadas/borradas de cada transacción. Sólo
+  dentro de una request HTTP, así los ETL y seeds no generan ruido. Integrado en **todos** los módulos:
+  Seguridad, Clientes, Configuraciones, Tesorería, Créditos (que además espeja su auditoría propia),
+  Cajeros, Interbanking, Conciliación, Liquidaciones, Legacy y Notificaciones. Se excluyen las tablas
+  que son copia o registro de otra cosa (espejos del legacy, caché de CBUs, detalle crudo de los ZIP de
+  liquidaciones, log de llamadas al banco, tokens).
+- **Datos sensibles**: las claves no se guardan y CBU/CUIL/DNI quedan parciales (`•••5201`).
+- **Retención 5 años**, con purga automática de madrugada.
+- Nunca frena ni voltea una operación: los eventos van a una cola en memoria y los manda un hilo/tarea
+  aparte; si Auditoría está caída, se pierde el evento y queda en el log.
+- Los tests de cada módulo fijan `AUDITORIA_INTERNAL_API_KEY=""`: el contenedor hereda la clave del
+  compose y el hilo de auditoría saldría a la red en cada flush (rompía la "red falsa" de interbanking).
+- QA en local: alta, edición y baja de un grupo quedaron registradas con sus campos
+  (`description: ["prueba", "descripción cambiada"]`) y cruzadas con lo que registró el gateway.
+
+## H-220 · Configurar Créditos: vista en tarjetas / en línea y menú de acciones por fila
+**Fecha:** 2026-09-22 · **Módulo:** Créditos · **Alcance:** pedido del usuario (paridad con el sistema anterior)
+- El catálogo vuelve a tener las **dos vistas** de la SPA retirada: **tarjetas** (con estado, familia,
+  componentes, derivación, sistema/TNA/monto/plazo) y **en línea** (la tabla). El toggle recuerda la
+  elección por navegador (`creditos_cfg_vista`), como hacía el anterior.
+- Vuelve el **menú "⋯" de acciones** por línea, en las dos vistas: Abrir, Continuar edición, Duplicar,
+  Crear derivado, Retirar, Reactivar y Borrar; cada una aparece según estado y permisos, y las
+  irreversibles siguen pidiendo confirmación.
+- El menú quedó como componente compartido (`components/ui/MenuAcciones`) y la tabla común acepta
+  `acciones(row)`, así el resto de las grillas del sistema lo pueden usar igual.
+
+## H-219 · Solicitud: selfie con DNI, fecha de nacimiento (la edad se calcula) y contacto
+**Fecha:** 2026-09-22 · **Módulo:** Créditos / Portal · **Alcance:** pedido del usuario
+- **Vista previa de PDF (bug):** el visor mostraba el PDF en un `<iframe>` con el archivo ya descargado
+  (`blob:`) y la CSP de nginx (`default-src 'self'`) lo bloqueaba: descargaba pero no previsualizaba. Se
+  agregó `frame-src 'self' blob:` (el resto de la política queda igual; `object-src` sigue en `none`).
+- **Selfie con el DNI en la mano:** cuarto documento obligatorio del paso 3 (tipo `SELFIE_DNI`), con la
+  misma regla de uno por tipo. El backoffice lo lista y lo previsualiza como los demás.
+- **Fecha de nacimiento en vez de edad:** la solicitud guarda `fecha_nacimiento` y la edad se **calcula**
+  (`app/core/personas.edad_de`), así no envejece sola ni se pide dos veces. Se exige al enviar (18–99) y
+  alimenta la elegibilidad. El backoffice muestra la fecha con la edad al lado y también carga la fecha.
+  Las solicitudes viejas conservan su `edad` guardada.
+- **Email y teléfono** obligatorios en la solicitud del portal (el email viene precargado de Mi Catamarca
+  y se puede cambiar). Quedan en `cliente_datos` y precargan el alta del cliente en el módulo Clientes.
+- La columna nueva se agrega sola al arrancar (`ALTER TABLE … IF NOT EXISTS`, como el resto de Créditos).
+- Los tests del contenedor fijan sus variables: heredaban `DESEMBOLSO_VIA_TESORERIA=true` del compose y
+  dejaban los contratos A_LIQUIDAR (31 tests en rojo por una variable de entorno, no por el código).
+
+## H-218 · El menú muestra sólo las pantallas creadas en la migración
+**Fecha:** 2026-09-22 · **Módulo:** Créditos · **Alcance:** pedido del usuario
+- El menú del sistema viejo (`menu.ts` de la SPA retirada) marcaba con `nuevo: true` las opciones
+  creadas en la migración. En Créditos eran 9: Tablero de cartera, Solicitudes de crédito, Situación
+  del cliente (línea nueva), Liquidación por lote, Caja de créditos, Resumen de cobros, Sistema de
+  cálculos, Configurar Créditos y Parámetros de créditos. Ésas quedan visibles (más el Inbox de
+  aprobaciones, que nació con el workflow nuevo).
+- Las **20 pantallas heredadas** del VFP (Líneas, Situación del cliente, Cuenta corriente,
+  Estadísticas, Créditos por cartera, Sin débito, Pagos en caja, Envíos, Jubilados, Turnos,
+  Solicitudes, Cancelación, Baja, Recálculo, Simulador, Turnos admin, Informe, Listado, Mora y
+  Pendientes) se ocultan **por permiso**, no borrándolas: exigen `creditos:heredadas:read`, que el seed
+  crea pero **no** le asigna al rol admin (`FUERA_DEL_ADMIN`). Entrar por URL tampoco las abre.
+- Para volver a habilitarlas, en Seguridad se le asigna ese permiso al rol (o a un grupo).
+- Nota: es una restricción de pantalla. Los endpoints de esas consultas siguen respondiendo con
+  `creditos:read`; si hace falta cerrarlas también en el backend, es un cambio aparte.
+
+## H-217 · Tesorería: elegir la cuenta de origen del pago, y botón "Inicio" en toda la plataforma
+**Fecha:** 2026-09-22 · **Módulo:** Tesorería / Interbanking / UI común · **Alcance:** pedido del usuario
+- Al enviar un lote, el tesorero **elige desde qué cuenta sale la transferencia**. Interbanking expone
+  `/internal/interbanking/payment-accounts` (las cuentas del banco + la "cuenta de pagos" configurada,
+  marcada como predeterminada) y `/internal/interbanking/payments` acepta `cuenta_origen`. La cuenta
+  elegida se valida contra esa lista (no se envía a una cuenta arbitraria), queda guardada en el lote y
+  se ve en el historial y en la pantalla. **Sin cuenta de origen no se envía, ni siquiera en simulación**
+  (al principio se permitía para poder probar sin credenciales: era un permiso de más, lo marcó el
+  usuario). Si el banco no responde, igual se puede pagar desde la cuenta configurada.
+- **Botón "Inicio"** en la barra superior (salvo estando en el tablero) y arriba del menú lateral: hasta
+  ahora sólo se volvía haciendo clic en el logo y los usuarios no lo descubrían.
+
+## H-216 · Desembolsos por Tesorería: el contrato se activa cuando se acredita la transferencia
+**Fecha:** 2026-09-22 · **Módulo:** Créditos / Tesorería (nuevo) · **Alcance:** pedido del usuario
+- Nuevo módulo **Tesorería** (:8012): recibe lotes de pagos de Créditos, Conciliación o carga manual; el
+  tesorero excluye pagos, aprueba según el workflow `tesoreria/LOTE_PAGO` (Configuraciones, cuatro ojos)
+  y los envía por Interbanking. Arranca en **simulación** (no mueve dinero).
+- **Créditos** (`DESEMBOLSO_VIA_TESORERIA=true`): liquidar el lote, desembolsar de a uno, ejecutar un
+  pendiente aprobado u originar con desembolso ya no activan el contrato: mandan el neto al CBU de
+  acreditación (contrato → solicitud → cliente) como lote de Tesorería y el contrato queda A_LIQUIDAR
+  "en Tesorería". Tesorería avisa por `/internal/creditos/tesoreria/resultado` (X-Api-Key):
+  CONFIRMADO → asiento + DISBURSEMENT y **ACTIVO** (aunque venga de un lote anterior: si la plata salió,
+  el contrato se activa); FALLIDO/EXCLUIDO/RECHAZADO → **OBSERVADO** con el motivo, se puede volver a liquidar.
+- **Sin doble pago:** la referencia del lote sale de los contratos y su número de intento (un reintento
+  tras un corte cae en el mismo lote); Tesorería no admite dos pagos vivos por contrato ni reintentar un
+  fallido que el origen ya reenvió; un contrato "en Tesorería" no se vuelve a mandar ni se desembolsa directo.
+- **Conciliación** (`PAYMENTS_VIA_TESORERIA=true`): los pagos a agencias con saldo a favor van en un lote
+  por corrida (estado EN_TESORERIA); acreditado → PAGADO; excluido/fallido → OBSERVADO, que no se reenvía
+  solo cada hora.
+- La pantalla "Liquidación por lote" y la ficha del contrato muestran "En Tesorería · LOT-…" u "Observado".
+- QA de punta a punta en local: contrato → lote → aprobación del tesorero (otro usuario, vía grupo) →
+  envío simulado → aviso → contrato ACTIVO. Encontró y corrigió un bug: las referencias "manual-N" de la
+  carga manual chocaban entre lotes y el segundo lote descartaba sus pagos.
+
 ## H-215 · Portal: un solo archivo por documento pedido
 **Fecha:** 2026-09-22 · **Módulo:** Portal del ciudadano · **Alcance:** pedido del usuario
 - El paso 3 pasa de "elegí el tipo y adjuntá (hasta 10, incluido Otro)" a **tres casilleros fijos**:

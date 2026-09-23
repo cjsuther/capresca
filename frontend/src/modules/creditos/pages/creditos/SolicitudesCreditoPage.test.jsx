@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -260,7 +260,7 @@ describe("Solicitudes de crédito · alta", () => {
     expect(within(modal).getByRole("button", { name: "Continuar →" })).toBeDisabled();
   });
 
-  it("valida la edad contra el rango del backend", async () => {
+  it("pide la fecha de nacimiento y valida la edad que sale de ella", async () => {
     const u = userEvent.setup();
     montar();
     await screen.findByText("SOL-1");
@@ -270,9 +270,14 @@ describe("Solicitudes de crédito · alta", () => {
     await u.type(within(modal).getByPlaceholderText(/Buscar cliente/), "perez");
     await u.click(await screen.findByText(/Perez, Ana/));
 
-    await u.type(within(modal).getByLabelText(/Edad/), "15");
-    expect(within(modal).getByText("La edad debe estar entre 18 y 99.")).toBeInTheDocument();
+    const nac = within(modal).getByLabelText(/Fecha de nacimiento/);
+    fireEvent.change(nac, { target: { value: `${new Date().getFullYear() - 15}-01-01` } });
+    expect(within(modal).getByText("La edad debe estar entre 18 y 99 años.")).toBeInTheDocument();
     expect(within(modal).getByRole("button", { name: "Continuar →" })).toBeDisabled();
+
+    fireEvent.change(nac, { target: { value: `${new Date().getFullYear() - 40}-01-01` } });
+    expect(within(modal).getByText("40 años")).toBeInTheDocument();     // la edad se calcula, no se carga
+    expect(within(modal).getByRole("button", { name: "Continuar →" })).toBeEnabled();
   });
 });
 

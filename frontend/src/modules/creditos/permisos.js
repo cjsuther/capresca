@@ -21,6 +21,9 @@ export const usePuedeEscribir = () => useNivel() === "ESCRITURA";
 /** Sólo lectura: entra pero no opera (para ocultar altas, bajas y ediciones). */
 export const useSoloLectura = () => useNivel() === "CONSULTA";
 
+/** Pantallas heredadas del sistema anterior: ocultas salvo que el rol tenga `heredadas:read`. */
+export const usePuedeVerHeredadas = () => useAuthStore((s) => acciones(s).includes("heredadas:read"));
+
 /** Roles del workflow de aprobaciones (permisos sueltos, no del área). */
 export const usePuedeAprobar = () => useAuthStore((s) => acciones(s).includes("aprobaciones:aprobar"));
 export const usePuedeSupervisar = () => useAuthStore((s) => acciones(s).includes("aprobaciones:supervisar"));

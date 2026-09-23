@@ -2,15 +2,41 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+import hmac
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.services import cbu_cache_service
+from app.config import settings
+from app.services import cbu_cache_service, payments_service
 from app.services.notifications_client import notifications_client
 from app.models.liquidacion_record import LiquidacionConciliacionRecord
 
 router = APIRouter(tags=["internal"])
+
+
+def api_tesoreria(x_api_key: Optional[str] = Header(None, alias="X-Api-Key")) -> None:
+    clave = settings.tesoreria_internal_api_key
+    if not clave or not x_api_key or not hmac.compare_digest(x_api_key, clave):
+        raise HTTPException(status_code=401, detail="API interna: clave inválida.")
+
+
+class PagoAvisoTesoreria(BaseModel):
+    referencia_externa: str
+    estado: str
+    motivo: str = ""
+
+
+class AvisoTesoreria(BaseModel):
+    lote: str
+    pagos: list[PagoAvisoTesoreria]
+
+
+@router.post("/internal/conciliacion/tesoreria/resultado", dependencies=[Depends(api_tesoreria)])
+def resultado_tesoreria(aviso: AvisoTesoreria, db: Session = Depends(get_db)):
+    """Tesorería avisa cómo terminó cada pago a agencia que le mandamos."""
+    return payments_service.aplicar_resultado_tesoreria(db, aviso.lote, [p.model_dump() for p in aviso.pagos])
 
 
 @router.post("/internal/conciliacion/refresh-cbu-cache")

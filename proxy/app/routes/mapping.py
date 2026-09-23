@@ -59,6 +59,7 @@ ROUTE_MAP = [
     ("PUT",  r"^/api/security/users/me/password$",    settings.security_service_url, None),
     ("PUT",  r"^/api/security/users/\d+/password$",  settings.security_service_url, "security:users:write"),
     ("POST", r"^/api/security/users/\d+/roles$",     settings.security_service_url, "security:users:write"),
+    ("POST", r"^/api/security/users/\d+/groups$",    settings.security_service_url, "security:groups:write"),
     ("POST", r"^/api/security/users$",               settings.security_service_url, "security:users:write"),
     ("PUT",  r"^/api/security/users/",               settings.security_service_url, "security:users:write"),
     ("DELETE", r"^/api/security/users/",             settings.security_service_url, "security:users:write"),
@@ -67,6 +68,10 @@ ROUTE_MAP = [
     ("POST",   r"^/api/security/roles$",               settings.security_service_url, "security:roles:write"),
     ("PUT",    r"^/api/security/roles/",        settings.security_service_url, "security:roles:write"),
     ("DELETE", r"^/api/security/roles/",        settings.security_service_url, "security:roles:write"),
+    ("GET",    r"^/api/security/groups$",       settings.security_service_url, "security:groups:read"),
+    ("POST",   r"^/api/security/groups(/\d+/(roles|users))?$", settings.security_service_url, "security:groups:write"),
+    ("PUT",    r"^/api/security/groups/\d+$",   settings.security_service_url, "security:groups:write"),
+    ("DELETE", r"^/api/security/groups/\d+$",   settings.security_service_url, "security:groups:write"),
     ("GET",    r"^/api/security/permissions",   settings.security_service_url, "security:roles:read"),
     ("GET",    r"^/api/security/modules",       settings.security_service_url, "security:modules:read"),
 
@@ -171,6 +176,36 @@ ROUTE_MAP = [
 
     # ── Configuraciones: un par read/write por catálogo (impuestos, índices, feriados, workflow) ──
     *_configuraciones_rutas(),
+
+    # ── Contabilidad: consultar libros / registrar asientos / definir imputaciones / ejercicios ──
+    ("GET",  r"^/api/contabilidad/",                                    settings.contabilidad_service_url, "contabilidad:asientos:read"),
+    ("POST", r"^/api/contabilidad/asientos$",                           settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/asientos/\d+/anular$",                settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/transacciones/reprocesar$",           settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/asientos/\d+/publicar$",              settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("DELETE", r"^/api/contabilidad/asientos/\d+$",                     settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/conciliacion/",                       settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("DELETE", r"^/api/contabilidad/conciliacion/extracto/\d+$",        settings.contabilidad_service_url, "contabilidad:asientos:write"),
+    ("POST", r"^/api/contabilidad/(cuentas|centros|definiciones|empresas)$", settings.contabilidad_service_url, "contabilidad:definiciones:write"),
+    ("PUT",  r"^/api/contabilidad/(cuentas|definiciones|centros|empresas)/\d+$", settings.contabilidad_service_url, "contabilidad:definiciones:write"),
+    ("DELETE", r"^/api/contabilidad/cuentas/\d+$",                      settings.contabilidad_service_url, "contabilidad:definiciones:write"),
+    ("POST", r"^/api/contabilidad/definiciones/\d+/probar$",            settings.contabilidad_service_url, "contabilidad:definiciones:write"),
+    ("POST", r"^/api/contabilidad/ejercicios$",                         settings.contabilidad_service_url, "contabilidad:ejercicios:write"),
+    ("POST", r"^/api/contabilidad/ejercicios/\d+/(cerrar|reabrir|apertura)$", settings.contabilidad_service_url, "contabilidad:ejercicios:write"),
+
+    # ── Auditoría: sólo consulta (el registro no se edita ni se borra desde ningún lado) ──
+    ("GET",  r"^/api/auditoria/eventos(/\d+|/resumen)?$",               settings.auditoria_service_url, "auditoria:eventos:read"),
+    ("GET",  r"^/api/auditoria/registros/[^/]+/[^/]+/[^/]+$",           settings.auditoria_service_url, "auditoria:eventos:read"),
+
+    # ── Tesorería: ver lotes pide lectura; aprobar/rechazar y enviar los valida el módulo (workflow y
+    #    permiso de envío), así el gateway sólo exige ser del módulo para esas acciones. ──
+    ("GET",  r"^/api/tesoreria/lotes(/\d+)?$",                          settings.tesoreria_service_url, "tesoreria:lotes:read"),
+    ("GET",  r"^/api/tesoreria/lotes/cuentas-origen$",                  settings.tesoreria_service_url, "tesoreria:lotes:read"),
+    ("POST", r"^/api/tesoreria/lotes$",                                  settings.tesoreria_service_url, "tesoreria:lotes:write"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/pagos/\d+/(excluir|incluir)$",  settings.tesoreria_service_url, "tesoreria:lotes:write"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/(aprobar|rechazar)$",           settings.tesoreria_service_url, "tesoreria:*"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/(enviar|actualizar)$",          settings.tesoreria_service_url, "tesoreria:*"),
+    ("POST", r"^/api/tesoreria/lotes/\d+/pagos/\d+/(reintentar|resolver)$", settings.tesoreria_service_url, "tesoreria:*"),
 ]
 
 

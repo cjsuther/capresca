@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services import contabilidad_central as contab
 
 CERO = Decimal("0.00")
 
@@ -269,6 +270,11 @@ def asiento_pp_otorgamiento(db: Session, contrato) -> models.Asiento:
                        concepto=f"Otorgamiento contrato {contrato.numero_contrato}",
                        lineas=[_lpp(cap, debe=monto), _lpp(CAJA_PP, haber=monto)])
     db.add(a); db.flush()
+    # El módulo Contabilidad arma su propio asiento desde esta transacción (no se le mandan asientos).
+    contab.registrar(tipo="DESEMBOLSO", referencia=contrato.numero_contrato, fecha=contrato.fecha_valor,
+                     descripcion=f"Otorgamiento contrato {contrato.numero_contrato}",
+                     datos={"capital": float(monto), "contrato": contrato.numero_contrato,
+                            "cliente": contrato.cliente_nombre, "plazo": contrato.plazo})
     return a
 
 
@@ -280,6 +286,9 @@ def asiento_pp_devengo(db: Session, contrato, interes: Decimal, fecha, concepto)
     a = models.Asiento(fecha=fecha, origen="pp_devengo", ref_id=None, concepto=concepto,
                        lineas=[_lpp(INT_A_DEVENGAR, debe=monto), _lpp(intc, haber=monto)])
     db.add(a); db.flush()
+    contab.registrar(tipo="DEVENGAMIENTO_INTERES", referencia=f"{contrato.numero_contrato}/{fecha}",
+                     fecha=fecha, descripcion=concepto,
+                     datos={"interes": float(monto), "contrato": contrato.numero_contrato})
     return a
 
 
@@ -321,6 +330,14 @@ def asiento_pp_pago(db: Session, contrato, cuota, fecha, concepto,
             lineas.append(_lpp(cod, haber=monto))
     a = models.Asiento(fecha=fecha, origen="pp_cobranza", ref_id=None, concepto=concepto, lineas=lineas)
     db.add(a); db.flush()
+    contab.registrar(tipo="COBRANZA_CUOTA",
+                     referencia=f"{contrato.numero_contrato}/{getattr(cuota, 'numero_cuota', '')}/{fecha}",
+                     fecha=fecha, descripcion=concepto,
+                     datos={"cobrado": float(caja), "capital": float(capital), "interes": float(interes),
+                            "comisiones": float(comisiones), "impuestos": float(impuestos),
+                            "punitorio": float(int_pun), "iva_punitorio": float(iva_pun),
+                            "contrato": contrato.numero_contrato,
+                            "cuota": getattr(cuota, "numero_cuota", None)})
     return a
 
 
@@ -332,6 +349,9 @@ def asiento_pp_payoff(db: Session, contrato, saldo, fecha, concepto) -> models.A
     a = models.Asiento(fecha=fecha, origen="pp_cobranza", ref_id=None, concepto=concepto,
                        lineas=[_lpp(CAJA_PP, debe=monto), _lpp(cap, haber=monto)])
     db.add(a); db.flush()
+    contab.registrar(tipo="CANCELACION_ANTICIPADA", referencia=f"{contrato.numero_contrato}/{fecha}",
+                     fecha=fecha, descripcion=concepto,
+                     datos={"capital": float(monto), "contrato": contrato.numero_contrato})
     return a
 
 

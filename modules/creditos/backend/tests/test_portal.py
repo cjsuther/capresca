@@ -63,6 +63,40 @@ def test_state_no_reutilizable(client):
     assert r2.status_code == 400          # replay: rechazado
 
 
+def test_el_login_guarda_el_desafio_en_el_servidor(client):
+    """PKCE y el nonce OIDC se guardan del lado del servidor: al navegador sólo le llega el state
+    firmado (y, con el proveedor real, el hash del verifier). El verifier nunca sale de acá."""
+    from app import models_productos as mp
+    from app.core.database import SessionLocal
+    from app.core.security import decode_token
+
+    url = client.get("/api/creditos/portal/auth/login").json()["authorize_url"]
+    state = url.split("state=")[1]
+    nonce = decode_token(state)["nonce"]
+    with SessionLocal() as db:
+        rec = db.get(mp.PPIdempotencia, f"oidc-state:{nonce}")
+        assert rec is not None and rec.respuesta["code_verifier"]
+        assert rec.respuesta["code_verifier"] not in url
+        assert rec.respuesta["nonce"]
+
+    client.get("/api/creditos/portal/auth/callback", params={"code": "mock-code", "state": state},
+               follow_redirects=False)
+    with SessionLocal() as db:      # consumido: el desafío no queda disponible para un replay
+        assert db.get(mp.PPIdempotencia, f"oidc-state:{nonce}") is None
+
+
+def test_callback_con_error_vuelve_al_portal_con_aviso(client):
+    """El ciudadano cancela en Mi Catamarca: vuelve al login con un aviso, no a una pantalla de error."""
+    r = client.get("/api/creditos/portal/auth/callback",
+                   params={"error": "access_denied", "error_description": "El usuario canceló"},
+                   follow_redirects=False)
+    assert r.status_code in (302, 307) and "#error=sso" in r.headers["location"]
+
+
+def test_callback_sin_parametros_es_400(client):
+    assert client.get("/api/creditos/portal/auth/callback", follow_redirects=False).status_code == 400
+
+
 def test_realms_separados(client):
     """Un token de portal NO abre el backoffice; un token interno NO abre el portal."""
     h_portal = _ingresar(client)
@@ -109,8 +143,11 @@ def _un_producto(client, h):
 
 # CBU + consentimientos + identidad declarada, obligatorios para enviar (se ignoran en /simular). H-162.
 VIDEOS = ["video1", "video2", "video3"]   # los obligatorios por defecto (config `portal_videos`)
+# La solicitud pide fecha de nacimiento (la edad se calcula) y contacto del ciudadano.
+NACIMIENTO_40 = f"{date.today().year - 40}-01-01"
 CONSENT = {"cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True,
-           "apellido": "PEREZ", "nombre": "JUAN CARLOS", "dni": "30123456", "videos_vistos": VIDEOS}
+           "apellido": "PEREZ", "nombre": "JUAN CARLOS", "dni": "30123456", "videos_vistos": VIDEOS,
+           "fecha_nacimiento": NACIMIENTO_40, "email": "juan@example.com", "telefono": "3834123456"}
 
 
 def test_videos_obligatorios_del_paso_4(client):
@@ -157,7 +194,8 @@ def test_enviar_exige_identidad_declarada(client):
     h = _ingresar(client)
     p = _un_producto(client, h)
     base = {"cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True,
-            "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "videos_vistos": VIDEOS}
+            "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "videos_vistos": VIDEOS,
+            "fecha_nacimiento": NACIMIENTO_40, "email": "ana@example.com", "telefono": "3834765432"}
     # sin apellido/nombre → 422
     assert client.post("/api/creditos/portal/solicitudes", headers=h, json=base).status_code == 422
     # DNI inválido → 422
@@ -241,7 +279,7 @@ def test_mis_creditos_y_notificaciones(client):
     if p is None:
         import pytest as _pt; _pt.skip("no hay producto WEB-elegible sembrado")
     body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": min(max(12, p["plazo_min"]), p["plazo_max"]),
-            "segmento": "AGENTE_PUBLICO", "edad": 40}
+            "segmento": "AGENTE_PUBLICO", "fecha_nacimiento": f"{date.today().year - 40}-01-01"}
     numero = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "mc-1"}, json=body).json()["numero"]
 
     # Antes de originar: no hay créditos.
@@ -282,7 +320,7 @@ def test_originacion_web_es_revision_y_bloquea_sin_datos(client):
     if p is None:
         import pytest as _pt; _pt.skip("no hay producto WEB-elegible sembrado")
     body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": min(max(12, p["plazo_min"]), p["plazo_max"]),
-            "segmento": "AGENTE_PUBLICO", "edad": 40}
+            "segmento": "AGENTE_PUBLICO", "fecha_nacimiento": f"{date.today().year - 40}-01-01"}
     numero = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "rev-1"}, json=body).json()["numero"]
 
     tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
@@ -318,7 +356,7 @@ def test_originacion_deja_a_liquidar_y_lote_desembolsa(client):
     p = next((x for x in client.get("/api/creditos/portal/productos", headers=h).json() if "Flexible" in x["nombre"]), None)
     if p is None:
         import pytest as _pt; _pt.skip("sin producto WEB-elegible")
-    body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "segmento": "AGENTE_PUBLICO", "edad": 40}
+    body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "segmento": "AGENTE_PUBLICO", "fecha_nacimiento": f"{date.today().year - 40}-01-01"}
     numero = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "lote-t"}, json=body).json()["numero"]
     tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
     hi = {"Authorization": f"Bearer {tok}"}
@@ -402,7 +440,7 @@ def test_lote_marca_pendientes_de_aprobacion(client):
     from tests.config_falsa import CONFIG
     CONFIG.activar("DESEMBOLSO")   # regla del workflow, en Configuraciones
     try:
-        body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "segmento": "AGENTE_PUBLICO", "edad": 40}
+        body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "segmento": "AGENTE_PUBLICO", "fecha_nacimiento": f"{date.today().year - 40}-01-01"}
         numero = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "pend-t"}, json=body).json()["numero"]
         tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
         hi = {"Authorization": f"Bearer {tok}"}
@@ -455,7 +493,7 @@ def test_solicitud_registra_fuente_de_haberes(client):
     p = _un_producto(client, h)
     body = {**CONSENT, "producto_id": p["id"], "monto": min(max(500000.0, p["monto_min"]), p["monto_max"]),
             "plazo": min(max(12, p["plazo_min"]), p["plazo_max"]),
-            "segmento": "AGENTE_PUBLICO", "edad": 40, "sueldo": 920000, "haberes_fuente": "micatamarca"}
+            "segmento": "AGENTE_PUBLICO", "fecha_nacimiento": f"{date.today().year - 40}-01-01", "sueldo": 920000, "haberes_fuente": "micatamarca"}
     num = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "hab-1"}, json=body).json()["numero"]
     tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
     back = client.get("/api/creditos/solicitudes", headers={"Authorization": f"Bearer {tok}"}).json()
@@ -471,11 +509,12 @@ def test_simular_con_datos_evalua_elegibilidad_y_afectacion(client):
     plazo = min(max(12, p["plazo_min"]), p["plazo_max"])
     r = client.post("/api/creditos/portal/simular", headers=h, json={
         **CONSENT, "producto_id": p["id"], "monto": monto, "plazo": plazo,
-        "segmento": "AGENTE_PUBLICO", "edad": 40, "antiguedad_meses": 60, "sueldo": 900000}).json()
+        "segmento": "AGENTE_PUBLICO", "fecha_nacimiento": f"{date.today().year - 40}-01-01", "antiguedad_meses": 60, "sueldo": 900000}).json()
     assert r["elegible"] in (True, False)          # declaró datos → se evaluó
     assert r["afectacion"] is not None and r["afectacion"] > 0
     # Sin datos → elegible None, afectación None.
-    r2 = client.post("/api/creditos/portal/simular", headers=h, json={**CONSENT, "producto_id": p["id"], "monto": monto, "plazo": plazo}).json()
+    r2 = client.post("/api/creditos/portal/simular", headers=h,
+                     json={"producto_id": p["id"], "monto": monto, "plazo": plazo}).json()
     assert r2["elegible"] is None and r2["afectacion"] is None
 
 
@@ -485,10 +524,10 @@ def test_solicitud_guarda_datos_y_detalle(client):
     p = _un_producto(client, h)
     body = {**CONSENT, "producto_id": p["id"], "monto": min(max(500000.0, p["monto_min"]), p["monto_max"]),
             "plazo": min(max(12, p["plazo_min"]), p["plazo_max"]),
-            "segmento": "DOCENTE", "edad": 35, "antiguedad_meses": 24, "sueldo": 800000}
+            "segmento": "DOCENTE", "fecha_nacimiento": f"{date.today().year - 35}-01-01", "antiguedad_meses": 24, "sueldo": 800000}
     sol = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "f3-1"}, json=body).json()
     det = client.get(f"/api/creditos/portal/solicitudes/{sol['numero']}", headers=h).json()
-    assert det["segmento"] == "DOCENTE" and det["edad"] == 35 and det["antiguedad_meses"] == 24
+    assert det["segmento"] == "DOCENTE" and det["edad"] == 35 and det["fecha_nacimiento"] == f"{date.today().year - 35}-01-01" and det["antiguedad_meses"] == 24
     assert det["sueldo"] == 800000 and det["afectacion"] is not None
     assert len(det["cuotas"]) == body["plazo"] and det["total_a_pagar"] > 0
     # El backoffice ve el segmento declarado.
@@ -678,15 +717,21 @@ def test_un_solo_documento_de_cada_uno_de_los_pedidos(client):
     url = f"/api/creditos/portal/solicitudes/{numero}/documentos"
     subir = lambda tipo, nombre="x.png": client.post(url, headers=h, files={"archivo": (nombre, PNG, "image/png")},
                                                       data={"tipo": tipo} if tipo is not None else None)
-    for tipo in ("OTRO", "CONSTANCIA", None):          # sin tipo cae en OTRO
+    for tipo in ("OTRO", "LIBRETA", None):            # sin tipo cae en OTRO
         r = subir(tipo)
         assert r.status_code == 422 and "DNI" in r.json()["detail"]
-    for tipo in ("DNI_FRENTE", "DNI_DORSO", "RECIBO"):
+    for tipo in ("DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO",
+                 "CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU"):
         assert subir(tipo).status_code == 201
     r = subir("DNI_FRENTE", "otra-foto.png")
     assert r.status_code == 409 and "Ya adjuntaste el DNI (frente)" in r.json()["detail"]
+    r = subir("SELFIE_DNI", "otra-selfie.png")
+    assert r.status_code == 409 and "Ya adjuntaste la selfie con el DNI en la mano" in r.json()["detail"]
+    r = subir("CONSTANCIA_CBU", "otro-cbu.png")
+    assert r.status_code == 409 and "Ya adjuntaste la constancia de CBU" in r.json()["detail"]
     tipos = [d["tipo"] for d in client.get(url, headers=h).json()["items"]]
-    assert sorted(tipos) == ["DNI_DORSO", "DNI_FRENTE", "RECIBO"]
+    assert sorted(tipos) == ["CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU", "DNI_DORSO", "DNI_FRENTE",
+                             "RECIBO", "SELFIE_DNI"]
 
 
 def test_mis_solicitudes_solo_las_propias(client):
@@ -707,9 +752,13 @@ def _bo(client):
     return {"Authorization": f"Bearer {tok}"}
 
 
-def _publicar_con_canales(client, hb, nombre, canales):
-    """Crea y publica (backoffice) un producto con Disponibilidad → canales dados."""
+def _publicar_con_canales(client, hb, nombre, canales, cfg=None, **extra):
+    """Crea y publica (backoffice) un producto con Disponibilidad → canales dados (+ reglas extra)."""
     pid = client.post("/api/creditos/productos", headers=hb, json={"nombre": nombre}).json()["id"]
+    if cfg:
+        base = client.get(f"/api/creditos/productos/{pid}", headers=hb).json()["cfg"]
+        assert client.put(f"/api/creditos/productos/{pid}/config", headers=hb,
+                          json={**base, **cfg}).status_code == 200
     det = client.get(f"/api/creditos/productos/{pid}", headers=hb).json()
     comps = [{"codigo": c["codigo"], "config": c["config"], "activo": c["activo"], "heredado": c.get("heredado", False)}
              for c in det["componentes"]]
@@ -717,7 +766,7 @@ def _publicar_con_canales(client, hb, nombre, canales):
     if av is None:
         av = {"codigo": "AVAILABILITY", "config": {}, "activo": True, "heredado": False}; comps.append(av)
     av["activo"] = True
-    av["config"] = {**(av["config"] or {}), "canales": canales}
+    av["config"] = {**(av["config"] or {}), "canales": canales, **extra}
     assert client.put(f"/api/creditos/productos/{pid}/config", headers=hb, json={**det["cfg"], "componentes": comps}).status_code == 200
     for acc in ("revisar", "aprobar", "publicar"):
         assert client.post(f"/api/creditos/productos/{pid}/estado", headers=hb, json={"accion": acc}).status_code == 200
@@ -782,3 +831,110 @@ def test_portal_no_muestra_sin_disponibilidad(client):
     # ahora sí aparece en el portal
     ids2 = {p["id"] for p in client.get("/api/creditos/portal/productos", headers=hp).json()}
     assert pid in ids2
+
+
+# ─────────────── Fecha de nacimiento y contacto en la solicitud (H-219) ───────────────
+
+def _enviar(client, h, p, **cambios):
+    body = {**CONSENT, "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "segmento": "AGENTE_PUBLICO"}
+    body.update(cambios)
+    return client.post("/api/creditos/portal/solicitudes", headers=h, json=body)
+
+
+def test_la_solicitud_pide_fecha_de_nacimiento_y_contacto(client):
+    """Ya no se declara la edad: se carga la fecha de nacimiento (y la edad se calcula), más email y
+    teléfono para poder avisarle al ciudadano."""
+    h = _ingresar(client)
+    p = _un_producto(client, h)
+    assert _enviar(client, h, p, fecha_nacimiento=None).status_code == 422
+    assert "fecha de nacimiento" in _enviar(client, h, p, fecha_nacimiento=None).json()["detail"]
+    menor = f"{date.today().year - 15}-01-01"
+    assert _enviar(client, h, p, fecha_nacimiento=menor).status_code == 422
+    assert _enviar(client, h, p, email="no-es-un-email").status_code == 422
+    assert _enviar(client, h, p, telefono="123").status_code == 422
+
+    r = _enviar(client, h, p)
+    assert r.status_code == 201, r.text
+    numero = r.json()["numero"]
+    det = client.get(f"/api/creditos/portal/solicitudes/{numero}", headers=h).json()
+    assert det["edad"] == 40 and det["fecha_nacimiento"] == NACIMIENTO_40
+
+
+def test_el_backoffice_ve_el_nacimiento_el_contacto_y_la_edad_calculada(client):
+    """Lo declarado en el portal llega a la ficha del backoffice (y alimenta el alta del cliente)."""
+    h = _ingresar(client)
+    p = _un_producto(client, h)
+    numero = _enviar(client, h, p).json()["numero"]
+
+    tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
+    hi = {"Authorization": f"Bearer {tok}"}
+    s = next(x for x in client.get("/api/creditos/solicitudes", headers=hi).json()["items"] if x["numero"] == numero)
+
+    assert s["fechaNacimiento"] == NACIMIENTO_40 and s["edad"] == 40
+    assert s["clienteDatos"]["email"] == "juan@example.com"
+    assert s["clienteDatos"]["telefono"] == "3834123456"
+    assert s["clienteDatos"]["nacimiento"] == NACIMIENTO_40
+
+
+def test_la_edad_se_calcula_y_no_envejece_sola(client):
+    """La edad guardada sale de la fecha: una solicitud vieja no cambia de edad con el tiempo."""
+    from app.core.personas import edad_de
+    assert edad_de(date(1986, 9, 23), al=date(2026, 9, 22)) == 39     # el día antes del cumpleaños
+    assert edad_de(date(1986, 9, 23), al=date(2026, 9, 23)) == 40
+    assert edad_de(None) is None
+
+
+
+def test_tope_del_credito_se_configura_por_linea(client):
+    """El tope de la cuota sobre el sueldo NO está fijo en 30%: lo fija cada línea en Disponibilidad
+    ('Tope del crédito'). El portal ya no lo manda; el pre-aprobado y el envío usan el de la línea."""
+    hb, hp = _bo(client), _ingresar(client)
+    pid = _publicar_con_canales(client, hb, "Tope 25 QA", ["WEB"], afectacionMaxPct=25)
+    p = next(x for x in client.get("/api/creditos/portal/productos", headers=hp).json() if x["id"] == pid)
+
+    sueldo, plazo = 900000, 18
+    r = client.post("/api/creditos/portal/pre-aprobado", headers=hp,
+                    json={"producto_id": pid, "plazo": plazo, "sueldo": sueldo}).json()
+    assert r["afectacion_max"] == 25
+    assert r["afectacion"] <= 25.5           # el máximo ofrecido respeta el tope de la línea, no el 30%
+
+    # Un monto cuya cuota se pasa del 25% no se puede enviar, y el motivo lo dice.
+    monto = min(p["monto_max"], max(p["monto_min"], r["monto_maximo"] * 1.4))
+    sim = client.post("/api/creditos/portal/simular", headers=hp,
+                      json={**CONSENT, "producto_id": pid, "monto": monto, "plazo": plazo, "sueldo": sueldo}).json()
+    assert sim["afectacion"] > 25 and sim["elegible"] is False
+    assert any("25%" in m for m in sim["motivos"])
+    env = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "tope-1"},
+                      json={**CONSENT, "producto_id": pid, "monto": monto, "plazo": plazo, "sueldo": sueldo})
+    assert env.status_code == 422 and "25%" in env.text
+
+    # Con la cuota dentro del tope, la misma línea deja enviar.
+    ok = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "tope-2"},
+                     json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"], "plazo": plazo, "sueldo": sueldo})
+    assert ok.status_code == 201, ok.text
+
+
+def test_el_maximo_del_pre_aprobado_se_puede_enviar(client):
+    """El pre-aprobado y el envío tienen que medir la afectación con la MISMA cuota: la primera, que es
+    la más alta. Con la promedio, en un sistema alemán el portal ofrecía un máximo que después el envío
+    rechazaba por pasarse del tope."""
+    hb, hp = _bo(client), _ingresar(client)
+    pid = _publicar_con_canales(client, hb, "Aleman Tope QA", ["WEB"], afectacionMaxPct=25,
+                                cfg={"sistema": "ALEMAN", "tna": 48, "montoMin": 100000,
+                                     "montoMax": 5000000, "plazoMin": 6, "plazoMax": 60})
+    sueldo, plazo = 900000, 18
+    r = client.post("/api/creditos/portal/pre-aprobado", headers=hp,
+                    json={"producto_id": pid, "plazo": plazo, "sueldo": sueldo}).json()
+    assert r["monto_maximo"] > 0 and r["afectacion"] <= 25
+
+    sim = client.post("/api/creditos/portal/simular", headers=hp,
+                      json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"],
+                            "plazo": plazo, "sueldo": sueldo}).json()
+    assert sim["elegible"] is True and sim["afectacion"] <= 25
+    # La afectación que se muestra es la de la primera cuota, no la del promedio (en alemán difieren).
+    assert sim["afectacion"] >= round(sim["cuota_promedio"] / sueldo * 100, 1)
+
+    env = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "aleman-1"},
+                      json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"],
+                            "plazo": plazo, "sueldo": sueldo})
+    assert env.status_code == 201, env.text

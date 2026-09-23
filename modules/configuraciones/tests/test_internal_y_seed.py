@@ -80,7 +80,9 @@ def test_siembra_idempotente_que_no_pisa_lo_cargado(db):
     sembrar(db)
     assert [i.codigo for i in db.query(models.Impuesto).all()] == ["PROPIO"]   # no mezcla los de fábrica
     assert db.query(models.IndiceReferencia).count() == 3
-    assert db.query(models.WorkflowRegla).count() == 4
+    assert db.query(models.WorkflowRegla).count() == 5
+    lote = db.query(models.WorkflowRegla).filter_by(modulo="tesoreria", objeto="LOTE_PAGO").one()
+    assert lote.activo is True and [n.rol for n in lote.niveles] == ["APROBAR"]   # mover dinero: activa de entrada
     hoy = date.today()
     anios = {f.year for (f,) in db.query(models.Feriado.fecha).all()}
     assert anios == {hoy.year, hoy.year + 1, hoy.year + 2}

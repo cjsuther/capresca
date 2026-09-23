@@ -5,8 +5,11 @@ import type { Video } from "./api";
  * Paso 4 del trámite: videos que el ciudadano tiene que ver COMPLETOS antes de confirmar.
  *
  * - Se ven en orden: cada uno se habilita al terminar el anterior.
- * - No se puede adelantar (un salto hacia adelante vuelve al punto más lejano visto) ni cambiar la
- *   velocidad; sí volver atrás. Si la pestaña queda en segundo plano, el video se pausa.
+ * - No se puede adelantar: mientras el video no está visto NO se muestran los controles nativos (en el
+ *   celular la barra del reproductor permitía arrastrar y saltearlo), sino un play/pausa propio y una
+ *   barra de progreso que no se puede tocar. El guardia de `seeking` queda igual como red de seguridad
+ *   (teclas de medios, control remoto). Tampoco se puede cambiar la velocidad. Una vez visto, el video
+ *   queda con los controles normales para volver a mirarlo. Si la pestaña queda en segundo plano, se pausa.
  * - Un video cuenta como visto cuando termina habiendo recorrido todo su largo.
  * - Lo visto se recuerda en el navegador hasta enviar la solicitud (un corte o una recarga no obliga a
  *   verlos de nuevo). El backend exige igual la lista completa al enviar.
@@ -38,6 +41,8 @@ export function VideoObligatorio({ video, numero, completo, habilitado, onComple
   const [progreso, setProgreso] = useState(completo ? 1 : 0);
   const [duracion, setDuracion] = useState(0);
   const [aviso, setAviso] = useState("");
+  const [reproduciendo, setReproduciendo] = useState(false);
+  const [transcurrido, setTranscurrido] = useState(0);
 
   // Pestaña en segundo plano: se pausa (tiene que verlo, no dejarlo corriendo de fondo).
   useEffect(() => {
@@ -49,6 +54,7 @@ export function VideoObligatorio({ video, numero, completo, habilitado, onComple
   const alAvanzar = () => {
     const v = ref.current;
     if (!v) return;
+    setTranscurrido(v.currentTime);
     if (!completo && v.currentTime > maxVisto.current + TOLERANCIA_SALTO) return;   // un salto: lo corrige alBuscar
     maxVisto.current = Math.max(maxVisto.current, v.currentTime);
     if (v.duration) setProgreso(completo ? 1 : Math.min(1, maxVisto.current / v.duration));
@@ -80,6 +86,15 @@ export function VideoObligatorio({ video, numero, completo, habilitado, onComple
     }
   };
 
+  /** Play/pausa propio: es el único control mientras el video no está visto. */
+  const alternar = () => {
+    const v = ref.current;
+    if (!v) return;
+    setAviso("");
+    if (v.paused) v.play().catch(() => setAviso("No se pudo reproducir el video. Probá de nuevo."));
+    else v.pause();
+  };
+
   const estado = completo ? "ok" : habilitado ? "on" : "off";
   return (
     <article className={`p-video ${estado}`} aria-label={`Video ${numero}: ${video.titulo}`}>
@@ -95,18 +110,33 @@ export function VideoObligatorio({ video, numero, completo, habilitado, onComple
           <video
             ref={ref}
             src={video.url}
-            controls
+            controls={completo}
             playsInline
             preload="metadata"
             disablePictureInPicture
-            controlsList="nodownload noplaybackrate"
+            controlsList="nodownload noplaybackrate nofullscreen"
             onContextMenu={(e) => e.preventDefault()}
+            onClick={completo ? undefined : alternar}
             onLoadedMetadata={(e) => setDuracion(e.currentTarget.duration || 0)}
             onTimeUpdate={alAvanzar}
+            onPlay={() => setReproduciendo(true)}
+            onPause={() => setReproduciendo(false)}
             onSeeking={alBuscar}
             onRateChange={alCambiarVelocidad}
             onEnded={alTerminar}
           />
+          {!completo && (
+            <div className="p-video-ctrl">
+              <button type="button" className="p-video-play" onClick={alternar}
+                      aria-label={reproduciendo ? `Pausar video ${numero}` : `Reproducir video ${numero}`}>
+                {reproduciendo ? "❚❚" : "▶"}
+              </button>
+              <span className="p-fine">
+                {minutos(transcurrido)}{duracion ? ` / ${minutos(duracion)}` : ""}
+              </span>
+              <span className="p-fine" style={{ marginLeft: "auto" }}>No se puede adelantar</span>
+            </div>
+          )}
           <div className="p-video-bar" role="progressbar" aria-label={`Progreso del video ${numero}`}
                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progreso * 100)}>
             <span style={{ width: `${progreso * 100}%` }} />

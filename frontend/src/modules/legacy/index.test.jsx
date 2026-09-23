@@ -92,6 +92,6 @@ describe("módulo Legacy", () => {
     });
     montar();
     await waitFor(() => expect(legacyApi.getInteractions).toHaveBeenCalled());
-    expect(screen.queryAllByRole("link")).toHaveLength(0);
+    expect(screen.queryAllByRole("link").map((a) => a.textContent)).toEqual(["Inicio"]);  // sólo la salida del módulo
   });
 });

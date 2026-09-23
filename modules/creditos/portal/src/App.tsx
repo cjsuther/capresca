@@ -51,21 +51,26 @@ const SISTEMA: Record<string, string> = { FRANCES: "Francés", ALEMAN: "Alemán"
 
 // Captura el token del fragmento tras el callback OIDC (<base>/ingreso#token=...) y limpia la URL.
 // La base es /portal-creditos/ (vite.config.ts): Portezuelo publica el portal ahí.
-function capturarTokenDeCallback() {
+/** Vuelta de Mi Catamarca: con el token entra; con error, se avisa en el login. */
+function capturarTokenDeCallback(): string {
   const base = import.meta.env.BASE_URL;
-  if (window.location.pathname === `${base}ingreso` && window.location.hash.includes("token=")) {
-    const t = new URLSearchParams(window.location.hash.slice(1)).get("token");
-    if (t) token.set(t);
-    window.history.replaceState({}, "", base);
-  }
+  if (window.location.pathname !== `${base}ingreso`) return "";
+  const h = new URLSearchParams(window.location.hash.slice(1));
+  const t = h.get("token");
+  if (t) token.set(t);
+  window.history.replaceState({}, "", base);
+  return !t && h.get("error")
+    ? "No se pudo completar el ingreso con Mi Catamarca. Probá de nuevo."
+    : "";
 }
 
 export default function App() {
   const [sesion, setSesion] = useState<Ciudadano | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [errSso, setErrSso] = useState("");
 
   useEffect(() => {
-    capturarTokenDeCallback();
+    setErrSso(capturarTokenDeCallback());
     if (!token.get()) { setCargando(false); return; }
     api.me().then(setSesion).catch(() => token.clear()).finally(() => setCargando(false));
   }, []);
@@ -78,7 +83,7 @@ export default function App() {
   }, []);
 
   if (cargando) return <Marco><p className="p-muted">Cargando…</p></Marco>;
-  if (!sesion) return <Login />;
+  if (!sesion) return <Login aviso={errSso} />;
   return <Simulador sesion={sesion} onSalir={() => { token.clear(); setSesion(null); }} />;
 }
 
@@ -91,8 +96,8 @@ function Marco({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Login() {
-  const [err, setErr] = useState("");
+function Login({ aviso = "" }: { aviso?: string }) {
+  const [err, setErr] = useState(aviso);
   const [yendo, setYendo] = useState(false);
   async function ingresar() {
     setYendo(true); setErr("");
@@ -169,25 +174,32 @@ const SEGMENTOS: [string, string][] = [
 ];
 const SEG_LABEL = Object.fromEntries(SEGMENTOS);
 
-// Destino del crédito (opcional) — códigos alineados con DESTINOS del backend (portal.py).
-const DESTINOS: [string, string][] = [
-  ["", "Preferís no decirlo"],
-  ["VIVIENDA", "Vivienda / refacción"],
-  ["VEHICULO", "Vehículo"],
-  ["CONSUMO", "Consumo / gastos personales"],
-  ["EDUCACION", "Educación"],
-  ["SALUD", "Salud"],
-  ["REFINANCIACION", "Refinanciación de deudas"],
-  ["EMPRENDIMIENTO", "Emprendimiento / negocio"],
-  ["OTRO", "Otro"],
-];
-const DESTINO_LABEL = Object.fromEntries(DESTINOS);
-
 const TIPO_DOC: Record<string, string> = {
-  DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", RECIBO: "Recibo de sueldo",
+  DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)",
+  SELFIE_DNI: "Selfie con el DNI en la mano", RECIBO: "Recibo de sueldo",
+  CERTIFICADO_SERVICIOS: "Certificado de servicios", CONSTANCIA_CBU: "Constancia de CBU",
+};
+const TIPO_DOC_AYUDA: Record<string, string> = {
+  SELFIE_DNI: "Una foto tuya sosteniendo el DNI, que se lean los datos.",
+  CERTIFICADO_SERVICIOS: "El que emite tu empleador con tu antigüedad y situación de revista.",
+  CONSTANCIA_CBU: "La que baja tu banco o Home Banking con el CBU a tu nombre.",
 };
 // Documentación del paso 3: exactamente un archivo por cada uno de estos (ni más, ni otros).
-const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "RECIBO"];
+const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO",
+                         "CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU"];
+
+/** Años cumplidos a hoy (el backend calcula lo mismo con la fecha declarada). */
+function edadDe(nacimiento: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nacimiento)) return null;
+  const n = new Date(`${nacimiento}T00:00:00`);
+  if (isNaN(n.getTime())) return null;
+  const hoy = new Date();
+  let e = hoy.getFullYear() - n.getFullYear();
+  const m = hoy.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < n.getDate())) e--;
+  return e;
+}
+const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const PASOS = ["Tus datos", "Simulación", "Documentación", "Videos", "Confirmación"];
 type Paso = 1 | 2 | 3 | 4 | 5;
 type DocElegido = { file: File; tipo: string };
@@ -220,7 +232,7 @@ function DocsPicker({ docs, onChange }: { docs: DocElegido[]; onChange: (d: DocE
               <span className={"p-doc-ic" + (esPdf ? " pdf" : "")} aria-hidden>{d ? (esPdf ? "PDF" : "IMG") : "○"}</span>
               <div className="p-doc-meta">
                 <b>{TIPO_DOC[t]}</b>
-                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : "Falta adjuntar"}</span>
+                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : (TIPO_DOC_AYUDA[t] || "Falta adjuntar")}</span>
               </div>
               <label className={`p-btn-file${d ? " sec" : ""}`}>{d ? "Cambiar" : "＋ Adjuntar"}
                 <input type="file" accept={DOC_TYPES.join(",")} hidden aria-label={`Adjuntar ${TIPO_DOC[t]}`}
@@ -264,8 +276,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [nombre, setNombre] = useState("");
   const [dni, setDni] = useState("");
   const [segmento, setSegmento] = useState("");
-  const [destino, setDestino] = useState("");
-  const [edad, setEdad] = useState("");
+  const [nacimiento, setNacimiento] = useState("");     // fecha; la edad se calcula (antes se pedía la edad)
+  const [email, setEmail] = useState(sesion.email || "");
+  const [telefono, setTelefono] = useState("");
   const [antiguedad, setAntiguedad] = useState("");
   const [sueldo, setSueldo] = useState("");
   const [pendingDocs, setPendingDocs] = useState<DocElegido[]>([]);   // adjuntos elegidos (se suben al enviar)
@@ -287,7 +300,11 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [aceptaDatos, setAceptaDatos] = useState(false);
   const cbuDigits = cbu.replace(/\D/g, "");
   const dniDigits = dni.replace(/\D/g, "");
-  const identidadOk = apellido.trim().length > 0 && nombre.trim().length > 0 && (dniDigits.length === 7 || dniDigits.length === 8);
+  const edad = edadDe(nacimiento);
+  const telDigits = telefono.replace(/[^\d+]/g, "");
+  const contactoOk = emailValido(email) && telDigits.replace("+", "").length >= 8;
+  const identidadOk = apellido.trim().length > 0 && nombre.trim().length > 0 && (dniDigits.length === 7 || dniDigits.length === 8)
+    && edad !== null && edad >= 18 && edad <= 99 && contactoOk;
   const puedeEnviar = identidadOk && cbuDigits.length === 22 && aceptaTerminos && aceptaDatos;
 
   // Borrador del portal: el ciudadano guarda la solicitud a medias y la retoma después (por dispositivo).
@@ -298,7 +315,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     try { const raw = localStorage.getItem(BORRADOR_KEY); if (raw) setBorrador(JSON.parse(raw)); } catch { /* ignore */ }
   }, []);
   function guardarBorrador() {
-    const d = { paso, apellido, nombre, dni, segmento, destino, edad, antiguedad, sueldo, prodId, monto, plazo, cbu, aceptaTerminos, aceptaDatos, savedAt: new Date().toISOString() };
+    const d = { paso, apellido, nombre, dni, segmento, nacimiento, email, telefono, antiguedad, sueldo,
+                prodId, monto, plazo, cbu, aceptaTerminos, aceptaDatos, savedAt: new Date().toISOString() };
     try { localStorage.setItem(BORRADOR_KEY, JSON.stringify(d)); } catch { /* ignore */ }
     setBorrador(null); setBorradorMsg("Borrador guardado. Podés retomarlo más tarde desde este dispositivo.");
     setTimeout(() => setBorradorMsg(""), 4000);
@@ -306,7 +324,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   function retomarBorrador() {
     const d = borrador; if (!d) return;
     setApellido(d.apellido || ""); setNombre(d.nombre || ""); setDni(d.dni || "");
-    setSegmento(d.segmento || ""); setDestino(d.destino || ""); setEdad(d.edad || ""); setAntiguedad(d.antiguedad || "");
+    setSegmento(d.segmento || ""); setNacimiento(d.nacimiento || "");
+    setEmail(d.email || sesion.email || ""); setTelefono(d.telefono || ""); setAntiguedad(d.antiguedad || "");
     setSueldo(d.sueldo || ""); if (d.prodId) setProdId(d.prodId);
     setMonto(d.monto || "500000"); setPlazo(d.plazo || "12"); setCbu(d.cbu || "");
     setAceptaTerminos(!!d.aceptaTerminos); setAceptaDatos(!!d.aceptaDatos);
@@ -319,8 +338,10 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const datos = () => ({
     apellido: apellido.trim(), nombre: nombre.trim(), dni: dniDigits,
     segmento: segmento || undefined,
-    edad: edad ? Number(edad) : undefined,
-    antiguedad_meses: antiguedad ? Number(antiguedad) : undefined,
+    fecha_nacimiento: nacimiento || undefined,
+    email: email.trim(),
+    telefono: telDigits,
+    antiguedad_meses: antiguedad ? Math.round(Number(antiguedad) * 12) : undefined,   // se declara en años
     sueldo: sueldo ? Number(sueldo) : undefined,
   });
 
@@ -348,7 +369,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   useEffect(() => {
     const s = Number(sueldo);
     if (paso !== 2 || !prodId || !s) { setPreap(null); return; }
-    api.preAprobado({ producto_id: prodId, plazo: Number(plazo), sueldo: s, afectacion_max: 30 })
+    api.preAprobado({ producto_id: prodId, plazo: Number(plazo), sueldo: s })
       .then(setPreap).catch(() => setPreap(null));
   }, [paso, prodId, plazo, sueldo]);
 
@@ -372,6 +393,10 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     if (!apellido.trim() || !nombre.trim()) { setDatosErr("Cargá tu apellido y nombre."); return; }
     if (dniDigits.length !== 7 && dniDigits.length !== 8) { setDatosErr("El DNI debe tener 7 u 8 dígitos."); return; }
     if (!segmento) { setDatosErr("Elegí tu situación laboral para continuar."); return; }
+    if (edad === null) { setDatosErr("Cargá tu fecha de nacimiento."); return; }
+    if (edad < 18 || edad > 99) { setDatosErr("Revisá tu fecha de nacimiento: la edad tiene que estar entre 18 y 99 años."); return; }
+    if (!emailValido(email)) { setDatosErr("Cargá un email válido para que podamos contactarte."); return; }
+    if (telDigits.replace("+", "").length < 8) { setDatosErr("Cargá un teléfono de contacto."); return; }
     setDatosErr(""); setPaso(2);
   }
   function reiniciarWizard() { setPaso(1); setSim(null); }
@@ -384,7 +409,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     if (!prodId || !idem) return;
     setEnviando(true); setErr("");
     try {
-      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), destino, cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, videos_vistos: vistos, ...datos() }, idem);
+      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, videos_vistos: vistos, ...datos() }, idem);
       // Subir los documentos del paso 3 (best-effort: si alguno falla, avisamos sin frenar).
       let fallos = 0;
       for (const d of pendingDocs) {
@@ -486,7 +511,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                     <div className="p-kpi"><span>Cuotas</span><b>{detalle.plazo}</b></div>
                     <div className="p-kpi"><span>Total a pagar</span><b>{money(detalle.total_a_pagar)}</b></div>
                   </div>
-                  <p className="p-fine">Sistema {SISTEMA[detalle.sistema] || detalle.sistema} · TNA {detalle.tna}%{detalle.segmento ? ` · ${SEG_LABEL[detalle.segmento] || detalle.segmento}` : ""}{detalle.destino ? ` · destino: ${detalle.destino}` : ""}{detalle.afectacion != null ? ` · afectación ${detalle.afectacion}%` : ""}</p>
+                  <p className="p-fine">Sistema {SISTEMA[detalle.sistema] || detalle.sistema} · TNA {detalle.tna}%{detalle.segmento ? ` · ${SEG_LABEL[detalle.segmento] || detalle.segmento}` : ""}{detalle.afectacion != null ? ` · afectación ${detalle.afectacion}%` : ""}</p>
                   {detalle.cuotas.length > 0 && (
                     <div className="p-tablewrap">
                       <table className="p-table">
@@ -605,16 +630,20 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <select value={segmento} onChange={(e) => setSegmento(e.target.value)}>
                 {SEGMENTOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select></label>
-            <label className="p-fld"><span>Edad</span>
-              <input type="number" min="18" max="99" value={edad} onChange={(e) => setEdad(e.target.value)} placeholder="—" /></label>
-            <label className="p-fld"><span>Antigüedad (meses)</span>
-              <input type="number" min="0" value={antiguedad} onChange={(e) => setAntiguedad(e.target.value)} placeholder="—" /></label>
+            <label className="p-fld"><span>Fecha de nacimiento <b className="p-req">*</b></span>
+              <input type="date" value={nacimiento} max={new Date().toISOString().slice(0, 10)}
+                     onChange={(e) => setNacimiento(e.target.value)} />
+              {edad !== null && <span className="p-fine">{edad} años</span>}</label>
+            <label className="p-fld"><span>Email <b className="p-req">*</b></span>
+              <input type="email" value={email} maxLength={80} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@correo.com" /></label>
+            <label className="p-fld"><span>Teléfono <b className="p-req">*</b></span>
+              <input type="tel" inputMode="tel" value={telefono} maxLength={20}
+                     onChange={(e) => setTelefono(e.target.value)} placeholder="3834 000000" /></label>
+            <label className="p-fld"><span>Antigüedad laboral (años)</span>
+              <input type="number" min="0" step="0.5" value={antiguedad}
+                     onChange={(e) => setAntiguedad(e.target.value)} placeholder="—" /></label>
             <label className="p-fld"><span>Sueldo neto</span>
               <input type="number" min="0" step="1000" value={sueldo} onChange={(e) => setSueldo(e.target.value)} placeholder="—" /></label>
-            <label className="p-fld p-col2"><span>¿Para qué lo necesitás? <em className="p-fine">(opcional)</em></span>
-              <select value={destino} onChange={(e) => setDestino(e.target.value)}>
-                {DESTINOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select></label>
             {datosErr && <div className="p-col2 p-alert">{datosErr}</div>}
             <div className="p-col2 p-actions"><button className="p-btn" onClick={irASimulacion}>Continuar →</button></div>
           </div>
@@ -636,7 +665,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                       <div><b>Podés pedir hasta {money(preap.monto_maximo)}</b><span> · cuota {money(preap.cuota)} ({preap.afectacion}% de tu sueldo)</span></div>
                       <button type="button" className="p-preap-btn" onClick={() => setMonto(String(preap.monto_maximo))}>Usar el máximo</button>
                     </>
-                  ) : <span>Con este sueldo y plazo la cuota supera tu margen; probá un plazo más largo.</span>}
+                  ) : <span>Con este sueldo y plazo la cuota se pasa del {preap.afectacion_max}% de tu sueldo, que es el máximo de este crédito; probá un plazo más largo.</span>}
                 </div>
               )}
 
@@ -734,8 +763,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                 <div><span>Solicitante</span>{apellido || nombre ? `${apellido}, ${nombre}` : "—"}</div>
                 <div><span>DNI</span>{dniDigits || "—"}</div>
                 <div><span>Situación</span>{SEG_LABEL[segmento] || segmento || "—"}</div>
-                {destino && <div><span>Destino</span>{DESTINO_LABEL[destino] || destino}</div>}
-                {edad && <div><span>Edad</span>{edad} años</div>}
+                {edad !== null && <div><span>Edad</span>{edad} años</div>}
+                <div><span>Email</span>{email || "—"}</div>
+                <div><span>Teléfono</span>{telefono || "—"}</div>
                 {sueldo && <div><span>Sueldo declarado</span>{money(sueldo)}</div>}
                 {sim.afectacion != null && <div><span>Afectación</span>{sim.afectacion}%</div>}
               </div>
@@ -918,9 +948,12 @@ function Estilos() {
     .p-main { max-width:900px; margin:0 auto; padding:28px 24px 60px; }
     .p-main h1 { margin:0 0 4px; }
     .p-form { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; margin-top:16px; }
-    .p-fld { display:flex; flex-direction:column; gap:6px; font-size:.85rem; }
+    /* min-width:0 + width:100%: sin esto el ancho propio del <input> (y el del date en iOS) no deja
+       achicar la columna y los campos se salen de la pantalla en el celular. */
+    .p-fld { display:flex; flex-direction:column; gap:6px; font-size:.85rem; min-width:0; }
     .p-fld span { color:var(--p-muted); font-weight:600; }
-    .p-fld select, .p-fld input { padding:10px 12px; border:1px solid var(--p-border); border-radius:9px; font-size:.95rem; }
+    .p-fld select, .p-fld input { padding:10px 12px; border:1px solid var(--p-border); border-radius:9px;
+      font-size:.95rem; width:100%; min-width:0; max-width:100%; }
     .p-col2 { grid-column:1 / -1; }
     .p-actions { display:flex; justify-content:flex-end; gap:10px; align-items:center; }
     .p-steps { display:flex; gap:10px; list-style:none; padding:0; margin:0 0 20px; flex-wrap:wrap; }
@@ -931,12 +964,14 @@ function Estilos() {
     .p-step.on .p-step-n { background:var(--p-brand); color:#fff; }
     .p-step.done .p-step-n { background:var(--p-green); color:#fff; }
     .p-resumen { display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; margin:12px 0; }
-    .p-resumen > div { display:flex; flex-direction:column; font-size:.95rem; font-weight:600; color:var(--p-ink); }
+    .p-resumen > div { display:flex; flex-direction:column; font-size:.95rem; font-weight:600; color:var(--p-ink);
+      min-width:0; overflow-wrap:anywhere; }
     .p-resumen span { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.02em; color:var(--p-muted); }
     .p-actions .p-btn { width:auto; padding:11px 24px; }
     .p-result { margin-top:24px; }
     .p-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-    .p-kpi { background:var(--p-surface); border:1px solid var(--p-border); border-radius:12px; padding:14px 16px; }
+    .p-kpi { background:var(--p-surface); border:1px solid var(--p-border); border-radius:12px; padding:14px 16px;
+      min-width:0; overflow-wrap:anywhere; }
     .p-kpi span { display:block; font-size:.72rem; color:var(--p-muted); text-transform:uppercase; letter-spacing:.03em; }
     .p-kpi b { font-size:1.25rem; }
     .p-warn { background:var(--p-warn-soft); color:var(--p-warn); border-radius:10px; padding:10px 16px 10px 30px; margin:16px 0 0; font-size:.85rem; }
@@ -963,6 +998,11 @@ function Estilos() {
     .p-video.on .p-video-n { background:var(--p-brand); color:var(--p-brand-ink); }
     .p-video.ok .p-video-n { background:var(--p-ok); color:#fff; }
     .p-video video { width:100%; max-height:62vh; border-radius:10px; background:#000; display:block; }
+    /* Controles propios: sin la barra nativa no se puede arrastrar para adelantar (en el celular sí se podía). */
+    .p-video-ctrl { display:flex; align-items:center; gap:10px; margin-top:8px; }
+    .p-video-play { width:44px; height:44px; border-radius:999px; border:none; cursor:pointer; font-size:1rem;
+                    background:var(--p-brand); color:var(--p-brand-ink); display:grid; place-items:center; }
+    .p-video-play:active { transform:scale(.96); }
     .p-video-bar { height:6px; border-radius:999px; background:var(--p-bg); overflow:hidden; margin-top:8px; }
     .p-video-bar span { display:block; height:100%; background:var(--p-green); transition:width .3s; }
     .p-video-aviso { margin:8px 0 0; font-size:.8rem; color:var(--p-warn); font-weight:600; }
@@ -1001,13 +1041,24 @@ function Estilos() {
       .p-user > span{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .p-main{ padding:20px 14px 70px; }
       .p-center{ padding:16px; }
-      .p-form,.p-kpis{ grid-template-columns:1fr 1fr; }
+      .p-form{ grid-template-columns:1fr 1fr; padding:16px; }
+      .p-kpis{ grid-template-columns:1fr 1fr; }
+      .p-card{ border-radius:14px; }
+      .p-videos{ padding:14px; }
+      .p-doc-slot{ flex-wrap:wrap; }
       .p-resumen,.p-cred-facts{ grid-template-columns:1fr; gap:8px; }
       .p-preap{ flex-direction:column; align-items:flex-start; }
       .p-preap-btn{ margin-left:0; }
       .p-notis{ position:fixed; left:8px; right:8px; top:64px; width:auto; }
     }
-    @media (max-width:400px){ .p-kpis{ grid-template-columns:1fr 1fr; } .p-form{ grid-template-columns:1fr; } }
-    @media (max-width:560px){ .p-steps{ gap:6px; } .p-step{ padding:5px 10px 5px 5px; font-size:.78rem; } .p-step:not(.on){ font-size:0; gap:0; padding:4px; } .p-step:not(.on) .p-step-n{ font-size:.75rem; } }
+    /* En celular, el formulario va a una sola columna: con dos, los campos no entraban y se salían
+       de la pantalla (pasaba en cualquier teléfono de 401 a 560px, que son casi todos). */
+    @media (max-width:560px){
+      .p-form{ grid-template-columns:1fr; }
+      .p-steps{ gap:6px; }
+      .p-step{ padding:5px 10px 5px 5px; font-size:.78rem; }
+      .p-step:not(.on){ font-size:0; gap:0; padding:4px; }
+      .p-step:not(.on) .p-step-n{ font-size:.75rem; }
+    }
   `}</style>;
 }

@@ -46,8 +46,11 @@ DEFAULT_CONFIG: dict[str, dict] = {
     "ACCOUNTING": {"cuentaCapital": "1.1.05.01", "cuentaInteres": "4.1.01",
                     "cuentaComision": "4.1.04", "cuentaIva": "2.1.07", "cuentaMora": "4.1.02",
                     "centroCosto": "CRED"},
+    # `afectacionMaxPct`: cuánto del sueldo puede ocupar la cuota. Es el tope del crédito por línea
+    # (antes estaba fijo en 30% en el código del portal).
     "AVAILABILITY": {"canales": ["SUCURSAL", "WEB"], "segmentos": ["AGENTE_PUBLICO"],
                       "edadMin": 18, "edadMax": 75, "antiguedadMinMeses": 0,
+                      "afectacionMaxPct": 30,
                       "requiereGarante": False, "vigenteDesde": "", "vigenteHasta": ""},
     "ACTIVITY_RESTRICTION": {"permitePrepago": True, "permiteRenegociacion": True,
                               "permiteVacacionPago": False},

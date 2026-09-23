@@ -21,10 +21,10 @@ Sistema de gestión modular basado en microservicios para administración de age
            │  :8000     │           │   :8007        │
            └─────┬──────┘           └────────────────┘
                  │
-    ┌──────┬─────┼──────┬──────┬───────┬──────┬──────┬──────┬──────┬──────┐
-    │      │     │      │      │       │      │      │      │      │      │
- :8001  :8002 :8003  :8004  :8005  :8006  :8007  :8008  :8009  :8010  :8011
-Security Cajeros Clientes IB  Notif. Concil. Liquid. Comunic. Legacy Créditos Config.
+    ┌──────┬─────┼──────┬──────┬───────┬──────┬──────┬──────┬──────┬──────┬──────┐
+    │      │     │      │      │       │      │      │      │      │      │      │
+ :8001  :8002 :8003  :8004  :8005  :8006  :8007  :8008  :8009  :8010  :8011  :8012  :8013  :8014
+Security Cajeros Clientes IB  Notif. Concil. Liquid. Comunic. Legacy Créditos Config. Tesorería Auditoría Contab.
 ```
 
 El backoffice de Créditos (CCyPP) es un módulo más del frontend (`/modules/creditos/`). Aparte trae
@@ -45,6 +45,14 @@ conciliacion ▶ notifications        (avisa al uploader: registros a verificar)
 legacy ─────▶ notifications         (avisa al admin: drenado/sync)
 creditos ───▶ clientes              (padrón único: espejo de la identidad del cliente)
 creditos ───▶ configuraciones       (impuestos, índices, feriados y reglas del workflow)
+creditos ───▶ tesoreria             (lote de desembolsos; el contrato se activa al acreditarse)
+conciliacion ▶ tesoreria            (lote de pagos a agencias con saldo a favor)
+tesoreria ──▶ interbanking          (envía las transferencias aprobadas y consulta su estado)
+tesoreria ──▶ configuraciones       (regla del workflow LOTE_PAGO)
+tesoreria ──▶ creditos, conciliacion (avisa el resultado de cada pago)
+proxy ──────▶ auditoria             (registra TODA operación que modifica datos, y los rechazos)
+módulos ────▶ auditoria             (qué registro se agregó / modificó / borró, y qué cambió)
+creditos, tesoreria ▶ contabilidad  (la TRANSACCIÓN que ocurrió; el asiento lo arma contabilidad)
 proxy ──────▶ security              (valida JWT y resuelve permisos por usuario)
 ```
 
@@ -114,6 +122,28 @@ CONFIGURACIONES_DB_USER=configuraciones_user
 CONFIGURACIONES_DB_PASS=configuraciones_pass
 CONFIGURACIONES_DB_NAME=configuraciones_db
 CONFIGURACIONES_INTERNAL_API_KEY=cambiar_por_hash_seguro_aleatorio   # la usa Créditos para leer la configuración
+
+# Módulo Tesorería (lotes de pagos: aprobación y envío por Interbanking)
+TESORERIA_DB_USER=tesoreria_user
+TESORERIA_DB_PASS=tesoreria_pass
+TESORERIA_DB_NAME=tesoreria_db
+TESORERIA_INTERNAL_API_KEY=cambiar_por_hash_seguro_aleatorio   # Créditos/Conciliación ↔ Tesorería (ida y aviso de vuelta)
+TESORERIA_ENVIO_SIMULADO=true                                    # false = mueve dinero de verdad
+CREDITOS_DESEMBOLSO_VIA_TESORERIA=true                           # false = desembolso en el acto (sin Tesorería)
+CONCILIACION_PAYMENTS_VIA_TESORERIA=true                         # false = pagos a agencias directo al banco
+
+# Módulo Auditoría (registro central de la actividad de los usuarios)
+AUDITORIA_DB_USER=auditoria_user
+AUDITORIA_DB_PASS=auditoria_pass
+AUDITORIA_DB_NAME=auditoria_db
+AUDITORIA_INTERNAL_API_KEY=cambiar_por_hash_seguro_aleatorio   # la usan el gateway y los módulos para registrar
+AUDITORIA_RETENCION_DIAS=1825                                   # 5 años; la purga corre sola de madrugada
+
+# Módulo Contabilidad (transacciones de los módulos → asientos)
+CONTABILIDAD_DB_USER=contabilidad_user
+CONTABILIDAD_DB_PASS=contabilidad_pass
+CONTABILIDAD_DB_NAME=contabilidad_db
+CONTABILIDAD_INTERNAL_API_KEY=cambiar_por_hash_seguro_aleatorio   # la usan los módulos para mandar transacciones
 ```
 
 > **Importante:** En produccion, generar valores seguros para `JWT_SECRET`, `INTERBANKING_ENCRYPTION_KEY`, `LIQUIDACIONES_INTERNAL_API_KEY` y `CONFIGURACIONES_INTERNAL_API_KEY`. Se puede usar `python3 -c "import secrets; print(secrets.token_hex(32))"` para generarlos.
@@ -139,7 +169,7 @@ Abrir el navegador en `http://localhost` e iniciar sesion con las credenciales p
 
 | Modulo | Puerto | Descripcion |
 |--------|--------|-------------|
-| **Security** | 8001 | Autenticacion JWT, gestion de usuarios, roles y permisos |
+| **Security** | 8001 | Autenticacion JWT, gestion de usuarios, grupos, roles y permisos. Los roles se asignan a usuarios o a grupos (cada integrante hereda los del grupo) |
 | **Cajeros** | 8002 | Reglas de autorizacion y transacciones de cajeros |
 | **Clientes** | 8003 | Gestion de clientes (personas fisicas y juridicas), CBUs |
 | **Interbanking** | 8004 | Integracion con Interbanking: cuentas, transferencias, pagos |
@@ -148,6 +178,9 @@ Abrir el navegador en `http://localhost` e iniciar sesion con las credenciales p
 | **Liquidaciones** | 8007 | Procesamiento de archivos ZIP con DBFs de liquidacion de juegos |
 | **Legacy** | 8009 | Integracion apagable con el sistema legacy VFP9 (DBF). Ver [modules/legacy/README.md](modules/legacy/README.md) |
 | **Creditos** | 8010 | CCyPP: circuito de creditos (productos, solicitudes, originacion, servicing, cartera) + portal ciudadano. Ver [modules/creditos/README.md](modules/creditos/README.md) |
+| **Contabilidad** | 8014 | Recibe las transacciones de los modulos y genera los asientos segun su definicion (sin definicion, quedan pendientes). Plan de cuentas, ejercicios, libros (diario, mayor, sumas y saldos), estados contables y libro IVA. Ver [modules/contabilidad/README.md](modules/contabilidad/README.md) |
+| **Auditoria** | 8013 | Registro central de lo que hace cada usuario con la informacion: altas, cambios y bajas por modulo, con el antes/despues. Solo lectura, retencion 5 anios. Ver [modules/auditoria/README.md](modules/auditoria/README.md) |
+| **Tesoreria** | 8012 | Lotes de pagos (desembolsos de Créditos, pagos a agencias de Conciliación, carga manual): revisión, aprobación por workflow y envío por Interbanking. Ver [modules/tesoreria/README.md](modules/tesoreria/README.md) |
 | **Configuraciones** | 8011 | Impuestos, indices de referencia, feriados y workflow de aprobaciones, compartidos por los modulos. Ver [modules/configuraciones/README.md](modules/configuraciones/README.md) |
 
 ## API interna de Liquidaciones
@@ -310,6 +343,9 @@ sistema-modular/
 │   ├── liquidaciones/     # :8007
 │   ├── legacy/            # :8009 (integracion VFP9, apagable)
 │   ├── creditos/          # :8010 API + portal ciudadano (/portal-creditos/)
-│   └── configuraciones/   # :8011 impuestos, índices, feriados, workflow
+│   ├── configuraciones/   # :8011 impuestos, índices, feriados, workflow
+│   ├── tesoreria/         # :8012 lotes de pagos, aprobación y envío por Interbanking
+│   ├── auditoria/         # :8013 registro central de la actividad de los usuarios
+│   └── contabilidad/      # :8014 transacciones → asientos, libros y estados contables
 └── externalfiles/         # Archivos compartidos (montado en liquidaciones/legacy)
 ```

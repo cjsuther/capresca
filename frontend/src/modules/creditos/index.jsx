@@ -2,7 +2,8 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Layout } from "../../components/Layout";
 import { CreditosSidebar } from "./Sidebar";
 import { RUTAS, primeraRuta } from "./rutas";
-import { usePuedeVer } from "./permisos";
+import { RUTAS_HEREDADAS } from "./menu";
+import { usePuedeVer, usePuedeVerHeredadas } from "./permisos";
 
 /**
  * Módulo Créditos (CCyPP). El backend corre en su propio contenedor (creditos:8010) detrás del
@@ -14,6 +15,17 @@ function SinAcceso() {
     <div className="bg-surface border border-gray-200 rounded-xl p-8 text-center">
       <p className="text-gray-800 font-medium">Sin acceso al módulo de Créditos</p>
       <p className="text-sm text-gray-500 mt-1">Pedí en Seguridad el permiso <code className="text-xs">creditos:read</code>.</p>
+    </div>
+  );
+}
+
+function Heredada() {
+  return (
+    <div className="bg-surface border border-gray-200 rounded-xl p-8 text-center">
+      <p className="text-gray-800 font-medium">Pantalla heredada del sistema anterior</p>
+      <p className="text-sm text-gray-500 mt-1">
+        Está oculta. Para usarla, pedí en Seguridad el permiso <code className="text-xs">creditos:heredadas:read</code>.
+      </p>
     </div>
   );
 }
@@ -32,6 +44,7 @@ function NoEncontrada() {
 
 export default function CreditosModule() {
   const puedeVer = usePuedeVer();
+  const verHeredadas = usePuedeVerHeredadas();
   const sidebar = (onClose) => <CreditosSidebar onClose={onClose} />;
   const inicio = primeraRuta();
 
@@ -41,7 +54,8 @@ export default function CreditosModule() {
         <Routes>
           <Route path="/" element={inicio ? <Navigate to={inicio} replace /> : <NoEncontrada />} />
           {Object.entries(RUTAS).map(([ruta, Pantalla]) => (
-            <Route key={ruta} path={ruta} element={<Pantalla />} />
+            <Route key={ruta} path={ruta}
+                   element={!verHeredadas && RUTAS_HEREDADAS.has(ruta) ? <Heredada /> : <Pantalla />} />
           ))}
           <Route path="*" element={<NoEncontrada />} />
         </Routes>

@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     auto_payments_enabled: bool = False        # kill-switch: en false NO se generan pagos
     payments_dry_run: bool = True              # true = simula (registra intención sin llamar al banco)
     payment_concepto: str = "Pago Capresca"
+    # Con Tesorería, los pagos no salen directo al banco: se mandan como lote a Tesorería, que los aprueba
+    # (workflow) y los envía por Interbanking; el resultado vuelve por /internal/conciliacion/tesoreria/resultado.
+    # En este modo PAYMENTS_DRY_RUN no aplica: nada se paga sin la aprobación del tesorero.
+    payments_via_tesoreria: bool = False
+    tesoreria_service_url: str = "http://tesoreria:8012"
+    tesoreria_internal_api_key: str = ""
+    tesoreria_callback_url: str = "http://conciliacion:8006/internal/conciliacion/tesoreria/resultado"
     legacy_internal_api_key: str = ""
 
     class Config:

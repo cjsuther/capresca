@@ -17,6 +17,7 @@ from app.services import documentos
 
 from app.core import clientes_padron
 from app.core.database import get_db
+from app.core.personas import edad_de
 from app.core.descargas import disposicion
 from app.core.numbering import crear_con_numero_unico
 from app.core.idempotency import con_idempotencia
@@ -59,7 +60,7 @@ class SolicitudIn(BaseModel):
     cliente_datos: dict = {}                       # si NO_REGISTRADO: {cuil, apellido_nombre, dni, nacimiento}
     segmento: str = ""
     canal: str = "SUCURSAL"
-    edad: int | None = Field(default=None, ge=18, le=99)              # 2 dígitos; validación reflejada en el modelo
+    fecha_nacimiento: date | None = None      # la edad se calcula (H-219); no se carga a mano
     antiguedad_meses: int | None = Field(default=None, ge=0, le=1200)  # hasta 4 dígitos (0–1200 meses = 100 años)
     relacion: str = "ESTANDAR"
     datos_adicionales: dict = {}
@@ -91,9 +92,6 @@ def _evaluar(db: Session, s: m.PPSolicitud) -> dict:
         motivos.append(f"Monto fuera de rango ({float(v.monto_minimo):.0f}–{float(v.monto_maximo):.0f}).")
     if not (v.plazo_minimo <= plazo <= v.plazo_maximo):
         motivos.append(f"Plazo fuera de rango ({v.plazo_minimo}–{v.plazo_maximo}).")
-    elig = _elegibilidad(_disponibilidad(v), _ctx(s.segmento or None, s.canal or None, s.edad, s.antiguedad_meses))
-    if not elig.get("elegible", True):
-        motivos += elig.get("motivos", [])
     # TNA base efectiva: fija = tasa_default; VARIABLE = índice + margen (H-200). Antes usaba `_tasa` (sólo
     # tasa_default → 0 en productos de tasa variable), así la cuota estimada de la solicitud ignoraba el
     # interés y no coincidía con la simulación ni con la originación (que usan `_tna_base`). Motor único.
@@ -106,6 +104,14 @@ def _evaluar(db: Session, s: m.PPSolicitud) -> dict:
                            **_params_cronograma(v, _feriados_engine(db), decimales_calculo(db)))
         res = resumen(filas, monto, v.frecuencia_pago or "MENSUAL", tna)
         cuota_est, tna_ef = res["primeraCuota"], res["tna"]
+    # La afectación (cuota sobre el sueldo declarado) se evalúa con el resto: el tope lo fija la línea.
+    sueldo = float((s.datos_adicionales or {}).get("sueldo_declarado") or 0)
+    ctx = _ctx(s.segmento or None, s.canal or None,
+               edad_de(s.fecha_nacimiento) or s.edad, s.antiguedad_meses)
+    ctx["afectacion"] = round(cuota_est / sueldo * 100, 1) if (sueldo > 0 and cuota_est) else None
+    elig = _elegibilidad(_disponibilidad(v), ctx)
+    if not elig.get("elegible", True):
+        motivos += elig.get("motivos", [])
     return {"elegible": not motivos, "motivos": motivos,
             "tna_ofrecida": round(tna_ef or tna, 4), "cuota_estimada": round(cuota_est, 2)}
 
@@ -144,7 +150,9 @@ def _serial(db: Session, s: m.PPSolicitud) -> dict:
         "clienteId": s.cliente_id, "clienteDatos": s.cliente_datos or {},
         "clienteNombre": _cliente_nombre(db, s),
         "productoId": s.producto_id, "monto": float(s.monto_solicitado), "plazo": s.plazo_solicitado,
-        "segmento": s.segmento, "canal": s.canal, "edad": s.edad, "antiguedadMeses": s.antiguedad_meses,
+        "segmento": s.segmento, "canal": s.canal, "antiguedadMeses": s.antiguedad_meses,
+        "fechaNacimiento": str(s.fecha_nacimiento) if s.fecha_nacimiento else None,
+        "edad": edad_de(s.fecha_nacimiento) if s.fecha_nacimiento else s.edad,   # calculada; el dato viejo si no hay fecha
         "relacion": s.relacion, "datosAdicionales": s.datos_adicionales or {}, "origen": s.origen,
         "evaluacion": s.evaluacion or {}, "contratoId": s.contrato_id, "motivoRechazo": s.motivo_rechazo,
         "datosLiquidacion": _datos_liquidacion(db, s),
@@ -202,7 +210,8 @@ def crear(data: SolicitudIn, db: Session = Depends(get_db),
     # `_elegibilidad` sólo aplica la regla del atributo cuando ese dato viene.)
     _tmp = m.PPSolicitud(producto_id=data.producto_id, monto_solicitado=Decimal(str(data.monto_solicitado)),
                          plazo_solicitado=data.plazo_solicitado, segmento=data.segmento, canal=data.canal,
-                         edad=data.edad, antiguedad_meses=data.antiguedad_meses)
+                         edad=edad_de(data.fecha_nacimiento), fecha_nacimiento=data.fecha_nacimiento,
+                         antiguedad_meses=data.antiguedad_meses)
     _ev = _evaluar(db, _tmp)
     if not _ev.get("elegible"):
         raise HTTPException(422, "No cumple las condiciones para esta línea: " + "; ".join(_ev.get("motivos", [])))
@@ -221,7 +230,8 @@ def _crear_solicitud(db: Session, data, tipo: str, user) -> dict:
             cliente_datos={} if tipo == "REGISTRADO" else data.cliente_datos,
             producto_id=data.producto_id, monto_solicitado=Decimal(str(data.monto_solicitado)),
             plazo_solicitado=data.plazo_solicitado, segmento=data.segmento, canal=data.canal,
-            edad=data.edad, antiguedad_meses=data.antiguedad_meses, relacion=data.relacion.upper(),
+            edad=edad_de(data.fecha_nacimiento), fecha_nacimiento=data.fecha_nacimiento,
+            antiguedad_meses=data.antiguedad_meses, relacion=data.relacion.upper(),
             datos_adicionales=data.datos_adicionales, origen=data.origen, creado_por=user.username)
         s.evaluacion = _evaluar(db, s)
         db.add(s)
@@ -251,7 +261,8 @@ def editar(sid: str, data: SolicitudIn, db: Session = Depends(get_db),
         raise HTTPException(409, "Sólo se puede editar una solicitud en BORRADOR.")
     s.producto_id = data.producto_id
     s.monto_solicitado = Decimal(str(data.monto_solicitado)); s.plazo_solicitado = data.plazo_solicitado
-    s.segmento = data.segmento; s.canal = data.canal; s.edad = data.edad
+    s.segmento = data.segmento; s.canal = data.canal
+    s.fecha_nacimiento = data.fecha_nacimiento; s.edad = edad_de(data.fecha_nacimiento)
     s.antiguedad_meses = data.antiguedad_meses; s.relacion = data.relacion.upper()
     s.datos_adicionales = data.datos_adicionales; s.origen = data.origen
     s.solicitante_tipo = data.solicitante_tipo.upper()

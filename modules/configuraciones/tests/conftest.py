@@ -1,9 +1,13 @@
 """Base de tests: SQLite en memoria y cliente HTTP contra la app real."""
 import os
 
-# La config (app.config.Settings) se lee al importar la app: las variables van antes.
-os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
-os.environ.setdefault("INTERNAL_API_KEY", "clave-de-test")
+# La config (app.config.Settings) se lee al importar la app: las variables van antes. Se FIJAN (no
+# setdefault): el contenedor de tests hereda las del compose y los tests usan las suyas.
+os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+os.environ["INTERNAL_API_KEY"] = "clave-de-test"
+# Los tests no auditan: el contenedor hereda la clave del compose y el hilo de Auditoría
+# saldría a la red en cada flush.
+os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

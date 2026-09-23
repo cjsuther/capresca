@@ -47,9 +47,10 @@ describe("SecurityModule", () => {
     });
   });
 
-  it("el menú declara Usuarios y Roles con sus permisos de lectura", () => {
+  it("el menú declara Usuarios, Grupos y Roles con sus permisos de lectura", () => {
     expect(securityMenu.map((i) => [i.label, i.path, i.permission])).toEqual([
       ["Usuarios", "/modules/security/users", "users:read"],
+      ["Grupos", "/modules/security/groups", "groups:read"],
       ["Roles", "/modules/security/roles", "roles:read"],
     ]);
   });

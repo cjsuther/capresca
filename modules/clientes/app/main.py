@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers.clients import router as clients_router
 from app.routers.cbus import router as cbus_router
 from app.routers.internal import router as internal_router
+from app.services import auditoria_central as central
 from app.routers.documents import router as documents_router
 
 app = FastAPI(title="Clientes Module", version="1.0.0")
@@ -20,6 +21,9 @@ app.include_router(clients_router, prefix="/api/clientes")
 app.include_router(cbus_router, prefix="/api/clientes")
 app.include_router(documents_router, prefix="/api/clientes")
 app.include_router(internal_router)
+
+# Auditoría central: altas, cambios y bajas del padrón (clientes, CBUs, documentos).
+central.instalar(app)
 
 
 @app.get("/health")

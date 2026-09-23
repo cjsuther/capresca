@@ -343,7 +343,8 @@ class PPSolicitud(Base):
     plazo_solicitado: Mapped[int] = mapped_column(Integer, default=12)
     segmento: Mapped[str] = mapped_column(String(30), default="")
     canal: Mapped[str] = mapped_column(String(30), default="SUCURSAL")
-    edad: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    edad: Mapped[int | None] = mapped_column(Integer, nullable=True)   # calculada de fecha_nacimiento
     antiguedad_meses: Mapped[int | None] = mapped_column(Integer, nullable=True)
     relacion: Mapped[str] = mapped_column(String(20), default="ESTANDAR")
     datos_adicionales: Mapped[dict] = mapped_column(JSON, default=dict)   # destino, cbu, observaciones
