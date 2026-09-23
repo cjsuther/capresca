@@ -943,9 +943,12 @@ function Estilos() {
     .p-main { max-width:900px; margin:0 auto; padding:28px 24px 60px; }
     .p-main h1 { margin:0 0 4px; }
     .p-form { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; margin-top:16px; }
-    .p-fld { display:flex; flex-direction:column; gap:6px; font-size:.85rem; }
+    /* min-width:0 + width:100%: sin esto el ancho propio del <input> (y el del date en iOS) no deja
+       achicar la columna y los campos se salen de la pantalla en el celular. */
+    .p-fld { display:flex; flex-direction:column; gap:6px; font-size:.85rem; min-width:0; }
     .p-fld span { color:var(--p-muted); font-weight:600; }
-    .p-fld select, .p-fld input { padding:10px 12px; border:1px solid var(--p-border); border-radius:9px; font-size:.95rem; }
+    .p-fld select, .p-fld input { padding:10px 12px; border:1px solid var(--p-border); border-radius:9px;
+      font-size:.95rem; width:100%; min-width:0; max-width:100%; }
     .p-col2 { grid-column:1 / -1; }
     .p-actions { display:flex; justify-content:flex-end; gap:10px; align-items:center; }
     .p-steps { display:flex; gap:10px; list-style:none; padding:0; margin:0 0 20px; flex-wrap:wrap; }
@@ -956,12 +959,14 @@ function Estilos() {
     .p-step.on .p-step-n { background:var(--p-brand); color:#fff; }
     .p-step.done .p-step-n { background:var(--p-green); color:#fff; }
     .p-resumen { display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; margin:12px 0; }
-    .p-resumen > div { display:flex; flex-direction:column; font-size:.95rem; font-weight:600; color:var(--p-ink); }
+    .p-resumen > div { display:flex; flex-direction:column; font-size:.95rem; font-weight:600; color:var(--p-ink);
+      min-width:0; overflow-wrap:anywhere; }
     .p-resumen span { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.02em; color:var(--p-muted); }
     .p-actions .p-btn { width:auto; padding:11px 24px; }
     .p-result { margin-top:24px; }
     .p-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-    .p-kpi { background:var(--p-surface); border:1px solid var(--p-border); border-radius:12px; padding:14px 16px; }
+    .p-kpi { background:var(--p-surface); border:1px solid var(--p-border); border-radius:12px; padding:14px 16px;
+      min-width:0; overflow-wrap:anywhere; }
     .p-kpi span { display:block; font-size:.72rem; color:var(--p-muted); text-transform:uppercase; letter-spacing:.03em; }
     .p-kpi b { font-size:1.25rem; }
     .p-warn { background:var(--p-warn-soft); color:var(--p-warn); border-radius:10px; padding:10px 16px 10px 30px; margin:16px 0 0; font-size:.85rem; }
@@ -1031,13 +1036,24 @@ function Estilos() {
       .p-user > span{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .p-main{ padding:20px 14px 70px; }
       .p-center{ padding:16px; }
-      .p-form,.p-kpis{ grid-template-columns:1fr 1fr; }
+      .p-form{ grid-template-columns:1fr 1fr; padding:16px; }
+      .p-kpis{ grid-template-columns:1fr 1fr; }
+      .p-card{ border-radius:14px; }
+      .p-videos{ padding:14px; }
+      .p-doc-slot{ flex-wrap:wrap; }
       .p-resumen,.p-cred-facts{ grid-template-columns:1fr; gap:8px; }
       .p-preap{ flex-direction:column; align-items:flex-start; }
       .p-preap-btn{ margin-left:0; }
       .p-notis{ position:fixed; left:8px; right:8px; top:64px; width:auto; }
     }
-    @media (max-width:400px){ .p-kpis{ grid-template-columns:1fr 1fr; } .p-form{ grid-template-columns:1fr; } }
-    @media (max-width:560px){ .p-steps{ gap:6px; } .p-step{ padding:5px 10px 5px 5px; font-size:.78rem; } .p-step:not(.on){ font-size:0; gap:0; padding:4px; } .p-step:not(.on) .p-step-n{ font-size:.75rem; } }
+    /* En celular, el formulario va a una sola columna: con dos, los campos no entraban y se salían
+       de la pantalla (pasaba en cualquier teléfono de 401 a 560px, que son casi todos). */
+    @media (max-width:560px){
+      .p-form{ grid-template-columns:1fr; }
+      .p-steps{ gap:6px; }
+      .p-step{ padding:5px 10px 5px 5px; font-size:.78rem; }
+      .p-step:not(.on){ font-size:0; gap:0; padding:4px; }
+      .p-step:not(.on) .p-step-n{ font-size:.75rem; }
+    }
   `}</style>;
 }
