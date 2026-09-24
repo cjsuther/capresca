@@ -1,5 +1,9 @@
 import api from "./client";
 
+// ── Series de numeración: cada área lleva su propio correlativo ──
+export const getSeries = () =>
+  api.get("/despacho/series").then((r) => r.data);
+
 // ── Modelos (plantillas) de resoluciones y disposiciones ──
 export const getModelos = (params = {}) =>
   api.get("/despacho/modelos", { params }).then((r) => r.data);

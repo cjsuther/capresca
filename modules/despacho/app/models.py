@@ -5,9 +5,14 @@ Viene del módulo Despacho del sistema anterior (VFP): `Despacho/rtf.dbf` (model
 
 Las dos numeraciones de un acto administrativo, que es lo particular del circuito:
 
-- **Número correlativo**: se asigna al crear, único por (año, tipo). Es el número de trabajo.
+- **Número correlativo**: se asigna al crear, único por (año, SERIE). Es el número de trabajo.
 - **Número real**: el OFICIAL, que Despacho carga después, cuando el acto vuelve firmado. Tiene su
-  propia serie por (año, tipo) y su propia fecha.
+  propia numeración por (año, serie) y su propia fecha.
+
+La **serie** (VFP: `TIPO_RES`) es el área que emite el acto y cada una numera por su cuenta: en el
+backup del sistema anterior el mismo número aparece 11.700 veces en series distintas, así que sin
+ella una de cada cinco resoluciones se perdería. `tipo` sigue distinguiendo resolución de
+disposición (VFP: `DISPOSICIO`), que es otra cosa: la clase de instrumento.
 
 Un acto firmado, con número real o anulado es inmutable: no se altera algo ya emitido.
 """
@@ -21,6 +26,23 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 TIPOS = ("RES", "DIS")                 # Resolución / Disposición
+
+# Series de numeración del despacho (VFP: TIPO_RES). Los nombres salen de los modelos que usa cada
+# una en el sistema anterior; el número es el que manda, el nombre es sólo la etiqueta en pantalla.
+SERIES = {
+    1: "General (créditos y ayudas sociales)",
+    3: "Préstamos y garantías",
+    4: "Seguros",
+    5: "Proveedores y obras",
+    6: "Juegos",
+}
+SERIE_POR_DEFECTO = 1
+
+
+def nombre_serie(serie: int) -> str:
+    return SERIES.get(serie, f"Serie {serie}")
+
+
 BORRADOR, FIRMADA = "B", "F"
 
 
@@ -28,9 +50,13 @@ class ModeloResolucion(Base):
     """Plantilla de resolución o disposición (VFP: rtf.dbf). Es el catálogo que alimenta el combo
     "Modelo a utilizar": su descripción pasa a ser el MOTIVO del acto y su cuerpo, el texto inicial."""
     __tablename__ = "modelos_resolucion"
+    # El mismo código existe en varias series (el 3 es "ayudas sociales" en la 1 y "transf. lotimax"
+    # en la 6): resolver el motivo sólo por código cruzaba los datos.
+    __table_args__ = (UniqueConstraint("serie", "codigo", name="uq_modelos_serie_codigo"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[int] = mapped_column(Integer, index=True, default=0)     # COD_MOD (se repite entre tipos)
+    codigo: Mapped[int] = mapped_column(Integer, index=True, default=0)     # COD_MOD (se repite entre series)
+    serie: Mapped[int] = mapped_column(Integer, index=True, default=SERIE_POR_DEFECTO)   # TIPO_RES
     descripcion: Mapped[str] = mapped_column(String(120), default="")       # DES_MOD → motivo del acto
     tipo: Mapped[str] = mapped_column(String(3), default="RES")             # RES | DIS (DISPOSICIO)
     es_seguros: Mapped[bool] = mapped_column(Boolean, default=False)        # SEGUROS
@@ -42,17 +68,22 @@ class ModeloResolucion(Base):
     def tiene_plantilla(self) -> bool:
         return bool((self.plantilla or "").strip())
 
+    @property
+    def serie_nombre(self) -> str:
+        return nombre_serie(self.serie)
+
 
 class Resolucion(Base):
     """Resolución / Disposición administrativa (VFP: resoluciones.dbf)."""
     __tablename__ = "resoluciones"
-    # El correlativo es único por año y tipo, y la DB es el árbitro (no un lock aplicativo).
-    __table_args__ = (UniqueConstraint("anio", "tipo", "numero", name="uq_resoluciones_anio_tipo_numero"),)
+    # El correlativo es único por año y serie, y la DB es el árbitro (no un lock aplicativo).
+    __table_args__ = (UniqueConstraint("anio", "serie", "numero", name="uq_resoluciones_anio_serie_numero"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     numero: Mapped[int] = mapped_column(Integer, index=True)                # NRO_RES (correlativo)
     anio: Mapped[int] = mapped_column(Integer, index=True)
     tipo: Mapped[str] = mapped_column(String(3), default="RES", index=True)
+    serie: Mapped[int] = mapped_column(Integer, default=SERIE_POR_DEFECTO, index=True)    # TIPO_RES
     fecha: Mapped[date] = mapped_column(Date)                               # FEC_RES
     # Número oficial: se carga después, cuando el acto vuelve firmado. Puede quedar vacío.
     numero_real: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)   # NRO_REAL
@@ -74,6 +105,10 @@ class Resolucion(Base):
 
     beneficiarios: Mapped[list["ResolucionBeneficiario"]] = relationship(
         back_populates="resolucion", cascade="all, delete-orphan")
+
+    @property
+    def serie_nombre(self) -> str:
+        return nombre_serie(self.serie)
 
     @property
     def oficial(self) -> bool:

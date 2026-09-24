@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Download, FileSignature, Plus, Search, X } f
 
 import {
   anularResolucion, cargarNumeroReal, crearResolucion, descargarWord, editarResolucion,
-  firmarResolucion, getModelos, getResolucion, getResoluciones,
+  firmarResolucion, getModelos, getResolucion, getResoluciones, getSeries,
 } from "../../../api/despacho";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { useHasPermission } from "../../../context/usePermissions";
@@ -24,7 +24,8 @@ function Estado({ r }) {
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${clase}`}>{texto}</span>;
 }
 
-const VACIO = { tipo: "RES", asunto: "", organo: "", modelo_id: "", importe: "", origen: "", texto: "" };
+const VACIO = { tipo: "RES", serie: 1, asunto: "", organo: "", modelo_id: "", importe: "",
+                origen: "", texto: "" };
 
 export default function ResolucionesPage() {
   const puedeEscribir = useHasPermission("despacho", "resoluciones:write");
@@ -32,7 +33,8 @@ export default function ResolucionesPage() {
 
   const [datos, setDatos] = useState({ items: [], total: 0 });
   const [modelos, setModelos] = useState([]);
-  const [filtros, setFiltros] = useState({ tipo: "", estado: "", anio: "" });
+  const [series, setSeries] = useState([]);
+  const [filtros, setFiltros] = useState({ tipo: "", estado: "", anio: "", serie: "" });
   const [buscar, setBuscar] = useState("");
   const [buscado, setBuscado] = useState(0);
   const [pagina, setPagina] = useState(1);
@@ -45,8 +47,8 @@ export default function ResolucionesPage() {
 
   const cargar = useCallback(() => {
     setCargando(true);
-    getResoluciones({ ...filtros, tipo: filtros.tipo || undefined,
-                      estado: filtros.estado || undefined, anio: filtros.anio || undefined,
+    getResoluciones({ tipo: filtros.tipo || undefined, estado: filtros.estado || undefined,
+                      anio: filtros.anio || undefined, serie: filtros.serie || undefined,
                       buscar: buscar || undefined, pagina, por_pagina: porPagina })
       .then(setDatos)
       .catch((e) => setError(e?.response?.data?.detail || "No se pudieron cargar las resoluciones"))
@@ -54,7 +56,10 @@ export default function ResolucionesPage() {
   }, [filtros, pagina, buscado]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(cargar, [cargar]);
-  useEffect(() => { getModelos().then(setModelos).catch(() => {}); }, []);
+  useEffect(() => {
+    getModelos().then(setModelos).catch(() => {});
+    getSeries().then(setSeries).catch(() => {});
+  }, []);
 
   const paginas = Math.max(1, Math.ceil(datos.total / porPagina));
 
@@ -77,7 +82,8 @@ export default function ResolucionesPage() {
     setError(""); setGuardando(true);
     try {
       const datosEnvio = {
-        tipo: form.tipo, asunto: form.asunto || null, organo: form.organo || null,
+        tipo: form.tipo, serie: Number(form.serie), asunto: form.asunto || null,
+        organo: form.organo || null,
         modelo_id: form.modelo_id ? Number(form.modelo_id) : null,
         importe: form.importe === "" ? null : Number(form.importe),
         origen: form.origen || null, texto: form.texto || null,
@@ -122,8 +128,9 @@ export default function ResolucionesPage() {
           <h1 className="text-xl font-semibold text-gray-900">Resoluciones y disposiciones</h1>
           <p className="text-sm text-gray-500 mt-1 max-w-3xl">
             Los actos administrativos de la Caja. Nacen en borrador con un <strong>número
-            correlativo</strong> y, cuando vuelven firmados, se les carga el <strong>número
-            oficial</strong>. Un acto ya emitido no se modifica.
+            correlativo</strong> —que corre por <strong>serie</strong>, o sea por el área que
+            emite— y, cuando vuelven firmados, se les carga el <strong>número oficial</strong>. Un
+            acto ya emitido no se modifica.
           </p>
         </div>
         <PermissionGate moduleCode="despacho" action="resoluciones:write">
@@ -150,6 +157,11 @@ export default function ResolucionesPage() {
           <option value="">Todos</option>
           {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
+        <select className="input w-full sm:w-56" value={filtros.serie} aria-label="Serie"
+                onChange={(e) => { setPagina(1); setFiltros({ ...filtros, serie: e.target.value }); }}>
+          <option value="">Todas las series</option>
+          {series.map((s) => <option key={s.serie} value={s.serie}>{s.nombre}</option>)}
+        </select>
         <select className="input w-full sm:w-40" value={filtros.estado} aria-label="Estado"
                 onChange={(e) => { setPagina(1); setFiltros({ ...filtros, estado: e.target.value }); }}>
           <option value="">Cualquier estado</option>
@@ -172,6 +184,7 @@ export default function ResolucionesPage() {
               <th className="text-left px-4 py-3 font-medium">N°</th>
               <th className="text-left px-4 py-3 font-medium">N° oficial</th>
               <th className="text-left px-4 py-3 font-medium">Tipo</th>
+              <th className="text-left px-4 py-3 font-medium">Serie</th>
               <th className="text-left px-4 py-3 font-medium">Fecha</th>
               <th className="text-left px-4 py-3 font-medium">Motivo / asunto</th>
               <th className="text-right px-4 py-3 font-medium">Importe</th>
@@ -180,10 +193,10 @@ export default function ResolucionesPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cargando && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
             )}
             {!cargando && datos.items.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                 No hay resoluciones con este filtro.
               </td></tr>
             )}
@@ -195,6 +208,7 @@ export default function ResolucionesPage() {
                   {r.numero_real ? `${r.numero_real}/${r.anio}` : "—"}
                 </td>
                 <td className="px-4 py-3 text-gray-600">{nombreTipo(r.tipo)}</td>
+                <td className="px-4 py-3 text-gray-600">{r.serie_nombre}</td>
                 <td className="px-4 py-3 text-gray-600">{fecha(r.fecha)}</td>
                 <td className="px-4 py-3 text-gray-700">{r.motivo || r.asunto}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{money(r.importe)}</td>
@@ -234,6 +248,7 @@ export default function ResolucionesPage() {
               {detalle.numero_real ? `${detalle.numero_real}/${detalle.anio} (${fecha(detalle.fecha_real)})` : "sin cargar"}
             </Dato>
             <Dato label="Fecha">{fecha(detalle.fecha)}</Dato>
+            <Dato label="Serie">{detalle.serie_nombre}</Dato>
             <Dato label="Motivo">{detalle.motivo || "—"}</Dato>
             <Dato label="Órgano">{detalle.organo || "—"}</Dato>
             <Dato label="Importe">{money(detalle.importe)}</Dato>
@@ -312,13 +327,23 @@ export default function ResolucionesPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 mb-4">
             {form.nueva && (
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-gray-500">Tipo</span>
-                <select className="input" value={form.tipo} aria-label="Tipo del acto"
-                        onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
-                  {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </label>
+              <>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-gray-500">Tipo</span>
+                  <select className="input" value={form.tipo} aria-label="Tipo del acto"
+                          onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+                    {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-gray-500">Serie (numeración)</span>
+                  <select className="input" value={form.serie} aria-label="Serie del acto"
+                          onChange={(e) => setForm({ ...form, serie: Number(e.target.value),
+                                                     modelo_id: "" })}>
+                    {series.map((s) => <option key={s.serie} value={s.serie}>{s.nombre}</option>)}
+                  </select>
+                </label>
+              </>
             )}
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-gray-500">Modelo a utilizar</span>
@@ -330,7 +355,7 @@ export default function ResolucionesPage() {
                                   texto: form.texto?.trim() ? form.texto : (m?.plantilla || "") });
                       }}>
                 <option value="">(sin modelo)</option>
-                {modelos.filter((m) => m.tipo === form.tipo).map((m) => (
+                {modelos.filter((m) => m.tipo === form.tipo && m.serie === Number(form.serie)).map((m) => (
                   <option key={m.id} value={m.id}>{m.codigo} · {m.descripcion}</option>
                 ))}
               </select>

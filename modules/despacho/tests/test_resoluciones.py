@@ -5,18 +5,35 @@ import pytest
 
 
 # --------------------------------------------------------------------------- numeración
-def test_el_correlativo_es_por_ano_y_tipo(client, h, resolucion):
-    """Resoluciones y disposiciones llevan series distintas, y cada una arranca en 1 cada año."""
+def test_el_correlativo_es_por_ano_y_serie(client, h, resolucion):
+    """Cada serie (el área que emite) numera por su cuenta y arranca en 1 cada año."""
     r1 = resolucion()
     r2 = resolucion()
     d1 = resolucion(tipo="DIS")
 
-    assert (r1["numero"], r1["tipo"]) == (1, "RES")
-    assert (r2["numero"], r2["tipo"]) == (2, "RES")
-    assert (d1["numero"], d1["tipo"]) == (1, "DIS")      # la disposición no continúa la serie de RES
+    assert (r1["numero"], r1["serie"]) == (1, 1)
+    assert (r2["numero"], r2["serie"]) == (2, 1)
+    # Dentro de una serie, la disposición sigue el mismo correlativo que la resolución: así viene la
+    # numeración del sistema anterior.
+    assert (d1["numero"], d1["tipo"]) == (3, "DIS")
+
+    seguros = resolucion(serie=4)
+    assert (seguros["numero"], seguros["serie_nombre"]) == (1, "Seguros")
 
     vieja = resolucion(fecha="2024-05-10")
-    assert (vieja["numero"], vieja["anio"]) == (1, 2024)  # otro año, otra serie
+    assert (vieja["numero"], vieja["anio"]) == (1, 2024)  # otro año, otra numeración
+
+
+def test_la_serie_tiene_que_existir(client, h):
+    r = client.post("/api/despacho/resoluciones", headers=h, json={"asunto": "x", "serie": 99})
+    assert r.status_code == 422 and "serie 99" in r.json()["detail"]
+
+
+def test_las_series_se_publican_para_los_combos(client, h):
+    r = client.get("/api/despacho/series", headers=h)
+    assert r.status_code == 200
+    series = {x["serie"]: x["nombre"] for x in r.json()}
+    assert series[1].startswith("General") and series[4] == "Seguros"
 
 
 def test_no_se_puede_crear_un_tipo_que_no_existe(client, h):
@@ -75,7 +92,7 @@ def test_lo_ya_emitido_no_se_toca(client, h, resolucion):
 
 
 def test_no_se_cambia_el_ano_de_una_resolucion(client, h, resolucion):
-    """Rompería la serie del correlativo, que es por año y tipo."""
+    """Rompería el correlativo, que corre por año y serie."""
     r = resolucion()
     e = client.put(f"/api/despacho/resoluciones/{r['id']}", headers=h, json={"fecha": "2020-01-05"})
     assert e.status_code == 422 and "año" in e.json()["detail"]
@@ -89,8 +106,8 @@ def test_no_se_firma_dos_veces(client, h, resolucion):
 
 
 # --------------------------------------------------------------------------- número real
-def test_el_numero_real_tiene_su_propia_serie(client, h, resolucion):
-    """El oficial llega después del correlativo y lleva su propia numeración por año y tipo."""
+def test_el_numero_real_tiene_su_propia_numeracion(client, h, resolucion):
+    """El oficial llega después del correlativo y lleva su propia numeración por año y serie."""
     r1, r2 = resolucion(), resolucion()
     a = client.post(f"/api/despacho/resoluciones/{r2['id']}/numero-real", headers=h,
                     json={"fecha_real": "2026-09-24"}).json()

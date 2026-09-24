@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Resolucion, SolicitudAnexo
+from app.models import SERIE_POR_DEFECTO, Resolucion, SolicitudAnexo
 
 TIPOS_ANEXO = {
     1: {"nombre": "AGAP", "linea_min": 8050, "linea_max": 8051},
@@ -86,7 +86,9 @@ def quitar(db: Session, solicitud_ids: list[int]) -> dict:
     """Saca solicitudes del anexo (mientras la resolución siga en borrador)."""
     sols = list(db.scalars(select(SolicitudAnexo).where(SolicitudAnexo.id.in_(solicitud_ids))).all())
     for s in sols:
-        r = db.scalar(select(Resolucion).where(Resolucion.numero == s.numero_resolucion))
+        # El anexo es de créditos: su serie es la general.
+        r = db.scalar(select(Resolucion).where(Resolucion.numero == s.numero_resolucion,
+                                               Resolucion.serie == SERIE_POR_DEFECTO))
         if r is not None and r.oficial:
             raise HTTPException(422,
                                 f"La solicitud {s.id} está en un instrumento ya emitido: no se saca.")

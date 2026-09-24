@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FileText, Pencil, Plus, Search, X } from "lucide-react";
 
-import { crearModelo, editarModelo, getModelos } from "../../../api/despacho";
+import { crearModelo, editarModelo, getModelos, getSeries } from "../../../api/despacho";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { useHasPermission } from "../../../context/usePermissions";
 import { EditorTexto } from "../components/EditorTexto";
@@ -9,11 +9,14 @@ import { EditorTexto } from "../components/EditorTexto";
 const TIPOS = [["RES", "Resolución"], ["DIS", "Disposición"]];
 const nombreTipo = (t) => TIPOS.find(([v]) => v === t)?.[1] || t;
 
-const VACIO = { descripcion: "", tipo: "RES", es_seguros: false, plantilla: "", activo: true };
+const VACIO = { descripcion: "", tipo: "RES", serie: 1, es_seguros: false, plantilla: "",
+                activo: true };
 
 export default function ModelosPage() {
   const puedeEditar = useHasPermission("despacho", "modelos:write");
   const [items, setItems] = useState([]);
+  const [series, setSeries] = useState([]);
+  const [serie, setSerie] = useState("");
   const [tipo, setTipo] = useState("");
   const [buscar, setBuscar] = useState("");
   const [incluirInactivos, setIncluirInactivos] = useState(false);
@@ -26,13 +29,14 @@ export default function ModelosPage() {
   const cargar = useCallback(() => {
     setCargando(true);
     getModelos({ tipo: tipo || undefined, buscar: buscar || undefined,
-                 incluir_inactivos: incluirInactivos })
+                 serie: serie || undefined, incluir_inactivos: incluirInactivos })
       .then(setItems)
       .catch((e) => setError(e?.response?.data?.detail || "No se pudieron cargar los modelos"))
       .finally(() => setCargando(false));
-  }, [tipo, incluirInactivos]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tipo, serie, incluirInactivos]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(cargar, [cargar]);
+  useEffect(() => { getSeries().then(setSeries).catch(() => {}); }, []);
 
   const abrir = (m) => {
     setEditando(m || { nuevo: true });
@@ -43,7 +47,7 @@ export default function ModelosPage() {
   const guardar = async () => {
     setError(""); setGuardando(true);
     try {
-      const datos = { descripcion: form.descripcion, tipo: form.tipo,
+      const datos = { descripcion: form.descripcion, tipo: form.tipo, serie: Number(form.serie),
                       es_seguros: form.es_seguros, plantilla: form.plantilla, activo: form.activo };
       if (editando.nuevo) await crearModelo(datos);
       else await editarModelo(editando.id, datos);
@@ -64,7 +68,8 @@ export default function ModelosPage() {
           <p className="text-sm text-gray-500 mt-1 max-w-3xl">
             Las plantillas con las que se redactan las resoluciones y disposiciones. Al elegir un
             modelo, su descripción pasa a ser el <strong>motivo</strong> del acto y su texto, el
-            cuerpo inicial que después se edita.
+            cuerpo inicial que después se edita. Cada <strong>serie</strong> tiene su propio juego
+            de modelos: el mismo código significa una cosa distinta en cada una.
           </p>
         </div>
         <PermissionGate moduleCode="despacho" action="modelos:write">
@@ -85,6 +90,11 @@ export default function ModelosPage() {
           <input className="input w-full pl-9" placeholder="Buscar por descripción…"
                  value={buscar} onChange={(e) => setBuscar(e.target.value)} />
         </div>
+        <select className="input w-full sm:w-56" value={serie} aria-label="Serie"
+                onChange={(e) => setSerie(e.target.value)}>
+          <option value="">Todas las series</option>
+          {series.map((s) => <option key={s.serie} value={s.serie}>{s.nombre}</option>)}
+        </select>
         <select className="input w-full sm:w-44" value={tipo} aria-label="Tipo"
                 onChange={(e) => setTipo(e.target.value)}>
           <option value="">Todos los tipos</option>
@@ -105,6 +115,7 @@ export default function ModelosPage() {
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Código</th>
+              <th className="text-left px-4 py-3 font-medium">Serie</th>
               <th className="text-left px-4 py-3 font-medium">Descripción (motivo)</th>
               <th className="text-left px-4 py-3 font-medium">Tipo</th>
               <th className="text-left px-4 py-3 font-medium">Texto</th>
@@ -114,16 +125,17 @@ export default function ModelosPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cargando && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
             )}
             {!cargando && items.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                 No hay modelos cargados.
               </td></tr>
             )}
             {items.map((m) => (
               <tr key={m.id} className="hover:bg-blue-50/40">
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{m.codigo}</td>
+                <td className="px-4 py-3 text-gray-600">{m.serie_nombre}</td>
                 <td className="px-4 py-3 font-medium text-gray-800">
                   {m.descripcion}
                   {m.es_seguros && (
@@ -187,6 +199,13 @@ export default function ModelosPage() {
                   <select className="input" value={form.tipo} aria-label="Tipo del modelo"
                           onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
                     {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-gray-500">Serie</span>
+                  <select className="input" value={form.serie} aria-label="Serie del modelo"
+                          onChange={(e) => setForm({ ...form, serie: Number(e.target.value) })}>
+                    {series.map((s) => <option key={s.serie} value={s.serie}>{s.nombre}</option>)}
                   </select>
                 </label>
               </div>

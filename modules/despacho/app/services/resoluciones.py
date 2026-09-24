@@ -2,9 +2,10 @@
 
 Lo que hay que respetar del circuito administrativo:
 
-- El **correlativo** es único por (año, tipo) y lo arbitra la base: si dos usuarios crean a la vez,
-  uno reintenta con el siguiente número en lugar de pisar al otro.
-- El **número real** (el oficial) se carga después y tiene su propia serie por (año, tipo).
+- El **correlativo** es único por (año, SERIE) y lo arbitra la base: si dos usuarios crean a la vez,
+  uno reintenta con el siguiente número en lugar de pisar al otro. Cada serie (el área que emite:
+  general, seguros, juegos…) numera por su cuenta, como en el sistema anterior.
+- El **número real** (el oficial) se carga después y tiene su propia numeración por (año, serie).
 - Un acto **firmado, con número real o anulado es inmutable**: no se edita algo ya emitido. Tampoco
   se cambia tipo, número ni año, porque rompería la serie del correlativo.
 - Anular no borra: deja el acto con su número y el motivo, como en el papel.
@@ -19,8 +20,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import (BORRADOR, FIRMADA, ModeloResolucion, Resolucion, ResolucionBeneficiario,
-                        TIPOS)
+from app.models import (BORRADOR, FIRMADA, SERIE_POR_DEFECTO, SERIES, ModeloResolucion, Resolucion,
+                        ResolucionBeneficiario, TIPOS)
 
 REINTENTOS_NUMERO = 5
 
@@ -32,15 +33,22 @@ def _validar_tipo(tipo: str) -> str:
     return t
 
 
-def _proximo_numero(db: Session, anio: int, tipo: str) -> int:
+def _validar_serie(serie) -> int:
+    s = SERIE_POR_DEFECTO if serie is None else int(serie)
+    if s not in SERIES:
+        raise HTTPException(422, f"La serie {s} no existe.")
+    return s
+
+
+def _proximo_numero(db: Session, anio: int, serie: int) -> int:
     n = db.scalar(select(func.max(Resolucion.numero)).where(
-        Resolucion.anio == anio, Resolucion.tipo == tipo))
+        Resolucion.anio == anio, Resolucion.serie == serie))
     return (n or 0) + 1
 
 
-def _proximo_numero_real(db: Session, anio: int, tipo: str) -> int:
+def _proximo_numero_real(db: Session, anio: int, serie: int) -> int:
     n = db.scalar(select(func.max(Resolucion.numero_real)).where(
-        Resolucion.anio == anio, Resolucion.tipo == tipo))
+        Resolucion.anio == anio, Resolucion.serie == serie))
     return (n or 0) + 1
 
 
@@ -75,6 +83,8 @@ def crear(db: Session, datos, usuario: str = "") -> Resolucion:
     tipo = _validar_tipo(datos.tipo)
     fecha = datos.fecha or date.today()
     modelo = _modelo(db, datos.modelo_id)
+    # El modelo ya pertenece a una serie: manda la suya, así el motivo y el número van juntos.
+    serie = _validar_serie(modelo.serie if modelo is not None else datos.serie)
 
     texto = (datos.texto or "").strip()
     motivo_codigo, motivo = 0, ""
@@ -86,7 +96,8 @@ def crear(db: Session, datos, usuario: str = "") -> Resolucion:
 
     for intento in range(REINTENTOS_NUMERO):
         r = Resolucion(
-            numero=_proximo_numero(db, fecha.year, tipo), anio=fecha.year, tipo=tipo, fecha=fecha,
+            numero=_proximo_numero(db, fecha.year, serie), anio=fecha.year, tipo=tipo, serie=serie,
+            fecha=fecha,
             organo=(datos.organo or "")[:60], asunto=asunto[:200], motivo_codigo=motivo_codigo,
             motivo=(motivo or "")[:120], importe=Decimal(str(datos.importe or 0)),
             modelo_id=modelo.id if modelo else None, origen=(datos.origen or "")[:40],
@@ -119,6 +130,8 @@ def editar(db: Session, resolucion_id: int, datos) -> Resolucion:
     _editable(r)
     if datos.modelo_id is not None:
         modelo = _modelo(db, datos.modelo_id)
+        if modelo.serie != r.serie:
+            raise HTTPException(422, "Ese modelo es de otra serie: cambiaría la numeración del acto.")
         r.modelo_id = modelo.id
         r.motivo_codigo, r.motivo = modelo.codigo, modelo.descripcion[:120]
     for campo, valor, largo in (("asunto", datos.asunto, 200), ("organo", datos.organo, 60),
@@ -163,7 +176,7 @@ def asignar_numero_real(db: Session, resolucion_id: int, fecha_real: date | None
         raise HTTPException(422, f"Ya tiene N° real ({r.numero_real}).")
     freal = fecha_real or date.today()
     for intento in range(REINTENTOS_NUMERO):
-        r.numero_real = _proximo_numero_real(db, freal.year, r.tipo)
+        r.numero_real = _proximo_numero_real(db, freal.year, r.serie)
         r.fecha_real = freal
         r.estado = FIRMADA
         try:
@@ -201,11 +214,13 @@ def obtener(db: Session, resolucion_id: int) -> Resolucion:
 
 
 def listar(db: Session, *, tipo: str | None = None, anio: int | None = None,
-           estado: str | None = None, buscar: str | None = None,
+           estado: str | None = None, buscar: str | None = None, serie: int | None = None,
            pagina: int = 1, por_pagina: int = 20) -> tuple[list[Resolucion], int]:
     q = select(Resolucion)
     if tipo:
         q = q.where(Resolucion.tipo == tipo.upper())
+    if serie:
+        q = q.where(Resolucion.serie == serie)
     if anio:
         q = q.where(Resolucion.anio == anio)
     if estado == "ANULADA":

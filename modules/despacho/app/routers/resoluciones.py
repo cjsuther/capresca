@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import schemas
 from app.db.session import get_db
 from app.dependencies.auth import Usuario, requiere, usuario_actual
+from app.models import SERIES
 from app.reports.word import resolucion_docx
 from app.services import modelos as svc_modelos
 from app.services import resoluciones as svc
@@ -15,12 +16,19 @@ router = APIRouter(tags=["despacho"])
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
+@router.get("/series")
+def series(_u: Usuario = Depends(usuario_actual)):
+    """Las series de numeración: cada una lleva su propio correlativo."""
+    return [{"serie": s, "nombre": n} for s, n in SERIES.items()]
+
+
 # --------------------------------------------------------------------------- modelos
 @router.get("/modelos", response_model=list[schemas.ModeloOut])
-def listar_modelos(tipo: str | None = None, buscar: str | None = None,
+def listar_modelos(tipo: str | None = None, buscar: str | None = None, serie: int | None = None,
                    incluir_inactivos: bool = False, db: Session = Depends(get_db),
                    _u: Usuario = Depends(usuario_actual)):
-    return svc_modelos.listar(db, tipo=tipo, buscar=buscar, incluir_inactivos=incluir_inactivos)
+    return svc_modelos.listar(db, tipo=tipo, buscar=buscar, serie=serie,
+                              incluir_inactivos=incluir_inactivos)
 
 
 @router.get("/modelos/{modelo_id}", response_model=schemas.ModeloOut)
@@ -43,10 +51,10 @@ def editar_modelo(modelo_id: int, datos: schemas.ModeloIn, db: Session = Depends
 # --------------------------------------------------------------------------- resoluciones
 @router.get("/resoluciones", response_model=schemas.PaginaResoluciones)
 def listar(tipo: str | None = None, anio: int | None = None, estado: str | None = None,
-           buscar: str | None = None, pagina: int = Query(1, ge=1),
+           buscar: str | None = None, serie: int | None = None, pagina: int = Query(1, ge=1),
            por_pagina: int = Query(20, ge=1, le=100),
            db: Session = Depends(get_db), _u: Usuario = Depends(usuario_actual)):
-    items, total = svc.listar(db, tipo=tipo, anio=anio, estado=estado, buscar=buscar,
+    items, total = svc.listar(db, tipo=tipo, anio=anio, estado=estado, buscar=buscar, serie=serie,
                               pagina=pagina, por_pagina=por_pagina)
     return {"items": items, "total": total, "pagina": pagina, "por_pagina": por_pagina}
 

@@ -14,14 +14,14 @@ from app.models import (IMPORT_PROCESANDO, ImportacionDespacho, ModeloResolucion
 from app.services import importacion as svc
 
 # (nombre, tipo, largo) de cada DBF del backup.
-CAMPOS_RTF = [("COD_MOD", "N", 6), ("DES_MOD", "C", 120), ("DISPOSICIO", "L", 1),
-              ("SEGUROS", "L", 1), ("MODELO", "C", 200)]
-CAMPOS_RES = [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("DISPOSICIO", "L", 1),
+CAMPOS_RTF = [("COD_MOD", "N", 6), ("TIPO_RES", "N", 2), ("DES_MOD", "C", 120),
+              ("DISPOSICIO", "L", 1), ("SEGUROS", "L", 1), ("MODELO", "C", 200)]
+CAMPOS_RES = [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("TIPO_RES", "N", 2), ("DISPOSICIO", "L", 1),
               ("NRO_REAL", "N", 8), ("FEC_REAL", "D", 8), ("COD_MOT", "N", 6),
               ("IMPORTE", "N", 14), ("TEXTO", "C", 200), ("LANULADA", "L", 1),
               ("ID_TRAMITE", "C", 10), ("ID_LETRA", "C", 2), ("ID_NRO", "C", 6),
               ("ID_ANO", "C", 4), ("NRO_OP", "N", 8)]
-CAMPOS_BEN = [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("DISPOSICIO", "L", 1),
+CAMPOS_BEN = [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("TIPO_RES", "N", 2), ("DISPOSICIO", "L", 1),
               ("TIPO_DOC", "N", 2), ("NRO_DOC", "C", 11), ("NOMBRE", "C", 80),
               ("TIPO_BENE", "N", 2), ("IMPORTE", "N", 14)]
 
@@ -118,6 +118,43 @@ def test_importa_modelos_resoluciones_y_beneficiarios(db, backup, correr):
 
     b = db.query(ResolucionBeneficiario).one()
     assert (b.nombre, b.resolucion_id) == ("PEREZ JUAN", r.id)
+
+
+def test_cada_serie_lleva_su_propia_numeracion(db, backup, correr):
+    """El backup repite el mismo número en series distintas: sin la serie se perdía una de cada
+    cinco resoluciones, y el motivo salía del modelo de otra área."""
+    ruta = backup(
+        modelos=[{"COD_MOD": 3, "TIPO_RES": 1, "DES_MOD": "AYUDAS SOCIALES"},
+                 {"COD_MOD": 3, "TIPO_RES": 6, "DES_MOD": "TRANSFERENCIA LOTO"}],
+        resoluciones=[{"NRO_RES": 45, "FEC_RES": date(2024, 6, 10), "TIPO_RES": 1, "COD_MOT": 3},
+                      {"NRO_RES": 45, "FEC_RES": date(2024, 6, 11), "TIPO_RES": 6, "COD_MOT": 3}])
+    imp = correr(ruta)
+
+    assert (imp.modelos, imp.resoluciones, imp.omitidas) == (2, 2, 0)
+    por_serie = {r.serie: r for r in db.query(Resolucion).all()}
+    assert por_serie[1].numero == por_serie[6].numero == 45     # el número se repite entre series
+    assert por_serie[1].motivo == "AYUDAS SOCIALES"             # y cada una toma el modelo de la suya
+    assert por_serie[6].motivo == "TRANSFERENCIA LOTO"
+
+
+def test_un_backup_sin_tipo_res_entra_en_la_serie_general(db, tmp_path, correr):
+    """Los backups viejos podían no traer la serie: entran como generales, no se pierden."""
+    carpeta = tmp_path / "vieja"
+    carpeta.mkdir()
+    escribir_dbf(carpeta / "rtf.dbf", [("COD_MOD", "N", 6), ("DES_MOD", "C", 120)],
+                 [{"COD_MOD": 103, "DES_MOD": "TRANSFERENCIA"}])
+    escribir_dbf(carpeta / "resoluciones.dbf",
+                 [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("COD_MOT", "N", 6)],
+                 [{"NRO_RES": 7, "FEC_RES": date(2024, 2, 2), "COD_MOT": 103}])
+    zip_ruta = tmp_path / "vieja.zip"
+    with zipfile.ZipFile(zip_ruta, "w") as z:
+        for archivo in carpeta.iterdir():
+            z.write(archivo, archivo.name)
+
+    imp = correr(str(zip_ruta))
+    assert imp.resoluciones == 1
+    r = db.query(Resolucion).one()
+    assert (r.serie, r.motivo) == (1, "TRANSFERENCIA")
 
 
 def test_el_texto_rtf_se_convierte_a_html(db, backup, correr):

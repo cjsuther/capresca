@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class ModeloIn(BaseModel):
     descripcion: str
     tipo: str = "RES"
+    serie: int | None = None            # área que emite (VFP: TIPO_RES); 1 si no se indica
     codigo: int | None = None           # se autoasigna (MAX+1) si no viene
     es_seguros: bool | None = False
     plantilla: str | None = ""
@@ -17,6 +18,8 @@ class ModeloIn(BaseModel):
 class ModeloOut(BaseModel):
     id: int
     codigo: int
+    serie: int
+    serie_nombre: str
     descripcion: str
     tipo: str
     es_seguros: bool
@@ -44,6 +47,7 @@ class BeneficiarioOut(BeneficiarioIn):
 
 class ResolucionIn(BaseModel):
     tipo: str = "RES"
+    serie: int | None = None            # si viene un modelo, manda la serie del modelo
     fecha: date | None = None
     asunto: str | None = None
     organo: str | None = None
@@ -80,6 +84,8 @@ class ResolucionOut(BaseModel):
     numero: int
     anio: int
     tipo: str
+    serie: int
+    serie_nombre: str
     fecha: date
     numero_real: int | None
     fecha_real: date | None

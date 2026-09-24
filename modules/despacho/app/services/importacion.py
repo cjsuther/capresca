@@ -6,9 +6,11 @@ de clientes, se procesa **en segundo plano** y la pantalla muestra el avance.
 Cosas del formato viejo que hay que respetar:
 
 - Los textos son **RTF** (campos memo): se convierten al HTML que usa el editor.
-- El "motivo" de una resolución no es una tabla aparte: `COD_MOT` es el **código del modelo**, y el
-  motivo que se muestra es la descripción de ese modelo.
-- El correlativo es único por (año, tipo): si el archivo trae repetidos, gana el primero.
+- El "motivo" de una resolución no es una tabla aparte: `COD_MOT` es el **código del modelo** DENTRO
+  DE SU SERIE (`TIPO_RES`): el código 3 es "ayudas sociales" en la serie 1 y "transf. lotimax" en la
+  6, así que se resuelve por las dos cosas.
+- Cada serie numera por su cuenta: el correlativo es único por (año, serie). Sin la serie, una de
+  cada cinco resoluciones del backup se perdía por número repetido.
 
 Es idempotente: lo que ya está no se vuelve a crear ni se pisa.
 """
@@ -26,7 +28,8 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models import (IMPORT_ERROR, IMPORT_INTERRUMPIDA, IMPORT_PROCESANDO, IMPORT_TERMINADA,
-                        ImportacionDespacho, ModeloResolucion, Resolucion, ResolucionBeneficiario)
+                        SERIE_POR_DEFECTO, ImportacionDespacho, ModeloResolucion, Resolucion,
+                        ResolucionBeneficiario)
 from app.services.dbf import DbfReader
 from app.services.rtf import rtf_a_html
 
@@ -59,6 +62,11 @@ def _anio_valido(fecha) -> int | None:
     if not isinstance(fecha, datetime.date):
         return None
     return fecha.year if 1950 <= fecha.year <= datetime.date.today().year + 1 else None
+
+
+def _serie(x: dict) -> int:
+    """La serie de numeración (VFP: TIPO_RES). Los backups viejos podían no traerla."""
+    return _i(x.get("tipo_res"), SERIE_POR_DEFECTO) or SERIE_POR_DEFECTO
 
 
 def _origen(x: dict) -> str:
@@ -126,8 +134,9 @@ def _importar(db: Session, imp: ImportacionDespacho, carpeta: str) -> None:
     _importar_beneficiarios(db, imp, carpeta)
 
 
-def _importar_modelos(db: Session, imp: ImportacionDespacho, carpeta: str) -> dict[int, ModeloResolucion]:
-    existentes = {(m.codigo, m.tipo): m for m in db.scalars(select(ModeloResolucion)).all()}
+def _importar_modelos(db: Session, imp: ImportacionDespacho,
+                      carpeta: str) -> dict[tuple[int, int], ModeloResolucion]:
+    existentes = {(m.serie, m.codigo): m for m in db.scalars(select(ModeloResolucion)).all()}
     ruta = _buscar_dbf(carpeta, "rtf.dbf")
     nuevos = 0
     if ruta:
@@ -137,31 +146,32 @@ def _importar_modelos(db: Session, imp: ImportacionDespacho, carpeta: str) -> di
                 codigo = _i(x.get("cod_mod"))
                 if not codigo:
                     continue
+                serie = _serie(x)
                 tipo = "DIS" if x.get("disposicio") else "RES"
-                if (codigo, tipo) in existentes:
+                if (serie, codigo) in existentes:
                     imp.omitidas += 1
                     continue
                 m = ModeloResolucion(
-                    codigo=codigo, descripcion=_s(x.get("des_mod"))[:120], tipo=tipo,
+                    codigo=codigo, serie=serie, descripcion=_s(x.get("des_mod"))[:120], tipo=tipo,
                     es_seguros=bool(x.get("seguros")),
                     plantilla=rtf_a_html(x.get("modelo") or "")[:20000])
                 db.add(m)
-                existentes[(codigo, tipo)] = m
+                existentes[(serie, codigo)] = m
                 nuevos += 1
         db.commit()
     imp.modelos = nuevos
     db.commit()
-    # Para resolver el motivo de cada resolución: COD_MOT es el código del modelo.
-    return {m.codigo: m for m in existentes.values()}
+    # Para resolver el motivo de cada resolución: COD_MOT es el código del modelo en SU serie.
+    return existentes
 
 
 def _importar_resoluciones(db: Session, imp: ImportacionDespacho, carpeta: str,
-                           modelos: dict[int, ModeloResolucion]) -> None:
+                           modelos: dict[tuple[int, int], ModeloResolucion]) -> None:
     ruta = _buscar_dbf(carpeta, "resoluciones.dbf")
     if not ruta:
         raise ValueError("El archivo no trae resoluciones.dbf")
-    ya = {(r.anio, r.tipo, r.numero) for r in
-          db.execute(select(Resolucion.anio, Resolucion.tipo, Resolucion.numero)).all()}
+    ya = {(r.anio, r.serie, r.numero) for r in
+          db.execute(select(Resolucion.anio, Resolucion.serie, Resolucion.numero)).all()}
     nuevas = 0
     with DbfReader(ruta) as r:
         for i, x in enumerate(r.records(), start=1):
@@ -173,18 +183,19 @@ def _importar_resoluciones(db: Session, imp: ImportacionDespacho, carpeta: str,
                 imp.omitidas += 1
                 continue
             tipo = "DIS" if x.get("disposicio") else "RES"
-            if (anio, tipo, numero) in ya:       # el correlativo es único: gana el primero
+            serie = _serie(x)
+            if (anio, serie, numero) in ya:      # el correlativo es único por serie: gana el primero
                 imp.omitidas += 1
                 continue
-            ya.add((anio, tipo, numero))
+            ya.add((anio, serie, numero))
 
-            modelo = modelos.get(_i(x.get("cod_mot")))
+            modelo = modelos.get((serie, _i(x.get("cod_mot"))))
             motivo = (modelo.descripcion if modelo else "")[:120]
             texto = rtf_a_html(x.get("texto") or "")[:20000]
             plano = re.sub(r"<[^>]+>", " ", texto).strip()
             fecha_real = x.get("fec_real")
             db.add(Resolucion(
-                numero=numero, anio=anio, tipo=tipo,
+                numero=numero, anio=anio, tipo=tipo, serie=serie,
                 fecha=fecha if isinstance(fecha, datetime.date) else datetime.date(anio, 1, 1),
                 numero_real=_i(x.get("nro_real")) or None,
                 fecha_real=fecha_real if isinstance(fecha_real, datetime.date) else None,
@@ -209,10 +220,10 @@ def _importar_beneficiarios(db: Session, imp: ImportacionDespacho, carpeta: str)
     ruta = _buscar_dbf(carpeta, "beneficiarios.dbf")
     if not ruta:
         return
-    # (numero, anio, tipo) → id, para colgar cada beneficiario de su resolución.
-    por_clave = {(n, a, t): i for i, n, a, t in
+    # (numero, anio, serie) → id, para colgar cada beneficiario de su resolución.
+    por_clave = {(n, a, se): i for i, n, a, se in
                  db.execute(select(Resolucion.id, Resolucion.numero, Resolucion.anio,
-                                   Resolucion.tipo)).all()}
+                                   Resolucion.serie)).all()}
     con_beneficiarios = {b for (b,) in db.execute(
         select(ResolucionBeneficiario.resolucion_id).distinct()).all()}
     nuevos = 0
@@ -224,8 +235,7 @@ def _importar_beneficiarios(db: Session, imp: ImportacionDespacho, carpeta: str)
             anio = _anio_valido(fecha)
             if not numero or anio is None:
                 continue
-            tipo = "DIS" if x.get("disposicio") else "RES"
-            rid = por_clave.get((numero, anio, tipo))
+            rid = por_clave.get((numero, anio, _serie(x)))
             if rid is None or rid in con_beneficiarios:
                 continue                          # sin su resolución, o ya cargados: no se duplica
             db.add(ResolucionBeneficiario(

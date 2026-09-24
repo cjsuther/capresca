@@ -9,7 +9,8 @@ import { useAuthStore } from "../../../context/authStore";
 vi.mock("../../../api/despacho");
 
 const modelo = (extra = {}) => ({
-  id: 3, codigo: 103, descripcion: "TRANSFERENCIA", tipo: "RES", es_seguros: false,
+  id: 3, codigo: 103, serie: 1, serie_nombre: "General (créditos y ayudas sociales)",
+  descripcion: "TRANSFERENCIA", tipo: "RES", es_seguros: false,
   plantilla: "<p>VISTO…</p>", tiene_plantilla: true, activo: true, ...extra,
 });
 
@@ -23,6 +24,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   sesion(["resoluciones:read", "modelos:write"]);
   api.getModelos.mockResolvedValue([modelo()]);
+  api.getSeries.mockResolvedValue([{ serie: 1, nombre: "General (créditos y ayudas sociales)" },
+                                   { serie: 6, nombre: "Juegos" }]);
   document.execCommand = vi.fn();
 });
 
@@ -46,6 +49,16 @@ describe("modelos de resolución", () => {
       expect.objectContaining({ incluir_inactivos: true })));
   });
 
+  it("filtra por serie: cada una tiene su propio juego de modelos", async () => {
+    const user = userEvent.setup();
+    render(<ModelosPage />);
+    await screen.findByText("TRANSFERENCIA");
+
+    await user.selectOptions(await screen.findByLabelText("Serie"), "6");
+    await waitFor(() => expect(api.getModelos).toHaveBeenLastCalledWith(
+      expect.objectContaining({ serie: "6" })));
+  });
+
   it("guarda un modelo nuevo con su descripción y su plantilla", async () => {
     const user = userEvent.setup();
     api.crearModelo.mockResolvedValue(modelo({ id: 9 }));
@@ -55,10 +68,11 @@ describe("modelos de resolución", () => {
     await user.click(screen.getByRole("button", { name: /Nuevo modelo/ }));
     await user.type(screen.getByLabelText("Descripción"), "BAJA DE CREDITO");
     await user.selectOptions(screen.getByLabelText("Tipo del modelo"), "DIS");
+    await user.selectOptions(await screen.findByLabelText("Serie del modelo"), "6");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => expect(api.crearModelo).toHaveBeenCalledWith(
-      expect.objectContaining({ descripcion: "BAJA DE CREDITO", tipo: "DIS" })));
+      expect.objectContaining({ descripcion: "BAJA DE CREDITO", tipo: "DIS", serie: 6 })));
   });
 
   it("sin permiso de escritura no se puede editar ni crear", async () => {
