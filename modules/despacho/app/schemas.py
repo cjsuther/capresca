@@ -120,6 +120,8 @@ class PaginaResoluciones(BaseModel):
 
 # --------------------------------------------------------------------------- anexo
 class SolicitudAnexoOut(BaseModel):
+    """Lo que Créditos devuelve por cada solicitud candidata al anexo."""
+
     id: int
     fecha_solicitud: date | None
     cuil: str
@@ -145,6 +147,8 @@ class AnexoAsignarIn(BaseModel):
 
 class AnexoQuitarIn(BaseModel):
     solicitud_ids: list[int] = Field(default_factory=list)
+    # Para verificar que el instrumento siga en borrador antes de sacar nada.
+    numero_resolucion: int | None = None
 
 
 # --------------------------------------------------------------------------- expedientes

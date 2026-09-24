@@ -40,7 +40,7 @@ def asignar(datos: schemas.AnexoAsignarIn, db: Session = Depends(get_db),
 @router.post("/anexo/quitar")
 def quitar(datos: schemas.AnexoQuitarIn, db: Session = Depends(get_db),
            _u: Usuario = Depends(requiere("resoluciones:write"))):
-    return svc.quitar(db, datos.solicitud_ids)
+    return svc.quitar(db, datos.solicitud_ids, numero_resolucion=datos.numero_resolucion)
 
 
 @router.get("/anexo/word/{resolucion_id}")

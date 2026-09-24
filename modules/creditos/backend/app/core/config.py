@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     tesoreria_internal_api_key: str = ""
     tesoreria_callback_url: str = "http://creditos:8010/internal/creditos/tesoreria/resultado"
 
+    # Anexo de resolución: el acto lo emite Despacho, pero las solicitudes son de acá. Despacho
+    # consulta las candidatas y las asigna en lote con esta clave.
+    despacho_internal_api_key: str = ""
+
     # Integraciones externas (secretos por entorno; ver README)
     intranet_auth_url: str = ""
     intranet_client_id: str = ""

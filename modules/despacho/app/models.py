@@ -131,31 +131,6 @@ class ResolucionBeneficiario(Base):
     resolucion: Mapped["Resolucion"] = relationship(back_populates="beneficiarios")
 
 
-class SolicitudAnexo(Base):
-    """Solicitud de crédito candidata al anexo de una resolución (VFP: agjscreditos!solicitud).
-
-    Es el vínculo entre Despacho y Créditos: las solicitudes aprobadas se asignan EN LOTE a una
-    resolución, que es la que las otorga formalmente."""
-    __tablename__ = "solicitudes_anexo"
-
-    id: Mapped[int] = mapped_column(primary_key=True)                       # NO_SOLICIT
-    fecha_solicitud: Mapped[date | None] = mapped_column(Date)
-    cuil: Mapped[str] = mapped_column(String(11), index=True, default="")
-    apellido_nombre: Mapped[str] = mapped_column(String(80), index=True, default="")
-    dni: Mapped[str] = mapped_column(String(9), default="")
-    monto: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    linea: Mapped[int] = mapped_column(Integer, index=True, default=0)
-    linea_nombre: Mapped[str] = mapped_column(String(80), default="")
-    cartera: Mapped[int] = mapped_column(Integer, default=0)
-    estado: Mapped[str] = mapped_column(String(2), index=True, default="")  # A = aprobada
-    cubica: Mapped[str] = mapped_column(String(2), default="")              # C / DC / D
-    # Asignación al anexo: el lote ES el número correlativo de la resolución.
-    lote: Mapped[int] = mapped_column(Integer, default=0, index=True)
-    numero_resolucion: Mapped[int] = mapped_column(Integer, default=0, index=True)
-    fecha_resolucion: Mapped[date | None] = mapped_column(Date)
-    en_resolucion: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-
-
 class Expediente(Base):
     """Expediente que circula por pases entre oficinas (mesa de entradas)."""
     __tablename__ = "expedientes"

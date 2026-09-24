@@ -8,12 +8,18 @@ carga el oficial, el papel circula con el número de trabajo.
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from html.parser import HTMLParser
 from io import BytesIO
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, RGBColor
+
+
+def _pesos(monto) -> str:
+    """Formato argentino: miles con punto, decimales con coma."""
+    return f"{Decimal(str(monto or 0)):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
 
 TIPO_NOMBRE = {"RES": "RESOLUCIÓN", "DIS": "DISPOSICIÓN"}
 INSTITUCION = "CAJA DE CRÉDITO Y PRESTACIONES PROVINCIAL — Ca.Pre.S.Ca."
@@ -180,21 +186,26 @@ def anexo_docx(resolucion, filas) -> bytes:
                                  ("Solicitud", "CUIL", "Apellido y nombre", "Línea", "Importe")):
         celda.paragraphs[0].add_run(titulo_col).bold = True
 
-    total = 0
+    # Las filas llegan de Créditos como diccionarios; se acepta también un objeto con atributos.
+    def dato(f, campo):
+        return f.get(campo) if isinstance(f, dict) else getattr(f, campo, None)
+
+    filas = list(filas)
+    total = Decimal("0")
     for f in filas:
+        monto_fila = Decimal(str(dato(f, "monto") or 0))
         c = tabla.add_row().cells
-        c[0].text = str(f.id)
-        c[1].text = f.cuil or ""
-        c[2].text = f.apellido_nombre or ""
-        c[3].text = f.linea_nombre or str(f.linea or "")
-        c[4].text = f"{f.monto:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+        c[0].text = str(dato(f, "id") or "")
+        c[1].text = dato(f, "cuil") or ""
+        c[2].text = dato(f, "apellido_nombre") or ""
+        c[3].text = dato(f, "linea_nombre") or str(dato(f, "linea") or "")
+        c[4].text = _pesos(monto_fila)
         c[4].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        total += f.monto or 0
+        total += monto_fila
 
     doc.add_paragraph()
     pie = doc.add_paragraph(); pie.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    monto = f"{total:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
-    pie.add_run(f"{len(list(filas))} solicitud(es) — Total: $ {monto}").bold = True
+    pie.add_run(f"{len(filas)} solicitud(es) — Total: $ {_pesos(total)}").bold = True
 
     buf = BytesIO()
     doc.save(buf)

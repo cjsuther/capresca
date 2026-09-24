@@ -7,6 +7,8 @@ os.environ["INTERNAL_API_KEY"] = "clave-de-test"
 # la red en cada flush.
 os.environ["AUDITORIA_INTERNAL_API_KEY"] = ""
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -93,3 +95,68 @@ def resolucion(client, h):
         assert r.status_code == 201, r.text
         return r.json()
     return _crear
+
+
+@pytest.fixture(autouse=True)
+def creditos(monkeypatch):
+    """Créditos de mentira: las solicitudes del anexo son suyas y se consultan por su API interna.
+
+    Reproduce sus reglas (aprobada + cubicada, y no puede estar en dos resoluciones) para poder
+    probar el circuito completo del anexo sin levantar el otro módulo. Las reglas de verdad tienen
+    sus propios tests en Créditos.
+    """
+    from decimal import Decimal
+
+    from fastapi import HTTPException
+
+    from app.services import creditos_central
+
+    filas: dict[int, dict] = {}
+    proximo = {"id": 1000}
+
+    def alta(cantidad=3, linea=8050, estado="A", cubica="C", cartera=0):
+        creadas = []
+        for i in range(cantidad):
+            proximo["id"] += 1
+            filas[proximo["id"]] = {
+                "id": proximo["id"], "fecha_solicitud": None, "cuil": f"2030504757{i}",
+                "apellido_nombre": f"PEREZ {i}", "dni": "30504757", "monto": Decimal(100000 + i),
+                "linea": linea, "linea_nombre": "AGAP", "cartera": cartera, "estado": estado,
+                "cubica": cubica, "lote": 0, "numero_resolucion": 0, "en_resolucion": False}
+            creadas.append(filas[proximo["id"]])
+        return creadas
+
+    def candidatas(*, linea_min=None, linea_max=None, cartera=None, lote=None):
+        if lote:
+            items = [f for f in filas.values() if f["en_resolucion"] and f["lote"] == lote]
+        else:
+            items = [f for f in filas.values()
+                     if f["estado"] == "A" and f["cubica"] in ("C", "DC") and not f["en_resolucion"]]
+            if cartera is not None:
+                items = [f for f in items if f["cartera"] == cartera]
+            elif linea_min is not None:
+                items = [f for f in items if linea_min <= f["linea"] <= linea_max]
+        return {"items": items, "cantidad": len(items),
+                "total": sum((f["monto"] for f in items), Decimal("0"))}
+
+    def asignar(*, solicitud_ids, numero_resolucion, fecha_resolucion):
+        elegidas = [filas[i] for i in solicitud_ids if i in filas]
+        ajenas = [f["id"] for f in elegidas
+                  if f["en_resolucion"] and f["numero_resolucion"] != numero_resolucion]
+        if ajenas:
+            raise HTTPException(422, f"Estas solicitudes ya están en otra resolución: {ajenas}.")
+        for f in elegidas:
+            f.update(en_resolucion=True, numero_resolucion=numero_resolucion, lote=numero_resolucion)
+        return {"asignadas": len(elegidas), "total": sum((f["monto"] for f in elegidas), Decimal("0"))}
+
+    def quitar(solicitud_ids):
+        sacadas = [filas[i] for i in solicitud_ids if i in filas]
+        for f in sacadas:
+            f.update(en_resolucion=False, numero_resolucion=0, lote=0)
+        return {"quitadas": len(sacadas)}
+
+    monkeypatch.setattr(creditos_central, "habilitado", lambda: True)
+    monkeypatch.setattr(creditos_central, "candidatas", candidatas)
+    monkeypatch.setattr(creditos_central, "asignar", asignar)
+    monkeypatch.setattr(creditos_central, "quitar", quitar)
+    return SimpleNamespace(alta=alta, filas=filas)

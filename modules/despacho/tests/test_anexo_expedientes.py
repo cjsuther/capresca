@@ -1,28 +1,17 @@
-"""Anexo de resolución (el vínculo con Créditos) y expedientes con sus pases."""
+"""Anexo de resolución (el vínculo con Créditos) y expedientes con sus pases.
+
+Las solicitudes viven en Créditos: acá se prueba el circuito contra su API interna, simulada por el
+fixture `creditos` (ver conftest).
+"""
 from datetime import date
 
 import pytest
 
-from app.models import SolicitudAnexo
-
 
 @pytest.fixture
-def solicitudes(db):
+def solicitudes(creditos):
     """Solicitudes aprobadas y cubicadas, que es lo que entra al anexo."""
-    proximo = {"id": 1000}
-
-    def _crear(cantidad=3, linea=8050, estado="A", cubica="C"):
-        creadas = []
-        for i in range(cantidad):
-            proximo["id"] += 1          # ids únicos entre llamadas del fixture
-            s = SolicitudAnexo(id=proximo["id"], cuil=f"2030504757{i}", apellido_nombre=f"PEREZ {i}",
-                               monto=100000 + i, linea=linea, linea_nombre="AGAP",
-                               estado=estado, cubica=cubica)
-            db.add(s)
-            creadas.append(s)
-        db.commit()
-        return creadas
-    return _crear
+    return creditos.alta
 
 
 def test_el_anexo_ofrece_las_aprobadas_del_tipo(client, h, solicitudes):
@@ -50,7 +39,7 @@ def test_asignar_pone_el_numero_de_la_resolucion_en_las_solicitudes(client, h, r
     ss = solicitudes(3)
     a = client.post("/api/despacho/anexo/asignar", headers=h,
                     json={"tipo": 6, "resolucion_id": r["id"],
-                          "solicitud_ids": [s.id for s in ss]})
+                          "solicitud_ids": [s["id"] for s in ss]})
     assert a.status_code == 200
     assert a.json()["asignadas"] == 3 and a.json()["numero"] == r["numero"]
 
@@ -64,9 +53,9 @@ def test_una_solicitud_no_entra_en_dos_resoluciones(client, h, resolucion, solic
     r1, r2 = resolucion(), resolucion()
     ss = solicitudes(2)
     client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": 6, "resolucion_id": r1["id"], "solicitud_ids": [s.id for s in ss]})
+                json={"tipo": 6, "resolucion_id": r1["id"], "solicitud_ids": [s["id"] for s in ss]})
     otra = client.post("/api/despacho/anexo/asignar", headers=h,
-                       json={"tipo": 6, "resolucion_id": r2["id"], "solicitud_ids": [ss[0].id]})
+                       json={"tipo": 6, "resolucion_id": r2["id"], "solicitud_ids": [ss[0]["id"]]})
     assert otra.status_code == 422 and "otra resolución" in otra.json()["detail"]
 
 
@@ -74,23 +63,39 @@ def test_no_se_saca_una_solicitud_de_un_acto_ya_emitido(client, h, resolucion, s
     r = resolucion()
     ss = solicitudes(1)
     client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": 6, "resolucion_id": r["id"], "solicitud_ids": [ss[0].id]})
+                json={"tipo": 6, "resolucion_id": r["id"], "solicitud_ids": [ss[0]["id"]]})
     # Mientras es borrador, se puede corregir.
     assert client.post("/api/despacho/anexo/quitar", headers=h,
-                       json={"solicitud_ids": [ss[0].id]}).status_code == 200
+                       json={"solicitud_ids": [ss[0]["id"]],
+                             "numero_resolucion": r["numero"]}).status_code == 200
 
     client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": 6, "resolucion_id": r["id"], "solicitud_ids": [ss[0].id]})
+                json={"tipo": 6, "resolucion_id": r["id"], "solicitud_ids": [ss[0]["id"]]})
     client.post(f"/api/despacho/resoluciones/{r['id']}/firmar", headers=h)
-    no = client.post("/api/despacho/anexo/quitar", headers=h, json={"solicitud_ids": [ss[0].id]})
+    no = client.post("/api/despacho/anexo/quitar", headers=h,
+                     json={"solicitud_ids": [ss[0]["id"]], "numero_resolucion": r["numero"]})
     assert no.status_code == 422 and "emitido" in no.json()["detail"]
+
+
+def test_si_creditos_no_responde_la_pantalla_lo_dice(client, h, monkeypatch):
+    """Una lista vacía se confundiría con 'no hay nada para otorgar'."""
+    from fastapi import HTTPException
+
+    from app.services import creditos_central
+
+    def caido(**kw):
+        raise HTTPException(503, "Créditos no responde; probá de nuevo en un momento.")
+
+    monkeypatch.setattr(creditos_central, "candidatas", caido)
+    r = client.get("/api/despacho/anexo/solicitudes?tipo=6", headers=h)
+    assert r.status_code == 503 and "no responde" in r.json()["detail"]
 
 
 def test_el_anexo_se_imprime_en_word(client, h, resolucion, solicitudes):
     r = resolucion()
     ss = solicitudes(2)
     client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": 6, "resolucion_id": r["id"], "solicitud_ids": [s.id for s in ss]})
+                json={"tipo": 6, "resolucion_id": r["id"], "solicitud_ids": [s["id"] for s in ss]})
     w = client.get(f"/api/despacho/anexo/word/{r['id']}", headers=h)
     assert w.status_code == 200 and w.content[:2] == b"PK"
 

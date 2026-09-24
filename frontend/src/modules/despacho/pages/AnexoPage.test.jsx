@@ -77,7 +77,14 @@ describe("anexo de resolución", () => {
 
     await user.click(await screen.findByLabelText("Elegir PEREZ JUAN"));
     await user.click(screen.getByRole("button", { name: "Quitar del anexo" }));
-    expect(api.quitarDelAnexo).toHaveBeenCalledWith([11]);
+    expect(api.quitarDelAnexo).toHaveBeenCalledWith([11], 45);
+  });
+
+  it("si Créditos no responde muestra el motivo, no una lista vacía", async () => {
+    api.getSolicitudesAnexo.mockRejectedValue(
+      { response: { data: { detail: "Créditos no responde; probá de nuevo en un momento." } } });
+    render(<AnexoPage />);
+    expect(await screen.findByText(/Créditos no responde/)).toBeInTheDocument();
   });
 
   it("muestra el motivo cuando el backend rechaza la asignación", async () => {

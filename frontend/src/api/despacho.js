@@ -50,8 +50,9 @@ export const getSolicitudesAnexo = (params) =>
 export const asignarAnexo = (data) =>
   api.post("/despacho/anexo/asignar", data).then((r) => r.data);
 
-export const quitarDelAnexo = (solicitud_ids) =>
-  api.post("/despacho/anexo/quitar", { solicitud_ids }).then((r) => r.data);
+// El número de resolución va para que Despacho verifique que el instrumento siga en borrador.
+export const quitarDelAnexo = (solicitud_ids, numero_resolucion) =>
+  api.post("/despacho/anexo/quitar", { solicitud_ids, numero_resolucion }).then((r) => r.data);
 
 export const descargarAnexoWord = (resolucionId) =>
   api.get(`/despacho/anexo/word/${resolucionId}`, { responseType: "blob" }).then((r) => r.data);

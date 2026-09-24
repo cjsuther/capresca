@@ -528,6 +528,9 @@ services:
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       - DESPACHO_IMPORT_DIR=/data/despacho
+      # Anexo de resolución: las solicitudes son de Créditos y se consultan por su API interna.
+      - CREDITOS_SERVICE_URL=http://creditos:8010
+      - CREDITOS_INTERNAL_API_KEY=${DESPACHO_INTERNAL_API_KEY:-}
     volumes:
       # Los DBF del sistema anterior que se suben por la web: quedan en disco para reprocesarlos.
       - despacho_import:/data/despacho
@@ -653,6 +656,8 @@ services:
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
       - CONTABILIDAD_INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
+      # Anexo de resolución: la clave con la que Despacho consulta y asigna las solicitudes.
+      - DESPACHO_INTERNAL_API_KEY=${DESPACHO_INTERNAL_API_KEY:-}
       # Firma SOLO los tokens del portal ciudadano (realm propio). Debe ser distinto de JWT_SECRET:
       # los usuarios del backoffice los autentica el gateway de Portezuelo.
       - JWT_SECRET=${CREDITOS_PORTAL_JWT_SECRET}

@@ -80,7 +80,7 @@ export default function AnexoPage() {
   const quitar = async () => {
     setError(""); setAviso("");
     try {
-      const r = await quitarDelAnexo([...elegidas]);
+      const r = await quitarDelAnexo([...elegidas], Number(lote) || undefined);
       setAviso(`${r.quitadas} solicitud(es) quitadas del anexo.`);
       buscar();
     } catch (e) {
@@ -106,7 +106,8 @@ export default function AnexoPage() {
         <h1 className="text-xl font-semibold text-gray-900">Anexo de resolución</h1>
         <p className="text-sm text-gray-500 mt-1 max-w-3xl">
           Las solicitudes aprobadas se otorgan <strong>en lote</strong>: se eligen acá y se asignan a
-          una resolución en borrador. El número de lote es el correlativo de esa resolución.
+          una resolución en borrador. El número de lote es el correlativo de esa resolución. Las
+          solicitudes son del módulo Créditos y se consultan en vivo: no hay copia de este lado.
         </p>
       </div>
 

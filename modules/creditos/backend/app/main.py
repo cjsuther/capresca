@@ -10,7 +10,7 @@ from app.core.database import Base, engine, SessionLocal
 from app.services import auditoria_central as central
 from app.api import (clientes, creditos, caja, consultas, admin, productos, contratos,
                      impuestos, indices, sistema_calculos, solicitudes, aprobaciones, portal,
-                     tesoreria_interna)
+                     despacho_interna, tesoreria_interna)
 from app.core.configuraciones import ConfiguracionNoDisponible
 from app import models_productos  # noqa: F401  (registra tablas pp_* en Base.metadata)
 from app.seed import seed, seed_perfiles
@@ -185,6 +185,7 @@ app.include_router(solicitudes.router)
 app.include_router(aprobaciones.router)
 app.include_router(portal.router)
 app.include_router(tesoreria_interna.router)
+app.include_router(despacho_interna.router)
 
 # Auditoría central (H-221): qué registros agrega, cambia o borra cada usuario. Se excluyen las tablas
 # que ya son un registro en sí (la auditoría propia del módulo y el log migrado del VFP) y el espejo de
