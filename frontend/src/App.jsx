@@ -14,6 +14,7 @@ import ConfiguracionesModule from "./modules/configuraciones";
 import TesoreriaModule from "./modules/tesoreria";
 import AuditoriaModule from "./modules/auditoria";
 import ContabilidadModule from "./modules/contabilidad";
+import DespachoModule from "./modules/despacho";
 
 export default function App() {
   return (
@@ -98,6 +99,15 @@ export default function App() {
           element={
             <ModuleRoute moduleCode="creditos">
               <CreditosModule />
+            </ModuleRoute>
+          }
+        />
+
+        <Route
+          path="/modules/despacho/*"
+          element={
+            <ModuleRoute moduleCode="despacho">
+              <DespachoModule />
             </ModuleRoute>
           }
         />

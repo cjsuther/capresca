@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     tesoreria_service_url: str = "http://tesoreria:8012"
     auditoria_service_url: str = "http://auditoria:8013"
     contabilidad_service_url: str = "http://contabilidad:8014"
+    despacho_service_url: str = "http://despacho:8015"
     # Auditoría central: el gateway registra TODA operación que modifica datos. Sin clave, no registra.
     auditoria_internal_api_key: str = ""
     auditoria_habilitada: bool = True

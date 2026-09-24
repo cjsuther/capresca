@@ -176,6 +176,7 @@
   --acc-auditoria: #c2410c;       --acc-auditoria-bg: #ffedd5;
   --acc-comunicacion: #a21caf;    --acc-comunicacion-bg: #fae8ff;
   --acc-configuraciones: #4b5563; --acc-configuraciones-bg: #f3f4f6;
+  --acc-despacho: #7e22ce;        --acc-despacho-bg: #f3e8ff;
 }
 
 .dark {
@@ -192,6 +193,7 @@
   --acc-auditoria: #fdba74;       --acc-auditoria-bg: #431407;
   --acc-comunicacion: #f0abfc;    --acc-comunicacion-bg: #4a044e;
   --acc-configuraciones: #d1d5db; --acc-configuraciones-bg: #374151;
+  --acc-despacho: #d8b4fe;        --acc-despacho-bg: #3b0764;
 }
 
 body {
@@ -206,5 +208,23 @@ body {
 
   .input {
     @apply border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-surface text-gray-800;
+  }
+
+  /* El cuerpo de un instrumento legal: se escribe y se lee con el mismo formato que después
+     sale impreso en Word (títulos centrados, listas, negritas). */
+  .prose-despacho h2 {
+    @apply text-base font-semibold text-center my-2;
+  }
+
+  .prose-despacho p {
+    @apply mb-2;
+  }
+
+  .prose-despacho ul {
+    @apply list-disc pl-6 mb-2;
+  }
+
+  .prose-despacho ol {
+    @apply list-decimal pl-6 mb-2;
   }
 }

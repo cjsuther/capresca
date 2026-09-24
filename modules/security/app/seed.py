@@ -17,6 +17,7 @@ MODULES = [
     {"code": "security", "name": "Seguridad", "description": "Gestión de usuarios, roles y permisos", "icon": "shield"},
     {"code": "cajeros", "name": "Cajeros", "description": "Solicitudes y autorizaciones de operaciones", "icon": "banknotes"},
     {"code": "clientes", "name": "Clientes", "description": "Gestión de clientes y contactos", "icon": "users"},
+    {"code": "despacho", "name": "Despacho", "description": "Resoluciones y disposiciones, anexos y expedientes", "icon": "file-signature"},
     {"code": "interbanking", "name": "Interbanking", "description": "Operaciones bancarias via Interbanking Argentina", "icon": "banknote"},
     {"code": "conciliacion", "name": "Conciliación", "description": "Conciliación de pagos y transferencias", "icon": "scale"},
     {"code": "liquidaciones", "name": "Liquidaciones", "description": "Procesamiento de liquidaciones de juegos", "icon": "receipt"},
@@ -59,6 +60,14 @@ PERMISSIONS = {
         ("transactions:authorize", "Autorizar o rechazar transacciones"),
         ("transactions:delete", "Eliminar transacciones propias"),
         ("transactions:admin", "Administrar todas las transacciones"),
+    ],
+    "despacho": [
+        ("resoluciones:read", "Ver resoluciones y disposiciones"),
+        ("resoluciones:write", "Crear y editar resoluciones"),
+        ("resoluciones:firmar", "Firmar, cargar el N° real y anular"),
+        ("modelos:write", "Administrar los modelos de resolución"),
+        ("expedientes:write", "Crear expedientes y registrar pases"),
+        ("importar", "Importar el despacho del sistema anterior"),
     ],
     "clientes": [
         ("clients:read", "Ver clientes"),

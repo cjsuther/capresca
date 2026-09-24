@@ -19,6 +19,8 @@ volumes:
   auditoria_data:
   contabilidad_data:
   clientes_padron:      # archivos del padrón subidos por la web (importación de clientes)
+  despacho_data:
+  despacho_import:      # DBF del sistema anterior subidos por la web (importación de despacho)
   certbot_conf:         # /etc/letsencrypt (certificados del dominio)
   certbot_www:          # raíz del desafío ACME de Let's Encrypt
 
@@ -508,6 +510,46 @@ services:
       - app_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${CONTABILIDAD_DB_USER} -d ${CONTABILIDAD_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────
+  # Módulo Despacho — resoluciones y disposiciones, anexos y expedientes (API :8015)
+  # ──────────────────────────────────────────
+  despacho:
+    build:
+      context: ./modules/despacho
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${DESPACHO_DB_USER}:${DESPACHO_DB_PASS}@db_despacho:5432/${DESPACHO_DB_NAME}
+      - INTERNAL_API_KEY=${DESPACHO_INTERNAL_API_KEY:-}
+      - AUDITORIA_SERVICE_URL=http://auditoria:8013
+      - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      - DESPACHO_IMPORT_DIR=/data/despacho
+    volumes:
+      # Los DBF del sistema anterior que se suben por la web: quedan en disco para reprocesarlos.
+      - despacho_import:/data/despacho
+    depends_on:
+      db_despacho:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  db_despacho:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${DESPACHO_DB_NAME}
+      - POSTGRES_USER=${DESPACHO_DB_USER}
+      - POSTGRES_PASSWORD=${DESPACHO_DB_PASS}
+    volumes:
+      - despacho_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DESPACHO_DB_USER} -d ${DESPACHO_DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10

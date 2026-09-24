@@ -197,6 +197,20 @@ ROUTE_MAP = [
     ("POST", r"^/api/contabilidad/ejercicios$",                         settings.contabilidad_service_url, "contabilidad:ejercicios:write"),
     ("POST", r"^/api/contabilidad/ejercicios/\d+/(cerrar|reabrir|apertura)$", settings.contabilidad_service_url, "contabilidad:ejercicios:write"),
 
+    # ── Despacho: resoluciones y disposiciones, sus modelos, el anexo y los expedientes ──
+    # Las rutas específicas van antes del GET general, que es el de lectura.
+    ("POST", r"^/api/despacho/modelos$",                                settings.despacho_service_url, "despacho:modelos:write"),
+    ("PUT",  r"^/api/despacho/modelos/\d+$",                            settings.despacho_service_url, "despacho:modelos:write"),
+    ("POST", r"^/api/despacho/resoluciones/\d+/(firmar|numero-real|anular)$", settings.despacho_service_url, "despacho:resoluciones:firmar"),
+    ("POST", r"^/api/despacho/resoluciones$",                           settings.despacho_service_url, "despacho:resoluciones:write"),
+    ("PUT",  r"^/api/despacho/resoluciones/\d+$",                       settings.despacho_service_url, "despacho:resoluciones:write"),
+    ("POST", r"^/api/despacho/anexo/(asignar|quitar)$",                 settings.despacho_service_url, "despacho:resoluciones:write"),
+    ("POST", r"^/api/despacho/expedientes$",                            settings.despacho_service_url, "despacho:expedientes:write"),
+    ("POST", r"^/api/despacho/expedientes/\d+/(pase|archivar)$",        settings.despacho_service_url, "despacho:expedientes:write"),
+    ("POST", r"^/api/despacho/importaciones$",                          settings.despacho_service_url, "despacho:importar"),
+    ("GET",  r"^/api/despacho/importaciones(/\d+)?$",                   settings.despacho_service_url, "despacho:importar"),
+    ("GET",  r"^/api/despacho/",                                        settings.despacho_service_url, "despacho:resoluciones:read"),
+
     # ── Auditoría: sólo consulta (el registro no se edita ni se borra desde ningún lado) ──
     ("GET",  r"^/api/auditoria/eventos(/\d+|/resumen)?$",               settings.auditoria_service_url, "auditoria:eventos:read"),
     ("GET",  r"^/api/auditoria/registros/[^/]+/[^/]+/[^/]+$",           settings.auditoria_service_url, "auditoria:eventos:read"),

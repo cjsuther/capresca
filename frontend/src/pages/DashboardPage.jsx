@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useAuthStore } from "../context/authStore";
-import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings, Wallet, ClipboardList, BookOpen } from "lucide-react";
+import { Shield, Banknote, Users, Building, Scale, Receipt, Database, Landmark, Settings, Wallet, ClipboardList, BookOpen, Stamp } from "lucide-react";
 
 export const ALL_MODULES = [
   {
@@ -73,6 +73,13 @@ export const ALL_MODULES = [
     description: "Asientos desde las transacciones, libros y estados contables",
     icon: BookOpen,
     path: "/modules/contabilidad",
+  },
+  {
+    code: "despacho",
+    name: "Despacho",
+    description: "Resoluciones y disposiciones, sus anexos y los expedientes",
+    icon: Stamp,
+    path: "/modules/despacho",
   },
   {
     code: "auditoria",
