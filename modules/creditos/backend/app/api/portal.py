@@ -40,7 +40,7 @@ from app.api.productos import (_calc_codigo_por_version, _tna_base, _cargo,
                                _disponibilidad, _elegibilidad, canal_portal, decimales_calculo)
 from app.api.contratos import _ctx
 from app.api.solicitudes import _numero as _numero_solicitud, _evaluar as _evaluar_solicitud
-from app import models_productos as m, schemas
+from app import models, models_productos as m, schemas
 
 router = APIRouter(prefix="/api/creditos/portal", tags=["portal"])
 log = logging.getLogger("creditos.portal")
@@ -161,8 +161,21 @@ def callback(request: Request, db: Session = Depends(get_db), code: str = "", st
     return RedirectResponse(f"{s.portal_web_url}/ingreso#token={token}")
 
 
-def videos_obligatorios() -> list[dict]:
-    """Videos que hay que ver completos antes de confirmar (config `portal_videos`, "id:Título,…")."""
+def omitir_videos(db: Session) -> bool:
+    """¿El paso de videos está salteado? (Parámetro PORTAL_OMITIR_VIDEOS, ámbito créditos).
+
+    Por defecto NO: los videos son parte de lo que el ciudadano tiene que ver antes de contratar.
+    Se apaga desde Créditos → Parámetros cuando hace falta (una demo, o mientras se regraban)."""
+    p = db.query(models.Parametro).filter(models.Parametro.clave == "PORTAL_OMITIR_VIDEOS").first()
+    return str(p.valor if p else "").strip().lower() in ("true", "1", "si", "sí")
+
+
+def videos_obligatorios(db: Session | None = None) -> list[dict]:
+    """Videos que hay que ver completos antes de confirmar (config `portal_videos`, "id:Título,…").
+
+    Con el paso omitido devuelve la lista vacía: el portal se saltea el paso y el envío no los pide."""
+    if db is not None and omitir_videos(db):
+        return []
     out = []
     for item in (get_settings().portal_videos or "").split(","):
         vid, _, titulo = item.strip().partition(":")
@@ -173,9 +186,10 @@ def videos_obligatorios() -> list[dict]:
 
 
 @router.get("/videos", response_model=list[schemas.PortalVideoOut])
-def videos(c: Ciudadano = Depends(get_ciudadano)):
-    """Videos del paso 4: el ciudadano los ve completos (sin adelantar) antes de confirmar."""
-    return videos_obligatorios()
+def videos(db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciudadano)):
+    """Videos del paso 4: el ciudadano los ve completos (sin adelantar) antes de confirmar.
+    Vacío = el paso está omitido por configuración."""
+    return videos_obligatorios(db)
 
 
 @router.get("/me", response_model=schemas.CiudadanoOut)
@@ -386,7 +400,7 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
         raise HTTPException(422, "El CBU debe tener 22 dígitos.")
     # Paso 4: los videos obligatorios tienen que estar vistos completos. El portal no deja avanzar sin
     # verlos; acá se exige igual para que no se pueda saltear llamando a la API directo.
-    requeridos = [v["id"] for v in videos_obligatorios()]
+    requeridos = [v["id"] for v in videos_obligatorios(db)]
     faltan = [v for v in requeridos if v not in set(req.videos_vistos)]
     if faltan:
         raise HTTPException(422, "Tenés que ver los videos completos antes de enviar la solicitud.")

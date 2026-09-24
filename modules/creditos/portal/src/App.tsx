@@ -221,6 +221,10 @@ function edadDe(nacimiento: string): number | null {
 }
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const PASOS = ["Tus datos", "Simulación", "Documentación", "Videos", "Confirmación"];
+/** Cuando el paso de videos está omitido (no hay videos configurados), no se muestra en la guía. */
+const pasosVisibles = (conVideos: boolean) =>
+  PASOS.map((t, i) => ({ titulo: t, numero: (i + 1) as Paso }))
+       .filter((p) => conVideos || p.numero !== 4);
 type Paso = 1 | 2 | 3 | 4 | 5;
 type DocElegido = { file: File; tipo: string };
 const fmtBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
@@ -312,6 +316,10 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [videosListos, setVideosListos] = useState(false);   // hasta que llega la lista no se puede avanzar
   const [vistos, setVistos] = useState<string[]>(() => leerVistos(sesion.sub));
   const videosOk = videosListos && videos.every((v) => vistos.includes(v.id));
+  // El paso se saltea SÓLO cuando la lista llegó bien y vino vacía (omitido por configuración).
+  // Si los videos no se pudieron cargar, el paso se muestra igual con su error: no se deja pasar
+  // de largo un requisito por una falla de red.
+  const pasoVideosOmitido = videosListos && !videosErr && videos.length === 0;
   const marcarVisto = (id: string) => setVistos((vs) => {
     const nuevos = vs.includes(id) ? vs : [...vs, id];
     guardarVistos(sesion.sub, nuevos);
@@ -425,7 +433,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   function reiniciarWizard() { setPaso(1); setSim(null); }
   function irAVideos() {
     if (docsFaltantes.length) { setDocsErr(`Falta adjuntar: ${docsFaltantes.map((t) => TIPO_DOC[t]).join(", ")}.`); return; }
-    setDocsErr(""); setPaso(4);
+    // Sin videos configurados (paso omitido), de la documentación se pasa derecho a confirmar.
+    setDocsErr(""); setPaso(pasoVideosOmitido ? 5 : 4);
   }
 
   async function enviarSolicitud() {
@@ -617,12 +626,11 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
       <main className="p-main">
         <h1>Solicitá tu crédito</h1>
         <ol className="p-steps">
-          {PASOS.map((t, i) => {
-            const n = (i + 1) as Paso;
+          {pasosVisibles(!pasoVideosOmitido).map(({ titulo, numero: n }, i) => {
             const estado = paso === n ? "on" : paso > n ? "done" : "";
             const ir = () => { if (n < paso) setPaso(n); };
-            return <li key={t} className={`p-step ${estado}`} onClick={ir}>
-              <span className="p-step-n">{paso > n ? "✓" : n}</span>{t}</li>;
+            return <li key={titulo} className={`p-step ${estado}`} onClick={ir}>
+              <span className="p-step-n">{paso > n ? "✓" : i + 1}</span>{titulo}</li>;
           })}
         </ol>
         {borrador && (
@@ -809,7 +817,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <label className="p-check"><input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} /> Autorizo el <b>tratamiento de mis datos personales</b> para evaluar la solicitud.</label>
             </div>
             <div className="p-cta">
-              <button type="button" className="p-btn-ghost" onClick={() => setPaso(4)}>← Volver</button>
+              <button type="button" className="p-btn-ghost" onClick={() => setPaso(pasoVideosOmitido ? 3 : 4)}>← Volver</button>
               <button className="p-btn p-btn-mc" onClick={enviarSolicitud} disabled={enviando || !puedeEnviar || !videosOk || sim?.elegible === false}>{enviando ? "Enviando…" : "Confirmar y enviar solicitud"}</button>
               {sim?.elegible === false
                 ? <span className="p-fine">No cumplís las condiciones de este crédito: no se puede enviar.</span>

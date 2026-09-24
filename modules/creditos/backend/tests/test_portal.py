@@ -938,3 +938,32 @@ def test_el_maximo_del_pre_aprobado_se_puede_enviar(client):
                       json={**CONSENT, "producto_id": pid, "monto": r["monto_maximo"],
                             "plazo": plazo, "sueldo": sueldo})
     assert env.status_code == 201, env.text
+
+
+def test_el_paso_de_videos_se_puede_omitir_por_parametro(client):
+    """Parámetro PORTAL_OMITIR_VIDEOS (Créditos → Parámetros): con el paso omitido el portal no pide
+    videos y el envío tampoco los exige."""
+    hb, hp = _bo(client), _ingresar(client)
+    assert len(client.get("/api/creditos/portal/videos", headers=hp).json()) > 0   # por defecto se piden
+
+    r = client.post("/api/creditos/admin/parametros", headers=hb,
+                    json={"clave": "PORTAL_OMITIR_VIDEOS", "valor": "true", "ambito": "creditos"})
+    assert r.status_code == 201
+    assert client.get("/api/creditos/portal/videos", headers=hp).json() == []
+
+    p = _un_producto(client, hp)
+    env = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "sin-videos"},
+                      json={**CONSENT, "videos_vistos": [], "producto_id": p["id"],
+                            "monto": min(max(500000.0, p["monto_min"]), p["monto_max"]),
+                            "plazo": min(max(12, p["plazo_min"]), p["plazo_max"])})
+    assert env.status_code == 201, env.text
+
+    # Se vuelve a exigir al apagarlo.
+    client.post("/api/creditos/admin/parametros", headers=hb,
+                json={"clave": "PORTAL_OMITIR_VIDEOS", "valor": "false", "ambito": "creditos"})
+    assert len(client.get("/api/creditos/portal/videos", headers=hp).json()) > 0
+    env2 = client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": "con-videos"},
+                       json={**CONSENT, "videos_vistos": [], "producto_id": p["id"],
+                             "monto": min(max(500000.0, p["monto_min"]), p["monto_max"]),
+                             "plazo": min(max(12, p["plazo_min"]), p["plazo_max"])})
+    assert env2.status_code == 422 and "videos" in env2.text

@@ -59,15 +59,16 @@ describe("Parámetros de créditos", () => {
     expect(screen.getByLabelText(/Canal del portal/)).toHaveValue("SUCURSAL");
   });
 
-  it("guarda los cinco parámetros del ámbito creditos", async () => {
+  it("guarda los parámetros del ámbito creditos", async () => {
     const u = userEvent.setup();
     render(<ParametrosCreditosPage />);
     await screen.findByRole("button", { name: "Quitar SUCURSAL" });
 
     await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
-    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(5));
+    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(6));
     const claves = creditos.upsertParametro.mock.calls.map((c) => c[0].clave);
-    expect(claves).toEqual(["CANALES", "CANAL_PORTAL", "CANAL_BACKOFFICE", "DECIMALES_CALCULO", "DECIMALES_MOSTRAR"]);
+    expect(claves).toEqual(["CANALES", "CANAL_PORTAL", "CANAL_BACKOFFICE", "DECIMALES_CALCULO",
+                            "DECIMALES_MOSTRAR", "PORTAL_OMITIR_VIDEOS"]);
     expect(creditos.upsertParametro.mock.calls[0][0]).toMatchObject({ valor: "SUCURSAL,WEB", ambito: "creditos" });
     expect(await screen.findByText("Parámetros de créditos guardados.")).toBeInTheDocument();
   });
@@ -99,5 +100,50 @@ describe("Parámetros de créditos", () => {
     expect(screen.queryByRole("button", { name: "Guardar parámetros" })).toBeNull();
     expect(screen.queryByLabelText("Nuevo canal")).toBeNull();
     expect(screen.getByLabelText(/Canal del portal/)).toBeDisabled();
+  });
+
+  // ── Videos de la solicitud del portal ───────────────────────────────────
+  const omitir = () => screen.getByLabelText("Omitir los videos de la solicitud");
+
+  it("el interruptor de los videos arranca apagado si el parámetro no está", async () => {
+    render(<ParametrosCreditosPage />);
+    expect(await screen.findByLabelText("Omitir los videos de la solicitud")).not.toBeChecked();
+    expect(screen.getByText(/tiene que ver los videos completos/)).toBeInTheDocument();
+  });
+
+  it("refleja el parámetro guardado", async () => {
+    creditos.adminParametros.mockResolvedValue([...PARS, { clave: "PORTAL_OMITIR_VIDEOS", valor: "true" }]);
+    render(<ParametrosCreditosPage />);
+    await waitFor(() => expect(omitir()).toBeChecked());
+    expect(screen.getByText(/directo a la confirmación/)).toBeInTheDocument();
+  });
+
+  it("activarlo y guardarlo manda true", async () => {
+    const u = userEvent.setup();
+    render(<ParametrosCreditosPage />);
+    await screen.findByRole("button", { name: "Quitar SUCURSAL" });
+
+    await u.click(omitir());
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledWith(
+      expect.objectContaining({ clave: "PORTAL_OMITIR_VIDEOS", valor: "true", ambito: "creditos" })));
+  });
+
+  it("desactivarlo manda false", async () => {
+    const u = userEvent.setup();
+    creditos.adminParametros.mockResolvedValue([...PARS, { clave: "PORTAL_OMITIR_VIDEOS", valor: "true" }]);
+    render(<ParametrosCreditosPage />);
+    await waitFor(() => expect(omitir()).toBeChecked());
+
+    await u.click(omitir());
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledWith(
+      expect.objectContaining({ clave: "PORTAL_OMITIR_VIDEOS", valor: "false" })));
+  });
+
+  it("en sólo lectura el interruptor no se puede tocar", async () => {
+    sesion(["creditos:read"]);
+    render(<ParametrosCreditosPage />);
+    await waitFor(() => expect(omitir()).toBeDisabled());
   });
 });

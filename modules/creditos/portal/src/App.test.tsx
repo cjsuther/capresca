@@ -398,6 +398,20 @@ describe("paso 4 · videos", () => {
     await waitFor(() => expect(JSON.parse(localStorage.getItem("portal_videos_u-1")!)).toEqual(["video1"]));
   });
 
+  // Con el paso omitido desde Parámetros de créditos, el backend devuelve la lista vacía.
+  it("si el paso está omitido, de la documentación se pasa derecho a confirmar", async () => {
+    api.videos.mockResolvedValue([]);
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
+    await adjuntarRequeridos(u);
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+
+    expect(await screen.findByText("Revisá y confirmá tu solicitud")).toBeInTheDocument();
+    expect(screen.queryByText(/Mirá los videos/)).not.toBeInTheDocument();
+    // La guía de pasos tampoco lo muestra.
+    expect(screen.queryByText("Videos")).not.toBeInTheDocument();
+  });
+
   it("si los videos no se pueden cargar no deja continuar", async () => {
     api.videos.mockRejectedValue(new Error("caído"));
     await llegarAVideos();

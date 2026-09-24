@@ -12,6 +12,7 @@ const DESC = {
   CANAL_BACKOFFICE: "Canal asumido al originar desde el backoffice sin canal explícito.",
   DECIMALES_CALCULO: "Decimales para el REDONDEO del cálculo de las cuotas (0–6).",
   DECIMALES_MOSTRAR: "Decimales con que se MUESTRAN los importes de créditos en pantalla (0–6).",
+  PORTAL_OMITIR_VIDEOS: "Saltear el paso de videos en la solicitud del portal (true/false).",
 };
 
 const acotar = (v) => Math.max(0, Math.min(6, Math.floor(Number(v) || 0)));
@@ -23,6 +24,7 @@ export default function ParametrosCreditosPage() {
   const [backoffice, setBackoffice] = useState("SUCURSAL");
   const [decimales, setDecimales] = useState(2);
   const [decimalesMostrar, setDecimalesMostrar] = useState(2);
+  const [omitirVideos, setOmitirVideos] = useState(false);
   const [nuevoCanal, setNuevoCanal] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -40,6 +42,7 @@ export default function ParametrosCreditosPage() {
       setBackoffice((m.CANAL_BACKOFFICE || "SUCURSAL").toUpperCase());
       setDecimales(acotar(m.DECIMALES_CALCULO ?? 2));
       setDecimalesMostrar(acotar(m.DECIMALES_MOSTRAR ?? 2));
+      setOmitirVideos(String(m.PORTAL_OMITIR_VIDEOS || "").toLowerCase() === "true");
     } catch (e) { setError(e.message); }
     finally { setCargando(false); }
   }
@@ -67,6 +70,7 @@ export default function ParametrosCreditosPage() {
       await up("CANAL_BACKOFFICE", backoffice);
       await up("DECIMALES_CALCULO", String(acotar(decimales)));
       await up("DECIMALES_MOSTRAR", String(acotar(decimalesMostrar)));
+      await up("PORTAL_OMITIR_VIDEOS", omitirVideos ? "true" : "false");
       setOk("Parámetros de créditos guardados.");
       cargar();
     } catch (e) { setError(e.message); }
@@ -77,7 +81,7 @@ export default function ParametrosCreditosPage() {
     <>
       <PageHeader
         titulo="Parámetros de créditos"
-        descripcion="Configuración exclusiva de créditos: canales de venta y decimales del cálculo."
+        descripcion="Configuración exclusiva de créditos: canales de venta, decimales del cálculo y el portal del ciudadano."
       />
 
       {error && <div className="mb-4"><Alerta>{error}</Alerta></div>}
@@ -137,6 +141,27 @@ export default function ParametrosCreditosPage() {
                 <span className="text-xs text-gray-400">Canal asumido al originar desde el backoffice sin elegir uno.</span>
               </Field>
             </div>
+          </Card>
+
+          <Card className="mb-4">
+            <h2 className="font-semibold text-gray-800">Portal del ciudadano</h2>
+            <p className="text-sm text-gray-500 mt-0.5 mb-3">
+              El paso 4 de la solicitud obliga a ver unos videos completos, sin adelantar, antes de
+              confirmar. Se puede saltear cuando hace falta (una demo, o mientras se regraban).
+            </p>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" className="mt-1 h-4 w-4" checked={omitirVideos}
+                     disabled={!puedeEscribir} aria-label="Omitir los videos de la solicitud"
+                     onChange={(e) => setOmitirVideos(e.target.checked)} />
+              <span>
+                <span className="text-sm font-medium text-gray-800">Omitir los videos de la solicitud</span>
+                <span className="block text-xs text-gray-500">
+                  {omitirVideos
+                    ? "El ciudadano pasa de la documentación directo a la confirmación."
+                    : "El ciudadano tiene que ver los videos completos antes de confirmar."}
+                </span>
+              </span>
+            </label>
           </Card>
 
           <Card className="mb-4">

@@ -245,6 +245,7 @@ CREDITOS_PARAMS_DEFAULT = [
     ("CANAL_BACKOFFICE", CANAL_BACKOFFICE_DEFAULT, "Canal asumido al originar desde el backoffice sin canal explícito."),
     ("DECIMALES_CALCULO", str(DECIMALES_CALCULO_DEFAULT), "Decimales para el REDONDEO del cálculo de las cuotas (0–6)."),
     ("DECIMALES_MOSTRAR", str(DECIMALES_MOSTRAR_DEFAULT), "Decimales con que se MUESTRAN los importes de créditos en pantalla (0–6)."),
+    ("PORTAL_OMITIR_VIDEOS", "false", "Saltear el paso de videos en la solicitud del portal (true/false)."),
 ]
 
 
