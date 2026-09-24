@@ -30,7 +30,7 @@ def _serial(i: ImportacionDespacho) -> dict:
     return {
         "id": i.id, "archivo": i.archivo, "tamano": i.tamano, "estado": i.estado,
         "modelos": i.modelos, "resoluciones": i.resoluciones, "beneficiarios": i.beneficiarios,
-        "omitidas": i.omitidas, "mensaje": i.mensaje or "",
+        "omitidas": i.omitidas, "reparadas": i.reparadas, "mensaje": i.mensaje or "",
         "creadoEn": i.creado_en, "terminadoEn": i.terminado_en,
     }
 

@@ -8,7 +8,7 @@ vi.mock("../../../api/despacho");
 
 const imp = (extra = {}) => ({
   id: 1, archivo: "despacho.zip", tamano: 2097152, estado: "TERMINADA", modelos: 120,
-  resoluciones: 8400, beneficiarios: 15300, omitidas: 12, mensaje: "",
+  resoluciones: 8400, beneficiarios: 15300, omitidas: 12, reparadas: 0, mensaje: "",
   creadoEn: "2026-09-24T10:00:00Z", terminadoEn: null, ...extra,
 });
 
@@ -27,6 +27,13 @@ describe("importar el despacho anterior", () => {
     expect(screen.getByText("Terminada")).toBeInTheDocument();
     expect(screen.getByText("8.400")).toBeInTheDocument();    // resoluciones
     expect(screen.getByText("15.300")).toBeInTheDocument();   // beneficiarios
+  });
+
+  it("muestra los textos que reparó de una importación anterior", async () => {
+    api.getImportaciones.mockResolvedValue({
+      items: [imp({ modelos: 0, resoluciones: 0, beneficiarios: 0, reparadas: 53257 })] });
+    render(<ImportarPage />);
+    expect(await screen.findByText("53.257")).toBeInTheDocument();
   });
 
   it("avisa cuando todavía no se importó nada", async () => {

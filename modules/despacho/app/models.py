@@ -210,7 +210,8 @@ class ImportacionDespacho(Base):
     resoluciones: Mapped[int] = mapped_column(Integer, default=0)
     beneficiarios: Mapped[int] = mapped_column(Integer, default=0)
     solicitudes: Mapped[int] = mapped_column(Integer, default=0)
-    omitidas: Mapped[int] = mapped_column(Integer, default=0)      # ya existían (es idempotente)
+    omitidas: Mapped[int] = mapped_column(Integer, default=0)        # ya existían (es idempotente)
+    reparadas: Mapped[int] = mapped_column(Integer, default=0)       # textos completados de otra corrida
     mensaje: Mapped[str] = mapped_column(Text, default="")
     usuario_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

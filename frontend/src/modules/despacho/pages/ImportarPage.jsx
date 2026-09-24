@@ -84,8 +84,9 @@ export default function ImportarPage() {
           <p className="text-sm text-gray-500 mt-1 max-w-3xl">
             Trae los modelos, las resoluciones y sus beneficiarios del despacho viejo
             (<code>rtf.dbf</code>, <code>resoluciones.dbf</code> y <code>beneficiarios.dbf</code>, en
-            un .zip). Lo importado entra como ya emitido. Volver a subir el mismo archivo no duplica
-            nada: las resoluciones repetidas se omiten.
+            un .zip, con los <code>.FPT</code> que llevan el texto). Lo importado entra como ya
+            emitido. Volver a subir el mismo archivo no duplica nada: las repetidas se omiten y, si
+            alguna quedó sin cuerpo, se le completa.
           </p>
         </div>
         <button type="button" onClick={cargar}
@@ -123,16 +124,17 @@ export default function ImportarPage() {
               <th className="px-4 py-2 font-medium text-right">Modelos</th>
               <th className="px-4 py-2 font-medium text-right">Resoluciones</th>
               <th className="px-4 py-2 font-medium text-right">Beneficiarios</th>
+              <th className="px-4 py-2 font-medium text-right">Textos reparados</th>
               <th className="px-4 py-2 font-medium text-right">Omitidas</th>
               <th className="px-4 py-2 font-medium">Cuándo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cargando && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
             )}
             {!cargando && items.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                 Todavía no se importó nada.
               </td></tr>
             )}
@@ -147,6 +149,7 @@ export default function ImportarPage() {
                 <td className="px-4 py-3 text-right tabular-nums">{num(i.modelos)}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{num(i.resoluciones)}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{num(i.beneficiarios)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{num(i.reparadas)}</td>
                 <td className="px-4 py-3 text-right tabular-nums text-gray-500">{num(i.omitidas)}</td>
                 <td className="px-4 py-3 text-xs text-gray-500">{fechaHora(i.creadoEn)}</td>
               </tr>

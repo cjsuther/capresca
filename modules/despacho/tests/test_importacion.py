@@ -26,6 +26,25 @@ CAMPOS_BEN = [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("TIPO_RES", "N", 2), ("
               ("TIPO_BENE", "N", 2), ("IMPORTE", "N", 14)]
 
 
+def escribir_memo(ruta, textos):
+    """Escribe el .FPT que acompaña al DBF: ahí vive el texto de verdad (campos tipo M)."""
+    BLOQUE = 64
+    out = bytearray(b"\x00" * 512)
+    posiciones = {}
+    bloque = 512 // BLOQUE
+    for clave, texto in textos.items():
+        datos = texto.encode("latin-1", "ignore")
+        cuerpo = struct.pack(">II", 1, len(datos)) + datos
+        cuerpo += b"\x00" * (-len(cuerpo) % BLOQUE)
+        out += cuerpo
+        posiciones[clave] = bloque
+        bloque += len(cuerpo) // BLOQUE
+    out[0:8] = struct.pack(">IHH", bloque, 0, BLOQUE)
+    with open(ruta, "wb") as fh:
+        fh.write(bytes(out))
+    return posiciones
+
+
 def escribir_dbf(ruta, campos, filas):
     largo_reg = 1 + sum(c[2] for c in campos)
     hdr = 32 + 32 * len(campos) + 1
@@ -45,6 +64,8 @@ def escribir_dbf(ruta, campos, filas):
                 out += b"T" if v else b"F"
             elif tipo == "D":
                 out += (v.strftime("%Y%m%d") if isinstance(v, date) else "        ").encode("latin-1")
+            elif tipo == "M":
+                out += struct.pack("<I", int(v or 0))
             elif tipo == "N":
                 out += str(v if v is not None else "").rjust(largo)[:largo].encode("latin-1")
             else:
@@ -204,6 +225,91 @@ def test_sin_resoluciones_dbf_termina_con_error(db, tmp_path, correr):
         z.writestr("leeme.txt", "nada")
     imp = correr(str(vacio))
     assert imp.estado == "ERROR" and "resoluciones.dbf" in imp.mensaje
+
+
+# --------------------------------------------------------------------------- memos (.fpt)
+RTF = r"{\rtf1\ansi SAN FERNANDO DEL VALLE DE CATAMARCA,\par {\b VISTO:} las actuaciones}"
+
+
+def test_el_texto_viene_del_archivo_de_memo(db, tmp_path, correr):
+    """El cuerpo de los instrumentos NO está en el .dbf sino en el .fpt de al lado: si el ZIP no lo
+    trae —o el importador no lo extrae— las tablas entran completas pero sin una línea de texto."""
+    carpeta = tmp_path / "conmemo"
+    carpeta.mkdir()
+    pos_m = escribir_memo(carpeta / "rtf.FPT", {"m": RTF})
+    escribir_dbf(carpeta / "rtf.dbf",
+                 [("COD_MOD", "N", 6), ("TIPO_RES", "N", 2), ("DES_MOD", "C", 120), ("MODELO", "M", 4)],
+                 [{"COD_MOD": 103, "TIPO_RES": 1, "DES_MOD": "TRANSFERENCIA", "MODELO": pos_m["m"]}])
+    pos_r = escribir_memo(carpeta / "resoluciones.FPT", {"r": RTF})
+    escribir_dbf(carpeta / "resoluciones.dbf",
+                 [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("TIPO_RES", "N", 2),
+                  ("COD_MOT", "N", 6), ("TEXTO", "M", 4)],
+                 [{"NRO_RES": 45, "FEC_RES": date(2024, 6, 10), "TIPO_RES": 1, "COD_MOT": 103,
+                   "TEXTO": pos_r["r"]}])
+    zip_ruta = tmp_path / "conmemo.zip"
+    with zipfile.ZipFile(zip_ruta, "w") as z:
+        for archivo in carpeta.iterdir():
+            z.write(archivo, f"Despacho/{archivo.name}")
+
+    imp = correr(str(zip_ruta), archivo="conmemo.zip")
+    assert imp.estado == "TERMINADA"
+
+    m = db.query(ModeloResolucion).one()
+    assert "CATAMARCA" in m.plantilla and "<b>VISTO:</b>" in m.plantilla
+    r = db.query(Resolucion).one()
+    assert "CATAMARCA" in r.texto
+
+
+def test_volver_a_subirlo_completa_los_textos_que_faltaban(db, tmp_path, correr):
+    """Reparar una importación vieja (la que entró sin los memos) volviendo a subir el archivo."""
+    db.add(ModeloResolucion(codigo=103, serie=1, descripcion="TRANSFERENCIA", plantilla=""))
+    db.add(Resolucion(numero=45, anio=2024, serie=1, tipo="RES", fecha=date(2024, 6, 10),
+                      texto="", estado="F"))
+    db.commit()
+
+    carpeta = tmp_path / "reparar"
+    carpeta.mkdir()
+    pos_m = escribir_memo(carpeta / "rtf.FPT", {"m": RTF})
+    escribir_dbf(carpeta / "rtf.dbf",
+                 [("COD_MOD", "N", 6), ("TIPO_RES", "N", 2), ("DES_MOD", "C", 120), ("MODELO", "M", 4)],
+                 [{"COD_MOD": 103, "TIPO_RES": 1, "DES_MOD": "TRANSFERENCIA", "MODELO": pos_m["m"]}])
+    pos_r = escribir_memo(carpeta / "resoluciones.FPT", {"r": RTF})
+    escribir_dbf(carpeta / "resoluciones.dbf",
+                 [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("TIPO_RES", "N", 2),
+                  ("COD_MOT", "N", 6), ("TEXTO", "M", 4)],
+                 [{"NRO_RES": 45, "FEC_RES": date(2024, 6, 10), "TIPO_RES": 1, "COD_MOT": 103,
+                   "TEXTO": pos_r["r"]}])
+    zip_ruta = tmp_path / "reparar.zip"
+    with zipfile.ZipFile(zip_ruta, "w") as z:
+        for archivo in carpeta.iterdir():
+            z.write(archivo, archivo.name)
+
+    imp = correr(str(zip_ruta), archivo="reparar.zip")
+    assert (imp.modelos, imp.resoluciones) == (0, 0)      # no duplica nada
+    assert imp.reparadas == 2                             # completa los dos textos
+    assert "CATAMARCA" in db.query(ModeloResolucion).one().plantilla
+    assert "CATAMARCA" in db.query(Resolucion).one().texto
+
+
+def test_un_texto_ya_cargado_no_se_pisa(db, tmp_path, correr):
+    db.add(Resolucion(numero=45, anio=2024, serie=1, tipo="RES", fecha=date(2024, 6, 10),
+                      texto="<p>lo que escribió el operador</p>", estado="B"))
+    db.commit()
+
+    carpeta = tmp_path / "nopisar"
+    carpeta.mkdir()
+    pos_r = escribir_memo(carpeta / "resoluciones.FPT", {"r": RTF})
+    escribir_dbf(carpeta / "resoluciones.dbf",
+                 [("NRO_RES", "N", 8), ("FEC_RES", "D", 8), ("TIPO_RES", "N", 2), ("TEXTO", "M", 4)],
+                 [{"NRO_RES": 45, "FEC_RES": date(2024, 6, 10), "TIPO_RES": 1, "TEXTO": pos_r["r"]}])
+    zip_ruta = tmp_path / "nopisar.zip"
+    with zipfile.ZipFile(zip_ruta, "w") as z:
+        for archivo in carpeta.iterdir():
+            z.write(archivo, archivo.name)
+
+    imp = correr(str(zip_ruta), archivo="nopisar.zip")
+    assert imp.reparadas == 0 and imp.omitidas >= 1
+    assert db.query(Resolucion).one().texto == "<p>lo que escribió el operador</p>"
 
 
 def test_una_importacion_cortada_por_un_reinicio_se_marca(db):

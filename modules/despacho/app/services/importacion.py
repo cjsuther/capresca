@@ -12,7 +12,8 @@ Cosas del formato viejo que hay que respetar:
 - Cada serie numera por su cuenta: el correlativo es único por (año, serie). Sin la serie, una de
   cada cinco resoluciones del backup se perdía por número repetido.
 
-Es idempotente: lo que ya está no se vuelve a crear ni se pisa.
+Es idempotente: lo que ya está no se vuelve a crear ni se pisa. Lo único que completa es el texto
+de lo que quedó vacío, para poder reparar una importación anterior volviendo a subir el archivo.
 """
 from __future__ import annotations
 
@@ -75,17 +76,27 @@ def _origen(x: dict) -> str:
     return " ".join(p for p in partes if p)
 
 
+# El texto de los instrumentos NO está en el .dbf sino en su archivo de memo (.fpt), al lado y con
+# el mismo nombre. Si no se extrae, las tablas entran completas pero todas las resoluciones quedan
+# sin cuerpo y los modelos sin plantilla.
+EXTENSIONES_DBF = (".dbf", ".fpt", ".dbt")
+
+
 def extraer(ruta: str) -> str:
-    """Devuelve la carpeta con los DBF (si subieron un ZIP, lo descomprime al lado)."""
+    """Devuelve la carpeta con los DBF y sus memos (si subieron un ZIP, lo descomprime al lado)."""
     if not zipfile.is_zipfile(ruta):
         return os.path.dirname(ruta)
     destino = os.path.splitext(ruta)[0] + "-extraido"
     os.makedirs(destino, exist_ok=True)
     with zipfile.ZipFile(ruta) as z:
         for nombre in z.namelist():
-            if nombre.lower().endswith(".dbf") and not nombre.startswith("__"):
+            if nombre.lower().endswith(EXTENSIONES_DBF) and not nombre.startswith("__"):
                 with z.open(nombre) as src, open(os.path.join(destino, os.path.basename(nombre)), "wb") as dst:
-                    dst.write(src.read())
+                    while True:
+                        trozo = src.read(4 * 1024 * 1024)      # los memos pesan cientos de MB
+                        if not trozo:
+                            break
+                        dst.write(trozo)
     return destino
 
 
@@ -149,7 +160,15 @@ def _importar_modelos(db: Session, imp: ImportacionDespacho,
                 serie = _serie(x)
                 tipo = "DIS" if x.get("disposicio") else "RES"
                 if (serie, codigo) in existentes:
-                    imp.omitidas += 1
+                    # Ya estaba: sólo se completa la plantilla si quedó vacía (importación anterior
+                    # sin el archivo de memo). Lo que tenga texto no se toca.
+                    viejo = existentes[(serie, codigo)]
+                    plantilla = rtf_a_html(x.get("modelo") or "")[:20000]
+                    if plantilla and not (viejo.plantilla or "").strip():
+                        viejo.plantilla = plantilla
+                        imp.reparadas += 1
+                    else:
+                        imp.omitidas += 1
                     continue
                 m = ModeloResolucion(
                     codigo=codigo, serie=serie, descripcion=_s(x.get("des_mod"))[:120], tipo=tipo,
@@ -185,7 +204,7 @@ def _importar_resoluciones(db: Session, imp: ImportacionDespacho, carpeta: str,
             tipo = "DIS" if x.get("disposicio") else "RES"
             serie = _serie(x)
             if (anio, serie, numero) in ya:      # el correlativo es único por serie: gana el primero
-                imp.omitidas += 1
+                _reparar_texto(db, imp, anio, serie, numero, x)
                 continue
             ya.add((anio, serie, numero))
 
@@ -214,6 +233,22 @@ def _importar_resoluciones(db: Session, imp: ImportacionDespacho, carpeta: str,
                 db.commit()
     imp.resoluciones = nuevas
     db.commit()
+
+
+def _reparar_texto(db: Session, imp: ImportacionDespacho, anio: int, serie: int, numero: int,
+                   x: dict) -> None:
+    """La resolución ya estaba. Si quedó sin cuerpo, se completa; si tiene, no se toca."""
+    texto = rtf_a_html(x.get("texto") or "")[:20000]
+    if not texto:
+        imp.omitidas += 1
+        return
+    r = db.scalar(select(Resolucion).where(Resolucion.anio == anio, Resolucion.serie == serie,
+                                           Resolucion.numero == numero))
+    if r is not None and not (r.texto or "").strip():
+        r.texto = texto
+        imp.reparadas += 1
+    else:
+        imp.omitidas += 1
 
 
 def _importar_beneficiarios(db: Session, imp: ImportacionDespacho, carpeta: str) -> None:

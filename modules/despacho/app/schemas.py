@@ -199,6 +199,7 @@ class ImportacionOut(BaseModel):
     resoluciones: int
     beneficiarios: int
     omitidas: int
+    reparadas: int = 0
     mensaje: str
     creadoEn: datetime | None = None
     terminadoEn: datetime | None = None
