@@ -48,18 +48,21 @@ def _pedir(metodo: str, ruta: str, **kw):
     return r.json()
 
 
-def candidatas(*, linea_min: int | None = None, linea_max: int | None = None,
-               cartera: int | None = None, lote: int | None = None) -> dict:
-    params = {k: v for k, v in {"linea_min": linea_min, "linea_max": linea_max,
-                                "cartera": cartera, "lote": lote}.items() if v is not None}
+def tipos() -> list[dict]:
+    """Los grupos por los que se arma un anexo: los productos de crédito."""
+    return _pedir("GET", "/tipos")
+
+
+def candidatas(*, producto_id: str | None = None, lote: int | None = None) -> dict:
+    params = {k: v for k, v in {"producto_id": producto_id, "lote": lote}.items() if v}
     return _pedir("GET", "/solicitudes", params=params)
 
 
-def asignar(*, solicitud_ids: list[int], numero_resolucion: int, fecha_resolucion) -> dict:
+def asignar(*, solicitud_ids: list[str], numero_resolucion: int, fecha_resolucion) -> dict:
     return _pedir("POST", "/asignar", json={
         "solicitud_ids": solicitud_ids, "numero_resolucion": numero_resolucion,
         "fecha_resolucion": fecha_resolucion.isoformat() if fecha_resolucion else None})
 
 
-def quitar(solicitud_ids: list[int]) -> dict:
+def quitar(solicitud_ids: list[str]) -> dict:
     return _pedir("POST", "/quitar", json={"solicitud_ids": solicitud_ids})

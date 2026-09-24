@@ -21,7 +21,7 @@ export default function AnexoPage() {
 
   const [vista, setVista] = useState("armar");       // armar | ver
   const [tipos, setTipos] = useState([]);
-  const [tipo, setTipo] = useState(6);
+  const [tipo, setTipo] = useState("");
   const [datos, setDatos] = useState({ items: [], cantidad: 0, total: 0 });
   const [elegidas, setElegidas] = useState(() => new Set());
   const [borradores, setBorradores] = useState([]);
@@ -106,8 +106,9 @@ export default function AnexoPage() {
         <h1 className="text-xl font-semibold text-gray-900">Anexo de resolución</h1>
         <p className="text-sm text-gray-500 mt-1 max-w-3xl">
           Las solicitudes aprobadas se otorgan <strong>en lote</strong>: se eligen acá y se asignan a
-          una resolución en borrador. El número de lote es el correlativo de esa resolución. Las
-          solicitudes son del módulo Créditos y se consultan en vivo: no hay copia de este lado.
+          una resolución en borrador, agrupadas por producto. El número de lote es el correlativo de
+          esa resolución. Las solicitudes son del módulo Créditos y se consultan en vivo: no hay
+          copia de este lado.
         </p>
       </div>
 
@@ -128,10 +129,10 @@ export default function AnexoPage() {
       <div className="flex flex-wrap items-end gap-3">
         {vista === "armar" ? (
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-gray-500">Tipo de anexo</span>
-            <select className="input w-56" value={tipo} aria-label="Tipo de anexo"
-                    onChange={(e) => setTipo(Number(e.target.value))}>
-              {tipos.map((t) => <option key={t.tipo} value={t.tipo}>{t.nombre}</option>)}
+            <span className="text-gray-500">Producto</span>
+            <select className="input w-56" value={tipo} aria-label="Producto"
+                    onChange={(e) => setTipo(e.target.value)}>
+              {tipos.map((t) => <option key={t.tipo || "todos"} value={t.tipo}>{t.nombre}</option>)}
             </select>
           </label>
         ) : (
@@ -162,20 +163,21 @@ export default function AnexoPage() {
                        checked={!!datos.items.length && elegidas.size === datos.items.length}
                        onChange={marcarTodas} />
               </th>
+              <th className="text-left px-4 py-3 font-medium">Solicitud</th>
               <th className="text-left px-4 py-3 font-medium">Solicitante</th>
               <th className="text-left px-4 py-3 font-medium">CUIL</th>
-              <th className="text-left px-4 py-3 font-medium">Línea</th>
+              <th className="text-left px-4 py-3 font-medium">Producto</th>
               <th className="text-left px-4 py-3 font-medium">Fecha</th>
               <th className="text-right px-4 py-3 font-medium">Monto</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cargando && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
             )}
             {!cargando && datos.items.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                {vista === "armar" ? "No hay solicitudes pendientes de resolución para este tipo."
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                {vista === "armar" ? "No hay solicitudes aprobadas pendientes de resolución."
                                    : "Indicá el número de resolución para ver su anexo."}
               </td></tr>
             )}
@@ -185,9 +187,10 @@ export default function AnexoPage() {
                   <input type="checkbox" aria-label={`Elegir ${s.apellido_nombre}`}
                          checked={elegidas.has(s.id)} onChange={() => marcar(s.id)} />
                 </td>
+                <td className="px-4 py-3 text-gray-500 tabular-nums">{s.numero}</td>
                 <td className="px-4 py-3 text-gray-800">{s.apellido_nombre}</td>
                 <td className="px-4 py-3 text-gray-600 tabular-nums">{s.cuil}</td>
-                <td className="px-4 py-3 text-gray-600">{s.linea_nombre || s.linea}</td>
+                <td className="px-4 py-3 text-gray-600">{s.producto}</td>
                 <td className="px-4 py-3 text-gray-600">{fecha(s.fecha_solicitud)}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{money(s.monto)}</td>
               </tr>
@@ -196,7 +199,7 @@ export default function AnexoPage() {
           {datos.items.length > 0 && (
             <tfoot className="bg-gray-50 text-gray-700 font-medium">
               <tr>
-                <td colSpan={5} className="px-4 py-3 text-right">
+                <td colSpan={6} className="px-4 py-3 text-right">
                   {elegidas.size > 0 ? `${elegidas.size} elegida(s)` : `${datos.cantidad} solicitud(es)`}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">

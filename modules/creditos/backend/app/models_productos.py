@@ -356,6 +356,12 @@ class PPSolicitud(Base):
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     enviada_por: Mapped[str] = mapped_column(String(30), default="")
     resuelta_por: Mapped[str] = mapped_column(String(30), default="")   # aprobó/rechazó
+    # Anexo de resolución (módulo Despacho): el acto administrativo que la otorga formalmente.
+    # El lote ES el número de la resolución, como en el sistema anterior.
+    numero_resolucion: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    lote_resolucion: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    fecha_resolucion: Mapped[date | None] = mapped_column(Date, nullable=True)
+    en_resolucion: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
 
 class PPSolicitudDocumento(Base):

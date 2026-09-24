@@ -101,9 +101,9 @@ def resolucion(client, h):
 def creditos(monkeypatch):
     """Créditos de mentira: las solicitudes del anexo son suyas y se consultan por su API interna.
 
-    Reproduce sus reglas (aprobada + cubicada, y no puede estar en dos resoluciones) para poder
-    probar el circuito completo del anexo sin levantar el otro módulo. Las reglas de verdad tienen
-    sus propios tests en Créditos.
+    Reproduce sus reglas (sólo lo aprobado, y no puede estar en dos resoluciones) para poder probar
+    el circuito completo del anexo sin levantar el otro módulo. Las reglas de verdad tienen sus
+    propios tests en Créditos.
     """
     from decimal import Decimal
 
@@ -111,37 +111,45 @@ def creditos(monkeypatch):
 
     from app.services import creditos_central
 
-    filas: dict[int, dict] = {}
-    proximo = {"id": 1000}
+    PRODUCTOS = [{"tipo": "prod-personal", "nombre": "Préstamo personal"},
+                 {"tipo": "prod-vivienda", "nombre": "Vivienda"}]
+    filas: dict[str, dict] = {}
+    proximo = {"n": 0}
 
-    def alta(cantidad=3, linea=8050, estado="A", cubica="C", cartera=0):
+    def alta(cantidad=3, producto="prod-personal", estado="APROBADA"):
         creadas = []
         for i in range(cantidad):
-            proximo["id"] += 1
-            filas[proximo["id"]] = {
-                "id": proximo["id"], "fecha_solicitud": None, "cuil": f"2030504757{i}",
-                "apellido_nombre": f"PEREZ {i}", "dni": "30504757", "monto": Decimal(100000 + i),
-                "linea": linea, "linea_nombre": "AGAP", "cartera": cartera, "estado": estado,
-                "cubica": cubica, "lote": 0, "numero_resolucion": 0, "en_resolucion": False}
-            creadas.append(filas[proximo["id"]])
+            proximo["n"] += 1
+            sid = f"sol-{proximo['n']}"
+            filas[sid] = {
+                "id": sid, "numero": f"SOL-{proximo['n']:05d}", "fecha_solicitud": None,
+                "cuil": f"2030504757{i}", "apellido_nombre": f"PEREZ {i}", "dni": "30504757",
+                "monto": Decimal(100000 + i), "producto_id": producto,
+                "producto": next(p["nombre"] for p in PRODUCTOS if p["tipo"] == producto),
+                "estado": estado, "lote": 0, "numero_resolucion": 0, "en_resolucion": False}
+            creadas.append(filas[sid])
         return creadas
 
-    def candidatas(*, linea_min=None, linea_max=None, cartera=None, lote=None):
+    def tipos():
+        return PRODUCTOS
+
+    def candidatas(*, producto_id=None, lote=None):
         if lote:
             items = [f for f in filas.values() if f["en_resolucion"] and f["lote"] == lote]
         else:
             items = [f for f in filas.values()
-                     if f["estado"] == "A" and f["cubica"] in ("C", "DC") and not f["en_resolucion"]]
-            if cartera is not None:
-                items = [f for f in items if f["cartera"] == cartera]
-            elif linea_min is not None:
-                items = [f for f in items if linea_min <= f["linea"] <= linea_max]
+                     if f["estado"] == "APROBADA" and not f["en_resolucion"]]
+            if producto_id:
+                items = [f for f in items if f["producto_id"] == producto_id]
         return {"items": items, "cantidad": len(items),
                 "total": sum((f["monto"] for f in items), Decimal("0"))}
 
     def asignar(*, solicitud_ids, numero_resolucion, fecha_resolucion):
         elegidas = [filas[i] for i in solicitud_ids if i in filas]
-        ajenas = [f["id"] for f in elegidas
+        sin_aprobar = [f["numero"] for f in elegidas if f["estado"] != "APROBADA"]
+        if sin_aprobar:
+            raise HTTPException(422, f"Estas solicitudes no están aprobadas: {sin_aprobar}.")
+        ajenas = [f["numero"] for f in elegidas
                   if f["en_resolucion"] and f["numero_resolucion"] != numero_resolucion]
         if ajenas:
             raise HTTPException(422, f"Estas solicitudes ya están en otra resolución: {ajenas}.")
@@ -156,7 +164,8 @@ def creditos(monkeypatch):
         return {"quitadas": len(sacadas)}
 
     monkeypatch.setattr(creditos_central, "habilitado", lambda: True)
+    monkeypatch.setattr(creditos_central, "tipos", tipos)
     monkeypatch.setattr(creditos_central, "candidatas", candidatas)
     monkeypatch.setattr(creditos_central, "asignar", asignar)
     monkeypatch.setattr(creditos_central, "quitar", quitar)
-    return SimpleNamespace(alta=alta, filas=filas)
+    return SimpleNamespace(alta=alta, filas=filas, productos=PRODUCTOS)

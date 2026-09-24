@@ -7,7 +7,8 @@ Las solicitudes no se guardan acá: son de Créditos y se consultan por su API i
 la regla del instrumento (un acto emitido no se toca) y Créditos la de la solicitud (no puede estar
 otorgada por dos resoluciones).
 
-Los tipos de anexo agrupan por rango de línea de crédito (del formulario VFP del anexo).
+El anexo se arma por producto de crédito (en el sistema anterior eran rangos de línea; hoy el
+circuito vivo son los productos, y los publica Créditos).
 """
 from decimal import Decimal
 
@@ -18,41 +19,25 @@ from sqlalchemy.orm import Session
 from app.models import SERIE_POR_DEFECTO, Resolucion
 from app.services import creditos_central
 
-TIPOS_ANEXO = {
-    1: {"nombre": "AGAP", "linea_min": 8050, "linea_max": 8051},
-    2: {"nombre": "Microcréditos", "linea_min": 6810, "linea_max": 6813},
-    3: {"nombre": "Productivos", "linea_min": 6800, "linea_max": 6801},
-    4: {"nombre": "Vivienda", "linea_min": 8130, "linea_max": 8133},
-    5: {"nombre": "Gas", "cartera": 11},
-    6: {"nombre": "Resto", "todos": True},
-}
+TODOS = ""     # sin filtrar por producto
 
 
 def tipos() -> list[dict]:
-    return [{"tipo": t, "nombre": cfg["nombre"]} for t, cfg in TIPOS_ANEXO.items()]
+    """Los productos por los que se puede agrupar, más la opción de traerlos todos."""
+    return [{"tipo": TODOS, "nombre": "Todos los productos"}] + creditos_central.tipos()
 
 
-def _filtro(tipo: int) -> dict:
-    """Qué solicitudes pide cada tipo de anexo. 'Resto' no filtra: trae todo lo pendiente."""
-    cfg = TIPOS_ANEXO.get(tipo, TIPOS_ANEXO[6])
-    if cfg.get("todos"):
-        return {}
-    if "cartera" in cfg:
-        return {"cartera": cfg["cartera"]}
-    return {"linea_min": cfg["linea_min"], "linea_max": cfg["linea_max"]}
-
-
-def candidatas(db: Session, tipo: int, lote: int | None = None) -> dict:
-    """Las que todavía no están en ninguna resolución (aprobadas y cubicadas), o las de un lote ya
-    asignado, para reimprimir el anexo."""
+def candidatas(db: Session, tipo: str = TODOS, lote: int | None = None) -> dict:
+    """Las aprobadas que todavía no están en ninguna resolución, o las de un lote ya asignado,
+    para reimprimir el anexo."""
     d = (creditos_central.candidatas(lote=lote) if lote
-         else creditos_central.candidatas(**_filtro(tipo)))
-    return {"tipo": tipo, "nombre": TIPOS_ANEXO.get(tipo, {}).get("nombre", ""),
-            "cantidad": d.get("cantidad", 0), "total": Decimal(str(d.get("total") or 0)),
-            "items": d.get("items", [])}
+         else creditos_central.candidatas(producto_id=tipo or None))
+    nombre = next((t["nombre"] for t in tipos() if t["tipo"] == tipo), "") if tipo else "Todos los productos"
+    return {"tipo": tipo, "nombre": nombre, "cantidad": d.get("cantidad", 0),
+            "total": Decimal(str(d.get("total") or 0)), "items": d.get("items", [])}
 
 
-def asignar(db: Session, *, tipo: int, resolucion_id: int, solicitud_ids: list[int]) -> dict:
+def asignar(db: Session, *, tipo: str, resolucion_id: int, solicitud_ids: list[str]) -> dict:
     """Mete las solicitudes elegidas en el anexo de la resolución."""
     if not solicitud_ids:
         raise HTTPException(422, "Elegí al menos una solicitud.")
@@ -69,7 +54,7 @@ def asignar(db: Session, *, tipo: int, resolucion_id: int, solicitud_ids: list[i
             "total": Decimal(str(d.get("total") or 0))}
 
 
-def quitar(db: Session, solicitud_ids: list[int], *, numero_resolucion: int | None = None) -> dict:
+def quitar(db: Session, solicitud_ids: list[str], *, numero_resolucion: int | None = None) -> dict:
     """Saca solicitudes del anexo (mientras la resolución siga en borrador)."""
     if not solicitud_ids:
         return {"quitadas": 0}

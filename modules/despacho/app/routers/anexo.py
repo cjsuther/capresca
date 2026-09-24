@@ -23,7 +23,7 @@ def tipos(_u: Usuario = Depends(usuario_actual)):
 
 
 @router.get("/anexo/solicitudes")
-def solicitudes(tipo: int = Query(6), lote: int | None = None, db: Session = Depends(get_db),
+def solicitudes(tipo: str = Query(""), lote: int | None = None, db: Session = Depends(get_db),
                 _u: Usuario = Depends(usuario_actual)):
     d = svc.candidatas(db, tipo, lote)
     d["items"] = [schemas.SolicitudAnexoOut.model_validate(x) for x in d["items"]]
@@ -48,7 +48,7 @@ def anexo_word(resolucion_id: int, db: Session = Depends(get_db),
                _u: Usuario = Depends(usuario_actual)):
     """El anexo impreso: el listado de solicitudes que otorga la resolución."""
     r = svc_res.obtener(db, resolucion_id)
-    filas = svc.candidatas(db, 6, lote=r.numero)["items"]
+    filas = svc.candidatas(db, lote=r.numero)["items"]
     nombre = f"anexo_{r.tipo}_{r.numero_real or r.numero}_{r.anio}.docx"
     return Response(content=anexo_docx(r, filas), media_type=DOCX,
                     headers={"Content-Disposition": f'attachment; filename="{nombre}"'})

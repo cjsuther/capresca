@@ -122,16 +122,16 @@ class PaginaResoluciones(BaseModel):
 class SolicitudAnexoOut(BaseModel):
     """Lo que Créditos devuelve por cada solicitud candidata al anexo."""
 
-    id: int
+    id: str
+    numero: str
     fecha_solicitud: date | None
     cuil: str
     apellido_nombre: str
     dni: str
     monto: Decimal
-    linea: int
-    linea_nombre: str
+    producto_id: str
+    producto: str
     estado: str
-    cubica: str
     lote: int
     numero_resolucion: int
     en_resolucion: bool
@@ -140,13 +140,13 @@ class SolicitudAnexoOut(BaseModel):
 
 
 class AnexoAsignarIn(BaseModel):
-    tipo: int = 6
+    tipo: str = ""                      # producto por el que se agrupó (informativo)
     resolucion_id: int
-    solicitud_ids: list[int] = Field(default_factory=list)
+    solicitud_ids: list[str] = Field(default_factory=list)
 
 
 class AnexoQuitarIn(BaseModel):
-    solicitud_ids: list[int] = Field(default_factory=list)
+    solicitud_ids: list[str] = Field(default_factory=list)
     # Para verificar que el instrumento siga en borrador antes de sacar nada.
     numero_resolucion: int | None = None
 

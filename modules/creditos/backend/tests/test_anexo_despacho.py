@@ -5,10 +5,12 @@ entrar en un anexo y la garantía de que una solicitud no quede otorgada dos vec
 """
 from datetime import date
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app import models as m
+from app import models_productos as m
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 
@@ -36,20 +38,33 @@ def h():
 
 
 @pytest.fixture
-def solicitudes():
-    """Solicitudes aprobadas y cubicadas, que es lo que entra al anexo."""
+def producto():
+    """Un producto con su versión, que es lo que agrupa el anexo."""
+    db = SessionLocal()
+    p = db.query(m.PPProducto).first()
+    assert p is not None, "el seed debe dejar al menos un producto"
+    pid, nombre = p.id, p.nombre
+    db.close()
+    return SimpleNamespace(id=pid, nombre=nombre)
+
+
+@pytest.fixture
+def solicitudes(producto):
+    """Solicitudes APROBADAS, que es lo que entra al anexo."""
     creadas = []
     db = SessionLocal()
-    proximo = {"id": 90000}
+    proximo = {"n": 0}
 
-    def _crear(cantidad=2, linea=8050, estado="A", cubica="C", **extra):
+    def _crear(cantidad=2, estado="APROBADA", producto_id=None):
         hechas = []
         for i in range(cantidad):
-            proximo["id"] += 1
-            s = m.SolicitudCredito(id=proximo["id"], cuil=f"2030504757{i}",
-                                   apellido_nombre=f"PEREZ {i}", dni="30504757",
-                                   montosol=100000 + i, linea=linea, estado=estado,
-                                   cubica=cubica, **extra)
+            proximo["n"] += 1
+            s = m.PPSolicitud(numero=f"ANX-{proximo['n']:05d}", estado=estado,
+                              solicitante_tipo="NO_REGISTRADO",
+                              cliente_datos={"apellido_nombre": f"PEREZ {i}",
+                                             "cuil": f"2030504757{i}", "dni": "30504757"},
+                              producto_id=producto_id or producto.id,
+                              monto_solicitado=100000 + i)
             db.add(s)
             hechas.append(s)
         db.commit()
@@ -65,21 +80,32 @@ def solicitudes():
     db.close()
 
 
-def test_ofrece_las_aprobadas_y_cubicadas_del_rango_de_lineas(client, h, solicitudes):
-    solicitudes(2, linea=8050)                       # AGAP
-    solicitudes(1, linea=6800)                       # Productivos
-    r = client.get(f"{SOLICITUDES}?linea_min=8050&linea_max=8051", headers=h)
-    assert r.status_code == 200
-    assert r.json()["cantidad"] == 2
-    assert all(8050 <= i["linea"] <= 8051 for i in r.json()["items"])
+def test_ofrece_las_aprobadas_del_producto(client, h, solicitudes, producto):
+    solicitudes(2)
+    r = client.get(f"{SOLICITUDES}?producto_id={producto.id}", headers=h)
+    assert r.status_code == 200 and r.json()["cantidad"] == 2
+    assert all(i["producto"] == producto.nombre for i in r.json()["items"])
+    assert all(i["apellido_nombre"].startswith("PEREZ") for i in r.json()["items"])
 
 
-def test_no_ofrece_las_que_no_estan_aprobadas_ni_cubicadas(client, h, solicitudes):
-    solicitudes(1, estado="I")                       # todavía en trámite
-    solicitudes(1, cubica="D")                       # sin fondos asignados
+def test_los_tipos_son_los_productos(client, h, producto):
+    d = client.get("/internal/creditos/anexo/tipos", headers=h).json()
+    assert {"tipo": producto.id, "nombre": producto.nombre} in d
+
+
+def test_no_ofrece_las_que_no_estan_aprobadas(client, h, solicitudes):
+    solicitudes(1, estado="EN_EVALUACION")
+    solicitudes(1, estado="BORRADOR")
     aprobada = solicitudes(1)[0]
     d = client.get(SOLICITUDES, headers=h).json()
     assert [i["id"] for i in d["items"]] == [aprobada.id]
+
+
+def test_no_se_otorga_algo_que_no_esta_aprobado(client, h, solicitudes):
+    """Una resolución no puede alcanzar una solicitud todavía en evaluación."""
+    s = solicitudes(1, estado="EN_EVALUACION")[0]
+    r = client.post(ASIGNAR, headers=h, json={"solicitud_ids": [s.id], "numero_resolucion": 45})
+    assert r.status_code == 422 and "no están aprobadas" in r.json()["detail"]
 
 
 def test_asignar_deja_el_numero_de_resolucion_en_la_solicitud(client, h, solicitudes):
@@ -90,10 +116,10 @@ def test_asignar_deja_el_numero_de_resolucion_en_la_solicitud(client, h, solicit
     assert a.status_code == 200 and a.json()["asignadas"] == 2
 
     db = SessionLocal()
-    s = db.get(m.SolicitudCredito, ss[0].id)
+    s = db.get(m.PPSolicitud, ss[0].id)
     # El lote ES el número de la resolución, como en el sistema anterior.
-    assert (s.no_resol, s.lote, s.en_reso) == (45, 45, True)
-    assert s.fecha_resol == date(2026, 6, 10)
+    assert (s.numero_resolucion, s.lote_resolucion, s.en_resolucion) == (45, 45, True)
+    assert s.fecha_resolucion == date(2026, 6, 10)
     db.close()
 
     # Ya no es candidata, pero sí aparece al pedir su lote (para reimprimir el anexo).
@@ -127,11 +153,11 @@ def test_sin_la_clave_interna_no_se_entra(client, solicitudes):
     assert client.get(SOLICITUDES).status_code == 401
     assert client.get(SOLICITUDES, headers={"X-Api-Key": "otra"}).status_code == 401
     assert client.post(ASIGNAR, headers={"X-Api-Key": "otra"},
-                       json={"solicitud_ids": [1], "numero_resolucion": 1}).status_code == 401
+                       json={"solicitud_ids": ["x"], "numero_resolucion": 1}).status_code == 401
 
 
 def test_una_solicitud_inexistente_se_rechaza(client, h, solicitudes):
     ss = solicitudes(1)
-    r = client.post(ASIGNAR, headers=h, json={"solicitud_ids": [ss[0].id, 999999],
+    r = client.post(ASIGNAR, headers=h, json={"solicitud_ids": [ss[0].id, "no-existe"],
                                               "numero_resolucion": 45})
     assert r.status_code == 422 and "no existe" in r.json()["detail"]

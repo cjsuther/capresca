@@ -84,6 +84,12 @@ def _migrar_iam() -> None:
         # es el del padrón (ya no una secuencia local). Se agrega la marca de sincronización y se saca
         # el default de la secuencia para que un INSERT sin id falle en vez de inventar un id local.
         conn.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS sincronizado_en TIMESTAMPTZ"))
+        # Anexo de resolución (Despacho): qué acto administrativo otorgó cada solicitud.
+        for col, tipo in (("numero_resolucion", "INTEGER DEFAULT 0 NOT NULL"),
+                          ("lote_resolucion", "INTEGER DEFAULT 0 NOT NULL"),
+                          ("fecha_resolucion", "DATE"),
+                          ("en_resolucion", "BOOLEAN DEFAULT FALSE NOT NULL")):
+            conn.execute(text(f"ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS {col} {tipo}"))
         try:
             conn.execute(text("ALTER TABLE clientes ALTER COLUMN id DROP DEFAULT"))
         except Exception as e:  # pragma: no cover
