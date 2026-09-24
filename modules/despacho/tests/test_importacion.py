@@ -203,6 +203,16 @@ def test_no_deja_subir_otra_cosa_ni_dos_a_la_vez(client, h, db, tmp_path, monkey
     assert r.status_code == 409 and "en curso" in r.json()["detail"]
 
 
+def test_el_listado_viene_envuelto_en_items(client, h, db):
+    """La pantalla lee `items`: si el listado vuelve pelado, la importación no se puede ni abrir."""
+    db.add(ImportacionDespacho(archivo="despacho.zip", tamano=10, estado="TERMINADA",
+                               resoluciones=8400))
+    db.commit()
+    r = client.get("/api/despacho/importaciones", headers=h)
+    assert r.status_code == 200, r.text
+    assert [i["archivo"] for i in r.json()["items"]] == ["despacho.zip"]
+
+
 def test_importar_pide_su_permiso(client, solo_lectura):
     r = client.get("/api/despacho/importaciones", headers=solo_lectura)
     assert r.status_code == 403 and "despacho:importar" in r.json()["detail"]

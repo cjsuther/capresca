@@ -77,12 +77,12 @@ def subir(file: UploadFile = File(...), db: Session = Depends(get_db),
     return _serial(imp)
 
 
-@router.get("/importaciones", response_model=list[schemas.ImportacionOut])
+@router.get("/importaciones", response_model=schemas.ListaImportaciones)
 def listar(limit: int = Query(20, ge=1, le=100), db: Session = Depends(get_db),
            _u: Usuario = Depends(requiere("importar"))):
     filas = db.scalars(select(ImportacionDespacho)
                        .order_by(ImportacionDespacho.id.desc()).limit(limit)).all()
-    return [_serial(f) for f in filas]
+    return {"items": [_serial(f) for f in filas]}
 
 
 @router.get("/importaciones/{import_id}", response_model=schemas.ImportacionOut)

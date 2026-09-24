@@ -198,3 +198,9 @@ class ImportacionOut(BaseModel):
     terminadoEn: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class ListaImportaciones(BaseModel):
+    """El listado va envuelto en `items`, igual que el importador del padrón de clientes."""
+
+    items: list[ImportacionOut] = []

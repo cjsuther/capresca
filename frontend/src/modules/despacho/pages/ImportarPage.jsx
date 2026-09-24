@@ -30,7 +30,7 @@ export default function ImportarPage() {
 
   const cargar = useCallback(() => {
     getImportaciones()
-      .then((d) => setItems(d.items))
+      .then((d) => setItems(d.items ?? []))
       .catch((e) => setError(e?.response?.data?.detail || "No se pudieron cargar las importaciones"))
       .finally(() => setCargando(false));
   }, []);
