@@ -47,6 +47,16 @@ describe("importar el despacho anterior", () => {
     expect(await screen.findByText("despacho.zip")).toBeInTheDocument();
   });
 
+  it("si el servidor lo rechaza por tamaño lo explica (nginx no manda detalle)", async () => {
+    api.subirDespacho.mockRejectedValue({ response: { status: 413, data: "<html>413</html>" } });
+    render(<ImportarPage />);
+    await screen.findByText(/Todavía no se importó nada/);
+
+    const archivo = new File(["x"], "despacho.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByLabelText("Backup del despacho"), { target: { files: [archivo] } });
+    expect(await screen.findByText(/rechazó el archivo por tamaño/)).toBeInTheDocument();
+  });
+
   it("mientras una corre no deja subir otra y consulta el avance", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     api.getImportaciones.mockResolvedValue({ items: [imp({ estado: "PROCESANDO", resoluciones: 1200 })] });

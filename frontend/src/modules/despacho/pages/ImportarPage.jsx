@@ -56,7 +56,10 @@ export default function ImportarPage() {
       const creada = await subirDespacho(archivo, (p) => setSubiendo(Math.max(p, 1)));
       setItems((xs) => [creada, ...xs]);
     } catch (e) {
-      setError(e?.response?.data?.detail || "No se pudo subir el archivo");
+      // El 413 lo devuelve nginx, no el módulo: viene sin `detail` y hay que explicarlo.
+      setError(e?.response?.status === 413
+        ? "El servidor rechazó el archivo por tamaño. Avisá a sistemas para ampliar el límite."
+        : e?.response?.data?.detail || "No se pudo subir el archivo");
     } finally {
       setSubiendo(0);
       if (inputRef.current) inputRef.current.value = "";
