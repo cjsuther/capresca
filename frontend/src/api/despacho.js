@@ -81,6 +81,9 @@ export const subirDespacho = (archivo, onProgreso) => {
   f.append("file", archivo);
   return api.post("/despacho/importaciones", f, {
     headers: { "Content-Type": "multipart/form-data" },
+    // Sin el límite general de 15 s: el backup son ~26 MB y subirlo lleva bastante más que eso.
+    // El servidor responde apenas termina de recibirlo; el procesado va en segundo plano.
+    timeout: 0,
     onUploadProgress: (e) => onProgreso?.(e.total ? Math.round((e.loaded * 100) / e.total) : 0),
   }).then((r) => r.data);
 };

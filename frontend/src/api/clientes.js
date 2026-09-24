@@ -91,7 +91,10 @@ export const subirPadron = (archivo, onProgreso) => {
   f.append("file", archivo);
   return api.post("/clientes/padron/importaciones", f, {
     headers: { "Content-Type": "multipart/form-data" },
-    // El ZIP son ~10 MB: la barra muestra la subida antes de que empiece a procesarse.
+    // El ZIP son ~10 MB: no le corre el límite general de 15 s, que con una conexión lenta corta
+    // la subida a mitad de camino.
+    timeout: 0,
+    // La barra muestra la subida antes de que empiece a procesarse.
     onUploadProgress: (e) => onProgreso?.(e.total ? Math.round((e.loaded * 100) / e.total) : 0),
   }).then((r) => r.data);
 };
