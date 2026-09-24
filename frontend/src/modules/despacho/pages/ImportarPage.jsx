@@ -16,6 +16,19 @@ const num = (n) => Number(n || 0).toLocaleString("es-AR");
 const fechaHora = (s) => (s ? new Date(s).toLocaleString("es-AR") : "—");
 const peso = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`);
 
+/** Sin respuesta del servidor el error viene sin `detail`, y "no se pudo subir" no dice nada. */
+function mensajeDeError(e) {
+  if (e?.response?.status === 413) {
+    return "El servidor rechazó el archivo por tamaño. Avisá a sistemas para ampliar el límite.";
+  }
+  if (!e?.response) {
+    return "Se cortó la subida antes de terminar. Puede ser la conexión, o que la página esté "
+      + "desactualizada: recargá con Ctrl+Shift+R (Cmd+Shift+R en Mac) y probá de nuevo.";
+  }
+  return e?.response?.data?.detail || `El servidor respondió ${e.response.status}.`;
+}
+
+
 function Estado({ estado }) {
   const [texto, clase] = ESTADOS[estado] || [estado, "bg-gray-100 text-gray-600"];
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${clase}`}>{texto}</span>;
@@ -56,10 +69,7 @@ export default function ImportarPage() {
       const creada = await subirDespacho(archivo, (p) => setSubiendo(Math.max(p, 1)));
       setItems((xs) => [creada, ...xs]);
     } catch (e) {
-      // El 413 lo devuelve nginx, no el módulo: viene sin `detail` y hay que explicarlo.
-      setError(e?.response?.status === 413
-        ? "El servidor rechazó el archivo por tamaño. Avisá a sistemas para ampliar el límite."
-        : e?.response?.data?.detail || "No se pudo subir el archivo");
+      setError(mensajeDeError(e));
     } finally {
       setSubiendo(0);
       if (inputRef.current) inputRef.current.value = "";

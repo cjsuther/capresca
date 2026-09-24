@@ -57,6 +57,16 @@ describe("importar el despacho anterior", () => {
     expect(await screen.findByText(/rechazó el archivo por tamaño/)).toBeInTheDocument();
   });
 
+  it("si la subida se corta sin respuesta lo dice, en vez de un error genérico", async () => {
+    api.subirDespacho.mockRejectedValue({ code: "ECONNABORTED", message: "timeout" });
+    render(<ImportarPage />);
+    await screen.findByText(/Todavía no se importó nada/);
+
+    const archivo = new File(["x"], "despacho.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByLabelText("Backup del despacho"), { target: { files: [archivo] } });
+    expect(await screen.findByText(/Se cortó la subida antes de terminar/)).toBeInTheDocument();
+  });
+
   it("mientras una corre no deja subir otra y consulta el avance", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     api.getImportaciones.mockResolvedValue({ items: [imp({ estado: "PROCESANDO", resoluciones: 1200 })] });
