@@ -13,7 +13,20 @@ const DESC = {
   DECIMALES_CALCULO: "Decimales para el REDONDEO del cálculo de las cuotas (0–6).",
   DECIMALES_MOSTRAR: "Decimales con que se MUESTRAN los importes de créditos en pantalla (0–6).",
   PORTAL_OMITIR_VIDEOS: "Saltear el paso de videos en la solicitud del portal (true/false).",
+  PORTAL_DOCUMENTOS: "Documentación que pide la solicitud del portal (tipos separados por coma).",
 };
+
+// La documentación que puede pedir la solicitud del portal. El orden es el del circuito y es el
+// que ve el ciudadano; el backend lo respeta al devolver los habilitados.
+const DOCUMENTOS = [
+  ["DNI_FRENTE", "DNI (frente)"],
+  ["DNI_DORSO", "DNI (dorso)"],
+  ["SELFIE_DNI", "Selfie con el DNI en la mano"],
+  ["RECIBO", "Recibo de sueldo"],
+  ["CERTIFICADO_SERVICIOS", "Certificado de servicios"],
+  ["CONSTANCIA_CBU", "Constancia de CBU"],
+];
+const TODOS_LOS_DOCUMENTOS = DOCUMENTOS.map(([t]) => t);
 
 const acotar = (v) => Math.max(0, Math.min(6, Math.floor(Number(v) || 0)));
 
@@ -25,6 +38,7 @@ export default function ParametrosCreditosPage() {
   const [decimales, setDecimales] = useState(2);
   const [decimalesMostrar, setDecimalesMostrar] = useState(2);
   const [omitirVideos, setOmitirVideos] = useState(false);
+  const [docs, setDocs] = useState(TODOS_LOS_DOCUMENTOS);
   const [nuevoCanal, setNuevoCanal] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -43,6 +57,12 @@ export default function ParametrosCreditosPage() {
       setDecimales(acotar(m.DECIMALES_CALCULO ?? 2));
       setDecimalesMostrar(acotar(m.DECIMALES_MOSTRAR ?? 2));
       setOmitirVideos(String(m.PORTAL_OMITIR_VIDEOS || "").toLowerCase() === "true");
+      // Sin el parámetro cargado se piden todos: es el comportamiento anterior a que fuera
+      // configurable. Cargado y vacío es una decisión explícita (no pedir ninguno).
+      setDocs(m.PORTAL_DOCUMENTOS === undefined
+        ? TODOS_LOS_DOCUMENTOS
+        : TODOS_LOS_DOCUMENTOS.filter((t) => m.PORTAL_DOCUMENTOS.split(",")
+            .map((x) => x.trim().toUpperCase()).includes(t)));
     } catch (e) { setError(e.message); }
     finally { setCargando(false); }
   }
@@ -71,6 +91,7 @@ export default function ParametrosCreditosPage() {
       await up("DECIMALES_CALCULO", String(acotar(decimales)));
       await up("DECIMALES_MOSTRAR", String(acotar(decimalesMostrar)));
       await up("PORTAL_OMITIR_VIDEOS", omitirVideos ? "true" : "false");
+      await up("PORTAL_DOCUMENTOS", docs.join(","));
       setOk("Parámetros de créditos guardados.");
       cargar();
     } catch (e) { setError(e.message); }
@@ -162,6 +183,29 @@ export default function ParametrosCreditosPage() {
                 </span>
               </span>
             </label>
+
+            <h3 className="font-medium text-gray-800 mt-5">Documentación que se pide</h3>
+            <p className="text-sm text-gray-500 mt-0.5 mb-3">
+              El paso 3 pide un archivo por cada documento marcado. Si no queda ninguno, el paso no
+              aparece y la solicitud se envía sin adjuntos.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {DOCUMENTOS.map(([tipo, etiqueta]) => (
+                <label key={tipo} className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" className="h-4 w-4" checked={docs.includes(tipo)}
+                         disabled={!puedeEscribir} aria-label={etiqueta}
+                         onChange={(e) => setDocs(e.target.checked
+                           ? TODOS_LOS_DOCUMENTOS.filter((t) => t === tipo || docs.includes(t))
+                           : docs.filter((t) => t !== tipo))} />
+                  <span className="text-sm text-gray-800">{etiqueta}</span>
+                </label>
+              ))}
+            </div>
+            {docs.length === 0 && (
+              <p className="text-xs text-amber-700 mt-2">
+                No se pedirá ninguna documentación en la solicitud.
+              </p>
+            )}
           </Card>
 
           <Card className="mb-4">

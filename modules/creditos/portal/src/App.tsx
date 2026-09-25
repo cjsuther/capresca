@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTema, Tema } from "./tema";
 import { PasoVideos, guardarVistos, leerVistos, olvidarVistos } from "./videos";
-import { api, nuevoId, token, Video, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
+import { api, nuevoId, token, Video, DocPedido, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
 
 const money = (v: string | number) =>
   Number(v).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
@@ -194,19 +194,8 @@ const SEGMENTOS: [string, string][] = [
 ];
 const SEG_LABEL = Object.fromEntries(SEGMENTOS);
 
-const TIPO_DOC: Record<string, string> = {
-  DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)",
-  SELFIE_DNI: "Selfie con el DNI en la mano", RECIBO: "Recibo de sueldo",
-  CERTIFICADO_SERVICIOS: "Certificado de servicios", CONSTANCIA_CBU: "Constancia de CBU",
-};
-const TIPO_DOC_AYUDA: Record<string, string> = {
-  SELFIE_DNI: "Una foto tuya sosteniendo el DNI, que se lean los datos.",
-  CERTIFICADO_SERVICIOS: "El que emite tu empleador con tu antigüedad y situación de revista.",
-  CONSTANCIA_CBU: "La que baja tu banco o Home Banking con el CBU a tu nombre.",
-};
-// Documentación del paso 3: exactamente un archivo por cada uno de estos (ni más, ni otros).
-const DOCS_REQUERIDOS = ["DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO",
-                         "CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU"];
+// Documentación del paso 3: exactamente un archivo por cada documento PEDIDO. Qué se pide lo
+// configura cada oficina en Créditos → Parámetros, y el backend lo publica con su título y su ayuda.
 
 /** Años cumplidos a hoy (el backend calcula lo mismo con la fecha declarada). */
 function edadDe(nacimiento: string): number | null {
@@ -221,10 +210,10 @@ function edadDe(nacimiento: string): number | null {
 }
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const PASOS = ["Tus datos", "Simulación", "Documentación", "Videos", "Confirmación"];
-/** Cuando el paso de videos está omitido (no hay videos configurados), no se muestra en la guía. */
-const pasosVisibles = (conVideos: boolean) =>
+/** Los pasos omitidos por configuración (documentación, videos) no se muestran en la guía. */
+const pasosVisibles = (conDocs: boolean, conVideos: boolean) =>
   PASOS.map((t, i) => ({ titulo: t, numero: (i + 1) as Paso }))
-       .filter((p) => conVideos || p.numero !== 4);
+       .filter((p) => (conDocs || p.numero !== 3) && (conVideos || p.numero !== 4));
 type Paso = 1 | 2 | 3 | 4 | 5;
 type DocElegido = { file: File; tipo: string };
 const fmtBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
@@ -234,35 +223,37 @@ const fmtBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 102
 // número). Valida formato/tamaño localmente; el backend exige lo mismo. H-162.
 const DOC_MAX = 5 * 1024 * 1024;
 const DOC_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-function DocsPicker({ docs, onChange }: { docs: DocElegido[]; onChange: (d: DocElegido[]) => void }) {
+function DocsPicker({ pedidos, docs, onChange }:
+                    { pedidos: DocPedido[]; docs: DocElegido[]; onChange: (d: DocElegido[]) => void }) {
   const [err, setErr] = useState("");
+  const titulo = (tipo: string) => pedidos.find((p) => p.tipo === tipo)?.titulo || tipo;
   const elegir = (tipo: string, file?: File, input?: HTMLInputElement) => {
     if (input) input.value = "";          // permite volver a elegir el mismo archivo
     if (!file) return;
     setErr("");
-    if (!DOC_TYPES.includes(file.type)) { setErr(`${TIPO_DOC[tipo]}: formato no permitido (JPG, PNG o PDF).`); return; }
-    if (file.size > DOC_MAX) { setErr(`${TIPO_DOC[tipo]}: el archivo supera los 5 MB.`); return; }
+    if (!DOC_TYPES.includes(file.type)) { setErr(`${titulo(tipo)}: formato no permitido (JPG, PNG o PDF).`); return; }
+    if (file.size > DOC_MAX) { setErr(`${titulo(tipo)}: el archivo supera los 5 MB.`); return; }
     onChange([...docs.filter((d) => d.tipo !== tipo), { file, tipo }]);
   };
   const quitar = (tipo: string) => onChange(docs.filter((d) => d.tipo !== tipo));
   return (
     <div className="p-docs">
       <ul className="p-docs-slots" aria-label="Documentación requerida">
-        {DOCS_REQUERIDOS.map((t) => {
+        {pedidos.map(({ tipo: t, titulo: nombre, ayuda }) => {
           const d = docs.find((x) => x.tipo === t);
           const esPdf = d?.file.type === "application/pdf";
           return (
             <li key={t} className={`p-doc-slot${d ? " ok" : ""}`}>
               <span className={"p-doc-ic" + (esPdf ? " pdf" : "")} aria-hidden>{d ? (esPdf ? "PDF" : "IMG") : "○"}</span>
               <div className="p-doc-meta">
-                <b>{TIPO_DOC[t]}</b>
-                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : (TIPO_DOC_AYUDA[t] || "Falta adjuntar")}</span>
+                <b>{nombre}</b>
+                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : (ayuda || "Falta adjuntar")}</span>
               </div>
               <label className={`p-btn-file${d ? " sec" : ""}`}>{d ? "Cambiar" : "＋ Adjuntar"}
-                <input type="file" accept={DOC_TYPES.join(",")} hidden aria-label={`Adjuntar ${TIPO_DOC[t]}`}
+                <input type="file" accept={DOC_TYPES.join(",")} hidden aria-label={`Adjuntar ${nombre}`}
                        onChange={(e) => elegir(t, e.target.files?.[0], e.target)} />
               </label>
-              {d && <button type="button" className="p-doc-del" onClick={() => quitar(t)} aria-label={`Quitar ${TIPO_DOC[t]}`}>✕</button>}
+              {d && <button type="button" className="p-doc-del" onClick={() => quitar(t)} aria-label={`Quitar ${nombre}`}>✕</button>}
             </li>
           );
         })}
@@ -309,7 +300,14 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [sueldoTexto, setSueldoTexto] = useState("");
   const [pendingDocs, setPendingDocs] = useState<DocElegido[]>([]);   // adjuntos elegidos (se suben al enviar)
   const [docsErr, setDocsErr] = useState("");
-  const docsFaltantes = DOCS_REQUERIDOS.filter((t) => !pendingDocs.some((d) => d.tipo === t));
+  // Paso 3: qué documentación pide la solicitud (la configura Créditos; puede no pedir ninguna).
+  const [docsPedidos, setDocsPedidos] = useState<DocPedido[]>([]);
+  const [docsPedidosErr, setDocsPedidosErr] = useState("");
+  const [docsListos, setDocsListos] = useState(false);
+  const docsFaltantes = docsPedidos.filter((p) => !pendingDocs.some((d) => d.tipo === p.tipo));
+  // Igual que con los videos: el paso se saltea SÓLO cuando la lista llegó bien y vino vacía. Si no
+  // se pudo cargar, el paso se muestra con su error en vez de dejar pasar un requisito por una falla.
+  const pasoDocsOmitido = docsListos && !docsPedidosErr && docsPedidos.length === 0;
   // Paso 4: videos obligatorios (la lista la da el backend) y los que ya vio completos.
   const [videos, setVideos] = useState<Video[]>([]);
   const [videosErr, setVideosErr] = useState("");
@@ -386,6 +384,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   useEffect(() => { api.notificaciones().then(setNotis).catch(() => {}); }, []);
   useEffect(() => {
     api.videos().then((vs) => { setVideos(vs); setVideosListos(true); }).catch(() => setVideosErr("No se pudieron cargar los videos. Reintentá en unos minutos."));
+    api.docsPedidos().then((ds) => { setDocsPedidos(ds); setDocsListos(true); })
+       .catch(() => setDocsPedidosErr("No se pudo cargar la documentación a presentar. Reintentá en unos minutos."));
   }, []);
 
   // Paso 2: la cuota se recalcula EN VIVO al mover el monto/plazo (debounce), sin apretar "Simular".
@@ -432,9 +432,16 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   }
   function reiniciarWizard() { setPaso(1); setSim(null); }
   function irAVideos() {
-    if (docsFaltantes.length) { setDocsErr(`Falta adjuntar: ${docsFaltantes.map((t) => TIPO_DOC[t]).join(", ")}.`); return; }
+    if (docsFaltantes.length) {
+      setDocsErr(`Falta adjuntar: ${docsFaltantes.map((p) => p.titulo).join(", ")}.`);
+      return;
+    }
     // Sin videos configurados (paso omitido), de la documentación se pasa derecho a confirmar.
     setDocsErr(""); setPaso(pasoVideosOmitido ? 5 : 4);
+  }
+  /** Después de la simulación: al primer paso que siga en pie. */
+  function irADocumentacion() {
+    setPaso(pasoDocsOmitido ? (pasoVideosOmitido ? 5 : 4) : 3);
   }
 
   async function enviarSolicitud() {
@@ -626,7 +633,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
       <main className="p-main">
         <h1>Solicitá tu crédito</h1>
         <ol className="p-steps">
-          {pasosVisibles(!pasoVideosOmitido).map(({ titulo, numero: n }, i) => {
+          {pasosVisibles(!pasoDocsOmitido, !pasoVideosOmitido).map(({ titulo, numero: n }, i) => {
             const estado = paso === n ? "on" : paso > n ? "done" : "";
             const ir = () => { if (n < paso) setPaso(n); };
             return <li key={titulo} className={`p-step ${estado}`} onClick={ir}>
@@ -750,7 +757,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
 
                 <div className="p-sticky-cta">
                   <div><span className="p-fine">Cuota</span><b>{money(sim.cuota_promedio)}</b></div>
-                  <button className="p-btn p-btn-mc" onClick={() => setPaso(3)}>Continuar →</button>
+                  <button className="p-btn p-btn-mc" onClick={irADocumentacion}>Continuar →</button>
                 </div>
               </section>
             )}
@@ -761,13 +768,17 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
           <section className="p-result">
             <div className="p-card" style={{ padding: "18px 20px" }}>
               <div className="p-subtitle" style={{ borderTop: "none", paddingTop: 0 }}>Documentación <span>(obligatoria para continuar)</span></div>
-              <p className="p-fine" style={{ margin: "6px 0 12px" }}>Adjuntá una imagen o PDF de cada uno: DNI frente, DNI dorso y tu último recibo de sueldo.</p>
-              <DocsPicker docs={pendingDocs} onChange={(d) => { setPendingDocs(d); setDocsErr(""); }} />
+              <p className="p-fine" style={{ margin: "6px 0 12px" }}>
+                Adjuntá una imagen o PDF de cada uno: {docsPedidos.map((p) => p.titulo).join(", ")}.
+              </p>
+              <DocsPicker pedidos={docsPedidos} docs={pendingDocs}
+                          onChange={(d) => { setPendingDocs(d); setDocsErr(""); }} />
+              {docsPedidosErr && <div className="p-alert">{docsPedidosErr}</div>}
               {docsErr && <div className="p-alert">{docsErr}</div>}
             </div>
             <div className="p-cta">
               <button type="button" className="p-btn-ghost" onClick={() => setPaso(2)}>← Volver</button>
-              <button className="p-btn p-btn-mc" onClick={irAVideos}>Continuar →</button>
+              <button className="p-btn p-btn-mc" onClick={irAVideos} disabled={!docsListos || !!docsPedidosErr}>Continuar →</button>
               {docsFaltantes.length > 0 && <span className="p-fine">Te falta{docsFaltantes.length === 1 ? "" : "n"} {docsFaltantes.length} documento{docsFaltantes.length === 1 ? "" : "s"}.</span>}
             </div>
           </section>
@@ -777,7 +788,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
           <section className="p-result">
             <PasoVideos videos={videos} vistos={vistos} onVisto={marcarVisto} error={videosErr} />
             <div className="p-cta">
-              <button type="button" className="p-btn-ghost" onClick={() => setPaso(3)}>← Volver</button>
+              <button type="button" className="p-btn-ghost" onClick={() => setPaso(pasoDocsOmitido ? 2 : 3)}>← Volver</button>
               <button className="p-btn p-btn-mc" onClick={() => setPaso(5)} disabled={!videosOk || !!videosErr}>Continuar →</button>
               {!videosOk && <span className="p-fine">Terminá de ver los videos para continuar.</span>}
             </div>
@@ -817,7 +828,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <label className="p-check"><input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} /> Autorizo el <b>tratamiento de mis datos personales</b> para evaluar la solicitud.</label>
             </div>
             <div className="p-cta">
-              <button type="button" className="p-btn-ghost" onClick={() => setPaso(pasoVideosOmitido ? 3 : 4)}>← Volver</button>
+              <button type="button" className="p-btn-ghost"
+                      onClick={() => setPaso(pasoVideosOmitido ? (pasoDocsOmitido ? 2 : 3) : 4)}>← Volver</button>
               <button className="p-btn p-btn-mc" onClick={enviarSolicitud} disabled={enviando || !puedeEnviar || !videosOk || sim?.elegible === false}>{enviando ? "Enviando…" : "Confirmar y enviar solicitud"}</button>
               {sim?.elegible === false
                 ? <span className="p-fine">No cumplís las condiciones de este crédito: no se puede enviar.</span>

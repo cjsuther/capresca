@@ -170,6 +170,15 @@ def omitir_videos(db: Session) -> bool:
     return str(p.valor if p else "").strip().lower() in ("true", "1", "si", "sí")
 
 
+def documentos_pedidos(db: Session) -> tuple[str, ...]:
+    """Qué documentación pide la solicitud (parámetro PORTAL_DOCUMENTOS, ámbito créditos).
+
+    Cada oficina decide cuáles exige. Sin el parámetro cargado se piden todos, que es lo que hacía
+    el portal antes de que esto se pudiera configurar."""
+    p = db.query(models.Parametro).filter(models.Parametro.clave == documentos.PARAMETRO).first()
+    return documentos.habilitados(p.valor if p else None)
+
+
 def videos_obligatorios(db: Session | None = None) -> list[dict]:
     """Videos que hay que ver completos antes de confirmar (config `portal_videos`, "id:Título,…").
 
@@ -183,6 +192,13 @@ def videos_obligatorios(db: Session | None = None) -> list[dict]:
             out.append({"id": vid, "titulo": titulo.strip() or vid,
                         "url": f"/portal-creditos/videos/{vid}.mp4"})
     return out
+
+
+@router.get("/documentos-requeridos")
+def documentos_requeridos(db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciudadano)):
+    """La documentación que hay que adjuntar en el paso 3, según la configuración.
+    Vacío = no se pide ninguna y el portal saltea el paso."""
+    return documentos.para_portal(documentos_pedidos(db))
 
 
 @router.get("/videos", response_model=list[schemas.PortalVideoOut])
@@ -547,11 +563,14 @@ async def subir_documento(numero: str, request: Request, tipo: str = Form("OTRO"
     s = _solicitud_propia(db, numero, c)
     if s.estado not in ("EN_EVALUACION", "BORRADOR"):
         raise HTTPException(409, "No se pueden adjuntar documentos a una solicitud ya resuelta.")
-    # El ciudadano adjunta exactamente un archivo de cada documento pedido (DNI frente, DNI dorso y recibo
-    # de sueldo): ni otros tipos, ni un segundo del mismo. Para cambiarlo, el asesor lo gestiona.
+    # El ciudadano adjunta exactamente un archivo de cada documento PEDIDO: ni otros tipos, ni uno
+    # que la configuración no pide, ni un segundo del mismo. Para cambiarlo, el asesor lo gestiona.
     tipo = (tipo or "").upper()
-    if tipo not in documentos.TIPOS_PORTAL:
-        raise HTTPException(422, "Sólo se adjuntan el DNI (frente y dorso) y el recibo de sueldo.")
+    pedidos = documentos_pedidos(db)
+    if tipo not in pedidos:
+        detalle = (", ".join(documentos.TITULOS.get(t, t) for t in pedidos)
+                   if pedidos else "ninguna documentación")
+        raise HTTPException(422, f"Ese documento no se pide en esta solicitud. Se adjunta: {detalle}.")
     if db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id, tipo=tipo).first():
         raise HTTPException(409, f"Ya adjuntaste {documentos.ETIQUETAS[tipo]} en esta solicitud.")
     contenido = await archivo.read()

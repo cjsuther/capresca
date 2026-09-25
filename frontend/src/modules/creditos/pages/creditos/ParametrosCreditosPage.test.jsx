@@ -65,12 +65,57 @@ describe("Parámetros de créditos", () => {
     await screen.findByRole("button", { name: "Quitar SUCURSAL" });
 
     await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
-    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(6));
+    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(7));
     const claves = creditos.upsertParametro.mock.calls.map((c) => c[0].clave);
     expect(claves).toEqual(["CANALES", "CANAL_PORTAL", "CANAL_BACKOFFICE", "DECIMALES_CALCULO",
-                            "DECIMALES_MOSTRAR", "PORTAL_OMITIR_VIDEOS"]);
+                            "DECIMALES_MOSTRAR", "PORTAL_OMITIR_VIDEOS", "PORTAL_DOCUMENTOS"]);
     expect(creditos.upsertParametro.mock.calls[0][0]).toMatchObject({ valor: "SUCURSAL,WEB", ambito: "creditos" });
     expect(await screen.findByText("Parámetros de créditos guardados.")).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------- documentación de la solicitud
+  const guardado = (clave) =>
+    creditos.upsertParametro.mock.calls.map((c) => c[0]).find((p) => p.clave === clave);
+
+  it("sin el parámetro cargado se piden todos los documentos", async () => {
+    const u = userEvent.setup();
+    render(<ParametrosCreditosPage />);
+    await screen.findByRole("button", { name: "Quitar SUCURSAL" });
+
+    expect(screen.getByLabelText("DNI (frente)")).toBeChecked();
+    expect(screen.getByLabelText("Constancia de CBU")).toBeChecked();
+
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+    await waitFor(() => expect(guardado("PORTAL_DOCUMENTOS").valor).toBe(
+      "DNI_FRENTE,DNI_DORSO,SELFIE_DNI,RECIBO,CERTIFICADO_SERVICIOS,CONSTANCIA_CBU"));
+  });
+
+  it("se desmarca un documento y deja de pedirse", async () => {
+    const u = userEvent.setup();
+    render(<ParametrosCreditosPage />);
+    await screen.findByRole("button", { name: "Quitar SUCURSAL" });
+
+    await u.click(screen.getByLabelText("Selfie con el DNI en la mano"));
+    await u.click(screen.getByLabelText("Certificado de servicios"));
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+
+    await waitFor(() => expect(guardado("PORTAL_DOCUMENTOS").valor).toBe(
+      "DNI_FRENTE,DNI_DORSO,RECIBO,CONSTANCIA_CBU"));
+  });
+
+  it("lee la configuración guardada y avisa si no queda ninguno", async () => {
+    const u = userEvent.setup();
+    creditos.adminParametros.mockResolvedValue([...PARS, { clave: "PORTAL_DOCUMENTOS", valor: "RECIBO" }]);
+    render(<ParametrosCreditosPage />);
+    await screen.findByRole("button", { name: "Quitar SUCURSAL" });
+
+    expect(screen.getByLabelText("Recibo de sueldo")).toBeChecked();
+    expect(screen.getByLabelText("DNI (frente)")).not.toBeChecked();
+
+    await u.click(screen.getByLabelText("Recibo de sueldo"));
+    expect(await screen.findByText(/No se pedirá ninguna documentación/)).toBeInTheDocument();
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+    await waitFor(() => expect(guardado("PORTAL_DOCUMENTOS").valor).toBe(""));
   });
 
   it("los decimales quedan acotados entre 0 y 6", async () => {

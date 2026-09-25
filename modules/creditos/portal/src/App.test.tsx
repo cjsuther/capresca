@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
     preAprobado: vi.fn(), enviarSolicitud: vi.fn(), misSolicitudes: vi.fn(), solicitudDetalle: vi.fn(),
     docsListar: vi.fn(), docSubir: vi.fn(), docAbrir: vi.fn(), docBorrar: vi.fn(),
     misCreditos: vi.fn(), creditoDetalle: vi.fn(), notificaciones: vi.fn(), videos: vi.fn(),
+    docsPedidos: vi.fn(),
   },
 }));
 vi.mock("./api", async (original) => ({ ...(await original() as any), api: h.api }));
@@ -44,6 +45,15 @@ function stubLocation(pathname = "/", hash = "") {
   return window.location as any;
 }
 
+const DOCS_PEDIDOS = [
+  { tipo: "DNI_FRENTE", titulo: "DNI (frente)", ayuda: "" },
+  { tipo: "DNI_DORSO", titulo: "DNI (dorso)", ayuda: "" },
+  { tipo: "SELFIE_DNI", titulo: "Selfie con el DNI en la mano", ayuda: "Una foto tuya sosteniendo el DNI." },
+  { tipo: "RECIBO", titulo: "Recibo de sueldo", ayuda: "" },
+  { tipo: "CERTIFICADO_SERVICIOS", titulo: "Certificado de servicios", ayuda: "" },
+  { tipo: "CONSTANCIA_CBU", titulo: "Constancia de CBU", ayuda: "" },
+];
+
 beforeEach(() => {
   stubLocation();
   vi.spyOn(window.history, "replaceState").mockImplementation(() => {});
@@ -58,6 +68,7 @@ beforeEach(() => {
   api.preAprobado.mockRejectedValue(new Error("sin pre-aprobado"));
   api.loginUrl.mockResolvedValue({ authorize_url: "https://mi.catamarca/oidc" });
   api.videos.mockResolvedValue(VIDEOS);
+  api.docsPedidos.mockResolvedValue(DOCS_PEDIDOS);
 });
 
 afterEach(() => {
@@ -396,6 +407,47 @@ describe("paso 4 · videos", () => {
     await llegarAVideos();
     verCompleto(videosEnPantalla()[0]);
     await waitFor(() => expect(JSON.parse(localStorage.getItem("portal_videos_u-1")!)).toEqual(["video1"]));
+  });
+
+
+  // La documentación que se pide la configura cada oficina (Créditos → Parámetros).
+  it("pide sólo los documentos configurados", async () => {
+    api.docsPedidos.mockResolvedValue([
+      { tipo: "DNI_FRENTE", titulo: "DNI (frente)", ayuda: "" },
+      { tipo: "RECIBO", titulo: "Recibo de sueldo", ayuda: "" },
+    ]);
+    const u = await montarLogueado();
+    await llegarADocumentacion(u);
+
+    expect(screen.getByLabelText("Adjuntar DNI (frente)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Adjuntar Recibo de sueldo")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Adjuntar Constancia de CBU")).not.toBeInTheDocument();
+
+    await adjuntar(u, "DNI_FRENTE", archivo("dni.jpg", "image/jpeg"));
+    await adjuntar(u, "RECIBO", archivo("recibo.pdf", "application/pdf"));
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(await screen.findByText(/Mirá los videos/)).toBeInTheDocument();
+  });
+
+  it("si no se pide ninguno, el paso no aparece", async () => {
+    api.docsPedidos.mockResolvedValue([]);
+    const u = await montarLogueado();
+    await completarDatos(u);
+    await u.click(await screen.findByRole("button", { name: /Continuar/ }));
+
+    // De la simulación se pasa derecho a los videos, y la guía no muestra el paso.
+    expect(await screen.findByText(/Mirá los videos/)).toBeInTheDocument();
+    expect(screen.queryByText("Documentación")).not.toBeInTheDocument();
+  });
+
+  it("si la lista no se pudo cargar, no deja pasar de largo el requisito", async () => {
+    api.docsPedidos.mockRejectedValue(new Error("sin red"));
+    const u = await montarLogueado();
+    await completarDatos(u);
+    await u.click(await screen.findByRole("button", { name: /Continuar/ }));
+
+    expect(await screen.findByText(/No se pudo cargar la documentación/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
   });
 
   // Con el paso omitido desde Parámetros de créditos, el backend devuelve la lista vacía.

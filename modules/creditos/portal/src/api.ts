@@ -90,6 +90,8 @@ export type SolicitudDetalle = Solicitud & {
 
 // Video obligatorio del paso 4: se ve completo (sin adelantar) antes de confirmar la solicitud.
 export type Video = { id: string; titulo: string; url: string };
+/** Documento que la solicitud pide adjuntar. La lista la configura Créditos → Parámetros. */
+export type DocPedido = { tipo: string; titulo: string; ayuda: string };
 
 export type Solicitud = {
   numero: string; estado: string; producto: string; monto: number; plazo: number;
@@ -109,6 +111,7 @@ export const api = {
   enviarSolicitud: (b: { producto_id: string; monto: number; plazo: number; apellido?: string; nombre?: string; dni?: string; destino?: string; cbu?: string; acepta_terminos?: boolean; acepta_datos?: boolean; videos_vistos?: string[] } & Datos, idemKey: string): Promise<Solicitud> =>
     req("/portal/solicitudes", { method: "POST", body: JSON.stringify(b), headers: { "Idempotency-Key": idemKey } }),
   videos: (): Promise<Video[]> => req("/portal/videos"),
+  docsPedidos: (): Promise<DocPedido[]> => req("/portal/documentos-requeridos"),
   misSolicitudes: (): Promise<Solicitud[]> => req("/portal/solicitudes"),
   solicitudDetalle: (numero: string): Promise<SolicitudDetalle> => req(`/portal/solicitudes/${numero}`),
   // Documentación adjunta

@@ -967,3 +967,57 @@ def test_el_paso_de_videos_se_puede_omitir_por_parametro(client):
                              "monto": min(max(500000.0, p["monto_min"]), p["monto_max"]),
                              "plazo": min(max(12, p["plazo_min"]), p["plazo_max"])})
     assert env2.status_code == 422 and "videos" in env2.text
+
+# --------------------------------------------------------------------------- documentación pedida
+TODOS_LOS_DOCS = {"DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO", "CERTIFICADO_SERVICIOS",
+                  "CONSTANCIA_CBU"}
+PEDIDOS = "/api/creditos/portal/documentos-requeridos"
+
+
+def _pedir_documentos(client, hb, valor):
+    r = client.post("/api/creditos/admin/parametros", headers=hb,
+                    json={"clave": "PORTAL_DOCUMENTOS", "valor": valor, "ambito": "creditos"})
+    assert r.status_code in (200, 201), r.text
+
+
+def test_sin_configurar_se_piden_todos_los_documentos(client):
+    """El default es el comportamiento de antes de que esto fuera configurable."""
+    hp = _ingresar(client)
+    d = client.get(PEDIDOS, headers=hp).json()
+    assert {x["tipo"] for x in d} == TODOS_LOS_DOCS
+    assert all(x["titulo"] for x in d)
+
+
+def test_se_elige_que_documentos_pide_la_solicitud(client):
+    hb, hp = _bo(client), _ingresar(client)
+    _pedir_documentos(client, hb, "DNI_FRENTE,RECIBO")
+
+    d = client.get(PEDIDOS, headers=hp).json()
+    assert [x["tipo"] for x in d] == ["DNI_FRENTE", "RECIBO"]   # en el orden del circuito, no el tecleado
+
+
+def test_no_se_puede_adjuntar_un_documento_que_no_se_pide(client):
+    hb, hp = _bo(client), _ingresar(client)
+    _pedir_documentos(client, hb, "DNI_FRENTE")
+    numero = _crear_sol(client, hp)
+
+    ok = client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=hp,
+                     data={"tipo": "DNI_FRENTE"}, files={"archivo": ("dni.png", PNG, "image/png")})
+    assert ok.status_code == 201, ok.text
+
+    no = client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=hp,
+                     data={"tipo": "CONSTANCIA_CBU"}, files={"archivo": ("cbu.png", PNG, "image/png")})
+    assert no.status_code == 422 and "no se pide" in no.json()["detail"]
+
+
+def test_se_puede_no_pedir_ninguno(client):
+    """El parámetro vacío es una decisión explícita: el portal saltea el paso."""
+    hb, hp = _bo(client), _ingresar(client)
+    _pedir_documentos(client, hb, "")
+    assert client.get(PEDIDOS, headers=hp).json() == []
+
+
+def test_un_tipo_inventado_se_ignora(client):
+    hb, hp = _bo(client), _ingresar(client)
+    _pedir_documentos(client, hb, "DNI_FRENTE,PARTIDA_DE_NACIMIENTO")
+    assert [x["tipo"] for x in client.get(PEDIDOS, headers=hp).json()] == ["DNI_FRENTE"]
