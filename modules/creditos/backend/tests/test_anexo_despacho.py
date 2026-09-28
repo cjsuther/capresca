@@ -101,6 +101,15 @@ def test_no_ofrece_las_que_no_estan_aprobadas(client, h, solicitudes):
     assert [i["id"] for i in d["items"]] == [aprobada.id]
 
 
+def test_ofrece_y_asigna_las_originadas_sin_resolucion(client, h, solicitudes):
+    """Las que se originaron antes de exigir la resolución quedan para regularizar en un anexo."""
+    originada = solicitudes(1, estado="ORIGINADA")[0]
+    solicitudes(1, estado="RECHAZADA")
+    assert [i["id"] for i in client.get(SOLICITUDES, headers=h).json()["items"]] == [originada.id]
+    a = client.post(ASIGNAR, headers=h, json={"solicitud_ids": [originada.id], "numero_resolucion": 47})
+    assert a.status_code == 200 and a.json()["asignadas"] == 1
+
+
 def test_no_se_otorga_algo_que_no_esta_aprobado(client, h, solicitudes):
     """Una resolución no puede alcanzar una solicitud todavía en evaluación."""
     s = solicitudes(1, estado="EN_EVALUACION")[0]

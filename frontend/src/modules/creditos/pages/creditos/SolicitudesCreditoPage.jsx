@@ -564,8 +564,9 @@ export default function SolicitudesCreditoPage() {
                 </>
               )}
               {sel.estado === "APROBADA" && (
-                <Boton disabled={accionando || (sel.datosLiquidacion?.aplica && !sel.datosLiquidacion?.lista)}
-                       title={sel.datosLiquidacion?.aplica && !sel.datosLiquidacion?.lista ? "Faltan datos para liquidar" : ""}
+                <Boton disabled={accionando || !sel.resolucion || (sel.datosLiquidacion?.aplica && !sel.datosLiquidacion?.lista)}
+                       title={!sel.resolucion ? "Falta la resolución de Despacho que la otorga"
+                         : sel.datosLiquidacion?.aplica && !sel.datosLiquidacion?.lista ? "Faltan datos para liquidar" : ""}
                        onClick={() => resolver("originar")}>Originar contrato</Boton>
               )}
             </>
@@ -711,6 +712,21 @@ export default function SolicitudesCreditoPage() {
 
           {sel.estado === "ORIGINADA" && sel.contratoId && (
             <p className="mt-3"><Pill tono="brand">Originada · contrato {sel.contratoId.slice(0, 8)}</Pill></p>
+          )}
+          {sel.resolucion && (
+            <p className="mt-3">
+              <Pill tono="ok">Resolución N° {sel.resolucion.numero}{sel.resolucion.fecha ? ` · ${fecha(sel.resolucion.fecha)}` : ""}</Pill>
+            </p>
+          )}
+          {["APROBADA", "ORIGINADA"].includes(sel.estado) && !sel.resolucion && (
+            <div className="mt-3">
+              <Alerta tipo="warn">
+                {sel.estado === "APROBADA"
+                  ? "Todavía no está en ninguna resolución. Para originarla, agregala al anexo de una resolución en "
+                  : "Se originó sin resolución. Regularizala agregándola al anexo de una resolución en "}
+                <Link to="/modules/despacho/anexo" className="underline">Despacho → Anexo de resolución</Link>.
+              </Alerta>
+            </div>
           )}
           {sel.estado === "EN_EVALUACION" && sel.solicitanteTipo === "NO_REGISTRADO" && (
             <div className="mt-3">

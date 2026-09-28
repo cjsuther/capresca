@@ -13,7 +13,8 @@ const fecha = (f) => (f ? new Date(`${f}T00:00:00`).toLocaleDateString("es-AR") 
 /**
  * El anexo de una resolución: las solicitudes que el acto otorga.
  *
- * "Armar" lista las aprobadas y cubicadas que todavía no están en ninguna resolución; "Ver"
+ * "Armar" lista las aprobadas (y las ya originadas sin acto, para regularizar) que todavía no están
+ * en ninguna resolución; "Ver"
  * muestra las de una resolución ya armada, para reimprimirla o corregirla mientras siga en borrador.
  */
 export default function AnexoPage() {
@@ -107,7 +108,8 @@ export default function AnexoPage() {
         <p className="text-sm text-gray-500 mt-1 max-w-3xl">
           Las solicitudes aprobadas se otorgan <strong>en lote</strong>: se eligen acá y se asignan a
           una resolución en borrador, agrupadas por producto. El número de lote es el correlativo de
-          esa resolución. Las solicitudes son del módulo Créditos y se consultan en vivo: no hay
+          esa resolución. Créditos no origina una solicitud hasta que está en una resolución; las que
+          se originaron antes de esa regla aparecen marcadas para regularizarlas. Las solicitudes son del módulo Créditos y se consultan en vivo: no hay
           copia de este lado.
         </p>
       </div>
@@ -177,7 +179,7 @@ export default function AnexoPage() {
             )}
             {!cargando && datos.items.length === 0 && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                {vista === "armar" ? "No hay solicitudes aprobadas pendientes de resolución."
+                {vista === "armar" ? "No hay solicitudes pendientes de resolución."
                                    : "Indicá el número de resolución para ver su anexo."}
               </td></tr>
             )}
@@ -187,7 +189,13 @@ export default function AnexoPage() {
                   <input type="checkbox" aria-label={`Elegir ${s.apellido_nombre}`}
                          checked={elegidas.has(s.id)} onChange={() => marcar(s.id)} />
                 </td>
-                <td className="px-4 py-3 text-gray-500 tabular-nums">{s.numero}</td>
+                <td className="px-4 py-3 text-gray-500 tabular-nums">
+                  {s.numero}
+                  {s.estado === "ORIGINADA" && (
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800"
+                          title="Ya es contrato: se originó sin resolución">ya originada</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-gray-800">{s.apellido_nombre}</td>
                 <td className="px-4 py-3 text-gray-600 tabular-nums">{s.cuil}</td>
                 <td className="px-4 py-3 text-gray-600">{s.producto}</td>

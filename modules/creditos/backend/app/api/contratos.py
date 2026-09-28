@@ -628,6 +628,11 @@ def _originar_impl(db: Session, data: OriginarIn, user) -> dict:
             raise HTTPException(409, "La solicitud ya fue originada como contrato.")
         if sol_pp.estado != "APROBADA":
             raise HTTPException(409, "Sólo se puede originar una solicitud APROBADA.")
+        # El otorgamiento es un acto administrativo: la solicitud tiene que estar en el anexo de una
+        # resolución de Despacho antes de convertirse en contrato.
+        if not sol_pp.en_resolucion:
+            raise HTTPException(409, "La solicitud todavía no está en ninguna resolución. Agregala al anexo "
+                                     "de una resolución en Despacho antes de originar.")
         # Canal web: la originación es una REVISIÓN. No se libera la liquidación si faltan los datos
         # obligatorios (identidad + CBU de acreditación) — H-134. Lazy import: evita ciclo con solicitudes.
         from app.api.solicitudes import _datos_liquidacion

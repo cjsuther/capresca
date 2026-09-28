@@ -5,9 +5,10 @@ ellas es este módulo. Despacho pregunta cuáles están listas para entrar en un
 lote y, si hace falta, las saca. Acá se valida lo único que Despacho no puede saber: que una
 solicitud esté realmente aprobada y que no quede otorgada por dos resoluciones distintas.
 
-Entran al anexo las solicitudes **APROBADAS** y todavía sin originar: la resolución es el acto que
-las otorga formalmente, antes de que se conviertan en contrato. El "lote" ES el número de la
-resolución, como en el sistema anterior.
+Entran al anexo las solicitudes **APROBADAS**: la resolución es el acto que las otorga formalmente, y
+sin ella no se originan (contratos._originar_impl). También entran las ORIGINADAS que todavía no
+tienen resolución, que son las que se originaron antes de esa regla y hay que regularizar. El "lote"
+ES el número de la resolución, como en el sistema anterior.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ from app.core.database import get_db
 router = APIRouter(prefix="/internal/creditos/anexo", tags=["internal"])
 
 APROBADA = "APROBADA"
+OTORGABLES = ("APROBADA", "ORIGINADA")
 
 
 def api_despacho(x_api_key: str | None = Header(None, alias="X-Api-Key")) -> None:
@@ -81,14 +83,14 @@ def tipos(db: Session = Depends(get_db)):
 def solicitudes(producto_id: str | None = None, lote: int | None = Query(None, ge=1),
                 db: Session = Depends(get_db)):
     """Con `lote`, las de esa resolución (para reimprimir el anexo). Sin él, las candidatas:
-    aprobadas y todavía sin resolución."""
+    aprobadas u originadas y todavía sin resolución."""
     q = db.query(m.PPSolicitud, m.PPProducto.nombre).outerjoin(
         m.PPProducto, m.PPProducto.id == m.PPSolicitud.producto_id)
     if lote:
         q = q.filter(m.PPSolicitud.lote_resolucion == lote,
                      m.PPSolicitud.en_resolucion.is_(True))
     else:
-        q = q.filter(m.PPSolicitud.estado == APROBADA, m.PPSolicitud.en_resolucion.is_(False))
+        q = q.filter(m.PPSolicitud.estado.in_(OTORGABLES), m.PPSolicitud.en_resolucion.is_(False))
         if producto_id:
             q = q.filter(m.PPSolicitud.producto_id == producto_id)
     filas = q.order_by(m.PPSolicitud.creado_en).all()
@@ -106,7 +108,7 @@ def asignar(datos: AsignarIn, db: Session = Depends(get_db)):
     if len(sols) != len(set(datos.solicitud_ids)):
         raise HTTPException(422, "Alguna de las solicitudes no existe.")
     # Sólo se otorga lo aprobado: una resolución no puede alcanzar algo todavía en evaluación.
-    sin_aprobar = [s.numero for s in sols if s.estado != APROBADA]
+    sin_aprobar = [s.numero for s in sols if s.estado not in OTORGABLES]
     if sin_aprobar:
         raise HTTPException(422, f"Estas solicitudes no están aprobadas: {sin_aprobar}.")
     # Una solicitud no puede estar otorgada por dos resoluciones distintas.

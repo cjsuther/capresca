@@ -4,6 +4,7 @@ Más refinanciación y cancelación anticipada. Verifica invariantes en cada pas
 """
 import pytest
 from fastapi.testclient import TestClient
+from tests.resolucion import otorgar
 
 
 @pytest.fixture()
@@ -62,6 +63,7 @@ def test_ciclo_completo_por_sistema(client, sistema):
     assert ap.status_code == 200 and ap.json()["estado"] == "APROBADA"
 
     # --- ORIGINAR (otorgar, sin desembolsar) → A_LIQUIDAR ---
+    otorgar(sid)   # la resolución de Despacho, antes de originar
     c = client.post("/api/creditos/contratos/originar", headers=hadmin, json={
         "producto_id": pid, "cliente_nombre": "CICLO", "monto": 1_000_000, "plazo": 12,
         "solicitud_pp_id": sid, "desembolsar": False}).json()

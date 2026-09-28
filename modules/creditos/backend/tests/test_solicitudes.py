@@ -1,6 +1,7 @@
 """Solicitudes de crédito (línea nueva): alta registrado/express, workflow cuatro-ojos, originación."""
 import pytest
 from fastapi.testclient import TestClient
+from tests.resolucion import otorgar
 
 
 @pytest.fixture()
@@ -107,8 +108,14 @@ def test_originar_desde_solicitud_aprobada(client):
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hcred, json={"accion": "enviar"})
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hadmin, json={"accion": "aprobar"})
     prod = _pers_id(client, hadmin)
-    r = client.post("/api/creditos/contratos/originar", headers=hadmin,
-                    json={"producto_id": prod, "cliente_nombre": "SOLIC", "monto": 1_000_000, "plazo": 24, "solicitud_pp_id": sid})
+    body = {"producto_id": prod, "cliente_nombre": "SOLIC", "monto": 1_000_000, "plazo": 24, "solicitud_pp_id": sid}
+    # Sin resolución de Despacho no se origina, aunque esté aprobada.
+    sin = client.post("/api/creditos/contratos/originar", headers=hadmin, json=body)
+    assert sin.status_code == 409 and "resolución" in sin.json()["detail"], sin.text
+    assert client.get(f"/api/creditos/solicitudes/{sid}", headers=hadmin).json()["resolucion"] is None
+    otorgar(sid, 45)
+    assert client.get(f"/api/creditos/solicitudes/{sid}", headers=hadmin).json()["resolucion"]["numero"] == 45
+    r = client.post("/api/creditos/contratos/originar", headers=hadmin, json=body)
     assert r.status_code == 201, r.text
     # la solicitud queda ORIGINADA y ligada al contrato
     s = client.get(f"/api/creditos/solicitudes/{sid}", headers=hadmin).json()

@@ -156,6 +156,9 @@ def _serial(db: Session, s: m.PPSolicitud) -> dict:
         "relacion": s.relacion, "datosAdicionales": s.datos_adicionales or {}, "origen": s.origen,
         "evaluacion": s.evaluacion or {}, "contratoId": s.contrato_id, "motivoRechazo": s.motivo_rechazo,
         "datosLiquidacion": _datos_liquidacion(db, s),
+        "resolucion": ({"numero": s.numero_resolucion,
+                        "fecha": str(s.fecha_resolucion) if s.fecha_resolucion else None}
+                       if s.en_resolucion else None),
         "creadoPor": s.creado_por, "creadoEn": str(s.creado_en) if s.creado_en else None,
         "enviadaPor": s.enviada_por, "resueltaPor": s.resuelta_por,
     }

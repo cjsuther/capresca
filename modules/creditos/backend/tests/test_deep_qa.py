@@ -12,6 +12,7 @@ Nada de probes de llamada directa (dan falsos positivos con recompute); todo por
 import pytest
 from decimal import Decimal
 from fastapi.testclient import TestClient
+from tests.resolucion import otorgar
 
 
 @pytest.fixture()
@@ -345,6 +346,7 @@ def test_e2e_linea_a_cierre_con_persistencia(client, sistema):
         assert s.estado == "APROBADA"
 
     # ── 3) Originar desde la solicitud (sin desembolsar) → A_LIQUIDAR ──
+    otorgar(sid)   # la resolución de Despacho, antes de originar
     c = client.post("/api/creditos/contratos/originar", headers=hadmin, json={
         "producto_id": pid, "cliente_nombre": "E2E-CLIENTE", "monto": 1_000_000, "plazo": 12,
         "solicitud_pp_id": sid, "desembolsar": False}).json()

@@ -30,6 +30,7 @@ const SOL_EXPRESS = {
 };
 const SOL_APROBADA = {
   ...SOL_EVALUACION, id: "s3", numero: "SOL-3", estado: "APROBADA",
+  resolucion: { numero: 45, fecha: "2026-06-10" },
   datosLiquidacion: { aplica: true, lista: true, items: [{ campo: "cbu", label: "CBU", ok: true, requerido: true, valor: "000…" }], faltantes: [] },
 };
 
@@ -341,6 +342,28 @@ describe("Solicitudes de crédito · resolución", () => {
       producto_id: "pp_1", solicitud_pp_id: "s3", desembolsar: false,
     })));
     expect(await screen.findByText(/Contrato originado: CTO-9/)).toBeInTheDocument();
+  });
+
+  it("sin resolución de Despacho no deja originar", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, resolucion: null }]));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-3"));
+
+    const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    expect(within(modal).getByRole("button", { name: "Originar contrato" })).toBeDisabled();
+    expect(within(modal).getByText(/no está en ninguna resolución/)).toBeInTheDocument();
+    expect(within(modal).getByRole("link", { name: /Anexo de resolución/ })).toHaveAttribute("href", "/modules/despacho/anexo");
+  });
+
+  it("muestra la resolución que la otorga", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([SOL_APROBADA]));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-3"));
+
+    const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    expect(within(modal).getByText(/Resolución N° 45/)).toBeInTheDocument();
   });
 
   it("si faltan datos de liquidación no deja originar", async () => {

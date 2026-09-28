@@ -38,6 +38,14 @@ describe("anexo de resolución", () => {
     expect(screen.getByText("1 solicitud(es)")).toBeInTheDocument();
   });
 
+  it("marca las que ya se originaron sin resolución", async () => {
+    api.getSolicitudesAnexo.mockResolvedValue({ cantidad: 2, total: "900000",
+      items: [sol(), sol({ id: "sol-12", numero: "SOL-00012", apellido_nombre: "GOMEZ ANA", estado: "ORIGINADA" })] });
+    render(<AnexoPage />);
+    expect(await screen.findByText("GOMEZ ANA")).toBeInTheDocument();
+    expect(screen.getAllByText("ya originada")).toHaveLength(1);
+  });
+
   it("cambiar el producto vuelve a pedir sus candidatas", async () => {
     const user = userEvent.setup();
     render(<AnexoPage />);

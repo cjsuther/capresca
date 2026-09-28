@@ -10,6 +10,7 @@ os.environ["ENVIRONMENT"] = "development"
 
 import pytest
 from fastapi.testclient import TestClient
+from tests.resolucion import otorgar
 
 
 @pytest.fixture()
@@ -293,6 +294,7 @@ def test_mis_creditos_y_notificaciones(client):
     client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={})
     ap = client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hi, json={"accion": "aprobar"})
     assert ap.status_code == 200 and ap.json()["estado"] == "APROBADA", ap.text
+    otorgar(sid)   # la resolución de Despacho, antes de originar
     orig = client.post("/api/creditos/contratos/originar", headers=hi, json={
         "producto_id": p["id"], "cliente_nombre": "JUAN CARLOS PEREZ", "monto": 500000, "plazo": body["plazo"],
         "solicitud_pp_id": sid, "desembolsar": True})
@@ -343,6 +345,7 @@ def test_originacion_web_es_revision_y_bloquea_sin_datos(client):
         sol = db.query(_m.PPSolicitud).filter_by(numero=numero).first()
         cli = db.get(_mm.Cliente, sol.cliente_id)
         cli.dni = ""; db.commit()
+    otorgar(sid)   # la resolución de Despacho, antes de originar
     blocked = client.post("/api/creditos/contratos/originar", headers=hi, json={
         "producto_id": p["id"], "cliente_nombre": "JUAN CARLOS PEREZ", "monto": 500000, "plazo": body["plazo"],
         "solicitud_pp_id": sid, "desembolsar": True})
@@ -363,6 +366,7 @@ def test_originacion_deja_a_liquidar_y_lote_desembolsa(client):
     sid = next(s for s in client.get("/api/creditos/solicitudes", headers=hi).json()["items"] if s["numero"] == numero)["id"]
     client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={})   # H-203: alta en maestro antes de aprobar
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hi, json={"accion": "aprobar"})
+    otorgar(sid)   # la resolución de Despacho, antes de originar
     cto = client.post("/api/creditos/contratos/originar", headers=hi, json={
         "producto_id": p["id"], "cliente_nombre": "JUAN CARLOS PEREZ", "monto": 500000, "plazo": 12,
         "segmento": "AGENTE_PUBLICO", "canal": "WEB", "solicitud_pp_id": sid, "desembolsar": True}).json()
@@ -447,6 +451,7 @@ def test_lote_marca_pendientes_de_aprobacion(client):
         sid = next(s for s in client.get("/api/creditos/solicitudes", headers=hi).json()["items"] if s["numero"] == numero)["id"]
         client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={})   # H-203: alta en maestro antes de aprobar
         client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hi, json={"accion": "aprobar"})
+        otorgar(sid)   # la resolución de Despacho, antes de originar
         cto = client.post("/api/creditos/contratos/originar", headers=hi, json={
             "producto_id": p["id"], "cliente_nombre": "JUAN CARLOS PEREZ", "monto": 500000, "plazo": 12,
             "segmento": "AGENTE_PUBLICO", "canal": "WEB", "solicitud_pp_id": sid}).json()
