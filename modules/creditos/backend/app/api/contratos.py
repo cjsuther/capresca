@@ -473,6 +473,9 @@ def lotes_liquidacion(db: Session = Depends(get_db), user: models.Usuario = Depe
     pend_ids = {p.contrato_id for p in db.query(m.PPWorkflowPendiente)
                 .filter(m.PPWorkflowPendiente.objeto == "DESEMBOLSO",
                         m.PPWorkflowPendiente.estado == "PENDIENTE").all()}
+    # Solicitud que originó cada contrato: la del circuito actual (pp_solicitud.contrato_id).
+    sol_num = dict(db.query(m.PPSolicitud.contrato_id, m.PPSolicitud.numero)
+                   .filter(m.PPSolicitud.contrato_id.in_([c.id for c in rows])).all()) if rows else {}
     lotes: dict[str, dict] = {}
     for c in rows:
         k = str(c.fecha_valor)
@@ -488,7 +491,9 @@ def lotes_liquidacion(db: Session = Depends(get_db), user: models.Usuario = Depe
             lote["enTesoreria"] += 1
         elif des.get("estado") == "OBSERVADO":
             lote["observados"] += 1
-        lote["contratos"].append({"id": c.id, "numero": c.numero_contrato, "cliente": c.cliente_nombre,
+        solicitud = sol_num.get(c.id) or (str(c.solicitud_origen) if c.solicitud_origen else None)
+        lote["contratos"].append({"id": c.id, "numero": c.numero_contrato, "solicitud": solicitud,
+                                  "cliente": c.cliente_nombre,
                                   "producto": (c.snapshot_producto or {}).get("producto", ""),
                                   "monto": float(c.monto_original or 0), "plazo": c.plazo,
                                   "pendienteAprobacion": pendiente,

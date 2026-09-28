@@ -37,6 +37,7 @@ function EstadoContrato({ c }) {
 
 const COLS_CONTRATOS = [
   { key: "numero", label: "N° contrato", render: (c) => <b>{c.numero}</b> },
+  { key: "solicitud", label: "N° solicitud", render: (c) => c.solicitud || <span className="text-gray-400">—</span> },
   { key: "cliente", label: "Cliente" },
   { key: "producto", label: "Producto" },
   { key: "plazo", label: "Plazo", align: "right" },

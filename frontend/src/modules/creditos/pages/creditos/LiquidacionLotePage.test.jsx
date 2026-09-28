@@ -14,7 +14,7 @@ const LOTES = {
   items: [
     { fecha: "2026-03-10", cantidad: 2, montoTotal: 900000, pendientes: 0,
       contratos: [
-        { id: "c1", numero: "CTO-1", cliente: "PEREZ JUAN", producto: "PERSONAL", monto: 500000, plazo: 12 },
+        { id: "c1", numero: "CTO-1", solicitud: "SOL-2026-00007", cliente: "PEREZ JUAN", producto: "PERSONAL", monto: 500000, plazo: 12 },
         { id: "c2", numero: "CTO-2", cliente: "GOMEZ ANA", producto: "PERSONAL", monto: 400000, plazo: 24 },
       ] },
     { fecha: "2026-03-11", cantidad: 1, montoTotal: 300000, pendientes: 1,
@@ -51,6 +51,7 @@ describe("Liquidación por lote", () => {
     expect(modal).toBeInTheDocument();
     expect(screen.getByText("CTO-1")).toBeInTheDocument();
     expect(screen.getByText("GOMEZ ANA")).toBeInTheDocument();
+    expect(screen.getByText("SOL-2026-00007")).toBeInTheDocument();   // la solicitud que lo originó
   });
 
   it("liquidar pide confirmación y resume el resultado", async () => {
