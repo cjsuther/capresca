@@ -71,7 +71,7 @@ describe("módulo Créditos · menú", () => {
     ["Cuotas en mora", "Simulador", "Líneas de crédito", "Cuenta corriente"].forEach((t) =>
       expect(screen.queryByRole("link", { name: t })).toBeNull());
     // Las creadas en la migración siguen visibles (las que el menú original marcaba como nuevas).
-    ["Solicitudes de crédito", "Configurar Créditos", "Sistema de cálculos", "Liquidación por lote",
+    ["Solicitudes de crédito", "Configurar Créditos", "Sistema de cálculos", "Lotes",
      "Caja de créditos", "Resumen de cobros", "Parámetros de créditos"].forEach((t) =>
       expect(screen.getByRole("link", { name: t })).toBeInTheDocument());
   });

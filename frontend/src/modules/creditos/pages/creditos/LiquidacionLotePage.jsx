@@ -100,7 +100,7 @@ export default function LiquidacionLotePage() {
   return (
     <>
       <PageHeader
-        titulo="Liquidación por lote"
+        titulo="Lotes"
         descripcion={viaTesoreria
           ? "Créditos originados pendientes de liquidar, en lotes por tipo de crédito y fecha. Al liquidar, las transferencias van a Tesorería y cada crédito pasa a ACTIVO cuando se acredita."
           : "Créditos originados pendientes de liquidar, en lotes por tipo de crédito y fecha. Al liquidar el lote pasan a desembolso."}

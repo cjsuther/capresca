@@ -43,7 +43,7 @@ export const MENU = [
       { to: "baja", label: "Baja de crédito", heredada: true },
       { to: "recalculo", label: "Recálculo de cuotas", heredada: true },
       { to: "simulador", label: "Simulador", heredada: true },
-      { to: "liquidacion-lote", label: "Liquidación por lote" },
+      { to: "liquidacion-lote", label: "Lotes" },
       { to: "caja", label: "Caja de créditos" },
       { to: "turnos-admin", label: "Turnos (generar / asignar)", heredada: true },
     ],

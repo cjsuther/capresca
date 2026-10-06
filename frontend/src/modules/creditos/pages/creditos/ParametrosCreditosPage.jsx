@@ -233,7 +233,7 @@ export default function ParametrosCreditosPage() {
           </Card>
 
           <Card className="mb-4">
-            <h2 className="font-semibold text-gray-800">Liquidación por lote</h2>
+            <h2 className="font-semibold text-gray-800">Lotes</h2>
             <p className="text-sm text-gray-500 mt-0.5 mb-3">
               Al originarse, cada crédito entra al lote de su tipo de crédito y fecha. Cuando un lote
               llega a este máximo se abre el siguiente número (la numeración vuelve a 1 cada año). Un

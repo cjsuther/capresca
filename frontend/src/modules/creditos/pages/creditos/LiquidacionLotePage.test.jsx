@@ -36,7 +36,7 @@ beforeEach(() => {
   creditos.ctoLiquidarLote.mockResolvedValue({ desembolsados: ["c1", "c2"], pendientesAprobacion: [], errores: [] });
 });
 
-describe("Liquidación por lote", () => {
+describe("Lotes", () => {
   it("lista los lotes con su número, tipo de crédito y fecha, y marca los que esperan aprobación", async () => {
     render(<LiquidacionLotePage />);
     const fila = (await screen.findByText("2026-0007")).closest("tr");
