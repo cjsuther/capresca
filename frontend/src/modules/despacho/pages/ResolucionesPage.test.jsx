@@ -37,6 +37,7 @@ beforeEach(() => {
     { id: 9, codigo: 3, serie: 4, descripcion: "SEPELIO", tipo: "RES", plantilla: "<p>Seguro…</p>" },
   ]);
   api.getSeries.mockResolvedValue(SERIES);
+  api.getLotesDeResolucion.mockResolvedValue({ lotes: [], total: "0", importe: "125000.50", disponible: "125000.50" });
   document.execCommand = vi.fn();
 });
 
@@ -118,8 +119,38 @@ describe("resoluciones y disposiciones", () => {
     await user.click(await screen.findByRole("button", { name: /Firmar/ }));
     expect(api.firmarResolucion).toHaveBeenCalledWith(1);
 
-    await user.click(await screen.findByRole("button", { name: /Cargar N° oficial/ }));
+    await user.click(await screen.findByRole("button", { name: /Usar el siguiente N° oficial/ }));
     expect(api.cargarNumeroReal).toHaveBeenCalledWith(1, null);
+  });
+
+  it("el N° oficial se escribe a mano (sólo dígitos) y la fecha se corrige", async () => {
+    const user = userEvent.setup();
+    api.getResolucion.mockResolvedValue(detalle({ estado: "F", numero_real: 812, creado_en: "2026-06-01T10:00:00" }));
+    api.corregirOficial.mockResolvedValue(detalle({ estado: "F", numero_real: 813, fecha: "2026-06-12" }));
+    render(<ResolucionesPage />);
+
+    await user.click(await screen.findByText("45/2026"));
+    expect(await screen.findByText("1/6/2026")).toBeInTheDocument();          // fecha de creación
+    const nro = screen.getByLabelText("N° oficial");
+    await user.clear(nro);
+    await user.type(nro, "8a13");
+    expect(nro).toHaveValue("813");
+    const f = screen.getByLabelText("Fecha de la resolución");
+    await user.clear(f);
+    await user.type(f, "2026-06-12");
+    await user.click(screen.getByRole("button", { name: "Guardar N° oficial y fecha" }));
+    await waitFor(() => expect(api.corregirOficial).toHaveBeenCalledWith(1, { numero_real: 813, fecha: "2026-06-12" }));
+  });
+
+  it("muestra los lotes de créditos que otorga y lo disponible", async () => {
+    const user = userEvent.setup();
+    api.getResolucion.mockResolvedValue(detalle());
+    api.getLotesDeResolucion.mockResolvedValue({ lotes: [{ codigo: "2026-0001" }, { codigo: "2026-0002" }],
+                                                 total: "100000", importe: "125000.50", disponible: "25000.50" });
+    render(<ResolucionesPage />);
+    await user.click(await screen.findByText("45/2026"));
+    expect(await screen.findByText(/Lotes de créditos que otorga \(2\)/)).toBeInTheDocument();
+    expect(screen.getByText(/2026-0001, 2026-0002/)).toBeInTheDocument();
   });
 
   it("un instrumento ya emitido no ofrece editarse", async () => {

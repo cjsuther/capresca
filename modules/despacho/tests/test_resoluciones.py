@@ -127,6 +127,45 @@ def test_el_numero_real_se_carga_una_sola_vez(client, h, resolucion):
     assert otra.status_code == 422 and "N° real" in otra.json()["detail"]
 
 
+
+def test_el_numero_oficial_se_escribe_a_mano_y_no_se_repite(client, h, resolucion):
+    r1, r2 = resolucion(), resolucion()
+    a = client.post(f"/api/despacho/resoluciones/{r1['id']}/numero-real", headers=h, json={"numero_real": 120})
+    assert a.status_code == 200 and a.json()["numero_real"] == 120
+    rep = client.post(f"/api/despacho/resoluciones/{r2['id']}/numero-real", headers=h, json={"numero_real": 120})
+    assert rep.status_code == 409 and "ya lo tiene otra" in rep.json()["detail"]
+    assert client.post(f"/api/despacho/resoluciones/{r2['id']}/numero-real", headers=h,
+                       json={"numero_real": 0}).status_code == 422           # sólo números positivos
+    assert client.post(f"/api/despacho/resoluciones/{r2['id']}/numero-real", headers=h,
+                       json={"numero_real": "12a"}).status_code == 422
+
+
+def test_el_numero_oficial_y_la_fecha_se_corrigen_aun_emitida(client, h, resolucion, creditos):
+    r = resolucion()
+    client.post(f"/api/despacho/resoluciones/{r['id']}/numero-real", headers=h, json={"numero_real": 7})
+    c = client.put(f"/api/despacho/resoluciones/{r['id']}/oficial", headers=h,
+                   json={"numero_real": 8, "fecha": f"{r['anio']}-03-15"})
+    assert c.status_code == 200, c.text
+    d = c.json()
+    assert d["numero_real"] == 8 and d["fecha"] == f"{r['anio']}-03-15"
+    assert d["creado_en"] == r["creado_en"]                       # la fecha de creación queda
+    assert creditos.avisos[-1]["numero_oficial"] == 8 and creditos.avisos[-1]["fecha"] == f"{r['anio']}-03-15"
+    otro_anio = client.put(f"/api/despacho/resoluciones/{r['id']}/oficial", headers=h,
+                           json={"fecha": f"{r['anio'] - 1}-12-31"})
+    assert otro_anio.status_code == 422
+
+
+def test_el_importe_no_baja_de_lo_que_otorgan_sus_lotes(client, h, resolucion, creditos):
+    r = resolucion(importe=500000)
+    a = creditos.alta((100000, 200000))
+    client.post("/api/despacho/lotes/asignar", headers=h, json={"resolucion_id": r["id"], "lote_ids": [a["id"]]})
+    no = client.put(f"/api/despacho/resoluciones/{r['id']}", headers=h, json={"importe": 250000})
+    assert no.status_code == 409
+    assert client.get(f"/api/despacho/resoluciones/{r['id']}", headers=h).json()["importe"] in ("500000.00", 500000, "500000")
+    ok = client.put(f"/api/despacho/resoluciones/{r['id']}", headers=h, json={"importe": 300000})
+    assert ok.status_code == 200
+
+
 # --------------------------------------------------------------------------- anulación
 def test_anular_no_borra(client, h, resolucion):
     """Como en el papel: el acto queda con su número y el motivo de la anulación."""

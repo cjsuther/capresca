@@ -15,6 +15,12 @@ const TONO_ESTADO = {
   RECHAZADA: "crit", ORIGINADA: "brand", ANULADA: "neutral",
 };
 const RELACIONES = ["ESTANDAR", "PREFERENCIAL", "PREMIUM"];
+const ESTADO_LOTE = { ABIERTO: "esperando resolución", CON_RESOLUCION: "con resolución", LIQUIDADO: "liquidado" };
+const TONO_LOTE = { ABIERTO: "warn", CON_RESOLUCION: "brand", LIQUIDADO: "ok" };
+/** "Resolución N° 120/2026 · 15/3/2026" (el N° oficial si ya lo tiene; si no, el correlativo). */
+export const textoResolucion = (r) =>
+  `Resolución ${r.numeroOficial ? `N° ${r.numeroOficial}` : `correlativo ${r.numero}`}${r.anio ? `/${r.anio}` : ""}`
+  + (r.fecha ? ` · ${fecha(r.fecha)}` : "");
 const TIPODOC = { DNI_FRENTE: "DNI (frente)", DNI_DORSO: "DNI (dorso)", SELFIE_DNI: "Selfie con el DNI en la mano",
                   RECIBO: "Recibo de sueldo", CERTIFICADO_SERVICIOS: "Certificado de servicios",
                   CONSTANCIA_CBU: "Constancia de CBU", OTRO: "Otro" };
@@ -182,24 +188,6 @@ export default function SolicitudesCreditoPage() {
     finally { setCreando(false); }
   }
 
-  async function originarContrato(s, observacion) {
-    const c = await creditos.ctoOriginar({
-      producto_id: s.productoId, cliente_nombre: s.clienteNombre, monto: s.monto, plazo: s.plazo,
-      segmento: s.segmento || undefined, canal: s.canal || undefined,
-      fecha_nacimiento: s.fechaNacimiento || undefined, antiguedad_meses: s.antiguedadMeses ?? undefined,
-      relacion: s.relacion || undefined, solicitud_pp_id: s.id,
-      datos_adicionales: {
-        destino: s.datosAdicionales?.destino || "", cbu: s.datosAdicionales?.cbu || "",
-        observaciones: observacion.trim() || s.datosAdicionales?.observaciones || "",
-      },
-      desembolsar: false,
-    });
-    const rec = await creditos.ppSolicitudes({ estado: filtro, q })
-      .then((d) => d.items.find((x) => x.id === s.id)).catch(() => null);
-    cargar(); setSel(rec || null);
-    return c;
-  }
-
   async function resolver(accion) {
     const s = sel;
     if (!s) return;
@@ -210,14 +198,9 @@ export default function SolicitudesCreditoPage() {
     }
     setAccionando(true);
     try {
-      if (accion === "originar") {
-        const c = await originarContrato(s, obs);
-        setOk(`Contrato originado: ${c.numeroContrato || c.numero_contrato || ""} · quedó A LIQUIDAR para el desembolso por lote.`);
-      } else {
-        const motivo = accion === "rechazar" || accion === "anular" ? obs.trim() : "";
-        setSel(await creditos.ppSolicitudEstado(s.id, accion, motivo, obs.trim()));
-        cargar();
-      }
+      const motivo = accion === "rechazar" || accion === "anular" ? obs.trim() : "";
+      setSel(await creditos.ppSolicitudEstado(s.id, accion, motivo, obs.trim()));
+      cargar();
     } catch (e) { setDetErr(e.message); }
     finally { setAccionando(false); setConfirmando(null); }
   }
@@ -259,6 +242,7 @@ export default function SolicitudesCreditoPage() {
   }
 
   const puedeEditar = permisos.edita && !soloLectura;
+  const congelada = !!sel?.lote && sel.lote.estado !== "ABIERTO";
   const puedeAprobar = permisos.aprueba && !soloLectura;
 
   return (
@@ -517,8 +501,9 @@ export default function SolicitudesCreditoPage() {
                 <Boton disabled={accionando || !puedeEditar} onClick={() => resolver("enviar")}>Enviar a evaluación</Boton>
               )}
               {!["ORIGINADA", "ANULADA"].includes(sel.estado) && (
-                <Boton variante="secundario" disabled={accionando || !puedeEditar}
-                       title="Baja administrativa del trámite (no es una decisión crediticia)."
+                <Boton variante="secundario" disabled={accionando || !puedeEditar || congelada}
+                       title={congelada ? "Está en un lote con resolución: no se modifica."
+                         : "Baja administrativa del trámite (no es una decisión crediticia)."}
                        onClick={() => setConfirmando({
                          titulo: "Anular solicitud",
                          mensaje: `¿Anular ${sel.numero}? Es una baja administrativa del trámite, no una decisión crediticia.`,
@@ -537,12 +522,6 @@ export default function SolicitudesCreditoPage() {
                            : "Aprueba el crédito (decisión crediticia)."}
                          onClick={() => resolver("aprobar")}>Aprobar</Boton>
                 </>
-              )}
-              {sel.estado === "APROBADA" && (
-                <Boton disabled={accionando || !sel.resolucion || (sel.datosLiquidacion?.aplica && !sel.datosLiquidacion?.lista)}
-                       title={!sel.resolucion ? "Falta la resolución de Despacho que la otorga"
-                         : sel.datosLiquidacion?.aplica && !sel.datosLiquidacion?.lista ? "Faltan datos para liquidar" : ""}
-                       onClick={() => resolver("originar")}>Originar contrato</Boton>
               )}
             </>
           }
@@ -635,7 +614,7 @@ export default function SolicitudesCreditoPage() {
               </ul>
               {!sel.datosLiquidacion.lista && (
                 <p className="mt-2 text-sm text-red-600">
-                  No se puede originar: completá {sel.datosLiquidacion.faltantes.join(", ")}.
+                  No se puede liquidar: completá {sel.datosLiquidacion.faltantes.join(", ")}.
                 </p>
               )}
             </div>
@@ -688,18 +667,34 @@ export default function SolicitudesCreditoPage() {
           {sel.estado === "ORIGINADA" && sel.contratoId && (
             <p className="mt-3"><Pill tono="brand">Originada · contrato {sel.contratoId.slice(0, 8)}</Pill></p>
           )}
-          {sel.resolucion && (
+          {sel.lote ? (
+            <div className="mt-3">
+              <p className="flex flex-wrap items-center gap-2">
+                <Pill tono={TONO_LOTE[sel.lote.estado] || "neutral"}>Lote {sel.lote.codigo} · {ESTADO_LOTE[sel.lote.estado] || sel.lote.estado}</Pill>
+                {sel.lote.resolucion && <Pill tono="ok">{textoResolucion(sel.lote.resolucion)}</Pill>}
+              </p>
+              {sel.lote.estado === "ABIERTO" && (
+                <p className="text-sm text-gray-500 mt-1">Espera que Despacho le asigne al lote la resolución que lo otorga.</p>
+              )}
+              {sel.lote.estado === "CON_RESOLUCION" && (
+                <div className="mt-2">
+                  <Alerta tipo="warn">
+                    Está en un lote con resolución: no se modifica. Si hace falta, se puede pasar a otro lote en{" "}
+                    <Link to="/modules/creditos/liquidacion-lote" className="underline">Créditos → Lotes</Link>.
+                  </Alerta>
+                </div>
+              )}
+            </div>
+          ) : sel.resolucion ? (
             <p className="mt-3">
               <Pill tono="ok">Resolución N° {sel.resolucion.numero}{sel.resolucion.fecha ? ` · ${fecha(sel.resolucion.fecha)}` : ""}</Pill>
             </p>
-          )}
-          {["APROBADA", "ORIGINADA"].includes(sel.estado) && !sel.resolucion && (
+          ) : null}
+          {sel.estado === "APROBADA" && !sel.lote && sel.faltaParaLote?.length > 0 && (
             <div className="mt-3">
               <Alerta tipo="warn">
-                {sel.estado === "APROBADA"
-                  ? "Todavía no está en ninguna resolución. Para originarla, agregala al anexo de una resolución en "
-                  : "Se originó sin resolución. Regularizala agregándola al anexo de una resolución en "}
-                <Link to="/modules/despacho/anexo" className="underline">Despacho → Anexo de resolución</Link>.
+                No entra a ningún lote porque no se puede liquidar: falta {sel.faltaParaLote.join(", ")}.
+                Cuando se complete, entra sola al lote que le corresponde.
               </Alerta>
             </div>
           )}

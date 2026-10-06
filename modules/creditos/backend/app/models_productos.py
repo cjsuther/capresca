@@ -197,9 +197,13 @@ class PPComponente(Base):
 
 # ===================== Contrato / arrangement (Fase 5) y servicing (Fase 6) =====================
 class PPLoteLiquidacion(Base):
-    """Lote de liquidación: contratos de un mismo producto originados el mismo día, hasta un tope
-    (parámetro LOTE_LIQUIDACION_MAX). El número es correlativo dentro del año y arranca en 1 cada
-    año; la DB garantiza que no se repita aun con originaciones simultáneas."""
+    """Lote: solicitudes aprobadas y liquidables de un mismo producto y fecha de aprobación, hasta un
+    tope (parámetro LOTE_LIQUIDACION_MAX). El número es correlativo dentro del año y arranca en 1 cada
+    año; la DB garantiza que no se repita aun con aprobaciones simultáneas.
+
+    Estados: ABIERTO (recibe solicitudes) → CON_RESOLUCION (Despacho le asignó la resolución que lo
+    otorga: queda congelado) → LIQUIDADO (se originaron y desembolsaron todas). La resolución es de
+    Despacho: acá se guarda su id y una copia de lo que Créditos muestra y controla."""
     __tablename__ = "pp_lote_liquidacion"
     __table_args__ = (UniqueConstraint("anio", "numero", name="uq_pp_lote_liquidacion_anio_numero"),
                       UniqueConstraint("producto_id", "fecha", "orden", name="uq_pp_lote_liquidacion_producto_fecha_orden"))
@@ -210,6 +214,14 @@ class PPLoteLiquidacion(Base):
     fecha: Mapped[date] = mapped_column(Date, index=True)
     # 1, 2, 3… dentro del producto y el día: que dos originaciones simultáneas no abran dos lotes a la vez.
     orden: Mapped[int] = mapped_column(Integer, default=1)
+    estado: Mapped[str] = mapped_column(String(15), default="ABIERTO", index=True)
+    resolucion_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    resolucion_numero: Mapped[int] = mapped_column(Integer, default=0)          # correlativo
+    resolucion_anio: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resolucion_numero_oficial: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resolucion_fecha: Mapped[date | None] = mapped_column(Date, nullable=True)
+    resolucion_importe: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
+    liquidado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     @property
@@ -386,6 +398,10 @@ class PPSolicitud(Base):
     lote_resolucion: Mapped[int] = mapped_column(Integer, default=0, index=True)
     fecha_resolucion: Mapped[date | None] = mapped_column(Date, nullable=True)
     en_resolucion: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    aprobada_en: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Lote en el que entró al aprobarse (si es liquidable): services/lotes_liquidacion.
+    lote_liquidacion_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pp_lote_liquidacion.id"), nullable=True, index=True)
 
 
 class PPSolicitudDocumento(Base):

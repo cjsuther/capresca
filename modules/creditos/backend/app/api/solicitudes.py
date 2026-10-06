@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.services import auditoria as audit
 from app.services import documentos
+from app.services import lotes_liquidacion as lotes
 
 from app.core import clientes_padron
 from app.core.database import get_db
@@ -144,6 +145,17 @@ def _datos_liquidacion(db: Session, s: m.PPSolicitud) -> dict:
     return {"aplica": aplica, "lista": not faltantes, "faltantes": faltantes, "items": items}
 
 
+def _lote(db: Session, s: m.PPSolicitud) -> dict | None:
+    lt = db.get(m.PPLoteLiquidacion, s.lote_liquidacion_id) if s.lote_liquidacion_id else None
+    if lt is None:
+        return None
+    return {"id": lt.id, "codigo": lt.codigo, "estado": lt.estado, "fecha": str(lt.fecha),
+            "resolucion": ({"numero": lt.resolucion_numero, "anio": lt.resolucion_anio,
+                            "numeroOficial": lt.resolucion_numero_oficial,
+                            "fecha": str(lt.resolucion_fecha) if lt.resolucion_fecha else None}
+                           if lt.estado != lotes.ABIERTO else None)}
+
+
 def _serial(db: Session, s: m.PPSolicitud) -> dict:
     return {
         "id": s.id, "numero": s.numero, "estado": s.estado, "solicitanteTipo": s.solicitante_tipo,
@@ -159,6 +171,8 @@ def _serial(db: Session, s: m.PPSolicitud) -> dict:
         "resolucion": ({"numero": s.numero_resolucion,
                         "fecha": str(s.fecha_resolucion) if s.fecha_resolucion else None}
                        if s.en_resolucion else None),
+        "lote": _lote(db, s),
+        "faltaParaLote": lotes.faltantes(db, s) if s.estado == "APROBADA" and not s.lote_liquidacion_id else [],
         "creadoPor": s.creado_por, "creadoEn": str(s.creado_en) if s.creado_en else None,
         "enviadaPor": s.enviada_por, "resueltaPor": s.resuelta_por,
     }
@@ -324,10 +338,13 @@ def cambiar_estado(sid: str, data: AccionIn, db: Session = Depends(get_db),
                 if not ev.get("elegible"):
                     raise HTTPException(422, "No se puede aprobar: " + "; ".join(ev.get("motivos", [])))
                 s.estado = "APROBADA"; s.evaluacion = ev; s.resuelta_por = user.username
+                s.aprobada_en = date.today()
+                lotes.asignar(db, s)     # si es liquidable, entra a su lote (tipo de crédito + fecha)
     elif acc == "anular":
         _req_edita(db, user)
         if s.estado == "ORIGINADA":
             raise HTTPException(409, "No se puede anular una solicitud ya originada.")
+        lotes.quitar(db, s)          # en un lote con resolución no se toca
         s.estado = "ANULADA"; s.motivo_rechazo = data.motivo or s.motivo_rechazo
     else:
         raise HTTPException(422, f"Acción inválida: {data.accion}.")

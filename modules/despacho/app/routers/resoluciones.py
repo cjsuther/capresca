@@ -86,7 +86,14 @@ def firmar(resolucion_id: int, db: Session = Depends(get_db),
 def numero_real(resolucion_id: int, datos: schemas.NumeroRealIn, db: Session = Depends(get_db),
                 _u: Usuario = Depends(requiere("resoluciones:firmar"))):
     """Carga el número OFICIAL, que llega después del correlativo."""
-    return svc.asignar_numero_real(db, resolucion_id, datos.fecha_real)
+    return svc.asignar_numero_real(db, resolucion_id, datos.fecha_real, datos.numero_real)
+
+
+@router.put("/resoluciones/{resolucion_id}/oficial", response_model=schemas.ResolucionDetalle)
+def corregir_oficial(resolucion_id: int, datos: schemas.OficialIn, db: Session = Depends(get_db),
+                     _u: Usuario = Depends(requiere("resoluciones:firmar"))):
+    """Corrige el N° oficial (sólo dígitos, sin repetirse en el año y la serie) y la fecha."""
+    return svc.corregir_oficial(db, resolucion_id, datos.numero_real, datos.fecha)
 
 
 @router.post("/resoluciones/{resolucion_id}/anular", response_model=schemas.ResolucionDetalle)

@@ -40,8 +40,9 @@ async def lifespan(app: FastAPI):
         seed_parametros_contables(db)
         from app.api.productos import seed_canales_parametros
         seed_canales_parametros(db)
-        # Los A_LIQUIDAR originados antes de que hubiera lotes numerados se ubican en uno.
-        from app.services.lotes_liquidacion import asignar_pendientes
+        # Lotes de solicitudes: migra los de contratos (una sola vez) y ubica las liquidables sueltas.
+        from app.services.lotes_liquidacion import migrar_a_solicitudes, asignar_pendientes
+        migrar_a_solicitudes(db)
         asignar_pendientes(db)
     # Los asientos migrados (ETL) traen ids explícitos: resincronizamos la secuencia para que
     # los asientos generados por la app (originación/servicing de contratos) no colisionen.
@@ -139,6 +140,18 @@ def _migrar_iam() -> None:
         conn.execute(text("ALTER TABLE pp_contrato ADD COLUMN IF NOT EXISTS lote_liquidacion_id INTEGER "
                           "REFERENCES pp_lote_liquidacion(id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_contrato_lote_liquidacion_id ON pp_contrato (lote_liquidacion_id)"))
+        # Lotes de solicitudes con resolución de Despacho.
+        for col, ddl in (("estado", "VARCHAR(15) DEFAULT 'ABIERTO'"), ("resolucion_id", "INTEGER"),
+                         ("resolucion_numero", "INTEGER DEFAULT 0"), ("resolucion_anio", "INTEGER"),
+                         ("resolucion_numero_oficial", "INTEGER"), ("resolucion_fecha", "DATE"),
+                         ("resolucion_importe", "NUMERIC(16,2)"), ("liquidado_en", "TIMESTAMP")):
+            conn.execute(text(f"ALTER TABLE pp_lote_liquidacion ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_lote_liquidacion_estado ON pp_lote_liquidacion (estado)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_lote_liquidacion_resolucion_id ON pp_lote_liquidacion (resolucion_id)"))
+        conn.execute(text("ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS aprobada_en DATE"))
+        conn.execute(text("ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS lote_liquidacion_id INTEGER "
+                          "REFERENCES pp_lote_liquidacion(id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_solicitud_lote_liquidacion_id ON pp_solicitud (lote_liquidacion_id)"))
         # H-197: los parámetros se separan por ÁMBITO (general|creditos|contabilidad). Backfill de los actuales.
         conn.execute(text("ALTER TABLE parametros ADD COLUMN IF NOT EXISTS ambito VARCHAR(20) DEFAULT 'general'"))
         conn.execute(text("UPDATE parametros SET ambito='creditos' WHERE clave IN ('CANALES','CANAL_PORTAL','CANAL_BACKOFFICE','DECIMALES_CALCULO','DECIMALES_MOSTRAR')"))

@@ -5,9 +5,13 @@ Lo que hay que respetar del circuito administrativo:
 - El **correlativo** es único por (año, SERIE) y lo arbitra la base: si dos usuarios crean a la vez,
   uno reintenta con el siguiente número en lugar de pisar al otro. Cada serie (el área que emite:
   general, seguros, juegos…) numera por su cuenta, como en el sistema anterior.
-- El **número real** (el oficial) se carga después y tiene su propia numeración por (año, serie).
-- Un acto **firmado, con número real o anulado es inmutable**: no se edita algo ya emitido. Tampoco
-  se cambia tipo, número ni año, porque rompería la serie del correlativo.
+- El **número real** (el oficial) se carga después, a mano o el siguiente de la serie, y no se repite
+  en el mismo (año, serie). Se puede corregir, igual que la fecha de la resolución, aun en un acto
+  emitido; la fecha de creación queda guardada aparte (`creado_en`).
+- Un acto **firmado, con número real o anulado es inmutable** en todo lo demás: no se edita algo ya
+  emitido. Tampoco se cambia tipo, número ni año, porque rompería la serie del correlativo.
+- Si la resolución otorga lotes de créditos, Créditos se entera de cada cambio (N° oficial, fecha,
+  importe) y rechaza un importe que ya no alcance para esos lotes.
 - Anular no borra: deja el acto con su número y el motivo, como en el papel.
 """
 from __future__ import annotations
@@ -44,6 +48,24 @@ def _proximo_numero(db: Session, anio: int, serie: int) -> int:
     n = db.scalar(select(func.max(Resolucion.numero)).where(
         Resolucion.anio == anio, Resolucion.serie == serie))
     return (n or 0) + 1
+
+
+def _numero_real_libre(db: Session, r: Resolucion, numero: int) -> None:
+    otra = db.scalar(select(Resolucion).where(Resolucion.anio == r.anio, Resolucion.serie == r.serie,
+                                              Resolucion.numero_real == numero, Resolucion.id != r.id))
+    if otra is not None:
+        raise HTTPException(409, f"El N° oficial {numero}/{r.anio} ya lo tiene otra resolución de la serie "
+                                 f"(correlativo {otra.numero}).")
+
+
+def _avisar_creditos(db: Session, r: Resolucion) -> None:
+    """Antes de guardar: si Créditos rechaza el cambio (p. ej. el importe no alcanza), no se guarda."""
+    from app.services import anexo        # lazy: anexo usa este módulo
+    try:
+        anexo.notificar(r)
+    except HTTPException:
+        db.rollback()
+        raise
 
 
 def _proximo_numero_real(db: Session, anio: int, serie: int) -> int:
@@ -145,11 +167,14 @@ def editar(db: Session, resolucion_id: int, datos) -> Resolucion:
         r.fecha = datos.fecha
     if datos.texto is not None:
         r.texto = datos.texto
+    cambio_importe = datos.importe is not None and Decimal(str(datos.importe)) != (r.importe or Decimal(0))
     if datos.importe is not None:
         r.importe = Decimal(str(datos.importe))
     if datos.nro_op is not None:
         r.nro_op = datos.nro_op
     _beneficiarios(db, r, datos.beneficiarios)
+    if cambio_importe or datos.fecha is not None:
+        _avisar_creditos(db, r)               # 409 si el importe nuevo no alcanza para sus lotes
     db.commit()
     db.refresh(r)
     return r
@@ -167,26 +192,57 @@ def firmar(db: Session, resolucion_id: int) -> Resolucion:
     return r
 
 
-def asignar_numero_real(db: Session, resolucion_id: int, fecha_real: date | None = None) -> Resolucion:
-    """Carga el número OFICIAL, que llega después del correlativo. Con esto el acto queda emitido."""
+def asignar_numero_real(db: Session, resolucion_id: int, fecha_real: date | None = None,
+                        numero: int | None = None) -> Resolucion:
+    """Carga el número OFICIAL, que llega después del correlativo: el que se escriba o, si no, el
+    siguiente de la serie. Con esto el acto queda emitido."""
     r = obtener(db, resolucion_id)
     if r.anulada:
         raise HTTPException(422, "La resolución está anulada.")
     if r.numero_real is not None:
         raise HTTPException(422, f"Ya tiene N° real ({r.numero_real}).")
     freal = fecha_real or date.today()
-    for intento in range(REINTENTOS_NUMERO):
-        r.numero_real = _proximo_numero_real(db, freal.year, r.serie)
-        r.fecha_real = freal
-        r.estado = FIRMADA
-        try:
-            with db.begin_nested():
-                db.flush()
-            break
-        except IntegrityError:
-            db.rollback()
-            if intento == REINTENTOS_NUMERO - 1:
-                raise HTTPException(409, "No se pudo asignar el N° real; probá de nuevo.")
+    if numero is not None:
+        _numero_real_libre(db, r, numero)
+        r.numero_real, r.fecha_real, r.estado = numero, freal, FIRMADA
+    else:
+        for intento in range(REINTENTOS_NUMERO):
+            r.numero_real = _proximo_numero_real(db, r.anio, r.serie)
+            r.fecha_real = freal
+            r.estado = FIRMADA
+            try:
+                with db.begin_nested():
+                    db.flush()
+                break
+            except IntegrityError:
+                db.rollback()
+                if intento == REINTENTOS_NUMERO - 1:
+                    raise HTTPException(409, "No se pudo asignar el N° real; probá de nuevo.")
+    _avisar_creditos(db, r)
+    db.commit()
+    db.refresh(r)
+    return r
+
+
+def corregir_oficial(db: Session, resolucion_id: int, numero: int | None = None,
+                     fecha: date | None = None) -> Resolucion:
+    """Corrige el N° oficial y/o la fecha de la resolución, aun ya emitida. El año no cambia."""
+    r = obtener(db, resolucion_id)
+    if r.anulada:
+        raise HTTPException(422, "La resolución está anulada: no se puede modificar.")
+    if numero is None and fecha is None:
+        raise HTTPException(422, "Indicá el N° oficial o la fecha.")
+    if numero is not None and numero != r.numero_real:
+        _numero_real_libre(db, r, numero)
+        if r.numero_real is None:
+            r.fecha_real = date.today()
+            r.estado = FIRMADA
+        r.numero_real = numero
+    if fecha is not None:
+        if fecha.year != r.anio:
+            raise HTTPException(422, "No se puede cambiar el año: rompería la serie del correlativo.")
+        r.fecha = fecha
+    _avisar_creditos(db, r)
     db.commit()
     db.refresh(r)
     return r

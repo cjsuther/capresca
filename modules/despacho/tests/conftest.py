@@ -99,11 +99,11 @@ def resolucion(client, h):
 
 @pytest.fixture(autouse=True)
 def creditos(monkeypatch):
-    """Créditos de mentira: las solicitudes del anexo son suyas y se consultan por su API interna.
+    """Créditos de mentira: los lotes son suyos y se consultan por su API interna.
 
-    Reproduce sus reglas (sólo lo aprobado, y no puede estar en dos resoluciones) para poder probar
-    el circuito completo del anexo sin levantar el otro módulo. Las reglas de verdad tienen sus
-    propios tests en Créditos.
+    Reproduce sus reglas (un lote no recibe dos resoluciones y la suma de los lotes de una
+    resolución no pasa su importe) para probar el circuito completo sin levantar el otro módulo.
+    Las reglas de verdad tienen sus propios tests en Créditos.
     """
     from decimal import Decimal
 
@@ -113,59 +113,86 @@ def creditos(monkeypatch):
 
     PRODUCTOS = [{"tipo": "prod-personal", "nombre": "Préstamo personal"},
                  {"tipo": "prod-vivienda", "nombre": "Vivienda"}]
-    filas: dict[str, dict] = {}
+    lotes: dict[int, dict] = {}
     proximo = {"n": 0}
+    avisos: list[dict] = []
 
-    def alta(cantidad=3, producto="prod-personal", estado="APROBADA"):
-        creadas = []
-        for i in range(cantidad):
-            proximo["n"] += 1
-            sid = f"sol-{proximo['n']}"
-            filas[sid] = {
-                "id": sid, "numero": f"SOL-{proximo['n']:05d}", "fecha_solicitud": None,
-                "cuil": f"2030504757{i}", "apellido_nombre": f"PEREZ {i}", "dni": "30504757",
-                "monto": Decimal(100000 + i), "producto_id": producto,
-                "producto": next(p["nombre"] for p in PRODUCTOS if p["tipo"] == producto),
-                "estado": estado, "lote": 0, "numero_resolucion": 0, "en_resolucion": False}
-            creadas.append(filas[sid])
-        return creadas
+    def alta(montos=(100000, 200000), producto="prod-personal", resolucion=None):
+        proximo["n"] += 1
+        n = proximo["n"]
+        lotes[n] = {"id": n, "codigo": f"2026-{n:04d}", "anio": 2026, "numero": n, "fecha": "2026-10-06",
+                    "productoId": producto,
+                    "producto": next(p["nombre"] for p in PRODUCTOS if p["tipo"] == producto),
+                    "estado": "CON_RESOLUCION" if resolucion else "ABIERTO", "resolucion": resolucion,
+                    "cantidad": len(montos), "montoTotal": float(sum(montos)),
+                    "solicitudes": [{"id": f"s{n}-{i}", "numero": f"SOL-{n}-{i}", "cuil": "20305047579",
+                                     "apellido_nombre": f"PEREZ {i}", "producto": "Préstamo personal",
+                                     "monto": Decimal(m), "lote": f"2026-{n:04d}"}
+                                    for i, m in enumerate(montos)]}
+        return lotes[n]
 
-    def tipos():
-        return PRODUCTOS
+    def _de(resolucion_id=None, numero=0, anio=None):
+        out = []
+        for lt in lotes.values():
+            r = lt["resolucion"] or {}
+            if (resolucion_id and r.get("id") == resolucion_id) or \
+                    (numero and not r.get("id") and r.get("numero") == numero and r.get("anio") == anio):
+                out.append(lt)
+        return out
 
-    def candidatas(*, producto_id=None, lote=None):
-        if lote:
-            items = [f for f in filas.values() if f["en_resolucion"] and f["lote"] == lote]
-        else:
-            items = [f for f in filas.values()
-                     if f["estado"] == "APROBADA" and not f["en_resolucion"]]
-            if producto_id:
-                items = [f for f in items if f["producto_id"] == producto_id]
-        return {"items": items, "cantidad": len(items),
-                "total": sum((f["monto"] for f in items), Decimal("0"))}
+    def _sin_detalle(lt):
+        return {k: v for k, v in lt.items() if k != "solicitudes"}
 
-    def asignar(*, solicitud_ids, numero_resolucion, fecha_resolucion):
-        elegidas = [filas[i] for i in solicitud_ids if i in filas]
-        sin_aprobar = [f["numero"] for f in elegidas if f["estado"] != "APROBADA"]
-        if sin_aprobar:
-            raise HTTPException(422, f"Estas solicitudes no están aprobadas: {sin_aprobar}.")
-        ajenas = [f["numero"] for f in elegidas
-                  if f["en_resolucion"] and f["numero_resolucion"] != numero_resolucion]
-        if ajenas:
-            raise HTTPException(422, f"Estas solicitudes ya están en otra resolución: {ajenas}.")
-        for f in elegidas:
-            f.update(en_resolucion=True, numero_resolucion=numero_resolucion, lote=numero_resolucion)
-        return {"asignadas": len(elegidas), "total": sum((f["monto"] for f in elegidas), Decimal("0"))}
+    def listar(*, estado=None, producto_id=None, resolucion_id=None, numero=0, anio=None):
+        items = _de(resolucion_id, numero, anio) if (resolucion_id or numero) else list(lotes.values())
+        if estado:
+            items = [x for x in items if x["estado"] == estado]
+        if producto_id:
+            items = [x for x in items if x["productoId"] == producto_id]
+        return {"items": [_sin_detalle(x) for x in items], "cantidad": len(items),
+                "total": Decimal(str(sum(x["montoTotal"] for x in items)))}
 
-    def quitar(solicitud_ids):
-        sacadas = [filas[i] for i in solicitud_ids if i in filas]
-        for f in sacadas:
-            f.update(en_resolucion=False, numero_resolucion=0, lote=0)
-        return {"quitadas": len(sacadas)}
+    def lote(lote_id):
+        if lote_id not in lotes:
+            raise HTTPException(404, "Lote no encontrado.")
+        return _sin_detalle(lotes[lote_id])
+
+    def asignar_resolucion(lote_ids, r):
+        elegidos = [lotes[i] for i in lote_ids]
+        con = [x["codigo"] for x in elegidos if x["estado"] != "ABIERTO"]
+        if con:
+            raise HTTPException(409, f"Estos lotes ya tienen resolución: {', '.join(con)}.")
+        ya = _de(r["id"], r["numero"], r["anio"])
+        total = sum(x["montoTotal"] for x in {id(x): x for x in elegidos + ya}.values())
+        if Decimal(str(total)) > Decimal(str(r["importe"])):
+            raise HTTPException(409, "La suma de los lotes supera el importe de la resolución.")
+        for x in elegidos:
+            x.update(estado="CON_RESOLUCION", resolucion=dict(r))
+        return {"asignados": [x["codigo"] for x in elegidos], "totalResolucion": Decimal(str(total))}
+
+    def quitar_resolucion(lote_id):
+        lotes[lote_id].update(estado="ABIERTO", resolucion=None)
+        return {"lote": lotes[lote_id]["codigo"], "estado": "ABIERTO"}
+
+    def resolucion_actualizada(r):
+        de = _de(r["id"], r["numero"], r["anio"])
+        if de and Decimal(str(sum(x["montoTotal"] for x in de))) > Decimal(str(r["importe"])):
+            raise HTTPException(409, "La suma de los lotes supera el importe de la resolución.")
+        for x in de:
+            x["resolucion"] = dict(r)
+        avisos.append(dict(r))
+        return {"lotes": len(de)}
+
+    def solicitudes_de_resolucion(resolucion_id, numero, anio):
+        filas = [s for lt in _de(resolucion_id, numero, anio) for s in lt["solicitudes"]]
+        return {"items": filas, "cantidad": len(filas)}
 
     monkeypatch.setattr(creditos_central, "habilitado", lambda: True)
-    monkeypatch.setattr(creditos_central, "tipos", tipos)
-    monkeypatch.setattr(creditos_central, "candidatas", candidatas)
-    monkeypatch.setattr(creditos_central, "asignar", asignar)
-    monkeypatch.setattr(creditos_central, "quitar", quitar)
-    return SimpleNamespace(alta=alta, filas=filas, productos=PRODUCTOS)
+    monkeypatch.setattr(creditos_central, "tipos", lambda: PRODUCTOS)
+    monkeypatch.setattr(creditos_central, "lotes", listar)
+    monkeypatch.setattr(creditos_central, "lote", lote)
+    monkeypatch.setattr(creditos_central, "asignar_resolucion", asignar_resolucion)
+    monkeypatch.setattr(creditos_central, "quitar_resolucion", quitar_resolucion)
+    monkeypatch.setattr(creditos_central, "resolucion_actualizada", resolucion_actualizada)
+    monkeypatch.setattr(creditos_central, "solicitudes_de_resolucion", solicitudes_de_resolucion)
+    return SimpleNamespace(alta=alta, lotes=lotes, productos=PRODUCTOS, avisos=avisos)

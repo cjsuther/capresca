@@ -300,31 +300,43 @@ describe("Solicitudes de crédito · resolución", () => {
     await waitFor(() => expect(creditos.ppSolicitudEstado).toHaveBeenCalledWith("s1", "anular", "", ""));
   });
 
-  it("una aprobada se origina como contrato a liquidar", async () => {
-    creditos.ppSolicitudes.mockResolvedValue(LISTA([SOL_APROBADA]));
+  it("una aprobada no se origina sola: se origina al liquidar su lote", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, resolucion: null,
+      lote: { id: 3, codigo: "2026-0003", estado: "ABIERTO", resolucion: null } }]));
     const u = userEvent.setup();
     montar();
     await u.click(await screen.findByText("SOL-3"));
 
     const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
-    await u.click(within(modal).getByRole("button", { name: "Originar contrato" }));
-
-    await waitFor(() => expect(creditos.ctoOriginar).toHaveBeenCalledWith(expect.objectContaining({
-      producto_id: "pp_1", solicitud_pp_id: "s3", desembolsar: false,
-    })));
-    expect(await screen.findByText(/Contrato originado: CTO-9/)).toBeInTheDocument();
+    expect(within(modal).queryByRole("button", { name: "Originar contrato" })).toBeNull();
+    expect(within(modal).getByText(/Lote 2026-0003 · esperando resolución/)).toBeInTheDocument();
+    expect(within(modal).getByText(/Espera que Despacho le asigne/)).toBeInTheDocument();
   });
 
-  it("sin resolución de Despacho no deja originar", async () => {
-    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, resolucion: null }]));
+  it("en un lote con resolución muestra el N° oficial y no se puede anular", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA,
+      lote: { id: 3, codigo: "2026-0003", estado: "CON_RESOLUCION",
+              resolucion: { numero: 45, anio: 2026, numeroOficial: 120, fecha: "2026-06-10" } } }]));
     const u = userEvent.setup();
     montar();
     await u.click(await screen.findByText("SOL-3"));
 
     const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
-    expect(within(modal).getByRole("button", { name: "Originar contrato" })).toBeDisabled();
-    expect(within(modal).getByText(/no está en ninguna resolución/)).toBeInTheDocument();
-    expect(within(modal).getByRole("link", { name: /Anexo de resolución/ })).toHaveAttribute("href", "/modules/despacho/anexo");
+    expect(within(modal).getByText("Resolución N° 120/2026 · 10/6/2026")).toBeInTheDocument();
+    expect(within(modal).getByText(/no se modifica/)).toBeInTheDocument();
+    expect(within(modal).getByRole("link", { name: /Créditos → Lotes/ })).toHaveAttribute("href", "/modules/creditos/liquidacion-lote");
+    expect(within(modal).getByRole("button", { name: "Anular" })).toBeDisabled();
+  });
+
+  it("si no se puede liquidar dice qué le falta para entrar a un lote", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, resolucion: null, lote: null,
+      faltaParaLote: ["CBU de acreditación (22 dígitos)"] }]));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-3"));
+
+    const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    expect(within(modal).getByText(/No entra a ningún lote.*falta CBU de acreditación/)).toBeInTheDocument();
   });
 
   it("muestra la resolución que la otorga", async () => {
@@ -335,20 +347,6 @@ describe("Solicitudes de crédito · resolución", () => {
 
     const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
     expect(within(modal).getByText(/Resolución N° 45/)).toBeInTheDocument();
-  });
-
-  it("si faltan datos de liquidación no deja originar", async () => {
-    creditos.ppSolicitudes.mockResolvedValue(LISTA([{
-      ...SOL_APROBADA,
-      datosLiquidacion: { aplica: true, lista: false, items: [{ campo: "cbu", label: "CBU", ok: false, requerido: true }], faltantes: ["CBU"] },
-    }]));
-    const u = userEvent.setup();
-    montar();
-    await u.click(await screen.findByText("SOL-3"));
-
-    const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
-    expect(within(modal).getByRole("button", { name: "Originar contrato" })).toBeDisabled();
-    expect(within(modal).getByText(/completá CBU/)).toBeInTheDocument();
   });
 
   it("en sólo lectura no se ofrecen acciones", async () => {

@@ -1,6 +1,6 @@
-"""Anexo de resolución (el vínculo con Créditos) y expedientes con sus pases.
+"""Lotes de créditos con su resolución (el vínculo con Créditos) y expedientes con sus pases.
 
-Las solicitudes viven en Créditos: acá se prueba el circuito contra su API interna, simulada por el
+Los lotes viven en Créditos: acá se prueba el circuito contra su API interna, simulada por el
 fixture `creditos` (ver conftest).
 """
 from datetime import date
@@ -8,100 +8,88 @@ from datetime import date
 import pytest
 
 
-@pytest.fixture
-def solicitudes(creditos):
-    """Solicitudes aprobadas y cubicadas, que es lo que entra al anexo."""
-    return creditos.alta
+def _asignar(client, h, r, lotes):
+    return client.post("/api/despacho/lotes/asignar", headers=h,
+                       json={"resolucion_id": r["id"], "lote_ids": [lt["id"] for lt in lotes]})
 
 
-def test_el_anexo_ofrece_las_aprobadas_del_producto(client, h, solicitudes):
-    """El anexo se arma por producto; sin producto, trae todo lo pendiente de otorgar."""
-    solicitudes(3, producto="prod-personal")
-    solicitudes(2, producto="prod-vivienda")
-    personal = client.get("/api/despacho/anexo/solicitudes?tipo=prod-personal", headers=h).json()
-    assert personal["cantidad"] == 3
-
-    vivienda = client.get("/api/despacho/anexo/solicitudes?tipo=prod-vivienda", headers=h).json()
-    assert vivienda["cantidad"] == 2
-
-    todas = client.get("/api/despacho/anexo/solicitudes", headers=h).json()
-    assert todas["cantidad"] == 5
+def test_despacho_ve_los_lotes_de_creditos(client, h, creditos):
+    a = creditos.alta()
+    creditos.alta(producto="prod-vivienda")
+    d = client.get("/api/despacho/lotes", headers=h).json()
+    assert d["cantidad"] == 2
+    personal = client.get("/api/despacho/lotes?tipo=prod-personal", headers=h).json()
+    assert [x["id"] for x in personal["items"]] == [a["id"]]
+    tipos = client.get("/api/despacho/lotes/tipos", headers=h).json()
+    assert tipos[0] == {"tipo": "", "nombre": "Todos los tipos"} and len(tipos) == 3
 
 
-def test_los_tipos_de_anexo_son_los_productos_de_creditos(client, h):
-    d = client.get("/api/despacho/anexo/tipos", headers=h).json()
-    assert d[0] == {"tipo": "", "nombre": "Todos los productos"}
-    assert {"tipo": "prod-vivienda", "nombre": "Vivienda"} in d
+def test_una_resolucion_otorga_varios_lotes_sin_pasar_su_importe(client, h, resolucion, creditos):
+    r = resolucion(importe=500000)
+    a, b = creditos.alta((100000, 200000)), creditos.alta((150000,))
+    ok = _asignar(client, h, r, [a, b])
+    assert ok.status_code == 200, ok.text
+    d = ok.json()
+    assert d["asignados"] == [a["codigo"], b["codigo"]] and float(d["disponible"]) == 50000
+    assert creditos.lotes[a["id"]]["estado"] == "CON_RESOLUCION"
+    assert creditos.lotes[a["id"]]["resolucion"]["id"] == r["id"]
+
+    c = creditos.alta((60000,))
+    no = _asignar(client, h, r, [c])                       # 450 + 60 > 500
+    assert no.status_code == 409 and "supera el importe" in no.json()["detail"]
+
+    comp = client.get(f"/api/despacho/resoluciones/{r['id']}/lotes", headers=h).json()
+    assert float(comp["total"]) == 450000 and float(comp["disponible"]) == 50000 and len(comp["lotes"]) == 2
 
 
-def test_no_ofrece_las_que_no_estan_aprobadas(client, h, solicitudes):
-    solicitudes(2, estado="EN_EVALUACION")
-    d = client.get("/api/despacho/anexo/solicitudes", headers=h).json()
-    assert d["cantidad"] == 0
-
-
-def test_asignar_pone_el_numero_de_la_resolucion_en_las_solicitudes(client, h, resolucion, solicitudes):
+def test_sin_importe_la_resolucion_no_otorga_lotes(client, h, resolucion, creditos):
     r = resolucion()
-    ss = solicitudes(3)
-    a = client.post("/api/despacho/anexo/asignar", headers=h,
-                    json={"tipo": "", "resolucion_id": r["id"],
-                          "solicitud_ids": [s["id"] for s in ss]})
-    assert a.status_code == 200
-    assert a.json()["asignadas"] == 3 and a.json()["numero"] == r["numero"]
-
-    # Ya no aparecen como candidatas, y sí al pedir el lote (para reimprimir).
-    assert client.get("/api/despacho/anexo/solicitudes", headers=h).json()["cantidad"] == 0
-    d = client.get(f"/api/despacho/anexo/solicitudes?lote={r['numero']}", headers=h).json()
-    assert d["cantidad"] == 3 and d["items"][0]["numero_resolucion"] == r["numero"]
+    no = _asignar(client, h, r, [creditos.alta()])
+    assert no.status_code == 422 and "importe" in no.json()["detail"]
 
 
-def test_una_solicitud_no_entra_en_dos_resoluciones(client, h, resolucion, solicitudes):
-    r1, r2 = resolucion(), resolucion()
-    ss = solicitudes(2)
-    client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": "", "resolucion_id": r1["id"], "solicitud_ids": [s["id"] for s in ss]})
-    otra = client.post("/api/despacho/anexo/asignar", headers=h,
-                       json={"tipo": "", "resolucion_id": r2["id"], "solicitud_ids": [ss[0]["id"]]})
-    assert otra.status_code == 422 and "otra resolución" in otra.json()["detail"]
-
-
-def test_no_se_saca_una_solicitud_de_un_acto_ya_emitido(client, h, resolucion, solicitudes):
-    r = resolucion()
-    ss = solicitudes(1)
-    client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": "", "resolucion_id": r["id"], "solicitud_ids": [ss[0]["id"]]})
-    # Mientras es borrador, se puede corregir.
-    assert client.post("/api/despacho/anexo/quitar", headers=h,
-                       json={"solicitud_ids": [ss[0]["id"]],
-                             "numero_resolucion": r["numero"]}).status_code == 200
-
-    client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": "", "resolucion_id": r["id"], "solicitud_ids": [ss[0]["id"]]})
-    client.post(f"/api/despacho/resoluciones/{r['id']}/firmar", headers=h)
-    no = client.post("/api/despacho/anexo/quitar", headers=h,
-                     json={"solicitud_ids": [ss[0]["id"]], "numero_resolucion": r["numero"]})
+def test_a_un_acto_emitido_no_se_le_agregan_ni_sacan_lotes(client, h, resolucion, creditos):
+    r = resolucion(importe=1000000)
+    a = creditos.alta()
+    _asignar(client, h, r, [a])
+    client.post(f"/api/despacho/resoluciones/{r['id']}/numero-real", headers=h, json={"numero_real": 55})
+    assert _asignar(client, h, r, [creditos.alta()]).status_code == 422
+    no = client.post(f"/api/despacho/lotes/{a['id']}/quitar-resolucion", headers=h)
     assert no.status_code == 422 and "emitido" in no.json()["detail"]
 
 
+def test_quitar_la_resolucion_de_un_lote(client, h, resolucion, creditos):
+    r = resolucion(importe=1000000)
+    a = creditos.alta()
+    _asignar(client, h, r, [a])
+    ok = client.post(f"/api/despacho/lotes/{a['id']}/quitar-resolucion", headers=h)
+    assert ok.status_code == 200 and creditos.lotes[a["id"]]["estado"] == "ABIERTO"
+
+
+def test_los_lotes_migrados_se_vinculan_a_su_resolucion(client, h, resolucion, creditos):
+    r = resolucion(importe=1000000)
+    a = creditos.alta(resolucion={"id": None, "numero": r["numero"], "anio": r["anio"]})
+    d = client.get("/api/despacho/lotes", headers=h).json()
+    assert d["items"][0]["resolucion_despacho"]["id"] == r["id"]
+    assert creditos.lotes[a["id"]]["resolucion"]["id"] == r["id"]           # Créditos ya conoce el id
+
+
 def test_si_creditos_no_responde_la_pantalla_lo_dice(client, h, monkeypatch):
-    """Una lista vacía se confundiría con 'no hay nada para otorgar'."""
     from fastapi import HTTPException
 
     from app.services import creditos_central
 
-    def caido(**kw):
+    def caido(**_kw):
         raise HTTPException(503, "Créditos no responde; probá de nuevo en un momento.")
 
-    monkeypatch.setattr(creditos_central, "candidatas", caido)
-    r = client.get("/api/despacho/anexo/solicitudes", headers=h)
-    assert r.status_code == 503 and "no responde" in r.json()["detail"]
+    monkeypatch.setattr(creditos_central, "lotes", caido)
+    r = client.get("/api/despacho/lotes", headers=h)
+    assert r.status_code == 503 and "Créditos no responde" in r.json()["detail"]
 
 
-def test_el_anexo_se_imprime_en_word(client, h, resolucion, solicitudes):
-    r = resolucion()
-    ss = solicitudes(2)
-    client.post("/api/despacho/anexo/asignar", headers=h,
-                json={"tipo": "", "resolucion_id": r["id"], "solicitud_ids": [s["id"] for s in ss]})
+def test_el_anexo_se_imprime_en_word_con_las_solicitudes_de_sus_lotes(client, h, resolucion, creditos):
+    r = resolucion(importe=1000000)
+    _asignar(client, h, r, [creditos.alta(), creditos.alta((50000,))])
     w = client.get(f"/api/despacho/anexo/word/{r['id']}", headers=h)
     assert w.status_code == 200 and w.content[:2] == b"PK"
 

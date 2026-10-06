@@ -11,11 +11,12 @@ vi.mock("../../api/despacho", () => ({
   crearModelo: vi.fn(), editarModelo: vi.fn(),
   getResoluciones: vi.fn(async () => ({ items: [], total: 0, pagina: 1, por_pagina: 20 })),
   getResolucion: vi.fn(), crearResolucion: vi.fn(), editarResolucion: vi.fn(),
-  firmarResolucion: vi.fn(), cargarNumeroReal: vi.fn(), anularResolucion: vi.fn(),
+  firmarResolucion: vi.fn(), cargarNumeroReal: vi.fn(), corregirOficial: vi.fn(), anularResolucion: vi.fn(),
   descargarWord: vi.fn(),
-  getTiposAnexo: vi.fn(async () => []),
-  getSolicitudesAnexo: vi.fn(async () => ({ items: [], cantidad: 0, total: 0 })),
-  asignarAnexo: vi.fn(), quitarDelAnexo: vi.fn(), descargarAnexoWord: vi.fn(),
+  getTiposLotes: vi.fn(async () => []),
+  getLotes: vi.fn(async () => ({ items: [], cantidad: 0, total: 0 })),
+  getLote: vi.fn(), asignarLotes: vi.fn(), quitarResolucionLote: vi.fn(), getLotesDeResolucion: vi.fn(),
+  descargarAnexoWord: vi.fn(),
   getExpedientes: vi.fn(async () => []),
   getExpediente: vi.fn(), getExpedientesPorOficina: vi.fn(async () => []),
   crearExpediente: vi.fn(), pasarExpediente: vi.fn(), archivarExpediente: vi.fn(),
@@ -80,8 +81,11 @@ describe("DespachoModule", () => {
     montar("/modules/despacho/modelos");
     expect(await screen.findByRole("heading", { name: "Modelo de resoluciones" })).toBeInTheDocument();
 
-    montar("/modules/despacho/anexo");
-    expect(await screen.findByRole("heading", { name: "Anexo de resolución" })).toBeInTheDocument();
+    montar("/modules/despacho/lotes");
+    expect(await screen.findByRole("heading", { name: "Lotes de créditos" })).toBeInTheDocument();
+
+    montar("/modules/despacho/anexo");             // el enlace viejo lleva a los lotes
+    expect(await screen.findAllByRole("heading", { name: "Lotes de créditos" })).not.toHaveLength(0);
 
     montar("/modules/despacho/expedientes");
     expect(await screen.findByRole("heading", { name: "Expedientes y pases" })).toBeInTheDocument();

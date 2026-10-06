@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, FileSignature, Plus, Search, X } from "lucide-react";
 
 import {
-  anularResolucion, cargarNumeroReal, crearResolucion, descargarWord, editarResolucion,
-  firmarResolucion, getModelos, getResolucion, getResoluciones, getSeries,
+  anularResolucion, cargarNumeroReal, corregirOficial, crearResolucion, descargarWord, editarResolucion,
+  firmarResolucion, getLotesDeResolucion, getModelos, getResolucion, getResoluciones, getSeries,
 } from "../../../api/despacho";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { useHasPermission } from "../../../context/usePermissions";
@@ -44,6 +44,15 @@ export default function ResolucionesPage() {
   const [detalle, setDetalle] = useState(null);     // resolución abierta
   const [form, setForm] = useState(null);           // alta/edición
   const [guardando, setGuardando] = useState(false);
+  const [oficial, setOficial] = useState({ numero: "", fecha: "" });   // corrección del N° oficial y la fecha
+  const [lotesRes, setLotesRes] = useState(null);                     // lotes de créditos que otorga
+
+  useEffect(() => {
+    setOficial({ numero: detalle?.numero_real ? String(detalle.numero_real) : "", fecha: detalle?.fecha || "" });
+    setLotesRes(null);
+    if (!detalle?.id) return;
+    getLotesDeResolucion(detalle.id).then(setLotesRes).catch(() => setLotesRes({ error: true }));
+  }, [detalle?.id, detalle?.numero_real, detalle?.fecha]); // eslint-disable-line
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -254,7 +263,56 @@ export default function ResolucionesPage() {
             <Dato label="Importe">{money(detalle.importe)}</Dato>
             <Dato label="Origen">{detalle.origen || "—"}</Dato>
             <Dato label="Creada por">{detalle.creado_por || "—"}</Dato>
+            <Dato label="Creada el">{detalle.creado_en ? fecha(String(detalle.creado_en).slice(0, 10)) : "—"}</Dato>
           </dl>
+
+          {!detalle.anulada && puedeFirmar && (
+            <div className="flex flex-wrap items-end gap-3 mb-4 border border-gray-200 rounded-lg p-3">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-500">N° oficial</span>
+                <input className="input w-32 tabular-nums" inputMode="numeric" value={oficial.numero}
+                       aria-label="N° oficial" placeholder="Sin cargar"
+                       onChange={(e) => setOficial((o) => ({ ...o, numero: e.target.value.replace(/\D/g, "") }))} />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-500">Fecha de la resolución</span>
+                <input type="date" className="input" value={oficial.fecha} aria-label="Fecha de la resolución"
+                       onChange={(e) => setOficial((o) => ({ ...o, fecha: e.target.value }))} />
+              </label>
+              <button type="button"
+                      disabled={(!oficial.numero || oficial.numero === String(detalle.numero_real || ""))
+                                && (!oficial.fecha || oficial.fecha === detalle.fecha)}
+                      onClick={() => accion(corregirOficial, detalle.id, {
+                        numero_real: oficial.numero ? Number(oficial.numero) : null,
+                        fecha: oficial.fecha && oficial.fecha !== detalle.fecha ? oficial.fecha : null,
+                      })}
+                      className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                Guardar N° oficial y fecha
+              </button>
+              {!detalle.numero_real && (
+                <button type="button" onClick={() => accion(cargarNumeroReal, detalle.id, null)}
+                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                  Usar el siguiente N° oficial
+                </button>
+              )}
+              <p className="w-full text-xs text-gray-400">
+                Sólo números; no se puede repetir en el año y la serie. La fecha de creación queda guardada aparte.
+              </p>
+            </div>
+          )}
+
+          {lotesRes && !lotesRes.error && lotesRes.lotes?.length > 0 && (
+            <div className="mb-4 text-sm">
+              <p className="font-medium text-gray-700 mb-1">
+                Lotes de créditos que otorga ({lotesRes.lotes.length})
+              </p>
+              <p className="text-gray-600">
+                {lotesRes.lotes.map((l) => l.codigo).join(", ")} · comprometido{" "}
+                <b className="tabular-nums">{money(lotesRes.total)}</b> de {money(lotesRes.importe)} ·
+                disponible <b className="tabular-nums">{money(lotesRes.disponible)}</b>
+              </p>
+            </div>
+          )}
 
           {detalle.anulada && (
             <div className="rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3 mb-3">
@@ -296,12 +354,6 @@ export default function ResolucionesPage() {
               <button type="button" onClick={() => accion(firmarResolucion, detalle.id)}
                       className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 <FileSignature size={15} /> Firmar
-              </button>
-            )}
-            {!detalle.anulada && !detalle.numero_real && puedeFirmar && (
-              <button type="button" onClick={() => accion(cargarNumeroReal, detalle.id, null)}
-                      className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
-                Cargar N° oficial
               </button>
             )}
             {!detalle.anulada && puedeFirmar && (

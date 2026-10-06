@@ -72,7 +72,14 @@ class ResolucionUpdate(BaseModel):
 
 
 class NumeroRealIn(BaseModel):
+    numero_real: int | None = Field(None, ge=1)   # vacío: el siguiente de la serie
     fecha_real: date | None = None
+
+
+class OficialIn(BaseModel):
+    """Corrección del N° oficial y de la fecha de la resolución (también en un acto ya emitido)."""
+    numero_real: int | None = Field(None, ge=1)
+    fecha: date | None = None
 
 
 class AnulacionIn(BaseModel):
@@ -118,37 +125,10 @@ class PaginaResoluciones(BaseModel):
     por_pagina: int
 
 
-# --------------------------------------------------------------------------- anexo
-class SolicitudAnexoOut(BaseModel):
-    """Lo que Créditos devuelve por cada solicitud candidata al anexo."""
-
-    id: str
-    numero: str
-    fecha_solicitud: date | None
-    cuil: str
-    apellido_nombre: str
-    dni: str
-    monto: Decimal
-    producto_id: str
-    producto: str
-    estado: str
-    lote: int
-    numero_resolucion: int
-    en_resolucion: bool
-
-    model_config = {"from_attributes": True}
-
-
-class AnexoAsignarIn(BaseModel):
-    tipo: str = ""                      # producto por el que se agrupó (informativo)
+# --------------------------------------------------------------------------- lotes
+class LotesAsignarIn(BaseModel):
     resolucion_id: int
-    solicitud_ids: list[str] = Field(default_factory=list)
-
-
-class AnexoQuitarIn(BaseModel):
-    solicitud_ids: list[str] = Field(default_factory=list)
-    # Para verificar que el instrumento siga en borrador antes de sacar nada.
-    numero_resolucion: int | None = None
+    lote_ids: list[int] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- expedientes

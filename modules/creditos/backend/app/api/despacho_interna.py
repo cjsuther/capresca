@@ -1,14 +1,10 @@
-"""Las solicitudes que una resolución de Despacho otorga (API interna, no pasa por el gateway).
+"""Los lotes que otorga una resolución de Despacho (API interna, no pasa por el gateway).
 
-El acto administrativo lo emite Despacho, pero las solicitudes son de Créditos: quien manda sobre
-ellas es este módulo. Despacho pregunta cuáles están listas para entrar en un anexo, las asigna en
-lote y, si hace falta, las saca. Acá se valida lo único que Despacho no puede saber: que una
-solicitud esté realmente aprobada y que no quede otorgada por dos resoluciones distintas.
-
-Entran al anexo las solicitudes **APROBADAS**: la resolución es el acto que las otorga formalmente, y
-sin ella no se originan (contratos._originar_impl). También entran las ORIGINADAS que todavía no
-tienen resolución, que son las que se originaron antes de esa regla y hay que regularizar. El "lote"
-ES el número de la resolución, como en el sistema anterior.
+El acto administrativo lo emite Despacho, pero los lotes y sus solicitudes son de Créditos: quien
+manda sobre ellos es este módulo. Despacho lista los lotes, les asigna la resolución que los otorga
+(o se la quita mientras no se liquidaron) y avisa cuando cambia la resolución (N° oficial, fecha,
+importe). Acá se controla lo que Despacho no puede saber: que un lote no reciba dos resoluciones y
+que la suma de los lotes de una resolución no pase su importe (services/lotes_liquidacion).
 """
 from __future__ import annotations
 
@@ -21,13 +17,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import models, models_productos as m
+from app.api.contratos import _nombre_solicitante, serial_lote
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.services import lotes_liquidacion as lotes
 
-router = APIRouter(prefix="/internal/creditos/anexo", tags=["internal"])
-
-APROBADA = "APROBADA"
-OTORGABLES = ("APROBADA", "ORIGINADA")
+router = APIRouter(prefix="/internal/creditos/lotes", tags=["internal"])
 
 
 def api_despacho(x_api_key: str | None = Header(None, alias="X-Api-Key")) -> None:
@@ -36,22 +31,22 @@ def api_despacho(x_api_key: str | None = Header(None, alias="X-Api-Key")) -> Non
         raise HTTPException(401, "API interna: clave inválida.")
 
 
+class ResolucionIn(BaseModel):
+    id: int
+    numero: int
+    anio: int
+    numero_oficial: int | None = None
+    fecha: date | None = None
+    importe: Decimal = Decimal("0")
+
+
 class AsignarIn(BaseModel):
-    solicitud_ids: list[str]
-    numero_resolucion: int
-    fecha_resolucion: date | None = None
+    lote_ids: list[int]
+    resolucion: ResolucionIn
 
 
-class QuitarIn(BaseModel):
-    solicitud_ids: list[str]
-
-
-def _nombre(db: Session, s: m.PPSolicitud) -> str:
-    if s.solicitante_tipo == "REGISTRADO" and s.cliente_id:
-        cli = db.get(models.Cliente, s.cliente_id)
-        if cli:
-            return cli.apellido_nombre
-    return (s.cliente_datos or {}).get("apellido_nombre") or "Sin nombre"
+def _r(r: ResolucionIn) -> dict:
+    return {**r.model_dump(), "fecha": r.fecha.isoformat() if r.fecha else None}
 
 
 def _documento(db: Session, s: m.PPSolicitud, campo: str) -> str:
@@ -62,81 +57,84 @@ def _documento(db: Session, s: m.PPSolicitud, campo: str) -> str:
     return (s.cliente_datos or {}).get(campo) or ""
 
 
-def _fila(db: Session, s: m.PPSolicitud, producto: str) -> dict:
-    return {"id": s.id, "numero": s.numero,
-            "fecha_solicitud": s.creado_en.date() if s.creado_en else None,
-            "cuil": _documento(db, s, "cuil"), "apellido_nombre": _nombre(db, s),
-            "dni": _documento(db, s, "dni"), "monto": s.monto_solicitado,
-            "producto_id": s.producto_id, "producto": producto or "", "estado": s.estado,
-            "lote": s.lote_resolucion, "numero_resolucion": s.numero_resolucion,
-            "en_resolucion": s.en_resolucion}
-
-
 @router.get("/tipos", dependencies=[Depends(api_despacho)])
 def tipos(db: Session = Depends(get_db)):
-    """Los grupos por los que se arma un anexo: hoy, los productos de crédito."""
+    """Los tipos de crédito por los que se arman los lotes: los productos."""
     filas = db.query(m.PPProducto).order_by(m.PPProducto.nombre).all()
     return [{"tipo": p.id, "nombre": p.nombre} for p in filas]
 
 
-@router.get("/solicitudes", dependencies=[Depends(api_despacho)])
-def solicitudes(producto_id: str | None = None, lote: int | None = Query(None, ge=1),
-                db: Session = Depends(get_db)):
-    """Con `lote`, las de esa resolución (para reimprimir el anexo). Sin él, las candidatas:
-    aprobadas u originadas y todavía sin resolución."""
-    q = db.query(m.PPSolicitud, m.PPProducto.nombre).outerjoin(
-        m.PPProducto, m.PPProducto.id == m.PPSolicitud.producto_id)
-    if lote:
-        q = q.filter(m.PPSolicitud.lote_resolucion == lote,
-                     m.PPSolicitud.en_resolucion.is_(True))
+@router.get("", dependencies=[Depends(api_despacho)])
+def listar(estado: str | None = None, producto_id: str | None = None, resolucion_id: int | None = None,
+           numero: int = 0, anio: int | None = None, db: Session = Depends(get_db)):
+    """Lotes con solicitudes. Con `resolucion_id` (o número y año, para los migrados), los de esa
+    resolución, con el total ya comprometido."""
+    lotes.asignar_pendientes(db)
+    if resolucion_id or (numero and anio):
+        q = lotes._de_resolucion(db, resolucion_id, numero, anio)
     else:
-        q = q.filter(m.PPSolicitud.estado.in_(OTORGABLES), m.PPSolicitud.en_resolucion.is_(False))
-        if producto_id:
-            q = q.filter(m.PPSolicitud.producto_id == producto_id)
-    filas = q.order_by(m.PPSolicitud.creado_en).all()
-    items = [_fila(db, s, nombre) for s, nombre in filas]
+        q = db.query(m.PPLoteLiquidacion)
+    if estado:
+        q = q.filter(m.PPLoteLiquidacion.estado == estado.upper())
+    if producto_id:
+        q = q.filter(m.PPLoteLiquidacion.producto_id == producto_id)
+    nombres = dict(db.query(m.PPProducto.id, m.PPProducto.nombre).all())
+    tope = lotes.maximo(db)
+    items = [serial_lote(db, lt, nombres, tope=tope, detalle=False)
+             for lt in q.order_by(m.PPLoteLiquidacion.anio.desc(), m.PPLoteLiquidacion.numero.desc()).all()]
+    items = [x for x in items if x["cantidad"]]
     return {"items": items, "cantidad": len(items),
-            "total": sum((Decimal(str(i["monto"] or 0)) for i in items), Decimal("0"))}
+            "total": sum((Decimal(str(x["montoTotal"])) for x in items), Decimal("0"))}
 
 
-@router.post("/asignar", dependencies=[Depends(api_despacho)])
-def asignar(datos: AsignarIn, db: Session = Depends(get_db)):
-    if not datos.solicitud_ids:
-        raise HTTPException(422, "Elegí al menos una solicitud.")
-    sols = (db.query(m.PPSolicitud)
-            .filter(m.PPSolicitud.id.in_(datos.solicitud_ids)).with_for_update().all())
-    if len(sols) != len(set(datos.solicitud_ids)):
-        raise HTTPException(422, "Alguna de las solicitudes no existe.")
-    # Sólo se otorga lo aprobado: una resolución no puede alcanzar algo todavía en evaluación.
-    sin_aprobar = [s.numero for s in sols if s.estado not in OTORGABLES]
-    if sin_aprobar:
-        raise HTTPException(422, f"Estas solicitudes no están aprobadas: {sin_aprobar}.")
-    # Una solicitud no puede estar otorgada por dos resoluciones distintas.
-    ajenas = [s.numero for s in sols
-              if s.en_resolucion and s.numero_resolucion != datos.numero_resolucion]
-    if ajenas:
-        raise HTTPException(422, f"Estas solicitudes ya están en otra resolución: {ajenas}.")
-
-    fecha = datos.fecha_resolucion or date.today()
-    for s in sols:
-        s.numero_resolucion = datos.numero_resolucion
-        s.lote_resolucion = datos.numero_resolucion
-        s.fecha_resolucion = fecha
-        s.en_resolucion = True
-    db.commit()
-    return {"asignadas": len(sols),
-            "total": sum((s.monto_solicitado or Decimal("0")) for s in sols) or Decimal("0")}
+@router.get("/resolucion/solicitudes", dependencies=[Depends(api_despacho)])
+def solicitudes_de_resolucion(resolucion_id: int = Query(...), numero: int = 0, anio: int | None = None,
+                              db: Session = Depends(get_db)):
+    """Las solicitudes que otorga una resolución (las de sus lotes): el anexo impreso."""
+    filas = []
+    for lt in lotes._de_resolucion(db, resolucion_id, numero, anio).order_by(
+            m.PPLoteLiquidacion.anio, m.PPLoteLiquidacion.numero).all():
+        prod = db.get(m.PPProducto, lt.producto_id)
+        for s, c in lotes.items(db, lt):
+            filas.append({
+                "id": s.id if s else c.id, "numero": s.numero if s else c.numero_contrato,
+                "lote": lt.codigo,
+                "fecha_solicitud": s.creado_en.date() if (s and s.creado_en) else c.fecha_valor,
+                "cuil": _documento(db, s, "cuil") if s else "",
+                "apellido_nombre": _nombre_solicitante(db, s) if s else c.cliente_nombre,
+                "dni": _documento(db, s, "dni") if s else "",
+                "monto": s.monto_solicitado if s else c.monto_original,
+                "producto_id": lt.producto_id, "producto": prod.nombre if prod else "",
+                "estado": s.estado if s else c.estado})
+    return {"items": filas, "cantidad": len(filas),
+            "total": sum((Decimal(str(f["monto"] or 0)) for f in filas), Decimal("0"))}
 
 
-@router.post("/quitar", dependencies=[Depends(api_despacho)])
-def quitar(datos: QuitarIn, db: Session = Depends(get_db)):
-    """Despacho ya verificó que el instrumento siga en borrador: un acto emitido no se toca."""
-    sols = (db.query(m.PPSolicitud)
-            .filter(m.PPSolicitud.id.in_(datos.solicitud_ids)).with_for_update().all())
-    for s in sols:
-        s.numero_resolucion = 0
-        s.lote_resolucion = 0
-        s.fecha_resolucion = None
-        s.en_resolucion = False
-    db.commit()
-    return {"quitadas": len(sols)}
+@router.get("/{lote_id}", dependencies=[Depends(api_despacho)])
+def ver(lote_id: int, db: Session = Depends(get_db)):
+    lt = db.get(m.PPLoteLiquidacion, lote_id)
+    if lt is None:
+        raise HTTPException(404, "Lote no encontrado.")
+    return serial_lote(db, lt)
+
+
+@router.post("/asignar-resolucion", dependencies=[Depends(api_despacho)])
+def asignar_resolucion(datos: AsignarIn, db: Session = Depends(get_db)):
+    asignados = lotes.asignar_resolucion(db, datos.lote_ids, _r(datos.resolucion))
+    total = lotes.total_resolucion(db, datos.resolucion.id, datos.resolucion.numero, datos.resolucion.anio)
+    return {"asignados": [lt.codigo for lt in asignados], "totalResolucion": total}
+
+
+@router.post("/{lote_id}/quitar-resolucion", dependencies=[Depends(api_despacho)])
+def quitar_resolucion(lote_id: int, db: Session = Depends(get_db)):
+    """Despacho ya verificó que el acto todavía se puede tocar."""
+    lt = lotes.quitar_resolucion(db, lote_id)
+    return {"lote": lt.codigo, "estado": lt.estado}
+
+
+@router.post("/resolucion", dependencies=[Depends(api_despacho)])
+def resolucion_actualizada(r: ResolucionIn, db: Session = Depends(get_db)):
+    """Despacho cambió la resolución: se actualiza la copia de sus lotes (409 si el importe nuevo no
+    alcanza para los lotes que ya otorga)."""
+    return {"lotes": lotes.actualizar_resolucion(db, _r(r)),
+            "totalResolucion": lotes.total_resolucion(db, r.id, r.numero, r.anio)}

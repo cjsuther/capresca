@@ -31,8 +31,12 @@ export const firmarResolucion = (id) =>
   api.post(`/despacho/resoluciones/${id}/firmar`).then((r) => r.data);
 
 /** Carga el N° oficial, que llega después del correlativo. */
-export const cargarNumeroReal = (id, fecha_real) =>
-  api.post(`/despacho/resoluciones/${id}/numero-real`, { fecha_real }).then((r) => r.data);
+export const cargarNumeroReal = (id, fecha_real, numero_real) =>
+  api.post(`/despacho/resoluciones/${id}/numero-real`, { fecha_real, numero_real }).then((r) => r.data);
+
+// Corrige el N° oficial (sólo dígitos) y/o la fecha, aun en un acto ya emitido.
+export const corregirOficial = (id, data) =>
+  api.put(`/despacho/resoluciones/${id}/oficial`, data).then((r) => r.data);
 
 export const anularResolucion = (id, motivo) =>
   api.post(`/despacho/resoluciones/${id}/anular`, { motivo }).then((r) => r.data);
@@ -40,19 +44,25 @@ export const anularResolucion = (id, motivo) =>
 export const descargarWord = (id) =>
   api.get(`/despacho/resoluciones/${id}/word`, { responseType: "blob" }).then((r) => r.data);
 
-// ── Anexo: las solicitudes que otorga una resolución ──
-export const getTiposAnexo = () =>
-  api.get("/despacho/anexo/tipos").then((r) => r.data);
+// ── Lotes de créditos: Créditos los arma, Despacho les asigna la resolución ──
+export const getTiposLotes = () =>
+  api.get("/despacho/lotes/tipos").then((r) => r.data);
 
-export const getSolicitudesAnexo = (params) =>
-  api.get("/despacho/anexo/solicitudes", { params }).then((r) => r.data);
+export const getLotes = (params = {}) =>
+  api.get("/despacho/lotes", { params }).then((r) => r.data);
 
-export const asignarAnexo = (data) =>
-  api.post("/despacho/anexo/asignar", data).then((r) => r.data);
+export const getLote = (id) =>
+  api.get(`/despacho/lotes/${id}`).then((r) => r.data);
 
-// El número de resolución va para que Despacho verifique que el instrumento siga en borrador.
-export const quitarDelAnexo = (solicitud_ids, numero_resolucion) =>
-  api.post("/despacho/anexo/quitar", { solicitud_ids, numero_resolucion }).then((r) => r.data);
+export const asignarLotes = (data) =>
+  api.post("/despacho/lotes/asignar", data).then((r) => r.data);
+
+export const quitarResolucionLote = (id) =>
+  api.post(`/despacho/lotes/${id}/quitar-resolucion`).then((r) => r.data);
+
+// Los lotes que otorga una resolución, lo comprometido y lo que queda de su importe.
+export const getLotesDeResolucion = (id) =>
+  api.get(`/despacho/resoluciones/${id}/lotes`).then((r) => r.data);
 
 export const descargarAnexoWord = (resolucionId) =>
   api.get(`/despacho/anexo/word/${resolucionId}`, { responseType: "blob" }).then((r) => r.data);
