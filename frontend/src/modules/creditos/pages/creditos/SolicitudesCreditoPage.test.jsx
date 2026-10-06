@@ -139,58 +139,29 @@ describe("Solicitudes de crédito · crear el cliente desde la solicitud", () =>
     ] });
   });
 
-  async function abrirAlta(u) {
+  it("Crear cliente abre el alta en otra solapa y el detalle sigue a la vista", async () => {
+    const abrir = vi.spyOn(window, "open").mockReturnValue(null);
+    const u = userEvent.setup();
     montar();
     await u.click(await screen.findByText("SOL-2"));
     const detalle = await screen.findByRole("dialog", { name: "PEREZ, JUAN CARLOS" });
     await u.click(within(detalle).getByRole("button", { name: "Crear cliente" }));
-    return screen.findByRole("dialog", { name: "Crear cliente con los datos de la solicitud" });
-  }
-
-  it("precarga lo que declaró el solicitante y crea el cliente con sus documentos", async () => {
-    creditos.ppSolicitudPromover.mockResolvedValue({
-      solicitud: { ...EXPRESS_PORTAL, solicitanteTipo: "REGISTRADO", clienteId: 4321 }, clienteId: 4321, yaExistia: false,
-      documentos: { guardados: 2, repetidos: 0 },
-    });
-    const u = userEvent.setup();
-    const alta = await abrirAlta(u);
-    expect(within(alta).getByLabelText("Apellido")).toHaveValue("PEREZ");
-    expect(within(alta).getByLabelText("Nombres")).toHaveValue("JUAN CARLOS");
-    expect(within(alta).getByLabelText("DNI")).toHaveValue("30123456");
-    expect(within(alta).getByLabelText("Email")).toHaveValue("juan@example.com");
-    expect(within(alta).getByLabelText(/Guardar los 2 documento/)).toBeChecked();
-
-    await u.type(within(alta).getByLabelText("CUIL"), "20-30123456-9");
-    await u.type(within(alta).getByLabelText("Localidad"), "Catamarca");
-    await u.click(within(alta).getByRole("button", { name: "Crear cliente" }));
-
-    await waitFor(() => expect(creditos.ppSolicitudPromover).toHaveBeenCalledWith("s2", expect.objectContaining({
-      apellido_nombre: "PEREZ, JUAN CARLOS", dni: "30123456", cuil: "20301234569", localidad: "Catamarca",
-      email: "juan@example.com", copiar_documentos: true })));
-    const detalle = await screen.findByRole("dialog", { name: "PEREZ, JUAN CARLOS" });
-    expect(within(detalle).getByText(/Cliente creado en el módulo Clientes.*2 documento\(s\) guardado/)).toBeInTheDocument();
-    expect(within(detalle).getByRole("link", { name: "Ver ficha del cliente" })).toHaveAttribute("href", "/modules/clientes/4321");
+    expect(abrir).toHaveBeenCalledWith("/modules/creditos/solicitudes-credito/s2/alta-cliente", "_blank");
+    expect(screen.getByRole("dialog", { name: "PEREZ, JUAN CARLOS" })).toBeInTheDocument();
+    abrir.mockRestore();
   });
 
-  it("valida el CUIL antes de enviar", async () => {
+  it("cuando la otra solapa crea el cliente, el detalle se actualiza", async () => {
     const u = userEvent.setup();
-    const alta = await abrirAlta(u);
-    await u.type(within(alta).getByLabelText("CUIL"), "123");
-    await u.click(within(alta).getByRole("button", { name: "Crear cliente" }));
-    expect(within(alta).getByText("El CUIL debe tener 11 dígitos.")).toBeInTheDocument();
-    expect(creditos.ppSolicitudPromover).not.toHaveBeenCalled();
-  });
-
-  it("si la copia de documentos falla, el cliente queda creado y lo avisa", async () => {
-    creditos.ppSolicitudPromover.mockResolvedValue({
-      solicitud: { ...EXPRESS_PORTAL, solicitanteTipo: "REGISTRADO", clienteId: 4321 }, clienteId: 4321, yaExistia: false,
-      documentos: { guardados: 0, repetidos: 0, error: "No se pudieron copiar los documentos al cliente: timeout" },
-    });
-    const u = userEvent.setup();
-    const alta = await abrirAlta(u);
-    await u.click(within(alta).getByRole("button", { name: "Crear cliente" }));
+    montar();
+    await u.click(await screen.findByText("SOL-2"));
     const detalle = await screen.findByRole("dialog", { name: "PEREZ, JUAN CARLOS" });
-    expect(await within(detalle).findByText(/No se pudieron copiar.*Guardar en el cliente/)).toBeInTheDocument();
+    const canal = new BroadcastChannel("creditos-solicitudes");
+    canal.postMessage({ tipo: "cliente-vinculado", texto: "Cliente creado en el módulo Clientes y vinculado a la solicitud.",
+                        clienteId: 4321, solicitud: { ...EXPRESS_PORTAL, solicitanteTipo: "REGISTRADO", clienteId: 4321 } });
+    canal.close();
+    expect(await within(detalle).findByRole("link", { name: "Ver ficha del cliente" })).toHaveAttribute("href", "/modules/clientes/4321");
+    expect(within(detalle).queryByRole("button", { name: "Crear cliente" })).toBeNull();
   });
 
   it("con el cliente ya vinculado, guarda los documentos en su ficha", async () => {

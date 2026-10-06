@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { creditos } from "../../../../api/creditos";
 import { PageHeader, Card, Field, Boton, Alerta, Modal } from "../../components/ui";
@@ -8,6 +8,7 @@ import { VisorDocumento } from "../../components/VisorDocumento";
 import { BuscadorCliente, nombreCliente } from "../../components/BuscadorCliente";
 import { useSoloLectura } from "../../permisos";
 import { fecha, fmtBytes } from "../../components/format";
+import { CANAL_SOLICITUDES, resumenDocs, urlAltaCliente } from "./AltaClienteSolicitudPage";
 
 const TONO_ESTADO = {
   BORRADOR: "neutral", EN_EVALUACION: "warn", APROBADA: "ok",
@@ -72,6 +73,8 @@ export default function SolicitudesCreditoPage() {
 
   // Detalle de una solicitud
   const [sel, setSel] = useState(null);
+  const selRef = useRef(null);
+  selRef.current = sel;
   const [docs, setDocs] = useState([]);
   const [viendoDoc, setViendoDoc] = useState(null);   // índice del documento abierto en el visor
   const [crono, setCrono] = useState([]);
@@ -82,8 +85,6 @@ export default function SolicitudesCreditoPage() {
   const [accionando, setAccionando] = useState(false);
   const [confirmando, setConfirmando] = useState(null);
   const [vinculando, setVinculando] = useState(null);      // solicitud express a vincular
-  const [altaCliente, setAltaCliente] = useState(null);    // formulario de alta del cliente desde la solicitud
-  const [altaErr, setAltaErr] = useState("");
   const [detOk, setDetOk] = useState(null);                // { texto, clienteId } tras crear/vincular/guardar docs
 
   const decimales = Math.max(0, Math.min(6, cat.decimalesMostrar ?? 2));
@@ -221,14 +222,6 @@ export default function SolicitudesCreditoPage() {
     finally { setAccionando(false); setConfirmando(null); }
   }
 
-  /** Texto de lo que pasó con los adjuntos al crear/vincular el cliente. */
-  const resumenDocs = (d) => {
-    if (!d) return "";
-    if (d.error) return ` ${d.error} Reintentá con "Guardar en el cliente".`;
-    if (!d.guardados && !d.repetidos) return "";
-    return ` ${d.guardados} documento(s) guardado(s) en su ficha${d.repetidos ? ` (${d.repetidos} ya estaba(n))` : ""}.`;
-  };
-
   async function vincularCliente(c) {
     setDetErr("");
     try {
@@ -239,39 +232,21 @@ export default function SolicitudesCreditoPage() {
     } catch (e) { setDetErr(e.message); }
   }
 
-  /** Alta en el módulo Clientes con lo que trajo la solicitud; el asesor completa lo que falte. */
-  function abrirAltaCliente(s) {
-    const cd = s.clienteDatos || {};
-    const [apellido, ...resto] = (cd.apellido_nombre || s.clienteNombre || "").split(",");
-    setAltaErr("");
-    setAltaCliente({
-      apellido: (apellido || "").trim(), nombres: resto.join(",").trim(),
-      dni: cd.dni || "", cuil: cd.cuil || "",
-      email: cd.email || s.datosAdicionales?.portal_email || "", telefono: cd.telefono || "",
-      domicilio: cd.domicilio || "", localidad: cd.localidad || "", copiar_documentos: true,
-    });
-  }
+  /** El alta se abre en otra solapa, para seguir viendo el detalle y los anexos mientras se carga. */
+  const abrirAltaCliente = (s) => window.open(urlAltaCliente(s.id), "_blank");
 
-  async function crearCliente() {
-    const f = altaCliente;
-    const cuil = f.cuil.replace(/\D/g, ""), dni = f.dni.replace(/\D/g, "");
-    if (!f.apellido.trim() || !f.nombres.trim()) { setAltaErr("Completá apellido y nombres."); return; }
-    if (!dni && !cuil) { setAltaErr("Hace falta el DNI o el CUIL."); return; }
-    if (cuil && cuil.length !== 11) { setAltaErr("El CUIL debe tener 11 dígitos."); return; }
-    setAccionando(true); setAltaErr("");
-    try {
-      const r = await creditos.ppSolicitudPromover(sel.id, {
-        apellido_nombre: `${f.apellido.trim()}, ${f.nombres.trim()}`, dni, cuil,
-        email: f.email.trim(), telefono: f.telefono.trim(), domicilio: f.domicilio.trim(), localidad: f.localidad.trim(),
-        copiar_documentos: f.copiar_documentos,
-      });
-      setAltaCliente(null); setSel(r.solicitud); cargar();
-      const texto = (r.yaExistia ? "La persona ya estaba en Clientes: se vinculó a la solicitud."
-                                 : "Cliente creado en el módulo Clientes y vinculado a la solicitud.") + resumenDocs(r.documentos);
-      setOk(texto); setDetOk({ texto, clienteId: r.clienteId });
-    } catch (e) { setAltaErr(e.message); }
-    finally { setAccionando(false); }
-  }
+  // Cuando la otra solapa crea/vincula el cliente, el detalle abierto se actualiza solo.
+  useEffect(() => {
+    let canal;
+    try { canal = new BroadcastChannel(CANAL_SOLICITUDES); } catch { return undefined; }
+    canal.onmessage = ({ data }) => {
+      if (data?.tipo !== "cliente-vinculado" || !data.solicitud) return;
+      cargar();
+      if (selRef.current?.id !== data.solicitud.id) return;
+      setSel(data.solicitud); setOk(data.texto); setDetOk({ texto: data.texto, clienteId: data.clienteId });
+    };
+    return () => canal.close();
+  }, [filtro, q]); // eslint-disable-line
 
   async function guardarDocsEnCliente() {
     setDetErr(""); setAccionando(true);
@@ -732,7 +707,7 @@ export default function SolicitudesCreditoPage() {
             <div className="mt-3">
               <Alerta tipo="warn">
                 El cliente no está en el padrón. Para aprobar, vinculá un cliente existente o dalo de alta
-                en <Link to="/modules/clientes/nuevo/humano" className="underline">Clientes</Link>.
+                en <a href={urlAltaCliente(sel.id)} target="_blank" rel="noopener" className="underline">Clientes</a>.
               </Alerta>
             </div>
           )}
@@ -750,38 +725,6 @@ export default function SolicitudesCreditoPage() {
             Elegí el cliente del padrón para {vinculando.numero}. El alta de personas se hace en el módulo Clientes.
           </p>
           <BuscadorCliente onSelect={(c) => c && vincularCliente(c)} autoFocus />
-        </Modal>
-      )}
-
-      {altaCliente && sel && (
-        <Modal titulo="Crear cliente con los datos de la solicitud" eyebrow={`${sel.numero} · alta en el módulo Clientes`}
-               ancho="max-w-2xl" onClose={() => setAltaCliente(null)}
-               footer={<>
-                 <span className="flex-1" />
-                 <Boton variante="secundario" onClick={() => setAltaCliente(null)}>Cancelar</Boton>
-                 <Boton onClick={crearCliente} disabled={accionando}>{accionando ? "Creando…" : "Crear cliente"}</Boton>
-               </>}>
-          <p className="text-sm text-gray-500 mb-3">
-            Revisá lo que declaró el solicitante y completá lo que falte (la web no trae el CUIL). Si la persona ya
-            existe en Clientes (mismo documento), no se duplica: se vincula.
-          </p>
-          {altaErr && <div className="mb-3"><Alerta>{altaErr}</Alerta></div>}
-          <div className="grid sm:grid-cols-2 gap-3">
-            {[["apellido", "Apellido"], ["nombres", "Nombres"], ["dni", "DNI"], ["cuil", "CUIL"],
-              ["email", "Email"], ["telefono", "Teléfono"], ["domicilio", "Domicilio"], ["localidad", "Localidad"]].map(([k, l]) => (
-              <Field key={k} label={l}>
-                <input className="input" value={altaCliente[k]} inputMode={["dni", "cuil", "telefono"].includes(k) ? "numeric" : undefined}
-                       onChange={(e) => setAltaCliente((f) => ({ ...f, [k]: e.target.value }))} />
-              </Field>
-            ))}
-          </div>
-          {docs.length > 0 && (
-            <label className="flex items-center gap-2 mt-4 text-sm text-gray-600">
-              <input type="checkbox" checked={altaCliente.copiar_documentos}
-                     onChange={(e) => setAltaCliente((f) => ({ ...f, copiar_documentos: e.target.checked }))} />
-              Guardar los {docs.length} documento(s) adjuntos en la ficha del cliente
-            </label>
-          )}
         </Modal>
       )}
 

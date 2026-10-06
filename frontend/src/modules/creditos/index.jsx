@@ -4,6 +4,7 @@ import { CreditosSidebar } from "./Sidebar";
 import { RUTAS, primeraRuta } from "./rutas";
 import { RUTAS_HEREDADAS } from "./menu";
 import { usePuedeVer, usePuedeVerHeredadas } from "./permisos";
+import AltaClienteSolicitudPage from "./pages/creditos/AltaClienteSolicitudPage";
 
 /**
  * Módulo Créditos (CCyPP). El backend corre en su propio contenedor (creditos:8010) detrás del
@@ -57,6 +58,8 @@ export default function CreditosModule() {
             <Route key={ruta} path={ruta}
                    element={!verHeredadas && RUTAS_HEREDADAS.has(ruta) ? <Heredada /> : <Pantalla />} />
           ))}
+          {/* Se abre en otra solapa desde el detalle de la solicitud. */}
+          <Route path="solicitudes-credito/:id/alta-cliente" element={<AltaClienteSolicitudPage />} />
           <Route path="*" element={<NoEncontrada />} />
         </Routes>
       ) : <SinAcceso />}
