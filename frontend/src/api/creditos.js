@@ -140,7 +140,7 @@ export const creditos = {
   ctoOriginar: (d) => postIdem(`/contratos/originar`, d),
   ctoDesembolsar: (id) => postIdem(`/contratos/${id}/desembolsar`, {}),
   ctoLotesLiquidacion: () => req(`/contratos/lotes-liquidacion`),
-  ctoLiquidarLote: (fecha) => postIdem(`/contratos/liquidar-lote`, { fecha }),
+  ctoLiquidarLote: (loteId) => postIdem(`/contratos/liquidar-lote`, { lote_id: loteId }),
   ctoRefinanciar: (id, tasa, plazo) => postIdem(`/contratos/${id}/refinanciar`, { tasa, plazo }),
   ctoActividadCaja: (id, tipo, importe, medio_pago, modo, cuotas) => postIdem(`/contratos/${id}/actividad`, { tipo, importe, medio_pago, ...(modo ? { modo } : {}), ...(cuotas ? { cuotas } : {}) }),
   // Solicitudes de crédito (línea nueva / product builder)

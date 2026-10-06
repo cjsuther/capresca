@@ -12,6 +12,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,7 @@ from app.core.permisos import requiere_permiso
 from app.deps import get_current_user
 from app import models, models_productos as m
 from app.services import auditoria as audit
+from app.services import lotes_liquidacion as lotes_liquidacion_svc
 from app.services.productos_calc import cronograma
 from app.api.productos import (_serial, _serial_efectivo, _version_efectiva,
                                _calc_codigo_por_version, _ultima, _tasa, _tna_base, _cargo,
@@ -461,14 +463,18 @@ def situacion_cliente(q: str = Query("", min_length=0), db: Session = Depends(ge
 
 
 # ----------------------- Liquidación de préstamos por lote (H-135) -----------------------
-# Post-originación: los contratos quedan A_LIQUIDAR. Se agrupan por DÍA de originación (fecha_valor)
-# y se liquidan JUNTOS (lote) para pasar a desembolso. Debe declararse ANTES de GET /{contrato_id}
-# (si no, "lotes-liquidacion" se interpretaría como un id de contrato).
+# Post-originación: los contratos quedan A_LIQUIDAR, cada uno en su lote de liquidación (producto + día
+# de originación, numerado por año, con tope configurable: services/lotes_liquidacion), y se liquidan
+# JUNTOS para pasar a desembolso. Debe declararse ANTES de GET /{contrato_id} (si no,
+# "lotes-liquidacion" se interpretaría como un id de contrato).
 @router.get("/lotes-liquidacion")
 def lotes_liquidacion(db: Session = Depends(get_db), user: models.Usuario = Depends(get_current_user)):
-    """Contratos pendientes de liquidar (A_LIQUIDAR) agrupados por día de originación, del más reciente."""
+    """Lotes con contratos pendientes de liquidar (A_LIQUIDAR), del más reciente."""
+    # Un A_LIQUIDAR sin lote no debería existir (se asigna al originar y al arrancar); si aparece,
+    # se ubica ahora para que no quede fuera de la pantalla.
+    lotes_liquidacion_svc.asignar_pendientes(db)
     rows = (db.query(m.PPContrato).filter(m.PPContrato.estado == "A_LIQUIDAR")
-            .order_by(m.PPContrato.fecha_valor.desc(), m.PPContrato.numero_contrato).all())
+            .order_by(m.PPContrato.numero_contrato).all())
     # Contratos que ya intentaron liquidarse y esperan la aprobación del workflow DESEMBOLSO.
     pend_ids = {p.contrato_id for p in db.query(m.PPWorkflowPendiente)
                 .filter(m.PPWorkflowPendiente.objeto == "DESEMBOLSO",
@@ -476,11 +482,23 @@ def lotes_liquidacion(db: Session = Depends(get_db), user: models.Usuario = Depe
     # Solicitud que originó cada contrato: la del circuito actual (pp_solicitud.contrato_id).
     sol_num = dict(db.query(m.PPSolicitud.contrato_id, m.PPSolicitud.numero)
                    .filter(m.PPSolicitud.contrato_id.in_([c.id for c in rows])).all()) if rows else {}
-    lotes: dict[str, dict] = {}
+    lote_ids = {c.lote_liquidacion_id for c in rows}
+    registros = {lt.id: lt for lt in db.query(m.PPLoteLiquidacion)
+                 .filter(m.PPLoteLiquidacion.id.in_(lote_ids)).all()} if lote_ids else {}
+    nombres = dict(db.query(m.PPProducto.id, m.PPProducto.nombre)
+                   .filter(m.PPProducto.id.in_({lt.producto_id for lt in registros.values()})).all()) if registros else {}
+    ocupados = dict(db.query(m.PPContrato.lote_liquidacion_id, func.count(m.PPContrato.id))
+                    .filter(m.PPContrato.lote_liquidacion_id.in_(lote_ids))
+                    .group_by(m.PPContrato.lote_liquidacion_id).all()) if lote_ids else {}
+    tope = lotes_liquidacion_svc.maximo(db)
+    lotes: dict[int, dict] = {}
     for c in rows:
-        k = str(c.fecha_valor)
-        lote = lotes.setdefault(k, {"fecha": k, "cantidad": 0, "montoTotal": 0.0, "pendientes": 0,
-                                    "enTesoreria": 0, "observados": 0, "contratos": []})
+        lt = registros[c.lote_liquidacion_id]
+        lote = lotes.setdefault(lt.id, {
+            "id": lt.id, "codigo": lt.codigo, "anio": lt.anio, "numero": lt.numero,
+            "fecha": str(lt.fecha), "productoId": lt.producto_id, "producto": nombres.get(lt.producto_id, ""),
+            "ocupados": ocupados.get(lt.id, 0), "maximo": tope,
+            "cantidad": 0, "montoTotal": 0.0, "pendientes": 0, "enTesoreria": 0, "observados": 0, "contratos": []})
         pendiente = c.id in pend_ids
         des = desembolso_info(c)
         lote["cantidad"] += 1
@@ -498,32 +516,49 @@ def lotes_liquidacion(db: Session = Depends(get_db), user: models.Usuario = Depe
                                   "monto": float(c.monto_original or 0), "plazo": c.plazo,
                                   "pendienteAprobacion": pendiente,
                                   "desembolso": {k2: des.get(k2) for k2 in ("estado", "lote", "motivo") if des.get(k2)}})
-    return {"items": sorted(lotes.values(), key=lambda x: x["fecha"], reverse=True), "viaTesoreria": via_tesoreria()}
+    items = sorted(lotes.values(), key=lambda x: (x["fecha"], x["anio"], x["numero"]), reverse=True)
+    return {"items": items, "maximo": tope, "viaTesoreria": via_tesoreria()}
 
 
 class LiquidarLoteIn(BaseModel):
-    fecha: str          # día de originación (YYYY-MM-DD) cuyo lote se liquida
+    lote_id: int | None = None   # el lote de liquidación que se liquida
+    fecha: str | None = None     # compatibilidad: todos los lotes de ese día de originación
 
 
 @router.post("/liquidar-lote")
 def liquidar_lote(data: LiquidarLoteIn, db: Session = Depends(get_db),
                   user: models.Usuario = Depends(get_current_user),
                   idempotency_key: str | None = Header(None, alias="Idempotency-Key")):
-    """Liquida (desembolsa) TODOS los contratos A_LIQUIDAR originados el día indicado. Respeta el
+    """Liquida (desembolsa) los contratos A_LIQUIDAR del lote indicado. Respeta el
     workflow DESEMBOLSO: los que requieran aprobación quedan pendientes; el resto se desembolsa.
     Idempotente + serializado (H-154): un reintento/doble-clic no desembolsa dos veces, y ante
     concurrencia cada contrato se toma con lock + recheck de estado (la DB es árbitro)."""
-    try:
-        d = date.fromisoformat(data.fecha)
-    except ValueError:
-        raise HTTPException(422, "Fecha inválida (se espera YYYY-MM-DD).")
+    q = db.query(m.PPContrato).filter(m.PPContrato.estado == "A_LIQUIDAR")
+    if data.lote_id is not None:
+        lote = db.get(m.PPLoteLiquidacion, data.lote_id)
+        if lote is None:
+            raise HTTPException(404, "Lote de liquidación no encontrado.")
+        q = q.filter(m.PPContrato.lote_liquidacion_id == lote.id)
+        prod = db.get(m.PPProducto, lote.producto_id)
+        descripcion = f"Desembolsos del lote {lote.codigo} ({prod.nombre if prod else lote.producto_id}) del {lote.fecha}"
+        clave = f"lote {lote.id}"
+    elif data.fecha:
+        try:
+            d = date.fromisoformat(data.fecha)
+        except ValueError:
+            raise HTTPException(422, "Fecha inválida (se espera YYYY-MM-DD).")
+        q = q.filter(m.PPContrato.fecha_valor == d)
+        lote = None
+        descripcion = f"Desembolsos de créditos originados el {data.fecha}"
+        clave = data.fecha
+    else:
+        raise HTTPException(422, "Indicá el lote a liquidar.")
 
     def _do():
-        contratos = (db.query(m.PPContrato)
-                     .filter(m.PPContrato.estado == "A_LIQUIDAR", m.PPContrato.fecha_valor == d)
-                     .order_by(m.PPContrato.numero_contrato).all())
+        contratos = q.order_by(m.PPContrato.numero_contrato).all()
         if not contratos:
-            raise HTTPException(404, "No hay contratos por liquidar para ese día.")
+            raise HTTPException(404, "No hay contratos por liquidar en ese lote." if lote
+                                else "No hay contratos por liquidar para ese día.")
         ids = [c.id for c in contratos]
         desembolsados, pendientes, errores, a_tesoreria, ya_en_tesoreria = [], [], [], [], []
         for cid in ids:
@@ -548,13 +583,14 @@ def liquidar_lote(data: LiquidarLoteIn, db: Session = Depends(get_db),
         teso = {"lote": None, "enviados": []}
         if a_tesoreria:
             listos = db.query(m.PPContrato).filter(m.PPContrato.id.in_(a_tesoreria)).order_by(m.PPContrato.numero_contrato).all()
-            teso = mandar_a_tesoreria(db, listos, user, f"Desembolsos de créditos originados el {data.fecha}")
+            teso = mandar_a_tesoreria(db, listos, user, descripcion)
             errores += teso["errores"]
-        return {"fecha": data.fecha, "total": len(ids), "desembolsados": desembolsados,
+        return {"lote": lote.codigo if lote else None, "fecha": str(lote.fecha) if lote else data.fecha,
+                "total": len(ids), "desembolsados": desembolsados,
                 "pendientesAprobacion": pendientes, "errores": errores,
                 "enTesoreria": teso["enviados"], "loteTesoreria": teso["lote"], "yaEnTesoreria": ya_en_tesoreria}
 
-    return con_idempotencia(db, idempotency_key, f"POST /api/contratos/liquidar-lote {data.fecha}",
+    return con_idempotencia(db, idempotency_key, f"POST /api/contratos/liquidar-lote {clave}",
                             _do, usuario=user.username)
 
 
@@ -734,6 +770,8 @@ def _originar_impl(db: Session, data: OriginarIn, user) -> dict:
     c = crear_con_numero_unico(db, lambda: _proximo_numero_contrato(db, hoy.year), _mk_contrato)
     for f in filas:
         db.add(m.PPCuotaContrato(contrato_id=c.id, **f))
+    if c.estado == "A_LIQUIDAR":                  # queda para liquidar: entra a su lote (producto + día)
+        lotes_liquidacion_svc.asignar(db, c)
     if sol_pp is not None:                        # solicitud nueva → queda ORIGINADA y ligada al contrato
         sol_pp.estado = "ORIGINADA"; sol_pp.contrato_id = c.id
     if desembolsar_efectivo:

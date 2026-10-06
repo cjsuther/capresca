@@ -40,6 +40,9 @@ async def lifespan(app: FastAPI):
         seed_parametros_contables(db)
         from app.api.productos import seed_canales_parametros
         seed_canales_parametros(db)
+        # Los A_LIQUIDAR originados antes de que hubiera lotes numerados se ubican en uno.
+        from app.services.lotes_liquidacion import asignar_pendientes
+        asignar_pendientes(db)
     # Los asientos migrados (ETL) traen ids explícitos: resincronizamos la secuencia para que
     # los asientos generados por la app (originación/servicing de contratos) no colisionen.
     _resync_secuencia_asientos()
@@ -132,6 +135,10 @@ def _migrar_iam() -> None:
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_cuenta_empresa_codigo ON cuentas_contables (empresa_id, codigo)"))
         # H-190: trazabilidad de "préstamo duplicado" (de qué producto salió la copia).
         conn.execute(text("ALTER TABLE pp_producto ADD COLUMN IF NOT EXISTS copiado_de VARCHAR(36)"))
+        # Lotes de liquidación numerados por año (la tabla la crea create_all; acá, la columna del contrato).
+        conn.execute(text("ALTER TABLE pp_contrato ADD COLUMN IF NOT EXISTS lote_liquidacion_id INTEGER "
+                          "REFERENCES pp_lote_liquidacion(id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_contrato_lote_liquidacion_id ON pp_contrato (lote_liquidacion_id)"))
         # H-197: los parámetros se separan por ÁMBITO (general|creditos|contabilidad). Backfill de los actuales.
         conn.execute(text("ALTER TABLE parametros ADD COLUMN IF NOT EXISTS ambito VARCHAR(20) DEFAULT 'general'"))
         conn.execute(text("UPDATE parametros SET ambito='creditos' WHERE clave IN ('CANALES','CANAL_PORTAL','CANAL_BACKOFFICE','DECIMALES_CALCULO','DECIMALES_MOSTRAR')"))

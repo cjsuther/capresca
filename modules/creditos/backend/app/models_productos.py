@@ -196,6 +196,27 @@ class PPComponente(Base):
 
 
 # ===================== Contrato / arrangement (Fase 5) y servicing (Fase 6) =====================
+class PPLoteLiquidacion(Base):
+    """Lote de liquidación: contratos de un mismo producto originados el mismo día, hasta un tope
+    (parámetro LOTE_LIQUIDACION_MAX). El número es correlativo dentro del año y arranca en 1 cada
+    año; la DB garantiza que no se repita aun con originaciones simultáneas."""
+    __tablename__ = "pp_lote_liquidacion"
+    __table_args__ = (UniqueConstraint("anio", "numero", name="uq_pp_lote_liquidacion_anio_numero"),
+                      UniqueConstraint("producto_id", "fecha", "orden", name="uq_pp_lote_liquidacion_producto_fecha_orden"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    anio: Mapped[int] = mapped_column(Integer, index=True)
+    numero: Mapped[int] = mapped_column(Integer)
+    producto_id: Mapped[str] = mapped_column(ForeignKey("pp_producto.id"), index=True)
+    fecha: Mapped[date] = mapped_column(Date, index=True)
+    # 1, 2, 3… dentro del producto y el día: que dos originaciones simultáneas no abran dos lotes a la vez.
+    orden: Mapped[int] = mapped_column(Integer, default=1)
+    creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    @property
+    def codigo(self) -> str:
+        return f"{self.anio}-{self.numero:04d}"
+
+
 class PPContrato(Base):
     """Instancia del producto aceptada por un cliente. Congela snapshot del producto."""
     __tablename__ = "pp_contrato"
@@ -217,6 +238,9 @@ class PPContrato(Base):
     datos_adicionales: Mapped[dict] = mapped_column(JSON, default=dict)
     # Origen legacy: NO_SOLICIT de la solicitud de crédito real (VFP) que dio lugar al contrato
     solicitud_origen: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    # Lote de liquidación en el que quedó al originarse A_LIQUIDAR (services/lotes_liquidacion).
+    lote_liquidacion_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pp_lote_liquidacion.id"), nullable=True, index=True)
     creado_por: Mapped[str] = mapped_column(String(30), default="")
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     cuotas: Mapped[list["PPCuotaContrato"]] = relationship(

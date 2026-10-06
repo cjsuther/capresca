@@ -14,6 +14,7 @@ const DESC = {
   DECIMALES_MOSTRAR: "Decimales con que se MUESTRAN los importes de créditos en pantalla (0–6).",
   PORTAL_OMITIR_VIDEOS: "Saltear el paso de videos en la solicitud del portal (true/false).",
   PORTAL_DOCUMENTOS: "Documentación que pide la solicitud del portal (tipos separados por coma).",
+  LOTE_LIQUIDACION_MAX: "Cantidad máxima de créditos en un lote de liquidación.",
 };
 
 // La documentación que puede pedir la solicitud del portal. El orden es el del circuito y es el
@@ -29,6 +30,7 @@ const DOCUMENTOS = [
 const TODOS_LOS_DOCUMENTOS = DOCUMENTOS.map(([t]) => t);
 
 const acotar = (v) => Math.max(0, Math.min(6, Math.floor(Number(v) || 0)));
+const topeLote = (v) => Math.max(1, Math.min(9999, Math.floor(Number(v) || 1)));
 
 export default function ParametrosCreditosPage() {
   const puedeEscribir = usePuedeEscribir();
@@ -39,6 +41,7 @@ export default function ParametrosCreditosPage() {
   const [decimalesMostrar, setDecimalesMostrar] = useState(2);
   const [omitirVideos, setOmitirVideos] = useState(false);
   const [docs, setDocs] = useState(TODOS_LOS_DOCUMENTOS);
+  const [maxLote, setMaxLote] = useState(50);
   const [nuevoCanal, setNuevoCanal] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -59,6 +62,7 @@ export default function ParametrosCreditosPage() {
       setOmitirVideos(String(m.PORTAL_OMITIR_VIDEOS || "").toLowerCase() === "true");
       // Sin el parámetro cargado se piden todos: es el comportamiento anterior a que fuera
       // configurable. Cargado y vacío es una decisión explícita (no pedir ninguno).
+      setMaxLote(topeLote(m.LOTE_LIQUIDACION_MAX ?? 50));
       setDocs(m.PORTAL_DOCUMENTOS === undefined
         ? TODOS_LOS_DOCUMENTOS
         : TODOS_LOS_DOCUMENTOS.filter((t) => m.PORTAL_DOCUMENTOS.split(",")
@@ -92,6 +96,7 @@ export default function ParametrosCreditosPage() {
       await up("DECIMALES_MOSTRAR", String(acotar(decimalesMostrar)));
       await up("PORTAL_OMITIR_VIDEOS", omitirVideos ? "true" : "false");
       await up("PORTAL_DOCUMENTOS", docs.join(","));
+      await up("LOTE_LIQUIDACION_MAX", String(topeLote(maxLote)));
       setOk("Parámetros de créditos guardados.");
       cargar();
     } catch (e) { setError(e.message); }
@@ -225,6 +230,20 @@ export default function ParametrosCreditosPage() {
                 <span className="text-xs text-gray-400">No cambia el cálculo, sólo la presentación en pantalla.</span>
               </Field>
             </div>
+          </Card>
+
+          <Card className="mb-4">
+            <h2 className="font-semibold text-gray-800">Liquidación por lote</h2>
+            <p className="text-sm text-gray-500 mt-0.5 mb-3">
+              Al originarse, cada crédito entra al lote de su tipo de crédito y fecha. Cuando un lote
+              llega a este máximo se abre el siguiente número (la numeración vuelve a 1 cada año). Un
+              cambio rige para los lotes que se llenen de ahí en adelante.
+            </p>
+            <Field label="Máximo de créditos por lote" className="max-w-xs">
+              <input type="number" min={1} max={9999} step={1} className="input w-full" value={maxLote}
+                     disabled={!puedeEscribir} aria-label="Máximo de créditos por lote"
+                     onChange={(e) => setMaxLote(e.target.value)} onBlur={() => setMaxLote(topeLote(maxLote))} />
+            </Field>
           </Card>
 
           {puedeEscribir && (

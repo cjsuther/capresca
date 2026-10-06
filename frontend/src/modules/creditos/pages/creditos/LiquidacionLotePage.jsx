@@ -8,14 +8,23 @@ import { usePuedeEscribir } from "../../permisos";
 import { money, fecha, num } from "../../components/format";
 
 /**
- * Liquidación de préstamos por lote (H-135): los contratos originados quedan A_LIQUIDAR y se
- * liquidan agrupados por DÍA de originación. Al liquidar, cada crédito pasa a desembolso (si el
+ * Liquidación de préstamos por lote (H-135): los contratos originados quedan A_LIQUIDAR, cada uno en
+ * su lote (tipo de crédito + día de originación, numerado por año, con el tope del parámetro
+ * LOTE_LIQUIDACION_MAX), y se liquidan por lote. Al liquidar, cada crédito pasa a desembolso (si el
  * workflow lo exige, queda esperando aprobación). Con el desembolso por Tesorería (H-216) la
  * transferencia va en un lote de Tesorería y el crédito se activa cuando se acredita.
  */
 const COLS_LOTES = [
-  { key: "fecha", label: "Día de originación", sortable: true, render: (l) => <b>{fecha(l.fecha)}</b> },
-  { key: "cantidad", label: "Créditos", align: "right", sortable: true },
+  { key: "codigo", label: "Lote", sortable: true, sortValue: (l) => l.anio * 100000 + l.numero,
+    render: (l) => <b className="tabular-nums">{l.codigo}</b> },
+  { key: "producto", label: "Tipo de crédito", sortable: true },
+  { key: "fecha", label: "Fecha", sortable: true, render: (l) => fecha(l.fecha) },
+  { key: "cantidad", label: "Créditos", align: "right", sortable: true,
+    render: (l) => (
+      <span className="tabular-nums" title={`${num(l.ocupados)} de ${num(l.maximo)} lugares del lote ocupados`}>
+        {num(l.cantidad)}{l.ocupados > l.cantidad ? ` de ${num(l.ocupados)}` : ""}
+      </span>
+    ) },
   { key: "montoTotal", label: "Monto a liquidar", align: "right", sortable: true, render: (l) => money(l.montoTotal) },
   { key: "estado", label: "Estado", render: (l) => (
     <div className="flex flex-wrap gap-1">
@@ -49,6 +58,7 @@ export default function LiquidacionLotePage() {
   const puedeEscribir = usePuedeEscribir();
   const [lotes, setLotes] = useState([]);
   const [viaTesoreria, setViaTesoreria] = useState(false);
+  const [maximo, setMaximo] = useState(50);
   const [sel, setSel] = useState(null);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -62,7 +72,8 @@ export default function LiquidacionLotePage() {
       const d = await creditos.ctoLotesLiquidacion();
       setLotes(d.items);
       setViaTesoreria(!!d.viaTesoreria);
-      setSel((prev) => (prev ? d.items.find((l) => l.fecha === prev.fecha) || null : null));
+      if (d.maximo) setMaximo(d.maximo);
+      setSel((prev) => (prev ? d.items.find((l) => l.id === prev.id) || null : null));
     } catch (e) { setError(e.message); }
     finally { setCargando(false); }
   }
@@ -71,14 +82,14 @@ export default function LiquidacionLotePage() {
   async function liquidar() {
     setError(""); setOk(""); setLiquidando(true);
     try {
-      const r = await creditos.ctoLiquidarLote(sel.fecha);
+      const r = await creditos.ctoLiquidarLote(sel.id);
       const partes = [];
       if (r.desembolsados.length || !r.enTesoreria?.length) partes.push(`Desembolsados: ${r.desembolsados.length}`);
       if (r.enTesoreria?.length) partes.push(`Enviados a Tesorería: ${r.enTesoreria.length} (lote ${r.loteTesoreria}); se activan al acreditarse`);
       if (r.yaEnTesoreria?.length) partes.push(`Ya estaban en Tesorería: ${r.yaEnTesoreria.length}`);
       if (r.pendientesAprobacion.length) partes.push(`Pendientes de aprobación: ${r.pendientesAprobacion.length}`);
       if (r.errores.length) partes.push(`Con error: ${r.errores.length}`);
-      setOk(`Lote del ${fecha(sel.fecha)} procesado. ${partes.join(" · ")}`);
+      setOk(`Lote ${sel.codigo} (${sel.producto}, ${fecha(sel.fecha)}) procesado. ${partes.join(" · ")}`);
       setConfirmando(false);
       setSel(null);
       await cargar();
@@ -91,8 +102,8 @@ export default function LiquidacionLotePage() {
       <PageHeader
         titulo="Liquidación por lote"
         descripcion={viaTesoreria
-          ? "Créditos originados pendientes de liquidar, agrupados por día. Al liquidar, las transferencias van a Tesorería y cada crédito pasa a ACTIVO cuando se acredita."
-          : "Créditos originados pendientes de liquidar, agrupados por día. Al liquidar el lote pasan a desembolso."}
+          ? "Créditos originados pendientes de liquidar, en lotes por tipo de crédito y fecha. Al liquidar, las transferencias van a Tesorería y cada crédito pasa a ACTIVO cuando se acredita."
+          : "Créditos originados pendientes de liquidar, en lotes por tipo de crédito y fecha. Al liquidar el lote pasan a desembolso."}
       />
 
       {error && <div className="mb-4"><Alerta>{error}</Alerta></div>}
@@ -101,19 +112,19 @@ export default function LiquidacionLotePage() {
       <Card padding={false}>
         <p className="px-4 py-3 text-sm text-gray-500 border-b border-gray-200">
           {cargando ? "Cargando…" : lotes.length
-            ? `${num(lotes.length)} lote(s) pendientes · clickeá uno para ver sus créditos`
+            ? `${num(lotes.length)} lote(s) pendientes · hasta ${num(maximo)} créditos por lote · clickeá uno para ver sus créditos`
             : "No hay créditos pendientes de liquidar."}
         </p>
         <div className="p-4">
-          <DataTable columns={COLS_LOTES} rows={lotes} rowKey={(l) => l.fecha}
-                     clientSort defaultSort="fecha" onRowClick={setSel}
+          <DataTable columns={COLS_LOTES} rows={lotes} rowKey={(l) => l.id}
+                     clientSort defaultSort="codigo" onRowClick={setSel}
                      emptyText="No hay créditos pendientes de liquidar." />
         </div>
       </Card>
 
       {sel && (
         <Modal
-          eyebrow={`Lote del ${fecha(sel.fecha)}`}
+          eyebrow={`Lote ${sel.codigo} · ${sel.producto} · ${fecha(sel.fecha)}`}
           titulo={`${num(sel.cantidad)} crédito(s) · ${money(sel.montoTotal)}`}
           onClose={() => setSel(null)}
           footer={
@@ -151,7 +162,7 @@ export default function LiquidacionLotePage() {
       {confirmando && (
         <Confirmacion
           titulo="Liquidar el lote"
-          mensaje={`Se liquidan ${num(sel?.cantidad)} crédito(s) del ${fecha(sel?.fecha)} por ${money(sel?.montoTotal)}.\n${viaTesoreria
+          mensaje={`Se liquidan ${num(sel?.cantidad)} crédito(s) del lote ${sel?.codigo} (${sel?.producto}, ${fecha(sel?.fecha)}) por ${money(sel?.montoTotal)}.\n${viaTesoreria
             ? "Las transferencias se mandan a Tesorería para aprobarlas y enviarlas, y cada crédito pasa a ACTIVO cuando se acredita"
             : "Cada uno pasa a desembolso"}; si el workflow lo exige, queda esperando aprobación.`}
           confirmar="Liquidar"

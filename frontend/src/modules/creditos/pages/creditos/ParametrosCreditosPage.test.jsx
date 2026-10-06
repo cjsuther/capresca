@@ -65,10 +65,11 @@ describe("Parámetros de créditos", () => {
     await screen.findByRole("button", { name: "Quitar SUCURSAL" });
 
     await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
-    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(7));
+    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(8));
     const claves = creditos.upsertParametro.mock.calls.map((c) => c[0].clave);
     expect(claves).toEqual(["CANALES", "CANAL_PORTAL", "CANAL_BACKOFFICE", "DECIMALES_CALCULO",
-                            "DECIMALES_MOSTRAR", "PORTAL_OMITIR_VIDEOS", "PORTAL_DOCUMENTOS"]);
+                            "DECIMALES_MOSTRAR", "PORTAL_OMITIR_VIDEOS", "PORTAL_DOCUMENTOS",
+                            "LOTE_LIQUIDACION_MAX"]);
     expect(creditos.upsertParametro.mock.calls[0][0]).toMatchObject({ valor: "SUCURSAL,WEB", ambito: "creditos" });
     expect(await screen.findByText("Parámetros de créditos guardados.")).toBeInTheDocument();
   });
@@ -76,6 +77,26 @@ describe("Parámetros de créditos", () => {
   // --------------------------------------------------------------- documentación de la solicitud
   const guardado = (clave) =>
     creditos.upsertParametro.mock.calls.map((c) => c[0]).find((p) => p.clave === clave);
+
+  it("el máximo de créditos por lote arranca en 50 y se guarda lo que se cargue", async () => {
+    const u = userEvent.setup();
+    render(<ParametrosCreditosPage />);
+    const tope = await screen.findByLabelText("Máximo de créditos por lote");
+    expect(tope).toHaveValue(50);
+    await u.clear(tope);
+    await u.type(tope, "80");
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+    await waitFor(() => expect(guardado("LOTE_LIQUIDACION_MAX")).toMatchObject({ valor: "80", ambito: "creditos" }));
+  });
+
+  it("un máximo vacío o en cero se guarda como 1", async () => {
+    const u = userEvent.setup();
+    render(<ParametrosCreditosPage />);
+    const tope = await screen.findByLabelText("Máximo de créditos por lote");
+    await u.clear(tope);
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+    await waitFor(() => expect(guardado("LOTE_LIQUIDACION_MAX")).toMatchObject({ valor: "1" }));
+  });
 
   it("sin el parámetro cargado se piden todos los documentos", async () => {
     const u = userEvent.setup();

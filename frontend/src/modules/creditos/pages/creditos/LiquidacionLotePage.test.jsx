@@ -12,14 +12,17 @@ vi.mock("../../../../api/creditos", () => ({
 
 const LOTES = {
   items: [
-    { fecha: "2026-03-10", cantidad: 2, montoTotal: 900000, pendientes: 0,
+    { id: 11, codigo: "2026-0007", anio: 2026, numero: 7, producto: "PERSONAL", fecha: "2026-03-10",
+      cantidad: 2, ocupados: 2, maximo: 50, montoTotal: 900000, pendientes: 0,
       contratos: [
         { id: "c1", numero: "CTO-1", solicitud: "SOL-2026-00007", cliente: "PEREZ JUAN", producto: "PERSONAL", monto: 500000, plazo: 12 },
         { id: "c2", numero: "CTO-2", cliente: "GOMEZ ANA", producto: "PERSONAL", monto: 400000, plazo: 24 },
       ] },
-    { fecha: "2026-03-11", cantidad: 1, montoTotal: 300000, pendientes: 1,
+    { id: 12, codigo: "2026-0008", anio: 2026, numero: 8, producto: "ESPECIAL", fecha: "2026-03-11",
+      cantidad: 1, ocupados: 3, maximo: 50, montoTotal: 300000, pendientes: 1,
       contratos: [{ id: "c3", numero: "CTO-3", cliente: "LOPEZ SA", producto: "ESPECIAL", monto: 300000, plazo: 6, pendienteAprobacion: true }] },
   ],
+  maximo: 50,
 };
 
 const sesion = (acciones) =>
@@ -34,9 +37,14 @@ beforeEach(() => {
 });
 
 describe("Liquidación por lote", () => {
-  it("lista los lotes por día y marca los que esperan aprobación", async () => {
+  it("lista los lotes con su número, tipo de crédito y fecha, y marca los que esperan aprobación", async () => {
     render(<LiquidacionLotePage />);
-    expect(await screen.findByText("10/3/2026")).toBeInTheDocument();
+    const fila = (await screen.findByText("2026-0007")).closest("tr");
+    expect(within(fila).getByText("PERSONAL")).toBeInTheDocument();
+    expect(within(fila).getByText("10/3/2026")).toBeInTheDocument();
+    // Del lote 8 quedan 1 por liquidar de los 3 que tuvo.
+    expect(within(screen.getByText("2026-0008").closest("tr")).getByText("1 de 3")).toBeInTheDocument();
+    expect(screen.getByText(/hasta 50 créditos por lote/)).toBeInTheDocument();
     expect(screen.getByText("A liquidar")).toBeInTheDocument();
     expect(screen.getByText("1 esperando aprobación")).toBeInTheDocument();
     expect(screen.getByText(/2 lote\(s\) pendientes/)).toBeInTheDocument();
@@ -45,7 +53,7 @@ describe("Liquidación por lote", () => {
   it("clickear un lote abre sus créditos", async () => {
     const u = userEvent.setup();
     render(<LiquidacionLotePage />);
-    await u.click(await screen.findByText("10/3/2026"));
+    await u.click(await screen.findByText("2026-0007"));
 
     const modal = await screen.findByRole("heading", { name: /2 crédito\(s\)/ });
     expect(modal).toBeInTheDocument();
@@ -57,7 +65,7 @@ describe("Liquidación por lote", () => {
   it("liquidar pide confirmación y resume el resultado", async () => {
     const u = userEvent.setup();
     render(<LiquidacionLotePage />);
-    await u.click(await screen.findByText("10/3/2026"));
+    await u.click(await screen.findByText("2026-0007"));
     await u.click(await screen.findByRole("button", { name: /Liquidar lote \(2\)/ }));
 
     // Sobre el detalle del lote se abre la confirmación (dos diálogos superpuestos).
@@ -65,8 +73,8 @@ describe("Liquidación por lote", () => {
     expect(creditos.ctoLiquidarLote).not.toHaveBeenCalled();
 
     await u.click(screen.getByRole("button", { name: "Liquidar" }));
-    await waitFor(() => expect(creditos.ctoLiquidarLote).toHaveBeenCalledWith("2026-03-10"));
-    expect(await screen.findByText(/Desembolsados: 2/)).toBeInTheDocument();
+    await waitFor(() => expect(creditos.ctoLiquidarLote).toHaveBeenCalledWith(11));
+    expect(await screen.findByText(/Lote 2026-0007 \(PERSONAL, 10\/3\/2026\) procesado.*Desembolsados: 2/)).toBeInTheDocument();
     expect(creditos.ctoLotesLiquidacion).toHaveBeenCalledTimes(2);      // recarga
   });
 
@@ -74,7 +82,7 @@ describe("Liquidación por lote", () => {
     creditos.ctoLiquidarLote.mockResolvedValue({ desembolsados: ["c1"], pendientesAprobacion: ["c2"], errores: [] });
     const u = userEvent.setup();
     render(<LiquidacionLotePage />);
-    await u.click(await screen.findByText("10/3/2026"));
+    await u.click(await screen.findByText("2026-0007"));
     await u.click(await screen.findByRole("button", { name: /Liquidar lote \(2\)/ }));
     await u.click(screen.getByRole("button", { name: "Liquidar" }));
     expect(await screen.findByText(/Pendientes de aprobación: 1/)).toBeInTheDocument();
@@ -83,7 +91,7 @@ describe("Liquidación por lote", () => {
   it("un lote con créditos en aprobación lo avisa dentro del detalle", async () => {
     const u = userEvent.setup();
     render(<LiquidacionLotePage />);
-    await u.click(await screen.findByText("11/3/2026"));
+    await u.click(await screen.findByText("2026-0008"));
     expect(await screen.findByText(/1 crédito\(s\) de este lote ya están esperando/)).toBeInTheDocument();
   });
 
@@ -91,7 +99,7 @@ describe("Liquidación por lote", () => {
     creditos.ctoLiquidarLote.mockRejectedValue(new Error("El ejercicio contable está cerrado"));
     const u = userEvent.setup();
     render(<LiquidacionLotePage />);
-    await u.click(await screen.findByText("10/3/2026"));
+    await u.click(await screen.findByText("2026-0007"));
     await u.click(await screen.findByRole("button", { name: /Liquidar lote \(2\)/ }));
     await u.click(screen.getByRole("button", { name: "Liquidar" }));
     expect(await screen.findByText("El ejercicio contable está cerrado")).toBeInTheDocument();
@@ -101,7 +109,7 @@ describe("Liquidación por lote", () => {
     sesion(["creditos:read"]);
     const u = userEvent.setup();
     render(<LiquidacionLotePage />);
-    await u.click(await screen.findByText("10/3/2026"));
+    await u.click(await screen.findByText("2026-0007"));
     expect(await screen.findByText("CTO-1")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Liquidar lote/ })).toBeNull();
   });
