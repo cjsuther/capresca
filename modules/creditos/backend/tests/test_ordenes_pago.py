@@ -192,3 +192,35 @@ def test_el_tipo_del_acto_viaja_con_el_lote(client):
     d = client.get(f"{OP}/disponibles", headers=HT).json()["items"]
     assert d[0]["acto"]["tipo"] == "DIS"
     assert lotes.PARA_LIQUIDAR in lotes.ORDEN
+
+
+def test_un_contrato_sin_solicitud_y_sin_cbu_frena_la_orden(client):
+    from tests.test_desembolso_tesoreria import _a_liquidar
+    h = _auth(client)
+    lid, _ = _con_resolucion(client)
+    cid = _a_liquidar(client, h, nombre="SIN CBU VIEJO")["id"]
+    with SessionLocal() as db:
+        c = db.get(m.PPContrato, cid)
+        c.datos_adicionales, c.lote_liquidacion_id = {}, lid        # contrato del circuito anterior sin CBU
+        numero = c.numero_contrato
+        db.commit()
+    r = _reservar(client, ["id:7"])
+    assert r.status_code == 409 and f"{numero}: falta CBU" in r.json()["detail"]
+    assert _lote(lid).estado == "CON_RESOLUCION" and _lote(lid).orden_pago_id is None
+
+
+def test_una_solicitud_ya_originada_sin_cbu_frena_la_orden(client):
+    lid, sids = _con_resolucion(client)
+    _reservar(client, ["id:7"])
+    client.post(f"{OP}/liberar", headers=HT, json={"orden_id": 1})           # quedan originadas A_LIQUIDAR
+    with SessionLocal() as db:
+        s = db.get(m.PPSolicitud, sids[0])
+        c = db.get(m.PPContrato, s.contrato_id)
+        c.datos_adicionales = {k: v for k, v in (c.datos_adicionales or {}).items() if k != "cbu"}
+        s.datos_adicionales = {}
+        db.get(models.Cliente, s.cliente_id).cbu = ""
+        numero = c.numero_contrato
+        db.commit()
+    r = _reservar(client, ["id:7"], orden_id=2, codigo="OP-2026-00002")
+    assert r.status_code == 409 and f"{numero}: falta CBU" in r.json()["detail"]
+    assert _lote(lid).estado == "CON_RESOLUCION"

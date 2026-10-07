@@ -461,7 +461,18 @@ def no_liquidables(db: Session, lote: m.PPLoteLiquidacion) -> list[str]:
                 problemas.append(f"{s.numero}: falta {', '.join(f)}")
         elif s is not None and not (c is not None and c.estado in ("A_LIQUIDAR", "ACTIVO")):
             problemas.append(f"{s.numero}: está {s.estado}")
+        elif c is not None and c.estado == "A_LIQUIDAR" and len(_cbu_de(db, s, c)) != 22:
+            # Ya originado (o del circuito anterior): la transferencia sale al CBU del contrato, si no al
+            # de la solicitud, si no al del cliente (contratos._pago_de).
+            problemas.append(f"{c.numero_contrato}: falta CBU de acreditación (22 dígitos)")
     return problemas
+
+
+def _cbu_de(db: Session, s: m.PPSolicitud | None, c: m.PPContrato) -> str:
+    cli = db.get(models.Cliente, s.cliente_id) if s is not None and s.cliente_id else None
+    return (_digitos((c.datos_adicionales or {}).get("cbu"))
+            or _digitos(((s.datos_adicionales if s is not None else None) or {}).get("cbu"))
+            or _digitos(getattr(cli, "cbu", "")))
 
 
 def marcar_liquidado(lote: m.PPLoteLiquidacion) -> None:
