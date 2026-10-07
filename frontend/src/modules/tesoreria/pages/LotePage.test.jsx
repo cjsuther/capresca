@@ -53,6 +53,14 @@ describe("LotePage", () => {
     expect(screen.getByText("alta")).toBeInTheDocument();
   });
 
+  it("el lote de una orden de pago la muestra y no deja excluir pagos", async () => {
+    montar({ ...BASE, orden_pago: { id: 4, codigo: "OP-2026-00004", estado: "CONFECCIONADA" } });
+    expect(await screen.findByRole("link", { name: "OP-2026-00004" })).toBeInTheDocument();
+    expect(screen.getByText(/sus pagos no se excluyen/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Aprobar/ })).toBeInTheDocument();
+  });
+
   it("excluir pide motivo", async () => {
     api.excluirPago.mockResolvedValue({ ...BASE, pagos: [{ ...P1, estado: "EXCLUIDO", motivo: "CBU dudoso" }, P2] });
     montar(BASE);

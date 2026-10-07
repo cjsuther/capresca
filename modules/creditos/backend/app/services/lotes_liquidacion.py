@@ -2,16 +2,27 @@
 
 Circuito:
 - Una solicitud APROBADA y **liquidable** (cliente en el padrón, CUIL y CBU de 22 dígitos) entra sola
-  al lote de su producto (tipo de crédito) y fecha de aprobación, hasta el tope del parámetro
-  LOTE_LIQUIDACION_MAX (Créditos → Parámetros; 50 si no está cargado). Las que no son liquidables
+  al lote de su producto (tipo de crédito) y fecha de aprobación, hasta el tope de cantidad del
+  parámetro LOTE_LIQUIDACION_MAX (Créditos → Parámetros; 50 si no está cargado) y el tope de monto
+  del tipo de crédito (PPProducto.lote_monto_max, opcional). Lo que se alcance primero: la solicitud
+  que no entra va a un lote nuevo. Un lote nunca pasa el tope de monto, salvo una única solicitud
+  que sola ya lo supera (va sola en su lote). Las que no son liquidables
   quedan "fuera de lote" y entran apenas se completan: un lote sólo tiene lo que se puede liquidar.
 - El número es correlativo dentro del año y arranca en 1 cada año: 2026-0001, 2026-0002…
-- Despacho le asigna al lote la resolución que lo otorga (una resolución puede alcanzar varios
-  lotes, sin que la suma de sus importes pase el importe de la resolución). El lote queda
-  CON_RESOLUCION: sus solicitudes no se modifican; sólo se pueden mover a otro lote del mismo
-  producto y fecha (o a uno nuevo).
-- Liquidar el lote origina y desembolsa todas sus solicitudes (contratos.liquidar_lote) y lo deja
-  LIQUIDADO.
+- ABIERTO: recibe solicitudes. Alguien lo verifica (puede pasar solicitudes a otro lote abierto del
+  mismo producto y fecha, o a uno nuevo) y lo CIERRA: queda registrado quién y cuándo, y no recibe
+  más solicitudes (las siguientes de ese producto y fecha abren otro lote). Se puede reabrir mientras
+  no tenga resolución.
+- CERRADO: Despacho le asigna la resolución que lo otorga (sólo a lotes cerrados; una resolución
+  puede alcanzar varios lotes, sin que la suma de sus importes pase el importe de la resolución).
+  El lote queda CON_RESOLUCION. Si Despacho se la quita, vuelve a CERRADO.
+- Desde CERRADO las solicitudes no se modifican: sólo se pueden sacar del lote y pasar a otro lote
+  abierto del mismo producto y fecha (o a uno nuevo).
+- Tesorería arma una ORDEN DE PAGO con una o varias resoluciones / disposiciones: sus lotes con
+  resolución que no estén en otra orden entran completos, se originan sus solicitudes y el lote queda
+  PARA_LIQUIDAR (api/ordenes_pago_interna). Cuando el tesorero hace las transferencias por
+  Interbanking y se acreditan todas, el lote queda LIQUIDADO (aviso de Tesorería: tesoreria_interna).
+  Si la orden se anula antes de pagar, sus lotes vuelven a CON_RESOLUCION.
 
 Concurrencia: el lote se toma con lock antes de contarlo, así dos aprobaciones simultáneas no lo
 pasan del tope. Abrir un lote lo arbitra la DB con dos constraints únicas: (anio, numero) y
@@ -35,7 +46,9 @@ from app import models, models_productos as m
 PARAMETRO = "LOTE_LIQUIDACION_MAX"
 POR_DEFECTO = 50
 
-ABIERTO, CON_RESOLUCION, LIQUIDADO = "ABIERTO", "CON_RESOLUCION", "LIQUIDADO"
+ABIERTO, CERRADO, CON_RESOLUCION, PARA_LIQUIDAR, LIQUIDADO = (
+    "ABIERTO", "CERRADO", "CON_RESOLUCION", "PARA_LIQUIDAR", "LIQUIDADO")
+ORDEN = (ABIERTO, CERRADO, CON_RESOLUCION, PARA_LIQUIDAR, LIQUIDADO)
 
 
 def maximo(db: Session) -> int:
@@ -124,11 +137,26 @@ def importe(db: Session, lote_id: int) -> Decimal:
             + sum((c.monto_original or Decimal(0) for c in sueltos.all()), Decimal(0)))
 
 
-def _tomar(db: Session, producto_id: str, fecha: date, tope: int) -> m.PPLoteLiquidacion:
-    """El lote abierto de ese producto y fecha con lugar; si no hay, abre el siguiente."""
+def tope_monto(db: Session, producto_id: str) -> Decimal | None:
+    prod = db.get(m.PPProducto, producto_id)
+    tope = prod.lote_monto_max if prod is not None else None
+    return tope if tope else None
+
+
+def entra(db: Session, lote: m.PPLoteLiquidacion, monto, tope: int) -> bool:
+    """¿Entra una solicitud de `monto` en el lote sin pasar el tope de cantidad ni el de monto?"""
+    n = ocupados(db, lote.id)
+    if n >= tope:
+        return False
+    tm = tope_monto(db, lote.producto_id)
+    return tm is None or n == 0 or importe(db, lote.id) + Decimal(str(monto or 0)) <= tm
+
+
+def _tomar(db: Session, producto_id: str, fecha: date, tope: int, monto=0) -> m.PPLoteLiquidacion:
+    """El lote abierto de ese producto y fecha donde entra; si no hay, abre el siguiente."""
     for _ in range(10):
         ultimo = _ultimo(db, producto_id, fecha)
-        if ultimo is not None and ultimo.estado == ABIERTO and ocupados(db, ultimo.id) < tope:
+        if ultimo is not None and ultimo.estado == ABIERTO and entra(db, ultimo, monto, tope):
             return ultimo
         try:
             return _abrir(db, producto_id, fecha, intentos=1)
@@ -152,7 +180,7 @@ def asignar(db: Session, s: m.PPSolicitud, tope: int | None = None) -> m.PPLoteL
     if s.estado == "APROBADA" and faltantes(db, s):
         return None
     fecha = pendiente.fecha_valor if pendiente is not None else fecha_de(s)
-    lote = _tomar(db, s.producto_id, fecha, tope or maximo(db))
+    lote = _tomar(db, s.producto_id, fecha, tope or maximo(db), s.monto_solicitado)
     s.lote_liquidacion_id = lote.id
     if pendiente is not None:
         pendiente.lote_liquidacion_id = lote.id
@@ -161,7 +189,7 @@ def asignar(db: Session, s: m.PPSolicitud, tope: int | None = None) -> m.PPLoteL
 
 
 def _asignar_contrato(db: Session, c: m.PPContrato, tope: int) -> None:
-    lote = _tomar(db, c.producto_id, c.fecha_valor, tope)
+    lote = _tomar(db, c.producto_id, c.fecha_valor, tope, c.monto_original)
     c.lote_liquidacion_id = lote.id
     db.flush()
 
@@ -196,17 +224,54 @@ def quitar(db: Session, s: m.PPSolicitud) -> None:
         return
     lote = db.get(m.PPLoteLiquidacion, s.lote_liquidacion_id)
     if lote is not None and lote.estado != ABIERTO:
-        raise HTTPException(409, f"La solicitud está en el lote {lote.codigo}, que ya tiene resolución: "
+        raise HTTPException(409, f"La solicitud está en el lote {lote.codigo}, que ya está "
+                                 f"{'cerrado' if lote.estado == CERRADO else 'con resolución'}: "
                                  "no se modifica. Sacala del lote primero.")
     s.lote_liquidacion_id = None
 
 
 def bloqueada(db: Session, s: m.PPSolicitud) -> m.PPLoteLiquidacion | None:
-    """El lote con resolución que congela la solicitud, si lo hay."""
+    """El lote cerrado (o con resolución) que congela la solicitud, si lo hay."""
     if not s.lote_liquidacion_id:
         return None
     lote = db.get(m.PPLoteLiquidacion, s.lote_liquidacion_id)
     return lote if lote is not None and lote.estado != ABIERTO else None
+
+
+# ----------------------------------------------------------------------------------- cierre
+def cerrar(db: Session, lote_id: int, usuario: str) -> m.PPLoteLiquidacion:
+    """Quien verificó el lote lo cierra: deja de recibir solicitudes y Despacho ya le puede asignar
+    la resolución. Queda registrado quién y cuándo."""
+    lote = db.query(m.PPLoteLiquidacion).filter_by(id=lote_id).with_for_update().first()
+    if lote is None:
+        raise HTTPException(404, "Lote no encontrado.")
+    if lote.estado != ABIERTO:
+        raise HTTPException(409, f"El lote {lote.codigo} ya está cerrado.")
+    if ocupados(db, lote.id) == 0:
+        raise HTTPException(409, f"El lote {lote.codigo} no tiene solicitudes.")
+    problemas = no_liquidables(db, lote)
+    if problemas:
+        raise HTTPException(409, "El lote tiene solicitudes que no se pueden liquidar. " + "; ".join(problemas))
+    lote.estado = CERRADO
+    lote.cerrado_por = usuario
+    lote.cerrado_en = datetime.now()
+    db.commit()
+    return lote
+
+
+def reabrir(db: Session, lote_id: int) -> m.PPLoteLiquidacion:
+    """Un lote cerrado vuelve a abierto mientras Despacho no le haya asignado resolución."""
+    lote = db.query(m.PPLoteLiquidacion).filter_by(id=lote_id).with_for_update().first()
+    if lote is None:
+        raise HTTPException(404, "Lote no encontrado.")
+    if lote.estado != CERRADO:
+        raise HTTPException(409, f"El lote {lote.codigo} no está cerrado"
+                                 + (": ya tiene resolución." if lote.estado != ABIERTO else "."))
+    lote.estado = ABIERTO
+    lote.cerrado_por = None
+    lote.cerrado_en = None
+    db.commit()
+    return lote
 
 
 # ----------------------------------------------------------------------------------- resolución
@@ -243,6 +308,7 @@ def _copiar(lote: m.PPLoteLiquidacion, r: dict) -> None:
     lote.resolucion_fecha = date.fromisoformat(str(f)[:10]) if f else None
     imp = r.get("importe")
     lote.resolucion_importe = Decimal(str(imp)) if imp is not None else None
+    lote.resolucion_tipo = (r.get("tipo") or lote.resolucion_tipo or "RES")[:3]
 
 
 def _controlar_importe(total: Decimal, r: dict) -> None:
@@ -260,7 +326,11 @@ def asignar_resolucion(db: Session, lote_ids: list[int], r: dict) -> list[m.PPLo
              .with_for_update().all())
     if len(lotes) != len(set(lote_ids)):
         raise HTTPException(404, "Algún lote no existe.")
-    otros = [lt for lt in lotes if lt.estado != ABIERTO]
+    abiertos = [lt for lt in lotes if lt.estado == ABIERTO]
+    if abiertos:
+        raise HTTPException(409, "Estos lotes todavía no se cerraron: " + ", ".join(lt.codigo for lt in abiertos)
+                            + ". Créditos tiene que verificarlos y cerrarlos.")
+    otros = [lt for lt in lotes if lt.estado != CERRADO]
     if otros:
         raise HTTPException(409, "Estos lotes ya tienen resolución: " + ", ".join(lt.codigo for lt in otros) + ".")
     vacios = [lt for lt in lotes if ocupados(db, lt.id) == 0]
@@ -271,7 +341,7 @@ def asignar_resolucion(db: Session, lote_ids: list[int], r: dict) -> list[m.PPLo
     _controlar_importe(total, r)
     for lt in {*lotes, *ya}:
         _copiar(lt, r)
-        if lt.estado == ABIERTO:
+        if lt.estado == CERRADO:
             lt.estado = CON_RESOLUCION
         _sync_solicitudes(db, lt)
     db.commit()
@@ -284,9 +354,12 @@ def quitar_resolucion(db: Session, lote_id: int) -> m.PPLoteLiquidacion:
         raise HTTPException(404, "Lote no encontrado.")
     if lote.estado == LIQUIDADO:
         raise HTTPException(409, "El lote ya se liquidó: su resolución no se quita.")
+    if lote.estado == PARA_LIQUIDAR:
+        raise HTTPException(409, f"El lote está en la orden de pago {lote.orden_pago_codigo}: su resolución "
+                                 "no se quita mientras Tesorería no anule la orden.")
     if lote.estado != CON_RESOLUCION:
         raise HTTPException(409, "El lote no tiene resolución.")
-    lote.estado = ABIERTO
+    lote.estado = CERRADO
     _copiar(lote, {})
     lote.resolucion_id = None
     _sync_solicitudes(db, lote)
@@ -315,8 +388,8 @@ def total_resolucion(db: Session, resolucion_id: int, numero: int = 0, anio: int
 # ----------------------------------------------------------------------------------- mover
 def mover(db: Session, *, solicitud_id: str | None = None, contrato_id: str | None = None,
           destino_id: int | None = None, nuevo: bool = False) -> m.PPLoteLiquidacion:
-    """Saca una solicitud (o un contrato sin solicitud) de su lote y la pone en otro del mismo
-    producto y fecha, o en uno nuevo. Controla el tope y el importe de la resolución del destino."""
+    """Saca una solicitud (o un contrato sin solicitud) de su lote y la pone en otro lote ABIERTO
+    del mismo producto y fecha, o en uno nuevo. Controla el tope del destino."""
     if solicitud_id:
         item = db.get(m.PPSolicitud, solicitud_id)
         if item is None:
@@ -334,6 +407,9 @@ def mover(db: Session, *, solicitud_id: str | None = None, contrato_id: str | No
         raise HTTPException(409, "No está en ningún lote.")
     if origen.estado == LIQUIDADO:
         raise HTTPException(409, f"El lote {origen.codigo} ya se liquidó.")
+    if origen.estado == PARA_LIQUIDAR:
+        raise HTTPException(409, f"El lote {origen.codigo} está en la orden de pago {origen.orden_pago_codigo}: "
+                                 "no se mueve mientras Tesorería no la anule.")
     contrato = db.get(m.PPContrato, item.contrato_id) if solicitud_id and item.contrato_id else None
     if (contrato is not None and contrato.estado != "A_LIQUIDAR") or \
             (contrato_id and item.estado != "A_LIQUIDAR"):
@@ -349,22 +425,18 @@ def mover(db: Session, *, solicitud_id: str | None = None, contrato_id: str | No
             raise HTTPException(409, "Ya está en ese lote.")
         if (destino.producto_id, destino.fecha) != (origen.producto_id, origen.fecha):
             raise HTTPException(409, "Sólo se mueve a un lote del mismo tipo de crédito y fecha.")
-        if destino.estado == LIQUIDADO:
-            raise HTTPException(409, f"El lote {destino.codigo} ya se liquidó.")
+        if destino.estado != ABIERTO:
+            raise HTTPException(409, f"El lote {destino.codigo} ya está cerrado: sólo se mueve a un lote abierto.")
         if ocupados(db, destino.id) >= maximo(db):
             raise HTTPException(409, f"El lote {destino.codigo} está completo.")
-        if destino.estado == CON_RESOLUCION:
-            r = {"importe": destino.resolucion_importe or 0}
-            total = total_resolucion(db, destino.resolucion_id, destino.resolucion_numero, destino.resolucion_anio)
-            mismo = (origen.estado == CON_RESOLUCION and origen.resolucion_id == destino.resolucion_id
-                     and origen.resolucion_numero == destino.resolucion_numero)
-            _controlar_importe(total + (Decimal(0) if mismo else monto), r)
+        if not entra(db, destino, monto, maximo(db)):
+            raise HTTPException(409, f"Con esa solicitud el lote {destino.codigo} pasaría el tope de monto "
+                                     f"del tipo de crédito (${tope_monto(db, destino.producto_id):,.2f}).")
     item.lote_liquidacion_id = destino.id
     if contrato is not None:
         contrato.lote_liquidacion_id = destino.id
     db.flush()
-    _sync_solicitudes(db, destino)
-    if solicitud_id and destino.estado == ABIERTO:
+    if solicitud_id:
         item.en_resolucion, item.numero_resolucion, item.lote_resolucion, item.fecha_resolucion = False, 0, 0, None
     db.commit()
     return destino
@@ -395,6 +467,46 @@ def no_liquidables(db: Session, lote: m.PPLoteLiquidacion) -> list[str]:
 def marcar_liquidado(lote: m.PPLoteLiquidacion) -> None:
     lote.estado = LIQUIDADO
     lote.liquidado_en = datetime.now()
+
+
+# ----------------------------------------------------------------------------------- orden de pago
+def clave_acto(lt: m.PPLoteLiquidacion) -> tuple:
+    """Identifica la resolución / disposición del lote: por id, o (número, año) en los migrados."""
+    return ("id", lt.resolucion_id) if lt.resolucion_id else ("num", lt.resolucion_numero, lt.resolucion_anio)
+
+
+def lotes_sin_orden(db: Session) -> list[m.PPLoteLiquidacion]:
+    """Los lotes con resolución que todavía no están en ninguna orden de pago."""
+    return (db.query(m.PPLoteLiquidacion)
+            .filter(m.PPLoteLiquidacion.estado == CON_RESOLUCION, m.PPLoteLiquidacion.orden_pago_id.is_(None))
+            .order_by(m.PPLoteLiquidacion.anio, m.PPLoteLiquidacion.numero).all())
+
+
+def de_orden(db: Session, orden_id: int, lock: bool = False) -> list[m.PPLoteLiquidacion]:
+    q = db.query(m.PPLoteLiquidacion).filter(m.PPLoteLiquidacion.orden_pago_id == orden_id)
+    return (q.with_for_update() if lock else q).order_by(m.PPLoteLiquidacion.anio, m.PPLoteLiquidacion.numero).all()
+
+
+def poner_en_orden(lote: m.PPLoteLiquidacion, orden_id: int, codigo: str) -> None:
+    lote.estado = PARA_LIQUIDAR
+    lote.orden_pago_id, lote.orden_pago_codigo = orden_id, codigo[:20]
+    lote.para_liquidar_en = datetime.now()
+
+
+def sacar_de_orden(lote: m.PPLoteLiquidacion) -> None:
+    lote.estado = CON_RESOLUCION
+    lote.orden_pago_id = lote.orden_pago_codigo = lote.para_liquidar_en = None
+
+
+def completar_si_pagado(db: Session, lote: m.PPLoteLiquidacion) -> bool:
+    """Un lote PARA_LIQUIDAR queda LIQUIDADO cuando todos sus créditos están activos (acreditados)."""
+    if lote.estado != PARA_LIQUIDAR:
+        return False
+    filas = items(db, lote)
+    if filas and all(c is not None and c.estado == "ACTIVO" for _s, c in filas):
+        marcar_liquidado(lote)
+        return True
+    return False
 
 
 # ----------------------------------------------------------------------------------- migración

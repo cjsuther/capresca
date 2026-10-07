@@ -21,7 +21,7 @@ from app.services import creditos_central
 
 def resolucion_dict(r: Resolucion) -> dict:
     """Lo que Créditos guarda de la resolución en sus lotes."""
-    return {"id": r.id, "numero": r.numero, "anio": r.anio, "numero_oficial": r.numero_real,
+    return {"id": r.id, "tipo": r.tipo or "RES", "numero": r.numero, "anio": r.anio, "numero_oficial": r.numero_real,
             "fecha": r.fecha.isoformat() if r.fecha else None, "importe": str(r.importe or 0)}
 
 

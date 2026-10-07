@@ -10,17 +10,22 @@ import { textoResolucion } from "./SolicitudesCreditoPage";
 
 /**
  * Lotes (H-135): las solicitudes aprobadas y liquidables entran solas al lote de su tipo de crédito y
- * fecha de aprobación (numerado por año, con el tope del parámetro LOTE_LIQUIDACION_MAX). Despacho le
- * asigna a cada lote la resolución que lo otorga; recién ahí se liquida, completo: se originan y
- * desembolsan todas sus solicitudes. Con el desembolso por Tesorería (H-216) la transferencia va en un
+ * fecha de aprobación (numerado por año, con el tope del parámetro LOTE_LIQUIDACION_MAX). Alguien lo
+ * verifica (puede pasar solicitudes a otro lote abierto) y lo cierra; Despacho le asigna a cada lote
+ * cerrado la resolución que lo otorga. Con el desembolso por Tesorería, la liquidación la hace
+ * Tesorería: una orden de pago toma la resolución con sus lotes (quedan PARA_LIQUIDAR, se originan sus
+ * solicitudes) y, acreditadas las transferencias, el lote queda LIQUIDADO. Sin Tesorería, el lote con
+ * resolución se liquida desde acá, completo. Con el desembolso por Tesorería (H-216) la transferencia va en un
  * lote de Tesorería y el crédito se activa cuando se acredita.
  *
- * Las solicitudes de un lote con resolución no se modifican: lo único que se puede hacer es pasarlas
- * a otro lote del mismo tipo de crédito y fecha, o a uno nuevo.
+ * Las solicitudes de un lote cerrado o con resolución no se modifican: lo único que se puede hacer es
+ * pasarlas a otro lote abierto del mismo tipo de crédito y fecha, o a uno nuevo.
  */
 const ESTADO = {
-  ABIERTO: ["Esperando resolución", "warn"],
+  ABIERTO: ["Abierto", "warn"],
+  CERRADO: ["Cerrado", "neutral"],
   CON_RESOLUCION: ["Con resolución", "brand"],
+  PARA_LIQUIDAR: ["Para liquidar", "brand"],
   LIQUIDADO: ["Liquidado", "ok"],
 };
 
@@ -31,8 +36,14 @@ const COLS_LOTES = [
   { key: "fecha", label: "Fecha", sortable: true, render: (l) => fecha(l.fecha) },
   { key: "cantidad", label: "Solicitudes", align: "right", sortable: true,
     render: (l) => <span className="tabular-nums" title={`Hasta ${num(l.maximo)} por lote`}>{num(l.cantidad)}</span> },
-  { key: "montoTotal", label: "Monto", align: "right", sortable: true, render: (l) => money(l.montoTotal) },
-  { key: "resolucion", label: "Resolución", render: (l) => (l.resolucion ? textoResolucion(l.resolucion) : <span className="text-gray-400">—</span>) },
+  { key: "montoTotal", label: "Monto", align: "right", sortable: true,
+    render: (l) => <span title={l.topeMonto ? `Tope del tipo de crédito: ${money(l.topeMonto)}` : "Sin tope de monto"}>{money(l.montoTotal)}</span> },
+  { key: "resolucion", label: "Resolución", render: (l) => (
+    <div>
+      {l.resolucion ? textoResolucion(l.resolucion) : <span className="text-gray-400">—</span>}
+      {l.ordenPago && <p className="text-xs text-gray-500">Orden de pago {l.ordenPago.codigo}</p>}
+    </div>
+  ) },
   { key: "estado", label: "Estado", sortable: true, render: (l) => {
     const [texto, tono] = ESTADO[l.estado] || [l.estado, "neutral"];
     return (
@@ -64,6 +75,8 @@ const COLS_FUERA = [
   { key: "faltantes", label: "Le falta", render: (s) => <span className="text-red-600">{s.faltantes.join(", ")}</span> },
 ];
 
+const fechaHora = (v) => (v ? new Date(v).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "");
+
 export default function LiquidacionLotePage() {
   const puedeEscribir = usePuedeEscribir();
   const [lotes, setLotes] = useState([]);
@@ -77,8 +90,29 @@ export default function LiquidacionLotePage() {
   const [cargando, setCargando] = useState(true);
   const [confirmando, setConfirmando] = useState(false);
   const [liquidando, setLiquidando] = useState(false);
+  const [cerrando, setCerrando] = useState(false);       // confirmación de cierre abierta
+  const [cambiando, setCambiando] = useState(false);     // cerrando / reabriendo
   const [moviendo, setMoviendo] = useState(null);     // { item, destino }
   const [detErr, setDetErr] = useState("");
+  const [topes, setTopes] = useState(null);           // [{ productoId, producto, topeMonto }] mientras se editan
+  const [topesErr, setTopesErr] = useState("");
+
+  async function abrirTopes() {
+    setTopesErr("");
+    try { setTopes((await creditos.ctoTopesLote()).items.map((x) => ({ ...x, topeMonto: x.topeMonto ?? "" }))); }
+    catch (e) { setError(e.message); }
+  }
+
+  async function guardarTopes() {
+    setTopesErr("");
+    try {
+      await creditos.ctoGuardarTopesLote(topes.map((x) => ({
+        producto_id: x.productoId, tope_monto: x.topeMonto === "" ? null : Number(x.topeMonto) })));
+      setTopes(null);
+      setOk("Topes de monto guardados. Rigen para las solicitudes que entren desde ahora.");
+      await cargar();
+    } catch (e) { setTopesErr(e.message); }
+  }
 
   async function cargar() {
     setError(""); setCargando(true);
@@ -112,9 +146,22 @@ export default function LiquidacionLotePage() {
     finally { setLiquidando(false); }
   }
 
-  // Lotes a los que se puede pasar un ítem: mismo tipo de crédito y fecha, sin liquidar.
+  async function cambiarEstado(accion) {
+    setDetErr(""); setOk(""); setCambiando(true);
+    try {
+      const d = accion === "cerrar" ? await creditos.ctoCerrarLote(sel.id) : await creditos.ctoReabrirLote(sel.id);
+      setCerrando(false);
+      setOk(accion === "cerrar"
+        ? `Lote ${d.codigo} cerrado: Despacho ya le puede asignar la resolución.`
+        : `Lote ${d.codigo} reabierto.`);
+      await cargar();
+    } catch (e) { setDetErr(e.message); setCerrando(false); }
+    finally { setCambiando(false); }
+  }
+
+  // Lotes a los que se puede pasar un ítem: abiertos, del mismo tipo de crédito y fecha.
   const destinos = sel ? lotes.filter((l) => l.id !== sel.id && l.productoId === sel.productoId
-                                            && l.fecha === sel.fecha && l.estado !== "LIQUIDADO") : [];
+                                            && l.fecha === sel.fecha && l.estado === "ABIERTO") : [];
 
   async function mover() {
     setDetErr("");
@@ -149,8 +196,9 @@ export default function LiquidacionLotePage() {
     <>
       <PageHeader
         titulo="Lotes"
-        descripcion={`Las solicitudes aprobadas que se pueden liquidar entran solas a un lote por tipo de crédito y fecha (hasta ${num(maximo)} por lote). Despacho le asigna la resolución al lote y recién ahí se liquida completo${viaTesoreria ? ": las transferencias van a Tesorería y cada crédito pasa a ACTIVO cuando se acredita" : ""}.`}
+        descripcion={`Las solicitudes aprobadas que se pueden liquidar entran solas a un lote abierto por tipo de crédito y fecha (hasta ${num(maximo)} por lote y el tope de monto del tipo de crédito, lo que se alcance primero). Después de verificarlo se cierra, Despacho le asigna la resolución y recién ahí se liquida completo${viaTesoreria ? ": las transferencias van a Tesorería y cada crédito pasa a ACTIVO cuando se acredita" : ""}.`}
       >
+        {puedeEscribir && <Boton variante="secundario" onClick={abrirTopes}>Topes de monto</Boton>}
         <label className="flex items-center gap-2 text-sm text-gray-600">
           <input type="checkbox" checked={verLiquidados} onChange={(e) => setVerLiquidados(e.target.checked)} />
           Ver liquidados
@@ -195,9 +243,19 @@ export default function LiquidacionLotePage() {
             <>
               <Boton variante="secundario" onClick={() => setSel(null)}>Cerrar</Boton>
               <span className="flex-1" />
-              {puedeEscribir && sel.estado !== "LIQUIDADO" && (
+              {puedeEscribir && sel.estado === "ABIERTO" && (
+                <Boton disabled={cambiando || !sel.cantidad} onClick={() => setCerrando(true)}>
+                  Cerrar lote
+                </Boton>
+              )}
+              {puedeEscribir && sel.estado === "CERRADO" && (
+                <Boton variante="secundario" disabled={cambiando} onClick={() => cambiarEstado("reabrir")}>
+                  {cambiando ? "Reabriendo…" : "Reabrir lote"}
+                </Boton>
+              )}
+              {puedeEscribir && !viaTesoreria && ["CERRADO", "CON_RESOLUCION"].includes(sel.estado) && (
                 <Boton disabled={liquidando || !liquidable || !sel.cantidad}
-                       title={liquidable ? "" : "Despacho tiene que asignarle la resolución al lote antes de liquidarlo."}
+                       title={liquidable ? "" : "Despacho tiene que asignarle la resolución al lote cerrado antes de liquidarlo."}
                        onClick={() => setConfirmando(true)}>
                   {liquidando ? "Liquidando…" : `Liquidar lote (${num(sel.cantidad)})`}
                 </Boton>
@@ -210,13 +268,31 @@ export default function LiquidacionLotePage() {
             <Pill tono={(ESTADO[sel.estado] || [])[1] || "neutral"}>{(ESTADO[sel.estado] || [sel.estado])[0]}</Pill>
             {sel.resolucion
               ? <Pill tono="ok">{textoResolucion(sel.resolucion)}</Pill>
-              : <span className="text-sm text-gray-500">Sin resolución: se la asigna Despacho → Lotes.</span>}
+              : sel.estado === "CERRADO"
+                ? <span className="text-sm text-gray-500">Sin resolución: se la asigna Despacho → Lotes de créditos.</span>
+                : <span className="text-sm text-gray-500">Se puede verificar: pasá a otro lote abierto lo que no corresponda y cerralo.</span>}
+            {sel.cerradoPor && (
+              <span className="text-sm text-gray-500">Cerrado por <b>{sel.cerradoPor}</b> el {fechaHora(sel.cerradoEn)}</span>
+            )}
           </p>
-          {sel.estado === "CON_RESOLUCION" && (
+          {sel.estado === "CON_RESOLUCION" && viaTesoreria && (
+            <p className="text-sm text-gray-500 mb-3">
+              Lo liquida Tesorería: entra en una orden de pago con su resolución (Tesorería → Órdenes de pago).
+            </p>
+          )}
+          {sel.estado === "PARA_LIQUIDAR" && (
             <div className="mb-3">
               <Alerta tipo="warn">
-                Con la resolución asignada, las solicitudes del lote no se modifican: sólo se pueden pasar a
-                otro lote del mismo tipo de crédito y fecha, o a uno nuevo.
+                Está en la orden de pago {sel.ordenPago?.codigo} de Tesorería: sus créditos ya se originaron y quedan
+                liquidados cuando se acrediten las transferencias. No se modifica mientras la orden no se anule.
+              </Alerta>
+            </div>
+          )}
+          {["CERRADO", "CON_RESOLUCION"].includes(sel.estado) && (
+            <div className="mb-3">
+              <Alerta tipo="warn">
+                Con el lote {sel.estado === "CERRADO" ? "cerrado" : "con resolución"}, sus solicitudes no se
+                modifican: sólo se pueden pasar a otro lote abierto del mismo tipo de crédito y fecha, o a uno nuevo.
               </Alerta>
             </div>
           )}
@@ -243,8 +319,7 @@ export default function LiquidacionLotePage() {
                </>}>
           {detErr && <div className="mb-3"><Alerta>{detErr}</Alerta></div>}
           <p className="text-sm text-gray-500 mb-3">
-            Sólo a un lote del mismo tipo de crédito ({sel?.producto}) y fecha ({fecha(sel?.fecha)}). Si el lote de
-            destino ya tiene resolución, no puede pasar el importe de esa resolución.
+            Sólo a un lote abierto del mismo tipo de crédito ({sel?.producto}) y fecha ({fecha(sel?.fecha)}), o a uno nuevo.
           </p>
           <Field label="Lote de destino">
             <select className="input w-full" value={moviendo.destino} aria-label="Lote de destino"
@@ -258,6 +333,43 @@ export default function LiquidacionLotePage() {
             </select>
           </Field>
         </Modal>
+      )}
+
+      {topes && (
+        <Modal titulo="Tope de monto por tipo de crédito" onClose={() => setTopes(null)}
+               footer={<>
+                 <span className="flex-1" />
+                 <Boton variante="secundario" onClick={() => setTopes(null)}>Cancelar</Boton>
+                 <Boton onClick={guardarTopes}>Guardar</Boton>
+               </>}>
+          {topesErr && <div className="mb-3"><Alerta>{topesErr}</Alerta></div>}
+          <p className="text-sm text-gray-500 mb-3">
+            Un lote se completa al llegar a {num(maximo)} solicitudes o a este monto, lo que pase primero: la
+            siguiente solicitud va a un lote nuevo. Vacío = sin tope de monto. Rige para lo que entre desde ahora.
+          </p>
+          <div className="space-y-2">
+            {topes.map((x, i) => (
+              <label key={x.productoId} className="flex items-center gap-3 text-sm">
+                <span className="flex-1">{x.producto}</span>
+                <input type="number" min="0" step="0.01" className="input w-44 text-right" aria-label={`Tope de ${x.producto}`}
+                       value={x.topeMonto} placeholder="Sin tope"
+                       onChange={(e) => setTopes((ts) => ts.map((t, j) => (j === i ? { ...t, topeMonto: e.target.value } : t)))} />
+              </label>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {cerrando && (
+        <Confirmacion
+          titulo="Cerrar el lote"
+          mensaje={`Se cierra el lote ${sel?.codigo}: ${num(sel?.cantidad)} solicitud(es) de ${sel?.producto} por ${money(sel?.montoTotal)}.\nNo recibe más solicitudes y Despacho ya le puede asignar la resolución. Queda registrado que lo cerraste vos.`}
+          confirmar="Cerrar lote"
+          danger={false}
+          ocupado={cambiando}
+          onConfirmar={() => cambiarEstado("cerrar")}
+          onCancelar={() => setCerrando(false)}
+        />
       )}
 
       {confirmando && (

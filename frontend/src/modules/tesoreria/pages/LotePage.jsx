@@ -87,7 +87,8 @@ export default function LotePage() {
   }
 
   const [estadoTxt, estadoTono] = ESTADO_LOTE[lote.estado] || [lote.estado, "neutral"];
-  const revisable = lote.estado === "PENDIENTE_APROBACION" && lote.puede_editar;
+  // Los pagos de una orden de pago no se excluyen: la liquidación es completa (se anula la orden).
+  const revisable = lote.estado === "PENDIENTE_APROBACION" && lote.puede_editar && !lote.orden_pago;
   const enCurso = ["ENVIADO", "CON_ERRORES"].includes(lote.estado);
   const cuenta = (e) => lote.por_estado?.[e] || 0;
 
@@ -147,6 +148,13 @@ export default function LotePage() {
           {lote.simulado
             ? "Este lote se envió en modo simulación: no se movió dinero."
             : "Modo simulación activo: al enviar se registran los pagos como acreditados sin mover dinero."}
+        </Alerta>
+      )}
+      {lote.orden_pago && (
+        <Alerta tipo="warn">
+          Es el lote de la orden de pago{" "}
+          <Link to={`/modules/tesoreria/ordenes/${lote.orden_pago.id}`} className="underline font-medium">{lote.orden_pago.codigo}</Link>.
+          Se paga completo: sus pagos no se excluyen; si algo no corresponde, se anula la orden.
         </Alerta>
       )}
       {lote.estado === "RECHAZADO" && <Alerta>Rechazado: {lote.motivo_rechazo}</Alerta>}

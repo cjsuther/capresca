@@ -224,6 +224,8 @@ ROUTE_MAP = [
     ("POST", r"^/api/tesoreria/lotes/\d+/(aprobar|rechazar)$",           settings.tesoreria_service_url, "tesoreria:*"),
     ("POST", r"^/api/tesoreria/lotes/\d+/(enviar|actualizar)$",          settings.tesoreria_service_url, "tesoreria:*"),
     ("POST", r"^/api/tesoreria/lotes/\d+/pagos/\d+/(reintentar|resolver)$", settings.tesoreria_service_url, "tesoreria:*"),
+    ("GET",  r"^/api/tesoreria/ordenes-pago(/disponibles|/\d+)?$",     settings.tesoreria_service_url, "tesoreria:lotes:read"),
+    ("POST", r"^/api/tesoreria/ordenes-pago(/\d+/anular)?$",           settings.tesoreria_service_url, "tesoreria:lotes:write"),
 ]
 
 

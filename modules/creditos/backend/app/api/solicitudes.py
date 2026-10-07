@@ -150,10 +150,11 @@ def _lote(db: Session, s: m.PPSolicitud) -> dict | None:
     if lt is None:
         return None
     return {"id": lt.id, "codigo": lt.codigo, "estado": lt.estado, "fecha": str(lt.fecha),
+            "ordenPago": lt.orden_pago_codigo,
             "resolucion": ({"numero": lt.resolucion_numero, "anio": lt.resolucion_anio,
                             "numeroOficial": lt.resolucion_numero_oficial,
                             "fecha": str(lt.resolucion_fecha) if lt.resolucion_fecha else None}
-                           if lt.estado != lotes.ABIERTO else None)}
+                           if lt.estado not in (lotes.ABIERTO, lotes.CERRADO) else None)}
 
 
 def _serial(db: Session, s: m.PPSolicitud) -> dict:

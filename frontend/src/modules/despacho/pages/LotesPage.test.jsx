@@ -11,9 +11,13 @@ vi.mock("../../../api/despacho");
 const LOTES = {
   items: [
     { id: 1, codigo: "2026-0001", producto: "Préstamo personal", productoId: "p1", fecha: "2026-10-01",
-      cantidad: 2, montoTotal: 300000, estado: "ABIERTO", resolucion: null, resolucion_despacho: null },
+      cantidad: 2, montoTotal: 300000, estado: "CERRADO", resolucion: null, resolucion_despacho: null,
+      cerradoPor: "ana", cerradoEn: "2026-10-01T15:20:00" },
     { id: 2, codigo: "2026-0002", producto: "Préstamo personal", productoId: "p1", fecha: "2026-10-02",
-      cantidad: 1, montoTotal: 150000, estado: "ABIERTO", resolucion: null, resolucion_despacho: null },
+      cantidad: 1, montoTotal: 150000, estado: "CERRADO", resolucion: null, resolucion_despacho: null,
+      cerradoPor: "luis", cerradoEn: "2026-10-02T11:00:00" },
+    { id: 4, codigo: "2026-0004", producto: "Vivienda", productoId: "p2", fecha: "2026-10-03",
+      cantidad: 3, montoTotal: 50000, estado: "ABIERTO", resolucion: null, resolucion_despacho: null },
     { id: 3, codigo: "2026-0003", producto: "Vivienda", productoId: "p2", fecha: "2026-10-02",
       cantidad: 1, montoTotal: 90000, estado: "CON_RESOLUCION",
       resolucion: { id: 9, numero: 40, anio: 2026, numeroOficial: 120 },
@@ -45,7 +49,18 @@ describe("Lotes de créditos (Despacho)", () => {
     expect(within(fila).getByText("Vivienda")).toBeInTheDocument();
     expect(within(fila).getByText("N° 120/2026")).toBeInTheDocument();
     expect(within(fila).getByText("Con resolución")).toBeInTheDocument();
-    expect(api.getLotes).toHaveBeenCalledWith({ estado: "ABIERTO", tipo: "" });
+    expect(api.getLotes).toHaveBeenCalledWith({ estado: "CERRADO", tipo: "" });
+  });
+
+  it("sólo se eligen los lotes cerrados, y se ve quién los cerró", async () => {
+    render(<LotesPage />);
+    const cerrado = (await screen.findByText("2026-0001")).closest("tr");
+    expect(within(cerrado).getByText("Cerrado")).toBeInTheDocument();
+    expect(within(cerrado).getByText(/Cerrado por ana/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Elegir 2026-0001")).toBeInTheDocument();
+    const abierto = screen.getByText("2026-0004").closest("tr");
+    expect(within(abierto).getByText("Abierto")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Elegir 2026-0004")).toBeNull();
   });
 
   it("asigna una resolución a los lotes elegidos", async () => {

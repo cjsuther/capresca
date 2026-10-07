@@ -36,6 +36,20 @@ PENDIENTE_APROBACION ──aprobar (workflow LOTE_PAGO)──▶ APROBADO ──
   banco. Para mover dinero: `TESORERIA_ENVIO_SIMULADO=false` con la cuenta de pagos configurada en
   Interbanking.
 
+## Órdenes de pago de créditos
+
+Pantalla "Órdenes de pago". Se confecciona con una o varias **resoluciones / disposiciones** de Despacho
+que ya tengan N° oficial: entran completos sus lotes de Créditos (`CON_RESOLUCION`) que no estén en otra
+orden. Créditos (`/internal/creditos/ordenes-pago`, misma clave interna) los deja **PARA_LIQUIDAR**,
+origina sus créditos y devuelve una transferencia por crédito; la orden (`OP-AAAA-NNNNN`, correlativo
+anual) crea su lote de pagos y desde ahí sigue el circuito de arriba (aprobación + envío). Cada
+acreditación se avisa a Créditos; acreditadas todas las de un lote de Créditos, el lote queda **LIQUIDADO**.
+
+- Liquidación completa: los pagos de una orden no se excluyen. Si algo no se puede liquidar, la orden no
+  se confecciona (Créditos no reserva nada).
+- Anular la orden (o rechazar su lote) sólo antes de enviar: los lotes vuelven a `CON_RESOLUCION` y sus
+  créditos ya originados los toma la próxima orden.
+
 ## Permisos (Seguridad)
 
 `tesoreria:lotes:read` · `lotes:write` (cargar, excluir) · `lotes:enviar` · `aprobaciones:aprobar` ·

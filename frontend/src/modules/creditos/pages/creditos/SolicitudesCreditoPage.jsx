@@ -15,8 +15,9 @@ const TONO_ESTADO = {
   RECHAZADA: "crit", ORIGINADA: "brand", ANULADA: "neutral",
 };
 const RELACIONES = ["ESTANDAR", "PREFERENCIAL", "PREMIUM"];
-const ESTADO_LOTE = { ABIERTO: "esperando resolución", CON_RESOLUCION: "con resolución", LIQUIDADO: "liquidado" };
-const TONO_LOTE = { ABIERTO: "warn", CON_RESOLUCION: "brand", LIQUIDADO: "ok" };
+const ESTADO_LOTE = { ABIERTO: "abierto", CERRADO: "cerrado", CON_RESOLUCION: "con resolución",
+                      PARA_LIQUIDAR: "para liquidar", LIQUIDADO: "liquidado" };
+const TONO_LOTE = { ABIERTO: "warn", CERRADO: "neutral", CON_RESOLUCION: "brand", PARA_LIQUIDAR: "brand", LIQUIDADO: "ok" };
 /** "Resolución N° 120/2026 · 15/3/2026" (el N° oficial si ya lo tiene; si no, el correlativo). */
 export const textoResolucion = (r) =>
   `Resolución ${r.numeroOficial ? `N° ${r.numeroOficial}` : `correlativo ${r.numero}`}${r.anio ? `/${r.anio}` : ""}`
@@ -674,12 +675,18 @@ export default function SolicitudesCreditoPage() {
                 {sel.lote.resolucion && <Pill tono="ok">{textoResolucion(sel.lote.resolucion)}</Pill>}
               </p>
               {sel.lote.estado === "ABIERTO" && (
+                <p className="text-sm text-gray-500 mt-1">El lote espera que lo verifiquen y lo cierren; después Despacho le asigna la resolución que lo otorga.</p>
+              )}
+              {sel.lote.estado === "CERRADO" && (
                 <p className="text-sm text-gray-500 mt-1">Espera que Despacho le asigne al lote la resolución que lo otorga.</p>
               )}
-              {sel.lote.estado === "CON_RESOLUCION" && (
+              {sel.lote.estado === "PARA_LIQUIDAR" && (
+                <p className="text-sm text-gray-500 mt-1">En la orden de pago {sel.lote.ordenPago} de Tesorería: se liquida al acreditarse la transferencia.</p>
+              )}
+              {["CERRADO", "CON_RESOLUCION"].includes(sel.lote.estado) && (
                 <div className="mt-2">
                   <Alerta tipo="warn">
-                    Está en un lote con resolución: no se modifica. Si hace falta, se puede pasar a otro lote en{" "}
+                    Está en un lote {sel.lote.estado === "CERRADO" ? "cerrado" : "con resolución"}: no se modifica. Si hace falta, se puede pasar a otro lote en{" "}
                     <Link to="/modules/creditos/liquidacion-lote" className="underline">Créditos → Lotes</Link>.
                   </Alerta>
                 </div>

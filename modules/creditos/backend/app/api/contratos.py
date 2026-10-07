@@ -469,9 +469,10 @@ def situacion_cliente(q: str = Query("", min_length=0), db: Session = Depends(ge
 # que lo otorga y recién ahí se liquida: se originan y desembolsan todas juntas. Debe declararse ANTES
 # de GET /{contrato_id} (si no, "lotes-liquidacion" se interpretaría como un id de contrato).
 def _serial_resolucion(lt: m.PPLoteLiquidacion) -> dict | None:
-    if lt.estado == lotes_liquidacion_svc.ABIERTO:
+    if lt.estado in (lotes_liquidacion_svc.ABIERTO, lotes_liquidacion_svc.CERRADO):
         return None
-    return {"id": lt.resolucion_id, "numero": lt.resolucion_numero, "anio": lt.resolucion_anio,
+    return {"id": lt.resolucion_id, "tipo": lt.resolucion_tipo or "RES",
+            "numero": lt.resolucion_numero, "anio": lt.resolucion_anio,
             "numeroOficial": lt.resolucion_numero_oficial,
             "fecha": str(lt.resolucion_fecha) if lt.resolucion_fecha else None,
             "importe": float(lt.resolucion_importe) if lt.resolucion_importe is not None else None}
@@ -490,6 +491,11 @@ def serial_lote(db: Session, lt: m.PPLoteLiquidacion, nombres: dict | None = Non
     out = {"id": lt.id, "codigo": lt.codigo, "anio": lt.anio, "numero": lt.numero, "fecha": str(lt.fecha),
            "productoId": lt.producto_id, "producto": nombres.get(lt.producto_id, ""), "estado": lt.estado,
            "maximo": tope or lotes_liquidacion_svc.maximo(db), "resolucion": _serial_resolucion(lt),
+           "topeMonto": _f(lotes_liquidacion_svc.tope_monto(db, lt.producto_id)),
+           "ordenPago": ({"id": lt.orden_pago_id, "codigo": lt.orden_pago_codigo,
+                          "fecha": lt.para_liquidar_en.isoformat() if lt.para_liquidar_en else None}
+                         if lt.orden_pago_id else None),
+           "cerradoPor": lt.cerrado_por, "cerradoEn": lt.cerrado_en.isoformat() if lt.cerrado_en else None,
            "liquidadoEn": lt.liquidado_en.isoformat() if lt.liquidado_en else None,
            "cantidad": 0, "montoTotal": 0.0, "pendientes": 0, "enTesoreria": 0, "observados": 0}
     filas = []
@@ -554,6 +560,48 @@ def lotes_liquidacion(liquidados: bool = False, db: Session = Depends(get_db),
     return {"items": items, "maximo": tope, "fueraDeLote": fuera, "viaTesoreria": via_tesoreria()}
 
 
+def _f(v) -> float | None:
+    return float(v) if v is not None else None
+
+
+@router.get("/lotes-liquidacion/topes")
+def topes_de_lote(db: Session = Depends(get_db), user: models.Usuario = Depends(get_current_user)):
+    """Tope de monto de un lote por tipo de crédito (el de cantidad es el parámetro LOTE_LIQUIDACION_MAX)."""
+    return {"maximo": lotes_liquidacion_svc.maximo(db),
+            "items": [{"productoId": p.id, "producto": p.nombre, "topeMonto": _f(p.lote_monto_max)}
+                      for p in db.query(m.PPProducto).order_by(m.PPProducto.nombre).all()]}
+
+
+class TopeIn(BaseModel):
+    producto_id: str
+    tope_monto: float | None = None     # vacío o 0 = sin tope de monto
+
+
+@router.put("/lotes-liquidacion/topes")
+def guardar_topes(data: list[TopeIn], db: Session = Depends(get_db),
+                  user: models.Usuario = Depends(get_current_user)):
+    """Rige para las solicitudes que entren desde ahora: no reacomoda los lotes ya armados."""
+    from app.api.solicitudes import _req_edita   # lazy: solicitudes importa este módulo
+    _req_edita(db, user)
+    cambios = []
+    for x in data:
+        p = db.get(m.PPProducto, x.producto_id)
+        if p is None:
+            raise HTTPException(404, f"Tipo de crédito {x.producto_id} no encontrado.")
+        if x.tope_monto is not None and x.tope_monto < 0:
+            raise HTTPException(422, "El tope de monto no puede ser negativo.")
+        nuevo = Decimal(str(round(x.tope_monto, 2))) if x.tope_monto else None
+        if (p.lote_monto_max or None) != nuevo:
+            cambios.append({"producto": p.nombre, "antes": _f(p.lote_monto_max), "despues": _f(nuevo)})
+            p.lote_monto_max = nuevo
+    db.commit()
+    if cambios:
+        audit.registrar_cambio(db, usuario=user.username, perfil=user.perfil, entidad="TopeLote",
+                               entidad_id="lotes", operacion="MODIFICACION", resultado="OK",
+                               despues={"cambios": cambios}, detalle="Topes de monto de los lotes")
+    return topes_de_lote(db, user)
+
+
 class MoverIn(BaseModel):
     solicitud_id: str | None = None
     contrato_id: str | None = None      # contrato A_LIQUIDAR sin solicitud (circuito anterior)
@@ -564,8 +612,9 @@ class MoverIn(BaseModel):
 @router.post("/lotes-liquidacion/mover")
 def mover_de_lote(data: MoverIn, db: Session = Depends(get_db),
                   user: models.Usuario = Depends(get_current_user)):
-    """Lo único que se puede hacer con una solicitud de un lote con resolución: pasarla a otro lote
-    del mismo tipo de crédito y fecha (o a uno nuevo)."""
+    """Pasa una solicitud a otro lote abierto del mismo tipo de crédito y fecha (o a uno nuevo). Es lo
+    que hace quien verifica el lote antes de cerrarlo, y lo único que se puede hacer con una
+    solicitud de un lote cerrado o con resolución."""
     from app.api.solicitudes import _req_edita   # lazy: solicitudes importa este módulo
     _req_edita(db, user)
     if not data.nuevo and data.destino_id is None:
@@ -578,6 +627,35 @@ def mover_de_lote(data: MoverIn, db: Session = Depends(get_db),
                                     "destino": destino.codigo},
                            detalle=f"Movida al lote {destino.codigo}")
     return serial_lote(db, destino)
+
+
+def _cambiar_estado_lote(db: Session, user, lote_id: int, operacion: str) -> dict:
+    from app.api.solicitudes import _req_edita   # lazy: solicitudes importa este módulo
+    _req_edita(db, user)
+    antes = db.get(m.PPLoteLiquidacion, lote_id)
+    estado_antes = antes.estado if antes else None
+    if operacion == "CERRAR":
+        lote = lotes_liquidacion_svc.cerrar(db, lote_id, user.username)
+    else:
+        lote = lotes_liquidacion_svc.reabrir(db, lote_id)
+    audit.registrar_cambio(db, usuario=user.username, perfil=user.perfil, entidad="Lote",
+                           entidad_id=lote.codigo, operacion=operacion, resultado="OK",
+                           antes={"estado": estado_antes}, despues={"estado": lote.estado},
+                           detalle=f"Lote {lote.codigo} {'cerrado' if operacion == 'CERRAR' else 'reabierto'}")
+    return serial_lote(db, lote)
+
+
+@router.post("/lotes-liquidacion/{lote_id}/cerrar")
+def cerrar_lote(lote_id: int, db: Session = Depends(get_db), user: models.Usuario = Depends(get_current_user)):
+    """Quien verificó el lote lo cierra (queda registrado quién y cuándo): ya no recibe solicitudes y
+    Despacho le puede asignar la resolución."""
+    return _cambiar_estado_lote(db, user, lote_id, "CERRAR")
+
+
+@router.post("/lotes-liquidacion/{lote_id}/reabrir")
+def reabrir_lote(lote_id: int, db: Session = Depends(get_db), user: models.Usuario = Depends(get_current_user)):
+    """Un lote cerrado vuelve a abierto mientras no tenga resolución."""
+    return _cambiar_estado_lote(db, user, lote_id, "REABRIR")
 
 
 class LiquidarLoteIn(BaseModel):
@@ -632,9 +710,15 @@ def liquidar_lote(data: LiquidarLoteIn, db: Session = Depends(get_db),
         if lote is not None:
             if lote.estado == lotes_liquidacion_svc.LIQUIDADO:
                 raise HTTPException(409, f"El lote {lote.codigo} ya se liquidó.")
+            if lote.estado == lotes_liquidacion_svc.PARA_LIQUIDAR:
+                raise HTTPException(409, f"El lote {lote.codigo} está en la orden de pago {lote.orden_pago_codigo}: "
+                                         "lo paga Tesorería.")
             if lote.estado != lotes_liquidacion_svc.CON_RESOLUCION:
                 raise HTTPException(409, f"El lote {lote.codigo} todavía no tiene resolución: Despacho tiene "
                                          "que asignársela antes de liquidarlo.")
+            if via_tesoreria():
+                raise HTTPException(409, f"El lote {lote.codigo} se liquida desde Tesorería, en una orden de pago "
+                                         "con su resolución.")
             problemas = lotes_liquidacion_svc.no_liquidables(db, lote)
             if problemas:
                 raise HTTPException(409, "El lote no se puede liquidar completo. " + "; ".join(problemas)
@@ -768,7 +852,8 @@ def _originar_impl(db: Session, data: OriginarIn, user, desde_lote: bool = False
             raise HTTPException(409, "Sólo se puede originar una solicitud APROBADA.")
         # El otorgamiento es un acto administrativo: la solicitud se origina en su lote, una vez que
         # Despacho le asignó la resolución que lo otorga (normalmente al liquidarlo: liquidar_lote).
-        if not desde_lote and lotes_liquidacion_svc.bloqueada(db, sol_pp) is None:
+        lote_sol = lotes_liquidacion_svc.bloqueada(db, sol_pp)
+        if not desde_lote and (lote_sol is None or lote_sol.estado != lotes_liquidacion_svc.CON_RESOLUCION):
             raise HTTPException(409, "La solicitud se origina al liquidar su lote, una vez que Despacho le "
                                      "asigna la resolución.")
         # Canal web: la originación es una REVISIÓN. No se libera la liquidación si faltan los datos

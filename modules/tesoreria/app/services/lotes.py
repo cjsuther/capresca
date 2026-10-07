@@ -72,6 +72,8 @@ def resumen(lote: models.Lote) -> dict:
                           if lote.cuenta_origen else None),
         "creado_por": lote.creado_por, "creado_en": lote.creado_en.isoformat() if lote.creado_en else None,
         "enviado_por": lote.enviado_por, "enviado_en": lote.enviado_en.isoformat() if lote.enviado_en else None,
+        "orden_pago": ({"id": lote.orden_pago.id, "codigo": lote.orden_pago.codigo, "estado": lote.orden_pago.estado}
+                       if lote.orden_pago is not None else None),
     }
 
 
@@ -188,7 +190,14 @@ def _reiniciar_aprobaciones(db: Session, lote: models.Lote, usuario: str) -> Non
         evento(db, lote, usuario, "APROBACIONES_REINICIADAS", "El lote cambió: vuelve a empezar la aprobación.")
 
 
+def _sin_exclusiones(lote: models.Lote) -> None:
+    if lote.orden_pago is not None:
+        raise HTTPException(409, f"Es el lote de la orden de pago {lote.orden_pago.codigo}: la liquidación es completa "
+                                 "y sus pagos no se excluyen. Si algo no corresponde, anulá la orden de pago.")
+
+
 def excluir(db: Session, lote: models.Lote, pago_id: int, motivo: str, user: Usuario) -> None:
+    _sin_exclusiones(lote)
     if lote.estado != "PENDIENTE_APROBACION":
         raise HTTPException(409, "Sólo se excluyen pagos de un lote pendiente de aprobación.")
     p = _pago_del_lote(lote, pago_id)
@@ -206,6 +215,7 @@ def excluir(db: Session, lote: models.Lote, pago_id: int, motivo: str, user: Usu
 
 
 def incluir(db: Session, lote: models.Lote, pago_id: int, user: Usuario) -> None:
+    _sin_exclusiones(lote)
     if lote.estado != "PENDIENTE_APROBACION":
         raise HTTPException(409, "Sólo se modifican lotes pendientes de aprobación.")
     p = _pago_del_lote(lote, pago_id)
@@ -279,6 +289,10 @@ def rechazar(db: Session, lote: models.Lote, motivo: str, user: Usuario) -> None
     motivo = (motivo or "").strip()
     if not motivo:
         raise HTTPException(422, "Indicá el motivo del rechazo.")
+    if lote.orden_pago is not None:      # rechazar el lote de una orden de pago la anula (Créditos libera los lotes)
+        from app.services import ordenes
+        ordenes.anular(db, lote.orden_pago, f"Lote rechazado: {motivo}", user)
+        return
     lote.estado, lote.motivo_rechazo = "RECHAZADO", motivo[:300]
     for p in lote.pagos:
         if p.estado == "PENDIENTE":

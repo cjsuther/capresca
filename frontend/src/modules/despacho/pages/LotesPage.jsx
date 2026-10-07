@@ -10,21 +10,27 @@ import { useHasPermission } from "../../../context/usePermissions";
 const money = (n) => `$ ${Number(n || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
 const fecha = (f) => (f ? new Date(`${String(f).slice(0, 10)}T00:00:00`).toLocaleDateString("es-AR") : "—");
 
-const ESTADOS = [["ABIERTO", "Sin resolución"], ["CON_RESOLUCION", "Con resolución"], ["LIQUIDADO", "Liquidados"], ["", "Todos"]];
+const ESTADOS = [["CERRADO", "Cerrados (para asignar)"], ["ABIERTO", "Abiertos"], ["CON_RESOLUCION", "Con resolución"],
+                 ["PARA_LIQUIDAR", "Para liquidar (en orden de pago)"], ["LIQUIDADO", "Liquidados"], ["", "Todos"]];
 const ESTADO = {
-  ABIERTO: ["Sin resolución", "bg-amber-100 text-amber-800"],
+  ABIERTO: ["Abierto", "bg-amber-100 text-amber-800"],
+  CERRADO: ["Cerrado", "bg-gray-100 text-gray-700"],
   CON_RESOLUCION: ["Con resolución", "bg-blue-100 text-blue-700"],
+  PARA_LIQUIDAR: ["Para liquidar", "bg-blue-100 text-blue-700"],
   LIQUIDADO: ["Liquidado", "bg-green-100 text-green-700"],
 };
 
 /** "N° 120/2026" con el oficial si ya lo tiene; si no, el correlativo. */
+const fechaHora = (v) => (v ? new Date(v).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "");
+
 const textoRes = (r) => (r ? (r.numero_real || r.numeroOficial
   ? `N° ${r.numero_real || r.numeroOficial}/${r.anio}` : `Correlativo ${r.numero}/${r.anio}`) : "—");
 
 /**
  * Lotes de créditos: Créditos junta solo las solicitudes aprobadas que se pueden liquidar, por tipo
- * de crédito y fecha. Acá se les asigna la resolución que los otorga; una misma resolución puede
- * alcanzar varios lotes, siempre que la suma no pase su importe. Con la resolución asignada, el lote
+ * de crédito y fecha; alguien verifica cada lote y lo cierra. Acá se les asigna a los lotes cerrados
+ * la resolución que los otorga; una misma resolución puede alcanzar varios lotes, siempre que la suma
+ * no pase su importe. Con la resolución asignada, el lote
  * queda congelado y Créditos lo puede liquidar.
  */
 export default function LotesPage() {
@@ -32,7 +38,7 @@ export default function LotesPage() {
 
   const [tipos, setTipos] = useState([]);
   const [tipo, setTipo] = useState("");
-  const [estado, setEstado] = useState("ABIERTO");
+  const [estado, setEstado] = useState("CERRADO");
   const [datos, setDatos] = useState({ items: [], cantidad: 0, total: 0 });
   const [elegidos, setElegidos] = useState(() => new Set());
   const [borradores, setBorradores] = useState([]);
@@ -69,8 +75,8 @@ export default function LotesPage() {
     n.has(id) ? n.delete(id) : n.add(id);
     return n;
   });
-  const abiertos = datos.items.filter((l) => l.estado === "ABIERTO");
-  const marcarTodos = (e) => setElegidos(e.target.checked ? new Set(abiertos.map((l) => l.id)) : new Set());
+  const cerrados = datos.items.filter((l) => l.estado === "CERRADO");
+  const marcarTodos = (e) => setElegidos(e.target.checked ? new Set(cerrados.map((l) => l.id)) : new Set());
   const totalElegido = datos.items.filter((l) => elegidos.has(l.id)).reduce((a, l) => a + Number(l.montoTotal || 0), 0);
   const res = borradores.find((b) => String(b.id) === String(resolucionId));
   const disponible = comprometido ? Number(comprometido.disponible) : res ? Number(res.importe || 0) : null;
@@ -119,8 +125,9 @@ export default function LotesPage() {
         <h1 className="text-xl font-semibold text-gray-900">Lotes de créditos</h1>
         <p className="text-sm text-gray-500 mt-1 max-w-3xl">
           Créditos junta en lotes, por tipo de crédito y fecha, las solicitudes aprobadas que se pueden
-          liquidar. Acá se les asigna la <strong>resolución</strong> que los otorga: una misma resolución
-          puede ir a varios lotes, sin que la suma pase su importe. Con la resolución asignada, el lote
+          liquidar; cuando alguien verifica un lote, lo cierra. Acá se les asigna a los lotes <strong>cerrados</strong> la{" "}
+          <strong>resolución</strong> que los otorga: una misma resolución puede ir a varios lotes, sin que la
+          suma pase su importe. Con la resolución asignada, el lote
           queda congelado y Créditos lo liquida. Los lotes son del módulo Créditos y se consultan en vivo.
         </p>
       </div>
@@ -148,8 +155,8 @@ export default function LotesPage() {
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="px-3 py-3 w-10">
-                <input type="checkbox" aria-label="Elegir todos" disabled={!abiertos.length}
-                       checked={!!abiertos.length && elegidos.size === abiertos.length} onChange={marcarTodos} />
+                <input type="checkbox" aria-label="Elegir todos" disabled={!cerrados.length}
+                       checked={!!cerrados.length && elegidos.size === cerrados.length} onChange={marcarTodos} />
               </th>
               <th className="text-left px-4 py-3 font-medium">Lote</th>
               <th className="text-left px-4 py-3 font-medium">Tipo de crédito</th>
@@ -172,7 +179,7 @@ export default function LotesPage() {
               return (
                 <tr key={l.id} className="hover:bg-blue-50/40">
                   <td className="px-3 py-3">
-                    {l.estado === "ABIERTO" && (
+                    {l.estado === "CERRADO" && (
                       <input type="checkbox" aria-label={`Elegir ${l.codigo}`}
                              checked={elegidos.has(l.id)} onChange={() => marcar(l.id)} />
                     )}
@@ -183,7 +190,13 @@ export default function LotesPage() {
                   <td className="px-4 py-3 text-right tabular-nums">{l.cantidad}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{money(l.montoTotal)}</td>
                   <td className="px-4 py-3 text-gray-700">{textoRes(r || l.resolucion)}</td>
-                  <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${clase}`}>{texto}</span></td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${clase}`}>{texto}</span>
+                    {l.ordenPago && <div className="text-xs text-gray-500 mt-1">Orden de pago {l.ordenPago.codigo}</div>}
+                    {l.cerradoPor && (
+                      <div className="text-xs text-gray-500 mt-1">Cerrado por {l.cerradoPor} · {fechaHora(l.cerradoEn)}</div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     {r && (
                       <button type="button" onClick={() => bajarAnexo(r)} title="Anexo de la resolución en Word"

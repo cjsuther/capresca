@@ -42,6 +42,14 @@ def test_una_resolucion_otorga_varios_lotes_sin_pasar_su_importe(client, h, reso
     assert float(comp["total"]) == 450000 and float(comp["disponible"]) == 50000 and len(comp["lotes"]) == 2
 
 
+def test_sólo_se_asignan_lotes_cerrados(client, h, resolucion, creditos):
+    r = resolucion(importe=1000000)
+    a = creditos.alta(estado="ABIERTO")
+    no = _asignar(client, h, r, [a])
+    assert no.status_code == 409 and "no se cerraron" in no.json()["detail"]
+    assert creditos.lotes[a["id"]]["estado"] == "ABIERTO"
+
+
 def test_sin_importe_la_resolucion_no_otorga_lotes(client, h, resolucion, creditos):
     r = resolucion()
     no = _asignar(client, h, r, [creditos.alta()])
@@ -63,7 +71,7 @@ def test_quitar_la_resolucion_de_un_lote(client, h, resolucion, creditos):
     a = creditos.alta()
     _asignar(client, h, r, [a])
     ok = client.post(f"/api/despacho/lotes/{a['id']}/quitar-resolucion", headers=h)
-    assert ok.status_code == 200 and creditos.lotes[a["id"]]["estado"] == "ABIERTO"
+    assert ok.status_code == 200 and creditos.lotes[a["id"]]["estado"] == "CERRADO"
 
 
 def test_los_lotes_migrados_se_vinculan_a_su_resolucion(client, h, resolucion, creditos):

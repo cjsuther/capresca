@@ -18,6 +18,14 @@ export const reintentarPago = (id, pid) => data(api.post(`${B}/${id}/pagos/${pid
 export const resolverPago = (id, pid, resultado, observacion) =>
   data(api.post(`${B}/${id}/pagos/${pid}/resolver`, { resultado, observacion }));
 
+// Órdenes de pago de créditos: resoluciones / disposiciones con sus lotes de Créditos.
+const OP = "/tesoreria/ordenes-pago";
+export const listarOrdenes = (filtros = {}) => data(api.get(OP, { params: filtros }));
+export const verOrden = (id) => data(api.get(`${OP}/${id}`));
+export const actosDisponibles = () => data(api.get(`${OP}/disponibles`));
+export const confeccionarOrden = (actos) => data(api.post(OP, { actos }));
+export const anularOrden = (id, motivo) => data(api.post(`${OP}/${id}/anular`, { motivo }));
+
 /** Texto del error de la API: `detail` string, `detail.mensaje`, o el primer error de validación. */
 export function mensajeDeError(err, porDefecto = "No se pudo completar la operación") {
   const d = err?.response?.data?.detail;

@@ -1,5 +1,6 @@
 """Lotes: solicitudes aprobadas y liquidables, por tipo de crédito y fecha, numerados por año, con
-tope configurable; Despacho les asigna la resolución y recién ahí se liquidan completos."""
+tope configurable; alguien los verifica y los cierra, Despacho les asigna la resolución y recién ahí
+se liquidan completos."""
 from datetime import date
 from decimal import Decimal
 
@@ -82,7 +83,16 @@ def _res(id=7, numero=45, importe=10_000_000, oficial=None):
             "fecha": date.today().isoformat(), "importe": importe}
 
 
-def _asignar(client, lote_ids, **kw):
+def _cerrar(lote_id):
+    with SessionLocal() as db:
+        if db.get(m.PPLoteLiquidacion, lote_id).estado == lotes.ABIERTO:
+            lotes.cerrar(db, lote_id, "verificador")
+
+
+def _asignar(client, lote_ids, cerrar=True, **kw):
+    if cerrar:
+        for lid in lote_ids:
+            _cerrar(lid)
     return client.post("/internal/creditos/lotes/asignar-resolucion", headers=HD,
                        json={"lote_ids": lote_ids, "resolucion": _res(**kw)})
 
@@ -145,6 +155,68 @@ def test_lleno_el_lote_se_abre_el_siguiente(client):
     assert codigos == [f"{ANIO}-0001"] * 2 + [f"{ANIO}-0002"] * 2 + [f"{ANIO}-0003"]
 
 
+def _tope_monto(producto_id, monto):
+    with SessionLocal() as db:
+        db.get(m.PPProducto, producto_id).lote_monto_max = monto
+        db.commit()
+
+
+def test_el_tope_de_monto_del_tipo_de_credito_abre_otro_lote(client):
+    pid, jub = _producto(), _producto("LP-JUB-01")
+    _tope_monto(pid, 500_000)
+    a = _sol(_aprobada(pid, 300_000)).lote_liquidacion_id
+    b = _sol(_aprobada(pid, 200_000)).lote_liquidacion_id          # 500: justo el tope, entra
+    c = _sol(_aprobada(pid, 100_000)).lote_liquidacion_id          # 600: no entra
+    assert a == b and c != a
+    assert lotes.importe(SessionLocal(), a) == 500_000
+    otro = _sol(_aprobada(jub, 900_000)).lote_liquidacion_id       # el otro tipo no tiene tope de monto
+    assert _sol(_aprobada(jub, 900_000)).lote_liquidacion_id == otro
+
+
+def test_lo_que_pase_primero_cantidad_o_monto(client):
+    _tope(2)
+    pid = _producto()
+    _tope_monto(pid, 10_000_000)
+    a, b, c = (_sol(_aprobada(pid, 100_000)).lote_liquidacion_id for _ in range(3))
+    assert a == b != c                                                # pasó primero la cantidad
+
+
+def test_una_sola_solicitud_mayor_al_tope_va_sola_a_su_lote(client):
+    pid = _producto()
+    _tope_monto(pid, 100_000)
+    a = _sol(_aprobada(pid, 300_000)).lote_liquidacion_id
+    b = _sol(_aprobada(pid, 50_000)).lote_liquidacion_id
+    assert a != b
+
+
+def test_no_se_mueve_a_un_lote_que_pasaria_el_tope_de_monto(client):
+    h = _auth(client)
+    pid = _producto()
+    _tope_monto(pid, 400_000)
+    a = _aprobada(pid, 300_000)
+    b = _aprobada(pid, 300_000)
+    la, lb = _sol(a).lote_liquidacion_id, _sol(b).lote_liquidacion_id
+    assert la != lb
+    r = client.post("/api/creditos/contratos/lotes-liquidacion/mover", headers=h,
+                    json={"solicitud_id": b, "destino_id": la})
+    assert r.status_code == 409 and "tope de monto" in r.json()["detail"]
+
+
+def test_los_topes_de_monto_se_configuran_por_tipo_de_credito(client):
+    h = _auth(client)
+    pid = _producto()
+    r = client.put("/api/creditos/contratos/lotes-liquidacion/topes", headers=h,
+                   json=[{"producto_id": pid, "tope_monto": 2_500_000}])
+    assert r.status_code == 200, r.text
+    fila = next(x for x in r.json()["items"] if x["productoId"] == pid)
+    assert fila["topeMonto"] == 2_500_000 and r.json()["maximo"] == 50
+    r = client.put("/api/creditos/contratos/lotes-liquidacion/topes", headers=h,
+                   json=[{"producto_id": pid, "tope_monto": None}])
+    assert next(x for x in r.json()["items"] if x["productoId"] == pid)["topeMonto"] is None
+    assert client.put("/api/creditos/contratos/lotes-liquidacion/topes", headers=h,
+                      json=[{"producto_id": pid, "tope_monto": -1}]).status_code == 422
+
+
 def test_el_numero_arranca_en_uno_cada_anio(client):
     pid = _producto()
     with SessionLocal() as db:
@@ -153,15 +225,70 @@ def test_el_numero_arranca_en_uno_cada_anio(client):
     assert _lote(_sol(_aprobada(pid)).lote_liquidacion_id).codigo == f"{ANIO}-0001"
 
 
-def test_un_lote_con_resolucion_no_recibe_mas_solicitudes(client):
+def test_un_lote_cerrado_no_recibe_mas_solicitudes(client):
     pid = _producto()
     lid = _sol(_aprobada(pid)).lote_liquidacion_id
-    assert _asignar(client, [lid]).status_code == 200
+    _cerrar(lid)
     otra = _sol(_aprobada(pid)).lote_liquidacion_id
     assert otra != lid and _lote(otra).estado == "ABIERTO"
 
 
+# ---------------------------------------------------------------------------------- cierre
+def test_quien_verifica_cierra_el_lote_y_queda_registrado(client):
+    h = _auth(client)
+    lid = _sol(_aprobada(_producto())).lote_liquidacion_id
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/cerrar", headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["estado"] == "CERRADO" and r.json()["cerradoPor"] == "admin" and r.json()["cerradoEn"]
+    lt = _lote(lid)
+    assert lt.estado == "CERRADO" and lt.cerrado_por == "admin" and lt.cerrado_en is not None
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/cerrar", headers=h)
+    assert r.status_code == 409 and "ya está cerrado" in r.json()["detail"]
+
+
+def test_no_se_cierra_un_lote_con_algo_que_no_se_puede_liquidar(client):
+    h = _auth(client)
+    sid = _aprobada(_producto())
+    lid = _sol(sid).lote_liquidacion_id
+    with SessionLocal() as db:
+        db.get(models.Cliente, 1).cbu = "123"          # le cambiaron el CBU después de entrar al lote
+        db.commit()
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/cerrar", headers=h)
+    assert r.status_code == 409 and "no se pueden liquidar" in r.json()["detail"]
+    assert _lote(lid).estado == "ABIERTO"
+
+
+def test_un_lote_cerrado_se_reabre_mientras_no_tenga_resolucion(client):
+    h = _auth(client)
+    lid = _sol(_aprobada(_producto())).lote_liquidacion_id
+    _cerrar(lid)
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/reabrir", headers=h)
+    assert r.status_code == 200 and _lote(lid).estado == "ABIERTO" and _lote(lid).cerrado_por is None
+    _asignar(client, [lid])
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/reabrir", headers=h)
+    assert r.status_code == 409 and "ya tiene resolución" in r.json()["detail"]
+
+
+def test_sin_permiso_de_escritura_no_se_cierra(client, monkeypatch):
+    from app.api import solicitudes
+    from fastapi import HTTPException
+
+    def _no(db, user):
+        raise HTTPException(403, "Sin permiso")
+    monkeypatch.setattr(solicitudes, "_req_edita", _no)
+    lid = _sol(_aprobada(_producto())).lote_liquidacion_id
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/cerrar", headers=_auth(client))
+    assert r.status_code == 403 and _lote(lid).estado == "ABIERTO"
+
+
 # ---------------------------------------------------------------------------------- resolución
+def test_despacho_sólo_asigna_resolucion_a_lotes_cerrados(client):
+    lid = _sol(_aprobada(_producto())).lote_liquidacion_id
+    r = _asignar(client, [lid], cerrar=False)
+    assert r.status_code == 409 and "todavía no se cerraron" in r.json()["detail"]
+    assert _lote(lid).estado == "ABIERTO"
+
+
 def test_despacho_asigna_una_resolucion_a_varios_lotes(client):
     h = _auth(client)
     pers, jub = _producto(), _producto("LP-JUB-01")
@@ -183,7 +310,7 @@ def test_la_suma_de_los_lotes_no_supera_el_importe_de_la_resolucion(client):
     assert _asignar(client, [la], importe=500_000).status_code == 200
     r = _asignar(client, [lb], importe=500_000)            # 300 + 300 > 500
     assert r.status_code == 409 and "supera el importe" in r.json()["detail"]
-    assert _lote(lb).estado == "ABIERTO"
+    assert _lote(lb).estado == "CERRADO"
 
 
 def test_un_lote_no_recibe_dos_resoluciones(client):
@@ -203,12 +330,13 @@ def test_bajar_el_importe_de_la_resolucion_se_controla(client):
     assert _lote(lid).resolucion_numero_oficial == 777 and float(_lote(lid).resolucion_importe) == 400_000
 
 
-def test_quitar_la_resolucion_reabre_el_lote(client):
+def test_quitar_la_resolucion_deja_el_lote_cerrado(client):
     sid = _aprobada(_producto())
     lid = _sol(sid).lote_liquidacion_id
     _asignar(client, [lid])
     r = client.post(f"/internal/creditos/lotes/{lid}/quitar-resolucion", headers=HD)
-    assert r.status_code == 200 and _lote(lid).estado == "ABIERTO"
+    assert r.status_code == 200 and r.json()["estado"] == "CERRADO" and _lote(lid).estado == "CERRADO"
+    assert _lote(lid).cerrado_por == "verificador"
     assert _sol(sid).en_resolucion is False and _lote(lid).resolucion_id is None
 
 
@@ -217,8 +345,16 @@ def test_las_solicitudes_de_un_lote_con_resolucion_no_se_anulan(client):
     sid = _aprobada(_producto())
     _asignar(client, [_sol(sid).lote_liquidacion_id])
     r = client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=h, json={"accion": "anular", "motivo": "x"})
-    assert r.status_code == 409 and "ya tiene resolución" in r.json()["detail"]
+    assert r.status_code == 409 and "con resolución" in r.json()["detail"]
     assert _sol(sid).estado == "APROBADA"
+
+
+def test_las_solicitudes_de_un_lote_cerrado_no_se_anulan(client):
+    h = _auth(client)
+    sid = _aprobada(_producto())
+    _cerrar(_sol(sid).lote_liquidacion_id)
+    r = client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=h, json={"accion": "anular", "motivo": "x"})
+    assert r.status_code == 409 and "cerrado" in r.json()["detail"]
 
 
 def test_anular_una_de_un_lote_abierto_la_saca_del_lote(client):
@@ -277,18 +413,32 @@ def test_no_se_mueve_a_otro_tipo_ni_a_un_lote_completo(client):
     assert r.status_code == 409 and "completo" in r.json()["detail"]
 
 
-def test_mover_a_un_lote_con_resolucion_respeta_su_importe(client):
+def test_al_verificar_se_mueve_entre_lotes_abiertos(client):
     h = _auth(client)
     _tope(1)
     pid = _producto()
-    a, b = _aprobada(pid, 300_000), _aprobada(pid, 300_000)
+    a, b = _aprobada(pid), _aprobada(pid)
     la, lb = _sol(a).lote_liquidacion_id, _sol(b).lote_liquidacion_id
     _tope(5)
-    _asignar(client, [la], importe=400_000)
     r = client.post("/api/creditos/contratos/lotes-liquidacion/mover", headers=h,
                     json={"solicitud_id": b, "destino_id": la})
-    assert r.status_code == 409 and "supera el importe" in r.json()["detail"]
-    assert _sol(b).lote_liquidacion_id == lb
+    assert r.status_code == 200 and _sol(b).lote_liquidacion_id == la
+
+
+def test_no_se_mueve_a_un_lote_cerrado_ni_con_resolucion(client):
+    h = _auth(client)
+    _tope(1)
+    pid = _producto()
+    a, b, c = _aprobada(pid), _aprobada(pid), _aprobada(pid)
+    la, lb, lc = (_sol(x).lote_liquidacion_id for x in (a, b, c))
+    _tope(5)
+    _cerrar(la)
+    _asignar(client, [lb])
+    for destino in (la, lb):
+        r = client.post("/api/creditos/contratos/lotes-liquidacion/mover", headers=h,
+                        json={"solicitud_id": c, "destino_id": destino})
+        assert r.status_code == 409 and "sólo se mueve a un lote abierto" in r.json()["detail"]
+    assert _sol(c).lote_liquidacion_id == lc
 
 
 # ---------------------------------------------------------------------------------- liquidación

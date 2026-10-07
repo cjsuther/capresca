@@ -10,7 +10,7 @@ from app.core.database import Base, engine, SessionLocal
 from app.services import auditoria_central as central
 from app.api import (clientes, creditos, caja, consultas, admin, productos, contratos,
                      impuestos, indices, sistema_calculos, solicitudes, aprobaciones, portal,
-                     despacho_interna, tesoreria_interna)
+                     despacho_interna, ordenes_pago_interna, tesoreria_interna)
 from app.core.configuraciones import ConfiguracionNoDisponible
 from app import models_productos  # noqa: F401  (registra tablas pp_* en Base.metadata)
 from app.seed import seed, seed_perfiles
@@ -136,6 +136,7 @@ def _migrar_iam() -> None:
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_cuenta_empresa_codigo ON cuentas_contables (empresa_id, codigo)"))
         # H-190: trazabilidad de "préstamo duplicado" (de qué producto salió la copia).
         conn.execute(text("ALTER TABLE pp_producto ADD COLUMN IF NOT EXISTS copiado_de VARCHAR(36)"))
+        conn.execute(text("ALTER TABLE pp_producto ADD COLUMN IF NOT EXISTS lote_monto_max NUMERIC(16,2)"))
         # Lotes de liquidación numerados por año (la tabla la crea create_all; acá, la columna del contrato).
         conn.execute(text("ALTER TABLE pp_contrato ADD COLUMN IF NOT EXISTS lote_liquidacion_id INTEGER "
                           "REFERENCES pp_lote_liquidacion(id)"))
@@ -144,10 +145,14 @@ def _migrar_iam() -> None:
         for col, ddl in (("estado", "VARCHAR(15) DEFAULT 'ABIERTO'"), ("resolucion_id", "INTEGER"),
                          ("resolucion_numero", "INTEGER DEFAULT 0"), ("resolucion_anio", "INTEGER"),
                          ("resolucion_numero_oficial", "INTEGER"), ("resolucion_fecha", "DATE"),
-                         ("resolucion_importe", "NUMERIC(16,2)"), ("liquidado_en", "TIMESTAMP")):
+                         ("resolucion_importe", "NUMERIC(16,2)"), ("liquidado_en", "TIMESTAMP"),
+                         ("cerrado_por", "VARCHAR(100)"), ("cerrado_en", "TIMESTAMP"),
+                         ("resolucion_tipo", "VARCHAR(3) DEFAULT 'RES'"), ("orden_pago_id", "INTEGER"),
+                         ("orden_pago_codigo", "VARCHAR(20)"), ("para_liquidar_en", "TIMESTAMP")):
             conn.execute(text(f"ALTER TABLE pp_lote_liquidacion ADD COLUMN IF NOT EXISTS {col} {ddl}"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_lote_liquidacion_estado ON pp_lote_liquidacion (estado)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_lote_liquidacion_resolucion_id ON pp_lote_liquidacion (resolucion_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pp_lote_liquidacion_orden_pago_id ON pp_lote_liquidacion (orden_pago_id)"))
         conn.execute(text("ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS aprobada_en DATE"))
         conn.execute(text("ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS lote_liquidacion_id INTEGER "
                           "REFERENCES pp_lote_liquidacion(id)"))
@@ -212,6 +217,7 @@ app.include_router(aprobaciones.router)
 app.include_router(portal.router)
 app.include_router(tesoreria_interna.router)
 app.include_router(despacho_interna.router)
+app.include_router(ordenes_pago_interna.router)
 
 # Auditoría central (H-221): qué registros agrega, cambia o borra cada usuario. Se excluyen las tablas
 # que ya son un registro en sí (la auditoría propia del módulo y el log migrado del VFP) y el espejo de

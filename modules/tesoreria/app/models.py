@@ -1,6 +1,10 @@
 """Tesorería: lotes de pagos que llegan de otros módulos (o se cargan a mano), se aprueban según el
 workflow y se envían por Interbanking.
 
+Orden de pago: junta resoluciones / disposiciones de Despacho con sus lotes de créditos (los arma
+Créditos); al confeccionarla se crea el lote de pagos con una transferencia por crédito, que sigue el
+circuito de siempre. Estados: CONFECCIONADA | ANULADA (el avance del pago es el de su lote).
+
 Estados del lote:   PENDIENTE_APROBACION → APROBADO → ENVIADO → CONFIRMADO | CON_ERRORES
                     PENDIENTE_APROBACION → RECHAZADO
 Estados del pago:   PENDIENTE → ENVIANDO → ENVIADO → CONFIRMADO | FALLIDO
@@ -11,7 +15,7 @@ Estados del pago:   PENDIENTE → ENVIANDO → ENVIADO → CONFIRMADO | FALLIDO
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import (Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint,
+from sqlalchemy import (JSON, Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint,
                         func)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +51,7 @@ class Lote(Base):
                                                order_by="Pago.id")
     aprobaciones: Mapped[list["LoteAprobacion"]] = relationship(back_populates="lote", cascade="all, delete-orphan",
                                                                 order_by="LoteAprobacion.nivel_orden")
+    orden_pago: Mapped["OrdenPago | None"] = relationship(back_populates="lote", uselist=False)
 
 
 class Pago(Base):
@@ -94,3 +99,28 @@ class Evento(Base):
     accion: Mapped[str] = mapped_column(String(40))
     detalle: Mapped[str] = mapped_column(Text, default="")
     fecha: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class OrdenPago(Base):
+    """Orden de pago de créditos: resoluciones / disposiciones y los lotes de Créditos que paga."""
+    __tablename__ = "ordenes_pago"
+    __table_args__ = (UniqueConstraint("anio", "numero", name="uq_orden_pago_anio_numero"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    anio: Mapped[int] = mapped_column(Integer)
+    numero: Mapped[int] = mapped_column(Integer)
+    estado: Mapped[str] = mapped_column(String(15), default="CONFECCIONADA", index=True)  # CONFECCIONADA | ANULADA
+    actos: Mapped[list] = mapped_column(JSON, default=list)          # resoluciones / disposiciones y sus lotes
+    importe: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=0)
+    cantidad: Mapped[int] = mapped_column(Integer, default=0)        # transferencias (una por crédito)
+    lote_id: Mapped[int | None] = mapped_column(ForeignKey("lotes.id"), nullable=True, unique=True)
+    creado_por: Mapped[str] = mapped_column(String(60), default="")
+    creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    anulada_por: Mapped[str] = mapped_column(String(60), default="")
+    anulada_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    motivo_anulacion: Mapped[str] = mapped_column(String(300), default="")
+    lote: Mapped[Lote | None] = relationship(back_populates="orden_pago")
+
+    @property
+    def codigo(self) -> str:
+        return f"OP-{self.anio}-{self.numero:05d}"

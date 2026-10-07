@@ -19,6 +19,20 @@ export const ESTADO_PAGO = {
   INCIERTO: ["Incierto", "crit"],
 };
 
+// Cómo va el pago de una orden de pago (sale del estado de su lote de pagos).
+export const ESTADO_ORDEN = {
+  PARA_APROBAR: ["Confeccionada · por aprobar", "warn"],
+  PARA_PAGAR: ["Aprobada · lista para pagar", "brand"],
+  PAGANDO: ["Pagando", "brand"],
+  PAGADA: ["Pagada", "ok"],
+  CON_ERRORES: ["Con errores", "crit"],
+  ANULADA: ["Anulada", "neutral"],
+};
+
+const TIPO_ACTO = { RES: "Res.", DIS: "Disp." };
+/** "Res. 120/2026" (con el N° oficial; si no lo tiene, el correlativo). */
+export const textoActo = (a) => `${TIPO_ACTO[a?.tipo] || "Res."} ${a?.numeroOficial || a?.numero}/${a?.anio}`;
+
 export const ORIGENES = { CREDITOS: "Créditos", CONCILIACION: "Conciliación", MANUAL: "Carga manual" };
 
 export const money = (v) =>

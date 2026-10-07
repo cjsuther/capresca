@@ -137,6 +137,11 @@ def test_la_copia_interna_de_documentos_no_se_publica():
     ("POST", "/api/tesoreria/lotes/12/aprobar", "tesoreria:*"),
     ("POST", "/api/tesoreria/lotes/12/enviar", "tesoreria:*"),
     ("POST", "/api/tesoreria/lotes/12/pagos/3/resolver", "tesoreria:*"),
+    ("GET", "/api/tesoreria/ordenes-pago", "tesoreria:lotes:read"),
+    ("GET", "/api/tesoreria/ordenes-pago/disponibles", "tesoreria:lotes:read"),
+    ("GET", "/api/tesoreria/ordenes-pago/4", "tesoreria:lotes:read"),
+    ("POST", "/api/tesoreria/ordenes-pago", "tesoreria:lotes:write"),
+    ("POST", "/api/tesoreria/ordenes-pago/4/anular", "tesoreria:lotes:write"),
 ])
 def test_rutas_de_tesoreria(metodo, ruta, permiso):
     assert get_service_url(metodo, ruta) == settings.tesoreria_service_url

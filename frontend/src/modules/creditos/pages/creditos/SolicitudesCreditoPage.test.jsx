@@ -309,8 +309,8 @@ describe("Solicitudes de crédito · resolución", () => {
 
     const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
     expect(within(modal).queryByRole("button", { name: "Originar contrato" })).toBeNull();
-    expect(within(modal).getByText(/Lote 2026-0003 · esperando resolución/)).toBeInTheDocument();
-    expect(within(modal).getByText(/Espera que Despacho le asigne/)).toBeInTheDocument();
+    expect(within(modal).getByText(/Lote 2026-0003 · abierto/)).toBeInTheDocument();
+    expect(within(modal).getByText(/espera que lo verifiquen y lo cierren/)).toBeInTheDocument();
   });
 
   it("en un lote con resolución muestra el N° oficial y no se puede anular", async () => {
@@ -325,6 +325,19 @@ describe("Solicitudes de crédito · resolución", () => {
     expect(within(modal).getByText("Resolución N° 120/2026 · 10/6/2026")).toBeInTheDocument();
     expect(within(modal).getByText(/no se modifica/)).toBeInTheDocument();
     expect(within(modal).getByRole("link", { name: /Créditos → Lotes/ })).toHaveAttribute("href", "/modules/creditos/liquidacion-lote");
+    expect(within(modal).getByRole("button", { name: "Anular" })).toBeDisabled();
+  });
+
+  it("en un lote cerrado tampoco se puede anular", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, resolucion: null,
+      lote: { id: 3, codigo: "2026-0003", estado: "CERRADO", resolucion: null } }]));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-3"));
+
+    const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    expect(within(modal).getByText(/Lote 2026-0003 · cerrado/)).toBeInTheDocument();
+    expect(within(modal).getByText(/Está en un lote cerrado: no se modifica/)).toBeInTheDocument();
     expect(within(modal).getByRole("button", { name: "Anular" })).toBeDisabled();
   });
 

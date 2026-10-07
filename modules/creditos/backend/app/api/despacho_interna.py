@@ -38,6 +38,7 @@ class ResolucionIn(BaseModel):
     numero_oficial: int | None = None
     fecha: date | None = None
     importe: Decimal = Decimal("0")
+    tipo: str = "RES"                 # RES | DIS
 
 
 class AsignarIn(BaseModel):

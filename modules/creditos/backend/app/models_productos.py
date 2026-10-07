@@ -107,6 +107,9 @@ class PPProducto(Base):
     codigo: Mapped[str] = mapped_column(String(60), unique=True)
     nombre: Mapped[str] = mapped_column(String(160))
     descripcion: Mapped[str] = mapped_column(Text, default="")
+    # Tope de monto de un lote de este tipo de crédito (además del tope de cantidad). Vacío = sin tope.
+    # Vive en el producto y no en la versión: es un límite operativo, se cambia sin publicar versión.
+    lote_monto_max: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
     copiado_de: Mapped[str | None] = mapped_column(String(36), nullable=True)  # H-190: código del préstamo del que se duplicó (trazabilidad + prompt de retirar-original)
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     versiones: Mapped[list["PPVersion"]] = relationship(
@@ -201,8 +204,10 @@ class PPLoteLiquidacion(Base):
     tope (parámetro LOTE_LIQUIDACION_MAX). El número es correlativo dentro del año y arranca en 1 cada
     año; la DB garantiza que no se repita aun con aprobaciones simultáneas.
 
-    Estados: ABIERTO (recibe solicitudes) → CON_RESOLUCION (Despacho le asignó la resolución que lo
-    otorga: queda congelado) → LIQUIDADO (se originaron y desembolsaron todas). La resolución es de
+    Estados: ABIERTO (recibe solicitudes) → CERRADO (alguien lo verificó y lo cerró: cerrado_por /
+    cerrado_en; queda congelado) → CON_RESOLUCION (Despacho le asignó la resolución o disposición
+    que lo otorga) → PARA_LIQUIDAR (entró en una orden de pago de Tesorería: sus solicitudes se
+    originaron y las transferencias esperan al tesorero) → LIQUIDADO (se acreditaron todas). La resolución es de
     Despacho: acá se guarda su id y una copia de lo que Créditos muestra y controla."""
     __tablename__ = "pp_lote_liquidacion"
     __table_args__ = (UniqueConstraint("anio", "numero", name="uq_pp_lote_liquidacion_anio_numero"),
@@ -221,6 +226,13 @@ class PPLoteLiquidacion(Base):
     resolucion_numero_oficial: Mapped[int | None] = mapped_column(Integer, nullable=True)
     resolucion_fecha: Mapped[date | None] = mapped_column(Date, nullable=True)
     resolucion_importe: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
+    resolucion_tipo: Mapped[str] = mapped_column(String(3), default="RES")      # RES | DIS (disposición)
+    # Orden de pago de Tesorería que lo paga (PARA_LIQUIDAR): id y código de allá.
+    orden_pago_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    orden_pago_codigo: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    para_liquidar_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cerrado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)   # quien lo verificó
+    cerrado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     liquidado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

@@ -117,13 +117,13 @@ def creditos(monkeypatch):
     proximo = {"n": 0}
     avisos: list[dict] = []
 
-    def alta(montos=(100000, 200000), producto="prod-personal", resolucion=None):
+    def alta(montos=(100000, 200000), producto="prod-personal", resolucion=None, estado="CERRADO"):
         proximo["n"] += 1
         n = proximo["n"]
         lotes[n] = {"id": n, "codigo": f"2026-{n:04d}", "anio": 2026, "numero": n, "fecha": "2026-10-06",
                     "productoId": producto,
                     "producto": next(p["nombre"] for p in PRODUCTOS if p["tipo"] == producto),
-                    "estado": "CON_RESOLUCION" if resolucion else "ABIERTO", "resolucion": resolucion,
+                    "estado": "CON_RESOLUCION" if resolucion else estado, "resolucion": resolucion,
                     "cantidad": len(montos), "montoTotal": float(sum(montos)),
                     "solicitudes": [{"id": f"s{n}-{i}", "numero": f"SOL-{n}-{i}", "cuil": "20305047579",
                                      "apellido_nombre": f"PEREZ {i}", "producto": "Préstamo personal",
@@ -159,7 +159,10 @@ def creditos(monkeypatch):
 
     def asignar_resolucion(lote_ids, r):
         elegidos = [lotes[i] for i in lote_ids]
-        con = [x["codigo"] for x in elegidos if x["estado"] != "ABIERTO"]
+        abiertos = [x["codigo"] for x in elegidos if x["estado"] == "ABIERTO"]
+        if abiertos:
+            raise HTTPException(409, f"Estos lotes todavía no se cerraron: {', '.join(abiertos)}.")
+        con = [x["codigo"] for x in elegidos if x["estado"] != "CERRADO"]
         if con:
             raise HTTPException(409, f"Estos lotes ya tienen resolución: {', '.join(con)}.")
         ya = _de(r["id"], r["numero"], r["anio"])
@@ -171,8 +174,8 @@ def creditos(monkeypatch):
         return {"asignados": [x["codigo"] for x in elegidos], "totalResolucion": Decimal(str(total))}
 
     def quitar_resolucion(lote_id):
-        lotes[lote_id].update(estado="ABIERTO", resolucion=None)
-        return {"lote": lotes[lote_id]["codigo"], "estado": "ABIERTO"}
+        lotes[lote_id].update(estado="CERRADO", resolucion=None)
+        return {"lote": lotes[lote_id]["codigo"], "estado": "CERRADO"}
 
     def resolucion_actualizada(r):
         de = _de(r["id"], r["numero"], r["anio"])
