@@ -183,6 +183,24 @@ def test_alta_real_resuelve_el_cbu_debito_y_confecciona(client, db, cred, red, h
     assert sorted(grants) == ["client_credentials", "password"]
 
 
+def test_alta_real_lee_el_cbu_debito_con_los_nombres_de_la_api_productiva(client, cred, red, h, sin_mock):
+    """Interbanking productivo responde `account_cbu` y `bank_number` (no `cbu` / `bank_id`)."""
+    red.token()
+    _ruta_cuenta(red, [
+        {"account_number": "46600513539", "account_type": "CA", "bank_number": "011", "account_cbu": "9" * 22},
+        {"account_number": "46600513539", "account_type": "CC", "bank_number": "011",
+         "account_cbu": "0110599520000046600513", "account_cuit": "30999999999", "account_label": "CAJA",
+         "bank_name": "NACION", "currency": "ARS"},
+    ])
+    red.ruta("/v1/transfers/confection/third-party", body={"operation_id": "OP-9", "found_transfers": [{}]})
+
+    r = client.post(BASE, json=NUEVA, headers=h)
+
+    assert r.status_code == 200, r.text
+    envio = red.llamadas_a("/v1/transfers/confection/third-party")[0]
+    assert envio["json"]["found_transfers"][0]["debit_account"] == {"account_cbu": "0110599520000046600513"}
+
+
 def test_alta_real_cae_a_la_primera_cuenta_si_no_matchea_el_tipo(client, cred, red, h, sin_mock):
     red.token()
     _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CA",

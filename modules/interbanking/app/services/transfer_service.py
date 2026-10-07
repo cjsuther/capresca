@@ -43,12 +43,16 @@ def _resolve_debit_cbu(db: Session, user_id: int, account_number: str, account_t
             params=params,
             ip_address=ip,
         )
+        # La API devuelve `account_cbu` y `bank_number` (verificado con la credencial productiva el
+        # 2026-10-07); `cbu` / `bank_id` quedan por compatibilidad con respuestas viejas o del sandbox.
         accounts = (data or {}).get("accounts") or []
+        cbu_de = lambda a: a.get("account_cbu") or a.get("cbu") or None
+        banco_de = lambda a: a.get("bank_number") or a.get("bank_id")
         for a in accounts:
-            if a.get("account_type") == account_type and (not bank_id or a.get("bank_id") == bank_id):
-                return a.get("cbu") or None
+            if a.get("account_type") == account_type and (not bank_id or banco_de(a) == bank_id):
+                return cbu_de(a)
         if accounts:
-            return accounts[0].get("cbu")
+            return cbu_de(accounts[0])
     except Exception:
         return None
     return None
