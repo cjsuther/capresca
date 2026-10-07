@@ -135,8 +135,20 @@ def test_sin_client_secret_no_se_puede_pedir_info_financiera(db, cred, red):
     assert red.llamadas == []
 
 
-def test_sin_usuario_no_se_puede_pedir_transferencias(db, cred, red):
+def test_sin_usuario_transferencias_usa_client_credentials(db, cred, red):
+    """La credencial productiva obtiene el scope de transferencias con client_id + client_secret."""
+    red.token()
     cred.password_encrypted = None
+    db.commit()
+
+    token_manager.get_valid_token(db, TRANSFERENCIAS_CONFECCION)
+    assert red.ultima["data"]["grant_type"] == "client_credentials"
+    assert red.ultima["params"]["scope"] == TRANSFERENCIAS_CONFECCION
+
+
+def test_sin_usuario_ni_secret_no_se_puede_pedir_transferencias(db, cred, red):
+    cred.password_encrypted = None
+    cred.client_secret_encrypted = None
     db.commit()
 
     with pytest.raises(HTTPException) as e:

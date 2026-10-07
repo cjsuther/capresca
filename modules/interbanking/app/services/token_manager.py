@@ -57,11 +57,18 @@ def _build_token_payload(cred: InterbankingCredential, scope: str) -> dict:
             "client_id": cred.client_id,
             "client_secret": decrypt_secret(cred.client_secret_encrypted),
         }
-    # password
+    # password. Sin usuario/contraseña cargados, la credencial productiva obtiene el scope de
+    # transferencias con client_credentials (verificado contra auth.interbanking.com.ar el 2026-10-07).
     if not cred.username or not cred.password_encrypted:
+        if cred.client_secret_encrypted:
+            return {
+                "grant_type": "client_credentials",
+                "client_id": cred.client_id,
+                "client_secret": decrypt_secret(cred.client_secret_encrypted),
+            }
         raise HTTPException(
             status_code=400,
-            detail=f"No hay usuario/contraseña configurado para scope={scope}",
+            detail=f"No hay usuario/contraseña ni client_secret configurados para scope={scope}",
         )
     return {
         "grant_type": "password",
