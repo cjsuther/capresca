@@ -324,4 +324,15 @@ describe("TransferenciasPage — alta de transferencia", () => {
     expect(screen.queryByText(/No hay cuentas cargadas/)).not.toBeInTheDocument();
     expect(within(campo("Cuenta débito")).getAllByRole("option")).toHaveLength(2);
   });
+
+  it("cada cuenta del combo empieza por su número", async () => {
+    getCuentas.mockResolvedValue([CUENTA, { ...CUENTA, account_number: "9876543210", account_label: "" }]);
+    const user = userEvent.setup();
+    render(<TransferenciasPage />);
+    await screen.findByText("Sin transferencias en el rango");
+    await abrirFormulario(user);
+
+    const textos = within(campo("Cuenta débito")).getAllByRole("option").slice(1).map((o) => o.textContent);
+    expect(textos).toEqual(["1234567890 · Operativa · Banco Nación · CC (ARS)", "9876543210 · Banco Nación · CC (ARS)"]);
+  });
 });

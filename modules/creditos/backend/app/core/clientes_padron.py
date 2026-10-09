@@ -8,7 +8,8 @@ sincroniza contra el servicio de Clientes por su API interna, que no sale del ga
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 
 import httpx
 from sqlalchemy.exc import IntegrityError
@@ -86,8 +87,27 @@ def _aplicar(espejo: models.Cliente, f: dict) -> models.Cliente:
     espejo.email = (f.get("email") or "")[:80]
     espejo.cbu = (f.get("cbu") or "")[:23]
     espejo.baja = not f.get("activo", True)
+    # Nacimiento, sueldo e ingreso al organismo: los trae el padrón migrado. Si el padrón no los
+    # tiene, se deja lo que ya hubiera en el espejo.
+    nacimiento, ingreso = _fecha(f.get("fecha_nacimiento")), _fecha(f.get("fecha_ingreso"))
+    if nacimiento:
+        espejo.fecha_nacimiento = nacimiento
+    if ingreso:
+        espejo.fecha_ingreso = ingreso
+    if f.get("sueldo"):
+        espejo.sueldo = Decimal(str(f["sueldo"]))
     espejo.sincronizado_en = datetime.now(timezone.utc)
     return espejo
+
+
+def _fecha(v) -> date | None:
+    """Fecha ISO del padrón; None si viene vacía o no es una fecha posible (el padrón viejo tiene años
+    como 7987)."""
+    try:
+        d = date.fromisoformat(str(v or "")[:10])
+    except ValueError:
+        return None
+    return d if date(1900, 1, 1) <= d <= date.today() else None
 
 
 def sincronizar(db: Session, cliente_id: int) -> models.Cliente | None:

@@ -84,6 +84,11 @@ describe("Layout", () => {
     expect(await screen.findByText("tablero")).toBeInTheDocument();
   });
 
+  it("muestra el logo de la Caja de Crédito y Prestaciones", () => {
+    montar();
+    expect(screen.getByAltText("Caja de Crédito y Prestaciones de Catamarca")).toHaveAttribute("src", "/logo-capresca.svg");
+  });
+
   it("el menú lateral ofrece volver al inicio", async () => {
     montar({ sidebar: <Sidebar menuItems={[]} moduleCode="security" /> });
     // El layout dibuja el menú dos veces: el fijo de escritorio y el cajón del celular.

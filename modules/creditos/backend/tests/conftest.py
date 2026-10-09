@@ -55,6 +55,14 @@ def config_falsa():
     return reiniciar()
 
 
+@pytest.fixture(autouse=True)
+def padron_sin_coincidencias(monkeypatch):
+    """El padrón de Clientes es otro servicio: por defecto no encuentra a nadie por documento (sin ir a la
+    red). Los tests que necesitan una coincidencia lo reemplazan."""
+    from app.core import clientes_padron
+    monkeypatch.setattr(clientes_padron, "ids_por_documento", lambda documentos: {})
+
+
 # Módulos de test que NO usan la base de datos (motor de dominio puro).
 _SIN_DB = ("test_motor_cuotas", "test_equivalencia_real", "test_equivalencia_mora")
 

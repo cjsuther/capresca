@@ -3,7 +3,7 @@
 El proveedor real requiere credenciales por entorno; sin ellas se usa el MOCK determinista
 (sin red, sin el WAF de Cloudflare), que es lo que ejercitan estos tests."""
 import os
-from datetime import date
+from datetime import date, timedelta
 
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///./_portal.db"
 os.environ["ENVIRONMENT"] = "development"
@@ -18,6 +18,33 @@ def client():
     from app.main import app
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(autouse=True)
+def padron(monkeypatch):
+    """El alta en el maestro pasa por el padrón del módulo Clientes (red): acá lo atiende uno en memoria."""
+    from app.core import clientes_padron
+    personas = {}          # id → ficha
+
+    def _importar(lote):
+        creados, existentes = {}, {}
+        for p in lote:
+            cid = next((i for i, f in personas.items() if f["documento"] == p["documento"]), None)
+            if cid is not None:
+                existentes[p["documento"]] = cid; continue
+            cid = 7001 + len(personas)
+            personas[cid] = {"client_id": cid, "documento": p["documento"],
+                             "nombre": ", ".join(x for x in (p["apellido"], p["nombres"]) if x),
+                             "domicilio": p.get("domicilio", ""), "localidad": p.get("localidad", ""),
+                             "telefono": p.get("telefono", ""), "email": p.get("email", ""), "cbu": "", "activo": True}
+            creados[p["documento"]] = cid
+        return {"creados": creados, "existentes": existentes}
+
+    monkeypatch.setattr(clientes_padron, "importar", _importar)
+    monkeypatch.setattr(clientes_padron, "ficha", lambda cid: personas.get(cid))
+    monkeypatch.setattr(clientes_padron, "copiar_documentos",
+                        lambda cid, docs: {"guardados": len(docs), "repetidos": 0})
+    return personas
 
 
 def _ingresar(client) -> dict:
@@ -147,7 +174,7 @@ VIDEOS = ["video1", "video2", "video3"]   # los obligatorios por defecto (config
 # La solicitud pide fecha de nacimiento (la edad se calcula) y contacto del ciudadano.
 NACIMIENTO_40 = f"{date.today().year - 40}-01-01"
 CONSENT = {"cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True,
-           "apellido": "PEREZ", "nombre": "JUAN CARLOS", "dni": "30123456", "videos_vistos": VIDEOS,
+           "apellido": "PEREZ", "nombre": "JUAN CARLOS", "cuil": "20301234563", "videos_vistos": VIDEOS,
            "fecha_nacimiento": NACIMIENTO_40, "email": "juan@example.com", "telefono": "3834123456"}
 
 
@@ -199,18 +226,22 @@ def test_enviar_exige_identidad_declarada(client):
             "fecha_nacimiento": NACIMIENTO_40, "email": "ana@example.com", "telefono": "3834765432"}
     # sin apellido/nombre → 422
     assert client.post("/api/creditos/portal/solicitudes", headers=h, json=base).status_code == 422
-    # DNI inválido → 422
-    assert client.post("/api/creditos/portal/solicitudes", headers=h,
-                       json={**base, "apellido": "GOMEZ", "nombre": "ANA", "dni": "123"}).status_code == 422
-    # completo → 201, con la identidad declarada (apellido, nombre) y DNI normalizado
+    # CUIL corto, o con el dígito verificador mal → 422
+    for cuil in ("123", "27-27345678-0"):
+        r = client.post("/api/creditos/portal/solicitudes", headers=h,
+                        json={**base, "apellido": "GOMEZ", "nombre": "ANA", "cuil": cuil})
+        assert r.status_code == 422 and "CUIL" in r.text, r.text
+    # completo → 201, con la identidad declarada, el CUIL normalizado y el DNI que sale de él
     r = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "idc-1"},
-                    json={**base, "apellido": "GOMEZ", "nombre": "ANA", "dni": "27.345.678"})
+                    json={**base, "apellido": "GOMEZ", "nombre": "ANA", "cuil": "27-27345678-9"})
     assert r.status_code == 201, r.text
     numero = r.json()["numero"]
     tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
     s = next(x for x in client.get("/api/creditos/solicitudes", headers={"Authorization": f"Bearer {tok}"}).json()["items"]
              if x["numero"] == numero)
-    assert s["clienteDatos"]["apellido_nombre"] == "GOMEZ, ANA" and s["clienteDatos"]["dni"] == "27345678"
+    assert s["clienteDatos"]["apellido_nombre"] == "GOMEZ, ANA"
+    assert (s["clienteDatos"]["cuil"], s["clienteDatos"]["dni"]) == ("27273456789", "27345678")
+    assert s["clienteCuil"] == "27273456789"
 
 
 def test_ciudadano_envia_solicitud_cae_en_inbox(client):
@@ -329,7 +360,7 @@ def test_originacion_web_es_revision_y_bloquea_sin_datos(client):
     hi = {"Authorization": f"Bearer {tok}"}
     s = next(x for x in client.get("/api/creditos/solicitudes", headers=hi).json()["items"] if x["numero"] == numero)
     sid = s["id"]
-    # Revisión: aplica al canal web, viene el DNI de Mi Catamarca y el CBU → lista para liquidar.
+    # Revisión: aplica al canal web, viene el CUIL declarado y el CBU → lista para liquidar.
     dl = s["datosLiquidacion"]
     assert dl["aplica"] is True and dl["lista"] is True, dl
     assert s["clienteDatos"]["dni"] == "30123456"      # el documento de Mi Catamarca viajó (ya no vacío)
@@ -337,19 +368,19 @@ def test_originacion_web_es_revision_y_bloquea_sin_datos(client):
     client.post(f"/api/creditos/solicitudes/{sid}/promover-cliente", headers=hi, json={})
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hi, json={"accion": "aprobar"})
 
-    # Si se pierde un dato obligatorio (el DNI del cliente en el maestro), la originación se bloquea.
+    # Si se pierde un dato obligatorio (el CUIL del cliente en el maestro), la originación se bloquea.
     from app.core.database import SessionLocal
     from app import models_productos as _m
     from app import models as _mm
     with SessionLocal() as db:
         sol = db.query(_m.PPSolicitud).filter_by(numero=numero).first()
         cli = db.get(_mm.Cliente, sol.cliente_id)
-        cli.dni = ""; db.commit()
+        cli.cuil = ""; db.commit()
     otorgar(sid)   # la resolución de Despacho, antes de originar
     blocked = client.post("/api/creditos/contratos/originar", headers=hi, json={
         "producto_id": p["id"], "cliente_nombre": "JUAN CARLOS PEREZ", "monto": 500000, "plazo": body["plazo"],
         "solicitud_pp_id": sid, "desembolsar": True})
-    assert blocked.status_code == 422 and "DNI" in blocked.json()["detail"], blocked.text
+    assert blocked.status_code == 422 and "CUIL" in blocked.json()["detail"], blocked.text
 
 
 def test_originacion_deja_a_liquidar_y_lote_desembolsa(client):
@@ -729,11 +760,11 @@ def test_un_solo_documento_de_cada_uno_de_los_pedidos(client):
                  "CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU"):
         assert subir(tipo).status_code == 201
     r = subir("DNI_FRENTE", "otra-foto.png")
-    assert r.status_code == 409 and "Ya adjuntaste el DNI (frente)" in r.json()["detail"]
+    assert r.status_code == 409 and "Ya adjuntaste «DNI (frente)»" in r.json()["detail"]
     r = subir("SELFIE_DNI", "otra-selfie.png")
-    assert r.status_code == 409 and "Ya adjuntaste la selfie con el DNI en la mano" in r.json()["detail"]
+    assert r.status_code == 409 and "Ya adjuntaste «Selfie con el DNI en la mano»" in r.json()["detail"]
     r = subir("CONSTANCIA_CBU", "otro-cbu.png")
-    assert r.status_code == 409 and "Ya adjuntaste la constancia de CBU" in r.json()["detail"]
+    assert r.status_code == 409 and "Ya adjuntaste «Constancia de CBU»" in r.json()["detail"]
     tipos = [d["tipo"] for d in client.get(url, headers=h).json()["items"]]
     assert sorted(tipos) == ["CERTIFICADO_SERVICIOS", "CONSTANCIA_CBU", "DNI_DORSO", "DNI_FRENTE",
                              "RECIBO", "SELFIE_DNI"]
@@ -794,7 +825,7 @@ def test_canal_web_filtra_portal_y_es_configurable(client):
     # Guarda dura: aunque conozca el id, no puede solicitar el sucursal-only por la web.
     r = client.post("/api/creditos/portal/solicitudes", headers=hp, json={
         "producto_id": pid_suc, "monto": 500000, "plazo": 12, "apellido": "Perez", "nombre": "Juan",
-        "dni": "30123456", "cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True})
+        "cuil": "20301234563", "cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True})
     assert r.status_code == 422 and "canal" in r.text.lower()
 
     # Configurable: si el canal del portal pasa a SUCURSAL, se invierte qué producto se ofrece.
@@ -824,7 +855,7 @@ def test_portal_no_muestra_sin_disponibilidad(client):
     assert pid not in ids   # sin disponibilidad configurada → NO se ofrece por el portal
     # tampoco se puede solicitar
     r = client.post("/api/creditos/portal/solicitudes", headers=hp, json={
-        "producto_id": pid, "monto": 500000, "plazo": 12, "apellido": "P", "nombre": "J", "dni": "30123456",
+        "producto_id": pid, "monto": 500000, "plazo": 12, "apellido": "P", "nombre": "J", "cuil": "20301234563",
         "cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True})
     assert r.status_code == 422
 
@@ -976,7 +1007,13 @@ def test_el_paso_de_videos_se_puede_omitir_por_parametro(client):
 # --------------------------------------------------------------------------- documentación pedida
 TODOS_LOS_DOCS = {"DNI_FRENTE", "DNI_DORSO", "SELFIE_DNI", "RECIBO", "CERTIFICADO_SERVICIOS",
                   "CONSTANCIA_CBU"}
-PEDIDOS = "/api/creditos/portal/documentos-requeridos"
+
+
+def _pedidos(client, hp) -> list[dict]:
+    p = _un_producto(client, hp)
+    r = client.get(f"/api/creditos/portal/productos/{p['id']}/requisitos", headers=hp)
+    assert r.status_code == 200, r.text
+    return r.json()["documentos"]
 
 
 def _pedir_documentos(client, hb, valor):
@@ -988,7 +1025,7 @@ def _pedir_documentos(client, hb, valor):
 def test_sin_configurar_se_piden_todos_los_documentos(client):
     """El default es el comportamiento de antes de que esto fuera configurable."""
     hp = _ingresar(client)
-    d = client.get(PEDIDOS, headers=hp).json()
+    d = _pedidos(client, hp)
     assert {x["tipo"] for x in d} == TODOS_LOS_DOCS
     assert all(x["titulo"] for x in d)
 
@@ -997,7 +1034,7 @@ def test_se_elige_que_documentos_pide_la_solicitud(client):
     hb, hp = _bo(client), _ingresar(client)
     _pedir_documentos(client, hb, "DNI_FRENTE,RECIBO")
 
-    d = client.get(PEDIDOS, headers=hp).json()
+    d = _pedidos(client, hp)
     assert [x["tipo"] for x in d] == ["DNI_FRENTE", "RECIBO"]   # en el orden del circuito, no el tecleado
 
 
@@ -1019,10 +1056,375 @@ def test_se_puede_no_pedir_ninguno(client):
     """El parámetro vacío es una decisión explícita: el portal saltea el paso."""
     hb, hp = _bo(client), _ingresar(client)
     _pedir_documentos(client, hb, "")
-    assert client.get(PEDIDOS, headers=hp).json() == []
+    assert _pedidos(client, hp) == []
 
 
 def test_un_tipo_inventado_se_ignora(client):
     hb, hp = _bo(client), _ingresar(client)
     _pedir_documentos(client, hb, "DNI_FRENTE,PARTIDA_DE_NACIMIENTO")
-    assert [x["tipo"] for x in client.get(PEDIDOS, headers=hp).json()] == ["DNI_FRENTE"]
+    assert [x["tipo"] for x in _pedidos(client, hp)] == ["DNI_FRENTE"]
+
+
+# --------------------------------------------------------------------------- requisitos por línea
+SALUD = {
+    "documentos": [
+        {"codigo": "DNI_FRENTE", "titulo": "DNI (frente)", "ayuda": "", "obligatorio": True},
+        {"codigo": "ORDEN_MEDICA", "titulo": "Orden médica", "ayuda": "Firmada por el profesional",
+         "obligatorio": True},
+        {"codigo": "PRESUPUESTO", "titulo": "Presupuesto del prestador", "ayuda": "", "obligatorio": False}],
+    "campos": [
+        {"codigo": "COBERTURA", "etiqueta": "Obra social", "ayuda": "", "tipo": "UNICA",
+         "opciones": ["OSEP", "PAMI", "Sin cobertura"], "obligatorio": True},
+        {"codigo": "TRATAMIENTO", "etiqueta": "Tipo de tratamiento", "ayuda": "", "tipo": "MULTIPLE",
+         "opciones": ["Cirugía", "Odontología", "Óptica", "Medicamentos"], "obligatorio": False}],
+}
+
+
+def _configurar_requisitos(producto_id: str, config: dict, activo: bool = True) -> None:
+    """Le pone a la versión publicada del producto su componente "Documentación y datos"."""
+    from app import models_productos as m
+    from app.api.portal import _version_publicada_vigente
+    from app.core.database import SessionLocal
+    with SessionLocal() as db:
+        v = _version_publicada_vigente(db.get(m.PPProducto, producto_id))
+        db.add(m.PPComponente(producto_version_id=v.id, componente_codigo="REQUIREMENTS", orden=14,
+                              requerido=False, activo=activo, config=config))
+        db.commit()
+
+
+def _enviar_con(client, hp, p, respuestas, clave):
+    return client.post("/api/creditos/portal/solicitudes", headers={**hp, "Idempotency-Key": clave},
+                       json={**CONSENT, "producto_id": p["id"], "respuestas": respuestas,
+                             "monto": min(max(500000.0, p["monto_min"]), p["monto_max"]),
+                             "plazo": min(max(12, p["plazo_min"]), p["plazo_max"])})
+
+
+def test_la_linea_define_su_documentacion_y_sus_datos(client):
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    _configurar_requisitos(p["id"], SALUD)
+
+    r = client.get(f"/api/creditos/portal/productos/{p['id']}/requisitos", headers=hp).json()
+
+    assert [(d["tipo"], d["obligatorio"]) for d in r["documentos"]] == [
+        ("DNI_FRENTE", True), ("ORDEN_MEDICA", True), ("PRESUPUESTO", False)]
+    assert r["documentos"][1]["ayuda"] == "Firmada por el profesional"
+    assert [(c["codigo"], c["tipo"], c["obligatorio"]) for c in r["campos"]] == [
+        ("COBERTURA", "UNICA", True), ("TRATAMIENTO", "MULTIPLE", False)]
+    assert r["campos"][0]["opciones"] == ["OSEP", "PAMI", "Sin cobertura"]
+
+
+def test_la_linea_que_no_lo_configura_pide_lo_general(client):
+    """Con el componente inactivo vale el parámetro de siempre, y no hay datos para completar."""
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    _configurar_requisitos(p["id"], SALUD, activo=False)
+    r = client.get(f"/api/creditos/portal/productos/{p['id']}/requisitos", headers=hp).json()
+    assert {d["tipo"] for d in r["documentos"]} == TODOS_LOS_DOCS and r["campos"] == []
+
+
+def test_la_solicitud_guarda_lo_que_completo_el_ciudadano(client):
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    _configurar_requisitos(p["id"], SALUD)
+
+    env = _enviar_con(client, hp, p, {"COBERTURA": ["OSEP"], "TRATAMIENTO": ["Óptica", "Cirugía"]}, "salud-ok")
+
+    assert env.status_code == 201, env.text
+    from app import models_productos as m
+    from app.core.database import SessionLocal
+    with SessionLocal() as db:
+        s = db.query(m.PPSolicitud).filter_by(numero=env.json()["numero"]).one()
+        assert s.datos_adicionales["requisitos"] == [
+            {"codigo": "COBERTURA", "etiqueta": "Obra social", "tipo": "UNICA", "valores": ["OSEP"]},
+            # En el orden de las opciones, no en el que se tildaron.
+            {"codigo": "TRATAMIENTO", "etiqueta": "Tipo de tratamiento", "tipo": "MULTIPLE",
+             "valores": ["Cirugía", "Óptica"]}]
+
+
+@pytest.mark.parametrize("respuestas, mensaje", [
+    ({}, "Completá «Obra social»"),
+    ({"COBERTURA": ["OSEP", "PAMI"]}, "una sola opción"),
+    ({"COBERTURA": ["IOMA"]}, "no es una opción"),
+    ({"COBERTURA": ["OSEP"], "GRUPO_SANGUINEO": ["0+"]}, "no pide"),
+])
+def test_los_datos_se_validan_contra_la_linea(client, respuestas, mensaje):
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    _configurar_requisitos(p["id"], SALUD)
+    env = _enviar_con(client, hp, p, respuestas, f"salud-{abs(hash(mensaje))}")
+    assert env.status_code == 422 and mensaje in env.json()["detail"], env.text
+
+
+def test_se_adjunta_la_documentacion_propia_de_la_linea(client):
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    _configurar_requisitos(p["id"], SALUD)
+    numero = _enviar_con(client, hp, p, {"COBERTURA": ["PAMI"]}, "salud-docs").json()["numero"]
+    url = f"/api/creditos/portal/solicitudes/{numero}/documentos"
+
+    ok = client.post(url, headers=hp, data={"tipo": "ORDEN_MEDICA"},
+                     files={"archivo": ("orden.pdf", b"%PDF-1.4 orden", "application/pdf")})
+    assert ok.status_code == 201, ok.text
+
+    otra = client.post(url, headers=hp, data={"tipo": "RECIBO"}, files={"archivo": ("r.png", PNG, "image/png")})
+    assert otra.status_code == 422 and "Orden médica" in otra.json()["detail"]
+    repetida = client.post(url, headers=hp, data={"tipo": "ORDEN_MEDICA"},
+                           files={"archivo": ("o2.png", PNG, "image/png")})
+    assert repetida.status_code == 409 and "«Orden médica»" in repetida.json()["detail"]
+
+
+def test_el_asesor_ve_el_titulo_de_la_linea_y_lo_que_falta(client):
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    _configurar_requisitos(p["id"], SALUD)
+    numero = _enviar_con(client, hp, p, {"COBERTURA": ["OSEP"]}, "salud-bo").json()["numero"]
+    client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=hp, data={"tipo": "ORDEN_MEDICA"},
+                files={"archivo": ("orden.png", PNG, "image/png")})
+
+    tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
+    hi = {"Authorization": f"Bearer {tok}"}
+    sid = next(s for s in client.get("/api/creditos/solicitudes", headers=hi).json()["items"] if s["numero"] == numero)["id"]
+    d = client.get(f"/api/creditos/solicitudes/{sid}/documentos", headers=hi).json()
+
+    assert [x["titulo"] for x in d["items"]] == ["Orden médica"]
+    assert d["faltantes"] == ["DNI (frente)"]          # el presupuesto es opcional: no se reclama
+
+
+def test_la_configuracion_invalida_no_se_guarda():
+    from app.services.requisitos import errores
+    assert errores(SALUD) == []
+    malo = {"documentos": [{"codigo": "orden médica", "titulo": ""}, {"codigo": "X", "titulo": "X"},
+                           {"codigo": "X", "titulo": "Otra"}],
+            "campos": [{"codigo": "C", "etiqueta": "Cobertura", "tipo": "UNICA", "opciones": ["OSEP"]},
+                       {"codigo": "D", "etiqueta": "Destino", "tipo": "LIBRE", "opciones": ["a", "a"]}]}
+    e = errores(malo)
+    assert "documento #1: falta el título" in e
+    assert any("documento #1: el código" in x for x in e)
+    assert "documento #3: el código X está repetido" in e
+    assert "dato Cobertura: necesita al menos dos opciones" in e
+    assert "dato Destino: el tipo debe ser selección única o múltiple" in e
+    assert "dato Destino: hay opciones repetidas" in e
+
+
+def test_la_documentacion_se_edita_con_la_linea_publicada(client):
+    """Regresión: con la línea publicada, "Documentación y datos" quedaba en sólo lectura y no había
+    forma de cargarla sin crear otra línea. Se edita como la disponibilidad, sin versión nueva."""
+    hb = _bo(client)
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+
+    r = client.put(f"/api/creditos/productos/{p['id']}/requisitos", headers=hb, json={"activo": True, **SALUD})
+
+    assert r.status_code == 200 and r.json()["estado"] == "PUBLICADO"
+    req = client.get(f"/api/creditos/portal/productos/{p['id']}/requisitos", headers=hp).json()
+    assert [d["tipo"] for d in req["documentos"]] == ["DNI_FRENTE", "ORDEN_MEDICA", "PRESUPUESTO"]
+    assert [c["codigo"] for c in req["campos"]] == ["COBERTURA", "TRATAMIENTO"]
+
+
+def test_la_documentacion_de_la_linea_publicada_se_valida(client):
+    hb = _bo(client)
+    p = _un_producto(client, _ingresar(client))
+    malo = {"documentos": [], "campos": [{"codigo": "OS", "etiqueta": "Obra social", "tipo": "UNICA",
+                                          "opciones": ["OSEP"], "obligatorio": True}]}
+
+    r = client.put(f"/api/creditos/productos/{p['id']}/requisitos", headers=hb, json=malo)
+
+    assert r.status_code == 422 and "dos opciones" in r.text
+
+
+def test_los_documentos_estandar_entran_en_la_configuracion(client):
+    """Regresión: CERTIFICADO_SERVICIOS (21 letras) superaba el tope de 20 del código y la línea no se
+    podía guardar con ese documento; tampoco entraba en pp_solicitud_documento.tipo."""
+    from app.services import documentos as docs_generales
+    hb = _bo(client)
+    p = _un_producto(client, _ingresar(client))
+    todos = [{"codigo": t, "titulo": docs_generales.TITULOS.get(t, t), "ayuda": "", "obligatorio": True}
+             for t in docs_generales.TIPOS_PORTAL]
+
+    r = client.put(f"/api/creditos/productos/{p['id']}/requisitos", headers=hb,
+                   json={"documentos": todos, "campos": []})
+
+    assert r.status_code == 200, r.text
+
+
+# ─────────────── Solicitud OBSERVADA: el asesor pide corregir, el ciudadano corrige y reenvía ───────────────
+
+def _observable(client):
+    """Una solicitud del portal con el DNI adjunto, lista para que el asesor la observe."""
+    hp, hb = _ingresar(client), _bo(client)
+    p = _un_producto(client, hp)
+    numero = _enviar(client, hp, p).json()["numero"]
+    client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=hp,
+                files={"archivo": ("dni.png", PNG, "image/png")}, data={"tipo": "DNI_FRENTE"})
+    sid = next(i["id"] for i in client.get("/api/creditos/solicitudes", headers=hb).json()["items"]
+               if i["numero"] == numero)
+    return hp, hb, numero, sid
+
+
+def _observar(client, hb, sid, **kw):
+    body = {"accion": "observar", "detalle": "El DNI está borroso y falta el certificado de servicios.",
+            "documentos": ["DNI_FRENTE", "CERTIFICADO_SERVICIOS"], "corregir_cbu": True, **kw}
+    return client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hb, json=body)
+
+
+def test_observada_el_ciudadano_corrige_y_reenvia(client):
+    hp, hb, numero, sid = _observable(client)
+
+    r = _observar(client, hb, sid)
+    assert r.status_code == 200, r.text
+    assert r.json()["estado"] == "OBSERVADA"
+
+    det = client.get(f"/api/creditos/portal/solicitudes/{numero}", headers=hp).json()
+    assert det["estado"] == "OBSERVADA" and det["puede_adjuntar"] is True
+    assert det["observacion"]["detalle"].startswith("El DNI está borroso")
+    assert det["observacion"]["pendientes"] == ["DNI (frente)", "Certificado de servicios", "el CBU"]
+    observados = {d["tipo"]: d for d in det["documentacion"] if d["observado"]}
+    assert set(observados) == {"DNI_FRENTE", "CERTIFICADO_SERVICIOS"}
+    assert observados["DNI_FRENTE"]["adjunto"]["nombre"] == "dni.png"
+    noti = next(n for n in client.get("/api/creditos/portal/notificaciones", headers=hp).json() if n["tipo"] == "observada")
+    assert noti["solicitud"] == numero
+
+    # Con algo pendiente no se puede reenviar.
+    r = client.post(f"/api/creditos/portal/solicitudes/{numero}/reenviar", headers=hp)
+    assert r.status_code == 422 and "Certificado de servicios" in r.text
+
+    # Reemplaza el DNI (el observado se pisa, no da "ya adjuntaste"), suma el certificado y corrige el CBU.
+    up = lambda nombre, tipo: client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=hp,
+                                          files={"archivo": (nombre, PNG, "image/png")}, data={"tipo": tipo})
+    assert up("dni-nitido.png", "DNI_FRENTE").status_code == 201
+    assert up("certificado.png", "CERTIFICADO_SERVICIOS").status_code == 201
+    assert client.put(f"/api/creditos/portal/solicitudes/{numero}/cbu", headers=hp,
+                      json={"cbu": "0110599520000001234567"}).status_code == 200
+
+    r = client.post(f"/api/creditos/portal/solicitudes/{numero}/reenviar", headers=hp)
+    assert r.status_code == 200, r.text
+    assert r.json()["estado"] == "EN_EVALUACION"
+
+    bo = next(i for i in client.get("/api/creditos/solicitudes", headers=hb).json()["items"] if i["id"] == sid)
+    assert bo["estado"] == "EN_EVALUACION" and bo["datosAdicionales"]["cbu"] == "0110599520000001234567"
+    obs = bo["datosAdicionales"]["correcciones"][-1]
+    assert obs["respondida"] and obs["cbu_corregido"] is True
+    docs = client.get(f"/api/creditos/solicitudes/{sid}/documentos", headers=hb).json()["items"]
+    assert sorted(d["nombre"] for d in docs) == ["certificado.png", "dni-nitido.png"]   # el borroso se reemplazó
+
+
+def test_observar_exige_la_explicacion_y_documentos_de_la_linea(client):
+    _, hb, _, sid = _observable(client)
+    assert _observar(client, hb, sid, detalle="  ").status_code == 422
+    r = _observar(client, hb, sid, documentos=["ORDEN_MEDICA"])
+    assert r.status_code == 422 and "no pide" in r.text
+
+
+def test_sin_observacion_no_se_reemplaza_ni_se_corrige_el_cbu(client):
+    hp, _, numero, _ = _observable(client)
+    r = client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=hp,
+                    files={"archivo": ("otro.png", PNG, "image/png")}, data={"tipo": "DNI_FRENTE"})
+    assert r.status_code == 409
+    assert client.put(f"/api/creditos/portal/solicitudes/{numero}/cbu", headers=hp,
+                      json={"cbu": "0110599520000001234567"}).status_code == 422
+    assert client.post(f"/api/creditos/portal/solicitudes/{numero}/reenviar", headers=hp).status_code == 409
+
+
+def test_en_evaluacion_puede_sumar_el_documento_que_le_falto(client):
+    """Regresión: si un archivo no subió al enviar (p. ej. el certificado de servicios), el ciudadano lo
+    adjunta después desde el detalle, sin esperar a que se lo observen."""
+    hp, _, numero, _ = _observable(client)
+    det = client.get(f"/api/creditos/portal/solicitudes/{numero}", headers=hp).json()
+    cert = next(d for d in det["documentacion"] if d["tipo"] == "CERTIFICADO_SERVICIOS")
+    assert cert["adjunto"] is None and det["puede_adjuntar"] is True and det["observacion"] is None
+    r = client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=hp,
+                    files={"archivo": ("cert.png", PNG, "image/png")}, data={"tipo": "CERTIFICADO_SERVICIOS"})
+    assert r.status_code == 201
+
+
+# ─────────────── Espera después de un rechazo ───────────────
+
+def _rechazar(client, hb, numero):
+    sid = next(i["id"] for i in client.get("/api/creditos/solicitudes", headers=hb).json()["items"] if i["numero"] == numero)
+    r = client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hb, json={"accion": "rechazar", "motivo": "Sin margen"})
+    assert r.status_code == 200, r.text
+    return sid
+
+
+def _parametro_espera(client, hb, valor):
+    client.post("/api/creditos/admin/parametros", headers=hb,
+                json={"clave": "PORTAL_ESPERA_RECHAZO_DIAS", "valor": valor, "ambito": "creditos"})
+
+
+def test_tras_un_rechazo_hay_que_esperar_para_volver_a_pedir(client):
+    hp, hb = _ingresar(client), _bo(client)
+    _parametro_espera(client, hb, "30")
+    p = _un_producto(client, hp)
+    numero = _enviar(client, hp, p).json()["numero"]
+    _rechazar(client, hb, numero)
+
+    hasta = (date.today() + timedelta(days=30)).strftime("%d/%m/%Y")
+    r = _enviar(client, hp, p)
+    assert r.status_code == 409 and numero in r.text and hasta in r.text, r.text
+    assert hasta in client.get("/api/creditos/portal/me", headers=hp).json()["espera_rechazo"]
+
+    # En 0 la regla no aplica.
+    _parametro_espera(client, hb, "0")
+    assert _enviar(client, hp, p).status_code == 201
+    assert client.get("/api/creditos/portal/me", headers=hp).json()["espera_rechazo"] == ""
+
+
+def test_la_espera_vence_y_cuenta_tambien_por_cuil(client):
+    from app.core.database import SessionLocal
+    from app.services import espera_rechazo
+    hp, hb = _ingresar(client), _bo(client)
+    _parametro_espera(client, hb, "30")
+    numero = _enviar(client, hp, _un_producto(client, hp)).json()["numero"]
+    _rechazar(client, hb, numero)
+    with SessionLocal() as db:
+        # Otra cuenta del portal con el mismo CUIL también espera.
+        assert espera_rechazo.bloqueo(db, "portal:otra-cuenta", "20-30123456-3")["numero"] == numero
+        assert espera_rechazo.bloqueo(db, "portal:otra-cuenta", "27273456789") is None
+        # Pasados los 30 días, ya puede.
+        assert espera_rechazo.bloqueo(db, "portal:otra-cuenta", "20301234563",
+                                      hoy=date.today() + timedelta(days=30)) is None
+    _parametro_espera(client, hb, "0")
+
+
+def test_parametros_avisa_que_lineas_tienen_su_propia_documentacion(client):
+    """PORTAL_DOCUMENTOS no vale para la línea con su componente "Documentación y datos": la pantalla de
+    parámetros tiene que poder decir cuáles son."""
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    url = "/api/creditos/admin/parametros/documentacion-por-linea"
+    tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"})
+    h = {"Authorization": f"Bearer {tok.json()['access_token']}"}
+    assert all(x["id"] != p["id"] for x in client.get(url, headers=h).json())
+    _configurar_requisitos(p["id"], SALUD)
+    linea = next(x for x in client.get(url, headers=h).json() if x["id"] == p["id"])
+    assert (linea["documentos"], linea["obligatorios"]) == (3, 2)
+
+
+def test_la_solicitud_de_quien_ya_es_cliente_entra_vinculada(client, monkeypatch):
+    """Si el CUIL (o el DNI que sale de él) ya está en el padrón, la solicitud del portal no llega como
+    'cliente no registrado': entra vinculada a esa persona."""
+    from app.core import clientes_padron
+    monkeypatch.setattr(clientes_padron, "ids_por_documento",
+                        lambda docs: {"30123456": 5150} if "30123456" in docs else {})
+    monkeypatch.setattr(clientes_padron, "ficha", lambda cid: {
+        "client_id": cid, "nombre": "PEREZ, JUAN CARLOS", "documento": "30123456", "domicilio": "",
+        "localidad": "", "telefono": "", "email": "", "cbu": "", "activo": True})
+    hp = _ingresar(client)
+    p = _un_producto(client, hp)
+    r = _enviar(client, hp, p)
+    assert r.status_code in (200, 201), r.text
+    tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
+    s = next(x for x in client.get("/api/creditos/solicitudes", headers={"Authorization": f"Bearer {tok}"}).json()["items"]
+             if x["numero"] == r.json()["numero"])
+    assert s["solicitanteTipo"] == "REGISTRADO" and s["clienteId"] == 5150
+    assert s["clienteNombre"] == "PEREZ, JUAN CARLOS"
+
+
+def test_en_su_dominio_propio_los_videos_salen_de_la_raiz(client, monkeypatch):
+    """En producción el portal está en la raíz de mi.ccypp.gob.ar: los videos ya no llevan /portal-creditos."""
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "portal_web_url", "https://mi.ccypp.gob.ar")
+    h = _ingresar(client)
+    vs = client.get("/api/creditos/portal/videos", headers=h).json()
+    assert vs[0]["url"] == "/videos/video1.mp4"

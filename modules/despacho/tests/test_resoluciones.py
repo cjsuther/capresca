@@ -24,6 +24,50 @@ def test_el_correlativo_es_por_ano_y_serie(client, h, resolucion):
     assert (vieja["numero"], vieja["anio"]) == (1, 2024)  # otro año, otra numeración
 
 
+# --------------------------------------------------------------------------- desde qué número sigue
+def _fijar(client, h, anio, serie=1, **datos):
+    return client.put(f"/api/despacho/numeracion/{anio}/{serie}", headers=h, json=datos)
+
+
+def test_la_numeracion_sigue_desde_el_numero_fijado(client, h, resolucion):
+    """La numeración continúa la del sistema anterior: el correlativo y el oficial siguen desde ahí."""
+    anio = date.today().year
+    r = _fijar(client, h, anio, desde_numero=1500, desde_oficial=870)
+    assert r.status_code == 200, r.text
+    assert (r.json()["proximoNumero"], r.json()["proximoOficial"]) == (1500, 870)
+    a, b = resolucion(), resolucion()
+    assert (a["numero"], b["numero"]) == (1500, 1501)
+    of = client.post(f"/api/despacho/resoluciones/{a['id']}/numero-real", headers=h, json={}).json()
+    assert of["numero_real"] == 870
+    assert resolucion(serie=4)["numero"] == 1               # las otras series siguen por su cuenta
+
+
+def test_no_se_puede_fijar_un_numero_ya_usado(client, h, resolucion):
+    anio = date.today().year
+    resolucion(); resolucion()                                # correlativos 1 y 2
+    r = _fijar(client, h, anio, desde_numero=2)
+    assert r.status_code == 422 and "mayor que 2" in r.json()["detail"]
+    assert _fijar(client, h, anio, desde_numero=0).status_code == 422
+    assert _fijar(client, h, anio, desde_numero=3).status_code == 200
+
+
+def test_la_pantalla_de_numeracion_muestra_ultimo_y_proximo(client, h, resolucion):
+    anio = date.today().year
+    resolucion()
+    _fijar(client, h, anio, serie=4, desde_numero=900)
+    filas = {x["serie"]: x for x in client.get(f"/api/despacho/numeracion?anio={anio}", headers=h).json()}
+    assert (filas[1]["ultimoNumero"], filas[1]["proximoNumero"], filas[1]["desdeNumero"]) == (1, 2, None)
+    assert (filas[4]["ultimoNumero"], filas[4]["proximoNumero"], filas[4]["desdeNumero"]) == (None, 900, 900)
+    assert filas[4]["actualizadoPor"] == "despacho"
+
+
+def test_fijar_la_numeracion_pide_el_permiso_de_firmar(client, solo_lectura):
+    from tests.conftest import gateway
+    r = client.put(f"/api/despacho/numeracion/{date.today().year}/1",
+                   headers=gateway("resoluciones:read", "resoluciones:write"), json={"desde_numero": 10})
+    assert r.status_code == 403
+
+
 def test_la_serie_tiene_que_existir(client, h):
     r = client.post("/api/despacho/resoluciones", headers=h, json={"asunto": "x", "serie": 99})
     assert r.status_code == 422 and "serie 99" in r.json()["detail"]

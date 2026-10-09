@@ -56,6 +56,12 @@ const montar = (ruta = "/modules/creditos") =>
 beforeEach(() => sesion(["creditos:read", "creditos:write"]));
 
 describe("módulo Créditos · menú", () => {
+  it("arriba de todo está Inicio, que vuelve al tablero del sistema como en los demás módulos", async () => {
+    montar();
+    const inicio = await screen.findByRole("link", { name: "Inicio" });
+    expect(inicio).toHaveAttribute("href", "/dashboard");
+  });
+
   it("muestra sólo pantallas de créditos, agrupadas", async () => {
     sesion(["creditos:read", "creditos:write", "heredadas:read"]);
     montar();
@@ -83,7 +89,8 @@ describe("módulo Créditos · menú", () => {
 
   it("todas las opciones del menú llevan a una pantalla que existe", async () => {
     montar();
-    const links = await screen.findAllByRole("link");
+    // Todas menos "Inicio", que es la salida del módulo al tablero.
+    const links = (await screen.findAllByRole("link")).filter((l) => l.textContent !== "Inicio");
     expect(links.length).toBeGreaterThan(0);
     links.forEach((l) => expect(l).toHaveAttribute("href", expect.stringMatching(/^\/modules\/creditos\/.+/)));
     expect(screen.queryByTitle(/migración/)).toBeNull();     // no quedan opciones muertas

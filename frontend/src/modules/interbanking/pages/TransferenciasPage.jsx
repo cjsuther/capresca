@@ -266,7 +266,8 @@ export default function TransferenciasPage() {
                     const k = accountKey(c);
                     return (
                       <option key={k} value={k}>
-                        {c.bank_name || c.bank_id || c.bank_number} · {c.account_label || c.account_number} · {c.account_type} ({c.currency})
+                        {/* El número va primero: todas las cuentas son del mismo banco y tipo, sólo el número las distingue. */}
+                        {c.account_number}{c.account_label ? ` · ${c.account_label}` : ""} · {c.bank_name || c.bank_id || c.bank_number} · {c.account_type} ({c.currency})
                       </option>
                     );
                   })}

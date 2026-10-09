@@ -56,3 +56,46 @@ def op_desembolso_credito(db: Session, credito: models.Credito,
         tipo="CREDITO", fecha=credito.fecha_otorgamiento or date.today(),
         credito_id=credito.id, commit=False,
     )
+
+
+# ----------------------- OP por lote de desembolsos (Tesorería → Interbanking) -----------------------
+# El circuito actual no gira un cheque por crédito: la liquidación arma un lote, Tesorería lo aprueba y lo
+# manda por Interbanking. La OP es una por lote, se emite ANTES de mandarlo (su número viaja en la
+# descripción del lote de Tesorería) y queda girada cuando todos sus pagos tienen resultado.
+
+def op_lote_desembolsos(db: Session, *, referencia: str, contratos: list, importe: Decimal,
+                        resoluciones: str, concepto: str) -> models.OrdenPago:
+    """La OP de un envío a Tesorería. Reintentar el mismo envío (misma referencia) reusa la OP."""
+    op = db.query(models.OrdenPago).filter_by(referencia=referencia, tipo="CREDITO").first()
+    if op is None:
+        op = crear_op(db, beneficiario="Varios (lote de desembolsos)", concepto=concepto[:120],
+                      importe=importe, tipo="CREDITO", commit=False)
+        op.referencia = referencia
+    if op.estado == "P":
+        op.importe, op.contratos, op.resoluciones = Decimal(str(importe)), list(contratos), resoluciones[:200]
+        op.medio_pago, op.banco = "TRANSFERENCIA", "INTERBANKING"
+    return op
+
+
+def op_de_lote(db: Session, lote: str) -> models.OrdenPago | None:
+    return db.query(models.OrdenPago).filter_by(lote_tesoreria=lote, tipo="CREDITO").first() if lote else None
+
+
+def cerrar_op_si_termino(db: Session, op: models.OrdenPago, desembolsos: dict[str, dict]) -> None:
+    """Con el resultado de cada contrato ({id: datos_adicionales.desembolso}): mientras alguno siga en
+    Tesorería, la OP queda pendiente; si no, se gira por lo acreditado, o se anula si no salió nada."""
+    if op.estado != "P":
+        return
+    pagado, pendiente = Decimal(0), False
+    for cid, d in desembolsos.items():
+        if d.get("lote") != op.lote_tesoreria:
+            continue                                  # volvió a liquidarse en otro lote: no es de esta OP
+        if d.get("estado") == "EN_TESORERIA":
+            pendiente = True
+        elif d.get("estado") == "CONFIRMADO":
+            pagado += Decimal(str(d.get("monto") or 0))
+    op.importe_pagado = pagado
+    if pendiente:
+        return
+    op.estado = "G" if pagado > 0 else "A"
+    op.fecha_pago = date.today()

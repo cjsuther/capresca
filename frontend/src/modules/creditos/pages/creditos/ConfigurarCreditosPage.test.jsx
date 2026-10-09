@@ -12,7 +12,7 @@ vi.mock("../../../../api/creditos", () => ({
     ppEstado: vi.fn(), ppPublicarDirecto: vi.fn(), ppBorrar: vi.fn(), ppPreview: vi.fn(),
     ppSimListar: vi.fn(), ppSimGuardar: vi.fn(), ppSimBorrar: vi.fn(), ppRaw: vi.fn(),
     ppVersiones: vi.fn(), impuestos: vi.fn(), indices: vi.fn(), ctoSegmentos: vi.fn(),
-    editarDisponibilidad: vi.fn(),
+    editarDisponibilidad: vi.fn(), editarRequisitos: vi.fn(),
   },
 }));
 
@@ -36,6 +36,8 @@ const BORRADOR = {
     comp("REPAYMENT_SCHEDULE", "Cronograma", { orden: 3, config: { diaPago: 5, primerVencimientoDias: 30, ajusteFinDeSemana: "SIGUIENTE_HABIL", tipoCuota: "VENCIDA" } }),
     comp("AVAILABILITY", "Disponibilidad", { orden: 4, requerido: false, activo: true, config: { canales: ["SUCURSAL"], segmentos: [] } }),
     comp("TAX", "Impuestos", { orden: 5, requerido: false, multiple: true, activo: false, config: { items: [] } }),
+    comp("REQUIREMENTS", "Documentación y datos", { orden: 6, categoria: "Originación", requerido: false, activo: false,
+                                                    config: { documentos: [], campos: [] } }),
   ],
 };
 const PUBLICADO = { ...BORRADOR, id: "p2", nombre: "Personal Publicado", codigo: "CP-2", estado: "PUBLICADO", publicadas: [1], vigentePortal: 1 };
@@ -282,6 +284,23 @@ describe("Configurar Créditos · builder", () => {
 
     await waitFor(() => expect(creditos.editarDisponibilidad).toHaveBeenCalledWith("p2",
       expect.objectContaining({ activo: true, canales: ["SUCURSAL", "WEB"] })));
+  });
+
+  it("la documentación y los datos se cargan aunque la línea esté publicada", async () => {
+    // Regresión: con la línea publicada el componente quedaba en sólo lectura y no se podía agregar.
+    creditos.editarRequisitos.mockResolvedValue(PUBLICADO);
+    const u = userEvent.setup();
+    render(<ConfigurarCreditosPage />);
+    await abrirLinea(u, "Personal Publicado");
+
+    await u.click(await screen.findByText("Documentación y datos"));
+    await u.click(screen.getByRole("button", { name: /Agregar “Documentación y datos”/ }));
+    await u.click(screen.getByRole("button", { name: "＋ Otro documento" }));
+    await u.type(screen.getByLabelText("Documento 1"), "Orden médica");
+    await u.click(screen.getByRole("button", { name: "Guardar documentación y datos" }));
+
+    await waitFor(() => expect(creditos.editarRequisitos).toHaveBeenCalledWith("p2", expect.objectContaining({
+      activo: true, documentos: [expect.objectContaining({ codigo: "ORDEN_MEDICA", titulo: "Orden médica" })] })));
   });
 
   it("el tope del crédito (% del sueldo) se configura por línea y se guarda", async () => {

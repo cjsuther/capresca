@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTema, Tema } from "./tema";
 import { PasoVideos, guardarVistos, leerVistos, olvidarVistos } from "./videos";
-import { api, nuevoId, token, Video, DocPedido, Ciudadano, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
+import { Correccion } from "./Correccion";
+import { api, nuevoId, token, Video, DocPedido, CampoPedido, Ciudadano, Cobro, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
 
 const money = (v: string | number) =>
   Number(v).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
@@ -70,7 +71,7 @@ function SelectorTema() {
 const SISTEMA: Record<string, string> = { FRANCES: "Francés", ALEMAN: "Alemán", DIRECTO: "Directo", CUOTA_FIJA: "Cuota fija" };
 
 // Captura el token del fragmento tras el callback OIDC (<base>/ingreso#token=...) y limpia la URL.
-// La base es /portal-creditos/ (vite.config.ts): Portezuelo publica el portal ahí.
+// La base la fija la compilación (vite.config.ts): /portal-creditos/ en dev, / en su dominio propio.
 /** Vuelta de Mi Catamarca: con el token entra; con error, se avisa en el login. */
 function capturarTokenDeCallback(): string {
   const base = import.meta.env.BASE_URL;
@@ -145,6 +146,7 @@ function Login({ aviso = "" }: { aviso?: string }) {
 
 const ESTADO_SOL: Record<string, { label: string; cls: string }> = {
   EN_EVALUACION: { label: "En evaluación", cls: "warn" },
+  OBSERVADA: { label: "Tenés que corregir", cls: "crit" },
   APROBADA: { label: "Aprobada", cls: "ok" },
   ORIGINADA: { label: "Otorgada", cls: "ok" },
   RECHAZADA: { label: "Rechazada", cls: "crit" },
@@ -157,6 +159,13 @@ const ESTADO_SOL: Record<string, { label: string; cls: string }> = {
 type PasoEstado = "done" | "current" | "todo" | "fail";
 function pasosExpediente(estado: string): { label: string; estado: PasoEstado }[] {
   const orden = ["EN_EVALUACION", "APROBADA", "ORIGINADA"];
+  if (estado === "OBSERVADA")   // sigue en evaluación, esperando la corrección del ciudadano
+    return [
+      { label: "Enviada", estado: "done" },
+      { label: "Corregir", estado: "current" },
+      { label: "Aprobada", estado: "todo" },
+      { label: "Otorgada", estado: "todo" },
+    ];
   if (estado === "RECHAZADA")
     return [
       { label: "Enviada", estado: "done" },
@@ -194,8 +203,21 @@ const SEGMENTOS: [string, string][] = [
 ];
 const SEG_LABEL = Object.fromEntries(SEGMENTOS);
 
-// Documentación del paso 3: exactamente un archivo por cada documento PEDIDO. Qué se pide lo
-// configura cada oficina en Créditos → Parámetros, y el backend lo publica con su título y su ayuda.
+/** CUIL argentino: 11 dígitos con el verificador correcto (módulo 11). */
+export function cuilValido(d: string): boolean {
+  if (!/^\d{11}$/.test(d)) return false;
+  const pesos = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  const v = 11 - (pesos.reduce((s, p, i) => s + p * Number(d[i]), 0) % 11);
+  return (v === 11 ? 0 : v === 10 ? 9 : v) === Number(d[10]);
+}
+/** Mientras se escribe: 20301234563 → "20-30123456-3". */
+export const cuilFmt = (v: string) => {
+  const d = v.replace(/\D/g, "");
+  return d.length <= 2 ? d : d.length <= 10 ? `${d.slice(0, 2)}-${d.slice(2)}` : `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`;
+};
+
+// Paso 3: lo que pide la línea elegida. Los datos (combos) y un archivo por cada documento PEDIDO; lo
+// define cada línea en su componente "Documentación y datos" y el backend lo publica con títulos y ayudas.
 
 /** Años cumplidos a hoy (el backend calcula lo mismo con la fecha declarada). */
 function edadDe(nacimiento: string): number | null {
@@ -218,6 +240,22 @@ type Paso = 1 | 2 | 3 | 4 | 5;
 type DocElegido = { file: File; tipo: string };
 const fmtBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
+/** Cómo se cobra la cuota (forma de cobro de la línea): con código de descuento, cómo la va a ver en el recibo. */
+function AvisoCobro({ cobro, cuota }: { cobro: Cobro; cuota?: number }) {
+  const monto = cuota ? `de ${money(cuota)} ` : "";
+  const texto = cobro.modalidad === "CODIGO_DESCUENTO"
+    ? <>La cuota {monto}se descuenta directamente de tu sueldo. En tu recibo de haberes la vas a ver como <b>«{cobro.conceptoRecibo}»</b>, código de descuento <b>{cobro.codigoDescuento}</b>.</>
+    : cobro.modalidad === "DEBITO_AUTOMATICO" ? <>La cuota {monto}se debita automáticamente de tu cuenta.</>
+    : <>La cuota {monto}se paga en ventanilla.</>;
+  return (
+    <div className="p-cobro" role="note" aria-label="Cómo se cobra la cuota">
+      <b>Cómo vas a pagar la cuota</b>
+      <p>{texto}</p>
+      {cobro.detalle && <p className="p-fine">{cobro.detalle}</p>}
+    </div>
+  );
+}
+
 // Documentos del paso 3: un casillero por documento pedido, con un único archivo cada uno (adjuntar de
 // nuevo lo reemplaza). Se eligen en el cliente y se suben al ENVIAR la solicitud (todavía no existe el
 // número). Valida formato/tamaño localmente; el backend exige lo mismo. H-162.
@@ -239,15 +277,15 @@ function DocsPicker({ pedidos, docs, onChange }:
   return (
     <div className="p-docs">
       <ul className="p-docs-slots" aria-label="Documentación requerida">
-        {pedidos.map(({ tipo: t, titulo: nombre, ayuda }) => {
+        {pedidos.map(({ tipo: t, titulo: nombre, ayuda, obligatorio }) => {
           const d = docs.find((x) => x.tipo === t);
           const esPdf = d?.file.type === "application/pdf";
           return (
             <li key={t} className={`p-doc-slot${d ? " ok" : ""}`}>
               <span className={"p-doc-ic" + (esPdf ? " pdf" : "")} aria-hidden>{d ? (esPdf ? "PDF" : "IMG") : "○"}</span>
               <div className="p-doc-meta">
-                <b>{nombre}</b>
-                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : (ayuda || "Falta adjuntar")}</span>
+                <b>{nombre}{!obligatorio && <span className="p-fine"> (opcional)</span>}</b>
+                <span>{d ? `${d.file.name} · ${fmtBytes(d.file.size)}` : (ayuda || (obligatorio ? "Falta adjuntar" : "Si lo tenés, adjuntalo"))}</span>
               </div>
               <label className={`p-btn-file${d ? " sec" : ""}`}>{d ? "Cambiar" : "＋ Adjuntar"}
                 <input type="file" accept={DOC_TYPES.join(",")} hidden aria-label={`Adjuntar ${nombre}`}
@@ -260,6 +298,45 @@ function DocsPicker({ pedidos, docs, onChange }:
       </ul>
       <p className="p-fine" style={{ margin: "8px 0 0" }}>Un archivo por documento · JPG, PNG o PDF · máx 5 MB</p>
       {err && <div className="p-alert" style={{ marginTop: 8 }}>{err}</div>}
+    </div>
+  );
+}
+
+/** Datos que pide la línea: selección única en un combo, selección múltiple con casillas. */
+function CamposPicker({ campos, respuestas, onChange }:
+                      { campos: CampoPedido[]; respuestas: Record<string, string[]>; onChange: (r: Record<string, string[]>) => void }) {
+  const marca = (c: CampoPedido) => (c.obligatorio ? <b className="p-req">*</b> : <span className="p-fine">(opcional)</span>);
+  return (
+    <div className="p-campos">
+      {campos.map((c) => {
+        const elegidas = respuestas[c.codigo] || [];
+        const poner = (valores: string[]) => onChange({ ...respuestas, [c.codigo]: valores });
+        if (c.tipo === "UNICA") {
+          return (
+            <label key={c.codigo} className="p-fld"><span>{c.etiqueta} {marca(c)}</span>
+              <select value={elegidas[0] || ""} onChange={(e) => poner(e.target.value ? [e.target.value] : [])}>
+                <option value="">Elegí una opción</option>
+                {c.opciones.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              {c.ayuda && <span className="p-fine">{c.ayuda}</span>}</label>
+          );
+        }
+        return (
+          <fieldset key={c.codigo} className="p-campo">
+            <legend>{c.etiqueta} {marca(c)}</legend>
+            <span className="p-fine">{c.ayuda || "Podés elegir más de una."}</span>
+            <div className="p-opciones">
+              {c.opciones.map((o) => (
+                <label key={o} className="p-check">
+                  <input type="checkbox" checked={elegidas.includes(o)}
+                         onChange={(e) => poner(e.target.checked ? [...elegidas, o] : elegidas.filter((x) => x !== o))} />
+                  {o}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        );
+      })}
     </div>
   );
 }
@@ -289,7 +366,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   // CARGA el ciudadano (H-162).
   const [apellido, setApellido] = useState("");
   const [nombre, setNombre] = useState("");
-  const [dni, setDni] = useState("");
+  const [cuil, setCuil] = useState("");
   const [segmento, setSegmento] = useState("");
   const [nacimiento, setNacimiento] = useState("");     // fecha; la edad se calcula (antes se pedía la edad)
   const [email, setEmail] = useState("");
@@ -300,14 +377,17 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [sueldoTexto, setSueldoTexto] = useState("");
   const [pendingDocs, setPendingDocs] = useState<DocElegido[]>([]);   // adjuntos elegidos (se suben al enviar)
   const [docsErr, setDocsErr] = useState("");
-  // Paso 3: qué documentación pide la solicitud (la configura Créditos; puede no pedir ninguna).
+  // Paso 3: lo que pide la línea elegida (sus datos y su documentación; puede no pedir nada).
+  const [camposPedidos, setCamposPedidos] = useState<CampoPedido[]>([]);
+  const [respuestas, setRespuestas] = useState<Record<string, string[]>>({});
   const [docsPedidos, setDocsPedidos] = useState<DocPedido[]>([]);
   const [docsPedidosErr, setDocsPedidosErr] = useState("");
   const [docsListos, setDocsListos] = useState(false);
-  const docsFaltantes = docsPedidos.filter((p) => !pendingDocs.some((d) => d.tipo === p.tipo));
+  const docsFaltantes = docsPedidos.filter((p) => p.obligatorio && !pendingDocs.some((d) => d.tipo === p.tipo));
+  const camposFaltantes = camposPedidos.filter((c) => c.obligatorio && !(respuestas[c.codigo] || []).length);
   // Igual que con los videos: el paso se saltea SÓLO cuando la lista llegó bien y vino vacía. Si no
   // se pudo cargar, el paso se muestra con su error en vez de dejar pasar un requisito por una falla.
-  const pasoDocsOmitido = docsListos && !docsPedidosErr && docsPedidos.length === 0;
+  const pasoDocsOmitido = docsListos && !docsPedidosErr && docsPedidos.length === 0 && camposPedidos.length === 0;
   // Paso 4: videos obligatorios (la lista la da el backend) y los que ya vio completos.
   const [videos, setVideos] = useState<Video[]>([]);
   const [videosErr, setVideosErr] = useState("");
@@ -327,11 +407,11 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [aceptaDatos, setAceptaDatos] = useState(false);
   const cbuDigits = cbu.replace(/\D/g, "");
-  const dniDigits = dni.replace(/\D/g, "");
+  const cuilDigits = cuil.replace(/\D/g, "");
   const edad = edadDe(nacimiento);
   const telDigits = telefono.replace(/[^\d+]/g, "");
   const contactoOk = emailValido(email) && telDigits.replace("+", "").length >= 8;
-  const identidadOk = apellido.trim().length > 0 && nombre.trim().length > 0 && (dniDigits.length === 7 || dniDigits.length === 8)
+  const identidadOk = apellido.trim().length > 0 && nombre.trim().length > 0 && cuilValido(cuilDigits)
     && edad !== null && edad >= 18 && edad <= 99 && contactoOk;
   const puedeEnviar = identidadOk && cbuDigits.length === 22 && aceptaTerminos && aceptaDatos;
 
@@ -343,21 +423,21 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     try { const raw = localStorage.getItem(BORRADOR_KEY); if (raw) setBorrador(JSON.parse(raw)); } catch { /* ignore */ }
   }, []);
   function guardarBorrador() {
-    const d = { paso, apellido, nombre, dni, segmento, nacimiento, email, telefono, antiguedad, sueldo,
-                prodId, monto, plazo, cbu, aceptaTerminos, aceptaDatos, savedAt: new Date().toISOString() };
+    const d = { paso, apellido, nombre, cuil, segmento, nacimiento, email, telefono, antiguedad, sueldo,
+                prodId, monto, plazo, cbu, aceptaTerminos, aceptaDatos, respuestas, savedAt: new Date().toISOString() };
     try { localStorage.setItem(BORRADOR_KEY, JSON.stringify(d)); } catch { /* ignore */ }
     setBorrador(null); setBorradorMsg("Borrador guardado. Podés retomarlo más tarde desde este dispositivo.");
     setTimeout(() => setBorradorMsg(""), 4000);
   }
   function retomarBorrador() {
     const d = borrador; if (!d) return;
-    setApellido(d.apellido || ""); setNombre(d.nombre || ""); setDni(d.dni || "");
+    setApellido(d.apellido || ""); setNombre(d.nombre || ""); setCuil(d.cuil || "");
     setSegmento(d.segmento || ""); setNacimiento(d.nacimiento || "");
     setEmail(d.email || ""); setTelefono(d.telefono || ""); setAntiguedad(d.antiguedad || "");
     setSueldo(d.sueldo || ""); setSueldoTexto(d.sueldo ? formatoMoneda(d.sueldo) : "");
     if (d.prodId) setProdId(d.prodId);
     setMonto(d.monto || "500000"); setPlazo(d.plazo || "12"); setCbu(d.cbu || "");
-    setAceptaTerminos(!!d.aceptaTerminos); setAceptaDatos(!!d.aceptaDatos);
+    setAceptaTerminos(!!d.aceptaTerminos); setAceptaDatos(!!d.aceptaDatos); setRespuestas(d.respuestas || {});
     // Los archivos no se guardan en el borrador: se retoma, como mucho, en Documentación.
     setPaso(Math.min(d.paso || 1, 3) as Paso); setTab("simular"); setBorrador(null);
   }
@@ -365,7 +445,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   function descartarBorrador() { limpiarBorrador(); setBorrador(null); }
 
   const datos = () => ({
-    apellido: apellido.trim(), nombre: nombre.trim(), dni: dniDigits,
+    apellido: apellido.trim(), nombre: nombre.trim(), cuil: cuilDigits,
     segmento: segmento || undefined,
     fecha_nacimiento: nacimiento || undefined,
     email: email.trim(),
@@ -384,9 +464,17 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   useEffect(() => { api.notificaciones().then(setNotis).catch(() => {}); }, []);
   useEffect(() => {
     api.videos().then((vs) => { setVideos(vs); setVideosListos(true); }).catch(() => setVideosErr("No se pudieron cargar los videos. Reintentá en unos minutos."));
-    api.docsPedidos().then((ds) => { setDocsPedidos(ds); setDocsListos(true); })
-       .catch(() => setDocsPedidosErr("No se pudo cargar la documentación a presentar. Reintentá en unos minutos."));
   }, []);
+  // Lo que pide el paso 3 depende de la línea: se vuelve a pedir al cambiar de producto.
+  useEffect(() => {
+    if (!prodId) return;
+    let vigente = true;
+    setDocsListos(false); setDocsPedidosErr("");
+    api.requisitos(prodId)
+      .then((r) => { if (vigente) { setCamposPedidos(r.campos); setDocsPedidos(r.documentos); setDocsListos(true); } })
+      .catch(() => { if (vigente) setDocsPedidosErr("No se pudo cargar lo que pide este crédito. Reintentá en unos minutos."); });
+    return () => { vigente = false; };
+  }, [prodId]);
 
   // Paso 2: la cuota se recalcula EN VIVO al mover el monto/plazo (debounce), sin apretar "Simular".
   useEffect(() => {
@@ -422,7 +510,8 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
 
   function irASimulacion() {
     if (!apellido.trim() || !nombre.trim()) { setDatosErr("Cargá tu apellido y nombre."); return; }
-    if (dniDigits.length !== 7 && dniDigits.length !== 8) { setDatosErr("El DNI debe tener 7 u 8 dígitos."); return; }
+    if (cuilDigits.length !== 11) { setDatosErr("El CUIL debe tener 11 dígitos."); return; }
+    if (!cuilValido(cuilDigits)) { setDatosErr("El CUIL no es válido: revisá los números."); return; }
     if (!segmento) { setDatosErr("Elegí tu situación laboral para continuar."); return; }
     if (edad === null) { setDatosErr("Cargá tu fecha de nacimiento."); return; }
     if (edad < 18 || edad > 99) { setDatosErr("Revisá tu fecha de nacimiento: la edad tiene que estar entre 18 y 99 años."); return; }
@@ -432,6 +521,10 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   }
   function reiniciarWizard() { setPaso(1); setSim(null); }
   function irAVideos() {
+    if (camposFaltantes.length) {
+      setDocsErr(`Completá: ${camposFaltantes.map((c) => c.etiqueta).join(", ")}.`);
+      return;
+    }
     if (docsFaltantes.length) {
       setDocsErr(`Falta adjuntar: ${docsFaltantes.map((p) => p.titulo).join(", ")}.`);
       return;
@@ -444,19 +537,23 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     setPaso(pasoDocsOmitido ? (pasoVideosOmitido ? 5 : 4) : 3);
   }
 
+  /** Sólo lo que pregunta la línea elegida (si cambió de producto, lo contestado para el otro no va). */
+  const respuestasDeLaLinea = () => Object.fromEntries(camposPedidos.map((c) => [c.codigo, respuestas[c.codigo] || []]));
+
   async function enviarSolicitud() {
     if (!prodId || !idem) return;
     setEnviando(true); setErr("");
     try {
-      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, videos_vistos: vistos, ...datos() }, idem);
-      // Subir los documentos del paso 3 (best-effort: si alguno falla, avisamos sin frenar).
+      const s = await api.enviarSolicitud({ producto_id: prodId, monto: Number(monto), plazo: Number(plazo), cbu: cbuDigits, acepta_terminos: aceptaTerminos, acepta_datos: aceptaDatos, videos_vistos: vistos, respuestas: respuestasDeLaLinea(), ...datos() }, idem);
+      // Subir los documentos del paso 3 (best-effort: si alguno falla, avisamos sin frenar). Sólo los que
+      // pide la línea elegida: si cambió de producto, lo adjuntado para el otro no va.
       let fallos = 0;
-      for (const d of pendingDocs) {
+      for (const d of pendingDocs.filter((x) => docsPedidos.some((p) => p.tipo === x.tipo))) {
         try { await api.docSubir(s.numero, d.file, d.tipo); } catch { fallos++; }
       }
       setOkMsg(`Solicitud ${s.numero} enviada. Un asesor la va a evaluar.`
         + (fallos ? ` (No se pudieron adjuntar ${fallos} archivo/s; un asesor te los va a pedir si hacen falta.)` : ""));
-      setPendingDocs([]);
+      setPendingDocs([]); setRespuestas({});
       limpiarBorrador();   // enviada → el borrador ya no aplica
       olvidarVistos(sesion.sub); setVistos([]);   // la próxima solicitud vuelve a pedir los videos
       reiniciarWizard();
@@ -489,7 +586,11 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                 <div className="p-notis-head">Notificaciones</div>
                 {notis.length === 0 && <div className="p-notis-empty">No tenés notificaciones.</div>}
                 {notis.map((n, i) => (
-                  <div className={`p-noti p-noti-${n.tipo}`} key={i}>
+                  <div className={`p-noti p-noti-${n.tipo}${n.solicitud ? " p-rowlink" : ""}`} key={i}
+                       onClick={n.solicitud ? () => {
+                         setNotisOpen(false); setTab("solicitudes");
+                         api.solicitudDetalle(n.solicitud!).then(setDetalle).catch((e) => setErr(String(e)));
+                       } : undefined}>
                     <b>{n.titulo}</b><span>{n.detalle}</span>
                   </div>
                 ))}
@@ -544,6 +645,10 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                     ))}
                   </ol>
                   {detalle.estado === "RECHAZADA" && detalle.motivo_rechazo && <div className="p-warnbox">Motivo del rechazo: {detalle.motivo_rechazo}</div>}
+                  <Correccion detalle={detalle}
+                              onActualizar={() => api.solicitudDetalle(detalle.numero).then(setDetalle)}
+                              onReenviada={(msg) => { setDetalle(null); setOkMsg(msg); cargarSolicitudes();
+                                                      api.notificaciones().then(setNotis).catch(() => {}); }} />
                   <div className="p-kpis">
                     <div className="p-kpi"><span>Monto</span><b>{money(detalle.monto)}</b></div>
                     <div className="p-kpi"><span>Cuota estimada</span><b>{money(detalle.cuota_estimada)}</b></div>
@@ -632,6 +737,12 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
       ) : (
       <main className="p-main">
         <h1>Solicitá tu crédito</h1>
+        {/* Tuvo un rechazo reciente: hasta que pase la espera no puede pedir otro (lo controla el backend). */}
+        {sesion.espera_rechazo ? (
+          <div className="p-warnbox" role="status">
+            {sesion.espera_rechazo} Mientras tanto podés ver el estado de tus trámites en “Mis solicitudes”.
+          </div>
+        ) : (<>
         <ol className="p-steps">
           {pasosVisibles(!pasoDocsOmitido, !pasoVideosOmitido).map(({ titulo, numero: n }, i) => {
             const estado = paso === n ? "on" : paso > n ? "done" : "";
@@ -662,8 +773,9 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
               <input value={apellido} maxLength={40} onChange={(e) => setApellido(e.target.value)} placeholder="—" /></label>
             <label className="p-fld"><span>Nombre <b className="p-req">*</b></span>
               <input value={nombre} maxLength={40} onChange={(e) => setNombre(e.target.value)} placeholder="—" /></label>
-            <label className="p-fld"><span>DNI <b className="p-req">*</b></span>
-              <input inputMode="numeric" value={dni} maxLength={8} onChange={(e) => setDni(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="—" /></label>
+            <label className="p-fld"><span>CUIL <b className="p-req">*</b></span>
+              <input inputMode="numeric" value={cuilFmt(cuil)} maxLength={13} placeholder="20-12345678-9"
+                     onChange={(e) => setCuil(e.target.value.replace(/\D/g, "").slice(0, 11))} /></label>
             <label className="p-fld"><span>Situación laboral <b className="p-req">*</b></span>
               <select value={segmento} onChange={(e) => setSegmento(e.target.value)}>
                 {SEGMENTOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -766,16 +878,26 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
 
         {paso === 3 && (
           <section className="p-result">
-            <div className="p-card" style={{ padding: "18px 20px" }}>
-              <div className="p-subtitle" style={{ borderTop: "none", paddingTop: 0 }}>Documentación <span>(obligatoria para continuar)</span></div>
-              <p className="p-fine" style={{ margin: "6px 0 12px" }}>
-                Adjuntá una imagen o PDF de cada uno: {docsPedidos.map((p) => p.titulo).join(", ")}.
-              </p>
-              <DocsPicker pedidos={docsPedidos} docs={pendingDocs}
-                          onChange={(d) => { setPendingDocs(d); setDocsErr(""); }} />
-              {docsPedidosErr && <div className="p-alert">{docsPedidosErr}</div>}
-              {docsErr && <div className="p-alert">{docsErr}</div>}
-            </div>
+            {camposPedidos.length > 0 && (
+              <div className="p-card" style={{ padding: "18px 20px", marginBottom: 14 }}>
+                <div className="p-subtitle" style={{ borderTop: "none", paddingTop: 0 }}>Datos del crédito</div>
+                <p className="p-fine" style={{ margin: "6px 0 12px" }}>Este crédito necesita que completes lo siguiente.</p>
+                <CamposPicker campos={camposPedidos} respuestas={respuestas}
+                              onChange={(r) => { setRespuestas(r); setDocsErr(""); }} />
+              </div>
+            )}
+            {docsPedidos.length > 0 && (
+              <div className="p-card" style={{ padding: "18px 20px" }}>
+                <div className="p-subtitle" style={{ borderTop: "none", paddingTop: 0 }}>Documentación</div>
+                <p className="p-fine" style={{ margin: "6px 0 12px" }}>
+                  Adjuntá una imagen o PDF de cada uno. Los marcados como opcionales los podés saltear.
+                </p>
+                <DocsPicker pedidos={docsPedidos} docs={pendingDocs}
+                            onChange={(d) => { setPendingDocs(d); setDocsErr(""); }} />
+              </div>
+            )}
+            {docsPedidosErr && <div className="p-alert">{docsPedidosErr}</div>}
+            {docsErr && <div className="p-alert">{docsErr}</div>}
             <div className="p-cta">
               <button type="button" className="p-btn-ghost" onClick={() => setPaso(2)}>← Volver</button>
               <button className="p-btn p-btn-mc" onClick={irAVideos} disabled={!docsListos || !!docsPedidosErr}>Continuar →</button>
@@ -807,16 +929,20 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                 <div><span>Total a pagar</span>{money(sim.total_a_pagar)}</div>
                 <div><span>TNA / CFT</span>{sim.tna}% / {sim.cft}%</div>
                 <div><span>Solicitante</span>{apellido || nombre ? `${apellido}, ${nombre}` : "—"}</div>
-                <div><span>DNI</span>{dniDigits || "—"}</div>
+                <div><span>CUIL</span>{cuilDigits ? cuilFmt(cuilDigits) : "—"}</div>
                 <div><span>Situación</span>{SEG_LABEL[segmento] || segmento || "—"}</div>
                 {edad !== null && <div><span>Edad</span>{edad} años</div>}
                 <div><span>Email</span>{email || "—"}</div>
                 <div><span>Teléfono</span>{telefono || "—"}</div>
+                {camposPedidos.map((c) => (
+                  <div key={c.codigo}><span>{c.etiqueta}</span>{(respuestas[c.codigo] || []).join(", ") || "—"}</div>
+                ))}
                 {sueldo && <div><span>Sueldo declarado</span>{money(sueldo)}</div>}
                 {sim.afectacion != null && <div><span>Afectación</span>{sim.afectacion}%</div>}
               </div>
               {sim.elegible === true && <div className="p-ok" style={{ marginTop: 4 }}>✓ Con tus datos calificás para este crédito.</div>}
               {sim.elegible === false && <div className="p-warnbox">Con estos datos no cumplís las condiciones de este crédito, así que no se puede enviar. Volvé atrás para ajustar los datos o elegir otro crédito.</div>}
+              {prod?.cobro && <AvisoCobro cobro={prod.cobro} cuota={sim.cuotas[0]?.total} />}
 
               <label className="p-fld" style={{ marginTop: 14 }}><span>CBU para acreditar el crédito (22 dígitos)</span>
                 <input inputMode="numeric" maxLength={22} value={cbu}
@@ -837,6 +963,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
             </div>
           </section>
         )}
+        </>)}
       </main>
       )}
       <Estilos />
@@ -853,6 +980,7 @@ const OSCURO = (raiz: string) => `
         --p-ok:#43c88a; --p-warn:#e0a44a; --p-warn-soft:#3a2f16; --p-crit:#f0777a; --p-crit-soft:#3a1e20;
       }
       ${raiz} .p-alert { background:#3a1e20; color:#f0777a; border-color:#5b2a2c; }
+      ${raiz} .p-cobro { background:rgba(59,130,246,.12); border-color:rgba(59,130,246,.35); color:var(--p-ink); }
       ${raiz} .p-ok, ${raiz} .p-preap { background:rgba(129,188,38,.12); border-color:rgba(129,188,38,.35); color:var(--p-ink); }
       ${raiz} .p-pill.ok { background:rgba(67,200,138,.16); color:var(--p-ok); }
       ${raiz} .p-track-step.done .p-track-dot, ${raiz} .p-track-step.fail .p-track-dot { color:#0b1220; }
@@ -925,6 +1053,15 @@ function Estilos() {
     .p-notis-empty { padding:16px 14px; color:var(--p-muted); font-size:.88rem; }
     .p-noti { padding:10px 14px; border-bottom:1px solid var(--p-border); display:flex; flex-direction:column; gap:2px; border-left:3px solid var(--p-border); }
     .p-noti b { font-size:.86rem; } .p-noti span { font-size:.8rem; color:var(--p-muted); }
+    .p-noti-observada { border-left-color:#b91c1c; }
+    .p-corr { display:flex; flex-direction:column; gap:10px; margin:14px 0; }
+    .p-corr .p-warnbox { margin-top:0; }
+    .p-corr-detalle { margin:6px 0 4px; white-space:pre-line; color:var(--p-text,inherit); }
+    .p-corr-tit { font-size:.95rem; margin:4px 0 0; }
+    .p-corr-docs { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+    .p-doc-falta { border-color:var(--p-warn); }
+    .p-corr-cbu { display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; }
+    .p-corr-cbu .p-fld { flex:1; min-width:220px; }
     .p-noti-otorgado { border-left-color:var(--p-ok); } .p-noti-vencimiento { border-left-color:var(--p-warn); } .p-noti-mora { border-left-color:#b91c1c; }
     .p-cred-list { display:flex; flex-direction:column; gap:14px; margin-top:16px; }
     .p-cred { background:var(--p-surface); border:1px solid var(--p-border); border-radius:14px; padding:16px 18px; }
@@ -972,6 +1109,8 @@ function Estilos() {
     .p-sticky-cta > div { display:flex; flex-direction:column; line-height:1.1; }
     .p-sticky-cta b { font-size:1.15rem; }
     .p-sticky-cta .p-btn { width:auto; padding:12px 28px; }
+    .p-cobro { background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 14px; margin-top:12px; font-size:.9rem; }
+    .p-cobro p { margin:4px 0 0; }
     .p-preap { background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:.9rem; }
     .p-preap b { color:var(--p-ok); } .p-preap span { color:var(--p-muted); }
     .p-preap-btn { margin-left:auto; background:var(--p-green); color:#fff; border:none; border-radius:8px; padding:6px 14px; font-weight:600; cursor:pointer; font-size:.85rem; }
@@ -1030,6 +1169,10 @@ function Estilos() {
     .p-table tr:last-child td { border-bottom:none; }
     /* Documentación adjunta (H-160) */
     .p-docs { margin-top:4px; }
+    .p-campos { display:flex; flex-direction:column; gap:14px; }
+    .p-campo { border:none; margin:0; padding:0; min-width:0; }
+    .p-campo legend { padding:0; font-size:.88rem; font-weight:600; color:var(--p-ink); margin-bottom:2px; }
+    .p-opciones { display:flex; flex-wrap:wrap; gap:0 20px; }
     .p-docs-req { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
     .p-docs-req li { display:flex; align-items:center; gap:6px; font-size:.82rem; font-weight:600; padding:5px 12px; border-radius:999px; border:1px dashed var(--p-border); color:var(--p-muted); }
     .p-docs-req li.ok { border-style:solid; border-color:var(--p-ok); color:var(--p-ok); }

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.client import Client, ClientType, ClientContact, HumanClient, LegalClient, ClientCbu
+from app.models.padron import ClientPadron
 from app.services.client_service import _generate_code
 from app.schemas.cbu import ClientCbuResponse
 
@@ -178,6 +179,7 @@ def _ficha(client: Client, db: Session) -> dict:
         .order_by(ClientCbu.is_payment_account.desc(), ClientCbu.id)
         .first()
     )
+    p = db.get(ClientPadron, client.id)
     return {
         "client_id": client.id,
         "codigo": client.code,
@@ -196,6 +198,10 @@ def _ficha(client: Client, db: Session) -> dict:
         "localidad": client.city,
         "cbu": cbu.cbu if cbu else None,
         "activo": client.is_active,
+        # Del padrón migrado: Créditos los usa para precargar la solicitud (sueldo, antigüedad).
+        "sueldo": float(p.sueldo) if p is not None and p.sueldo is not None else None,
+        "fecha_ingreso": p.fecha_ingreso.isoformat() if p is not None and p.fecha_ingreso else None,
+        "categoria": p.categoria if p is not None else None,
     }
 
 

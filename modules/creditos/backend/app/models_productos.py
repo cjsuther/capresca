@@ -423,7 +423,7 @@ class PPSolicitudDocumento(Base):
     __tablename__ = "pp_solicitud_documento"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uid)
     solicitud_id: Mapped[str] = mapped_column(ForeignKey("pp_solicitud.id"), index=True)
-    tipo: Mapped[str] = mapped_column(String(20), default="OTRO")   # DNI_FRENTE, DNI_DORSO, RECIBO, OTRO
+    tipo: Mapped[str] = mapped_column(String(40), default="OTRO")   # código del documento que pide la línea
     nombre: Mapped[str] = mapped_column(String(200), default="")
     content_type: Mapped[str] = mapped_column(String(80), default="")
     tamano: Mapped[int] = mapped_column(Integer, default=0)

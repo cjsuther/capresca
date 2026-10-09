@@ -14,12 +14,14 @@ from sqlalchemy.orm import Session
 from app.core import configuraciones as config
 from app.core.database import get_db
 from app.core.numbering import crear_con_numero_unico
+from app.core.personas import edad_de
 from app.core.idempotency import con_idempotencia
 from sqlalchemy.exc import IntegrityError
 from app.deps import get_current_user
 from app import models, models_productos as m
 from app.seed_productos import _componentes_default
 from app.productos_componentes import COMPONENTES, DEFAULT_CONFIG
+from app.services import cobro, requisitos
 from app.services.productos_calc import cronograma, resumen
 
 router = APIRouter(prefix="/api/creditos/productos", tags=["productos"],
@@ -413,6 +415,7 @@ def _serial_v(db: Session, prod: m.PPProducto, v: m.PPVersion, calc_map: dict[st
         },
         "cfgHeredada": v.cfg_heredada, "padre": None,
         "disponibilidad": _disponibilidad(v),
+        "cobro": cobro.de(v),
     }
     # Herencia (Fase D): resolver condiciones heredadas desde el padre (recursivo, 1..n niveles).
     # Se hereda de la versión EFECTIVA del padre (la publicada), no de un borrador en curso.
@@ -648,7 +651,9 @@ class SimPreviewIn(BaseModel):
     segmento: str | None = None
     canal: str | None = None
     edad: int | None = None
+    fecha_nacimiento: date | None = None   # si viene, la edad sale de acá
     antiguedad_meses: int | None = None
+    sueldo: float | None = None            # para la afectación (cuota sobre el sueldo), como en el portal
 
 
 @router.post("/{producto_id}/simular-preview")
@@ -670,8 +675,14 @@ def simular_preview(producto_id: str, data: SimPreviewIn, db: Session = Depends(
     filas = cronograma(sistema, data.monto, data.plazo, tna, cargo, date.today(),
                        **_params_cronograma(v, _feriados_engine(db), decimales_calculo(db)))
     total = sum(float(f["total"]) for f in filas)
-    ctx = {"segmento": data.segmento, "canal": data.canal, "edad": data.edad, "antiguedad_meses": data.antiguedad_meses}
-    elig = _elegibilidad(_disponibilidad(v), ctx)
+    edad = edad_de(data.fecha_nacimiento) if data.fecha_nacimiento else data.edad
+    # La afectación se mide con la PRIMERA cuota, igual que la evaluación de la solicitud y el portal.
+    afectacion = (round(float(filas[0]["total"]) / data.sueldo * 100, 1)
+                  if (data.sueldo and data.sueldo > 0 and filas) else None)
+    ctx = {"segmento": data.segmento, "canal": data.canal, "edad": edad, "antiguedad_meses": data.antiguedad_meses,
+           "afectacion": afectacion}
+    disp = _disponibilidad(v)
+    elig = _elegibilidad(disp, ctx)
     return {
         "sistema": sistema, "tna": tna, "monto": data.monto, "plazo": data.plazo,
         "cantidadCuotas": len(filas), "totalCuotas": round(total, 2),
@@ -679,6 +690,7 @@ def simular_preview(producto_id: str, data: SimPreviewIn, db: Session = Depends(
         "primeraCuota": round(float(filas[0]["total"]), 2),
         "cuotaPromedio": round(total / len(filas), 2) if filas else 0.0,
         "elegible": elig["elegible"], "motivos": elig["motivos"],
+        "afectacion": afectacion, "afectacionMax": (disp or {}).get("afectacionMaxPct"),
         "cuotas": [{"numero_cuota": f["numero_cuota"], "fecha_vencimiento": str(f["fecha_vencimiento"]),
                     "capital": round(float(f["capital"]), 2), "interes": round(float(f["interes"]), 2),
                     "total": round(float(f["total"]), 2)} for f in filas],
@@ -850,6 +862,11 @@ def _validar_cfg(data: dict) -> None:
         tmn, tmx = data.get("tnaMin", 0), data.get("tnaMax", 0)
         if tmn < 0 or tmx < 0: errs.append("la banda de tasa no puede ser negativa")
         if tmn > 0 and tmx > 0 and tmn > tmx: errs.append("la TNA mínima no puede superar a la máxima")
+    for comp in data.get("componentes") or []:
+        if comp.get("codigo") == requisitos.COMPONENTE and comp.get("activo", True):
+            errs += requisitos.errores(comp.get("config") or {})
+        if comp.get("codigo") == cobro.COMPONENTE and comp.get("activo", True):
+            errs += cobro.errores(comp.get("config") or {})
     if errs:
         raise HTTPException(422, "Configuración inválida: " + "; ".join(errs) + ".")
 
@@ -914,6 +931,41 @@ def editar_disponibilidad(producto_id: str, data: DisponibilidadIn, db: Session 
     else:
         db.add(m.PPComponente(producto_version_id=v.id, componente_codigo="AVAILABILITY",
                               orden=_ORDEN.get("AVAILABILITY", 99), requerido=False,
+                              activo=data.activo, config=cfg))
+    db.commit()
+    return _serial(db, prod, _calc_codigo_por_version(db))
+
+
+class RequisitosIn(BaseModel):
+    activo: bool = True
+    documentos: list[dict] = []
+    campos: list[dict] = []
+
+
+@router.put("/{producto_id}/requisitos")
+def editar_requisitos(producto_id: str, data: RequisitosIn, db: Session = Depends(get_db),
+                      user: models.Usuario = Depends(get_current_user)):
+    """Edita "Documentación y datos" de la versión VIGENTE, aunque esté publicada, como la disponibilidad:
+    es lo que se le pide al ciudadano en el portal, no un término financiero. Las solicitudes ya enviadas
+    no cambian: guardan cada pregunta con su respuesta tal como estaban."""
+    _req_edita(db, user)
+    prod = db.get(m.PPProducto, producto_id)
+    if not prod:
+        raise HTTPException(404, "Producto no encontrado")
+    cfg = {"documentos": data.documentos, "campos": data.campos}
+    if data.activo:
+        errs = requisitos.errores(cfg)
+        if errs:
+            raise HTTPException(422, "Configuración inválida: " + "; ".join(errs) + ".")
+    v = _version_efectiva(prod)
+    row = next((c for c in v.componentes if c.componente_codigo == requisitos.COMPONENTE), None)
+    if row:
+        row.activo = data.activo
+        row.config = cfg
+        row.heredado = False      # lo que se edita acá ya es propio de la línea
+    else:
+        db.add(m.PPComponente(producto_version_id=v.id, componente_codigo=requisitos.COMPONENTE,
+                              orden=_ORDEN.get(requisitos.COMPONENTE, 99), requerido=False,
                               activo=data.activo, config=cfg))
     db.commit()
     return _serial(db, prod, _calc_codigo_por_version(db))

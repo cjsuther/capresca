@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# Ruta donde se publica el portal: /portal-creditos/ (dev, dentro de Portezuelo) o / (su propio dominio).
+ARG PORTAL_BASE=/portal-creditos/
+ENV PORTAL_BASE=${PORTAL_BASE}
 RUN npm run build
 
 # ──────────────────────────────────────────
@@ -12,21 +15,19 @@ RUN npm run build
 # ──────────────────────────────────────────
 FROM nginx:alpine AS production
 
-COPY --from=builder /app/dist /usr/share/nginx/html/portal-creditos
+ARG PORTAL_BASE=/portal-creditos/
+COPY --from=builder /app/dist /usr/share/nginx/html${PORTAL_BASE}
 
-RUN echo 'server { \
-    listen 3000; \
-    root /usr/share/nginx/html; \
-    location = /portal-creditos { return 301 /portal-creditos/; } \
-    location /portal-creditos/videos/ { \
-        alias /videos/; \
-        types { video/mp4 mp4; } \
-        add_header Cache-Control "public, max-age=86400"; \
-    } \
-    location /portal-creditos/ { \
-        try_files $uri $uri/ /portal-creditos/index.html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Con base "/" el portal está en la raíz; las rutas viejas /portal-creditos/... vuelven a la raíz.
+RUN B="${PORTAL_BASE%/}"; \
+    { echo "server {"; \
+      echo "  listen 3000;"; \
+      echo "  root /usr/share/nginx/html;"; \
+      if [ -n "$B" ]; then echo "  location = $B { return 301 $B/; }"; \
+      else echo "  location /portal-creditos/ { rewrite ^/portal-creditos/(.*)\$ /\$1 permanent; }"; fi; \
+      echo "  location $B/videos/ { alias /videos/; types { video/mp4 mp4; } add_header Cache-Control \"public, max-age=86400\"; }"; \
+      echo "  location $B/ { try_files \$uri \$uri/ $B/index.html; }"; \
+      echo "}"; } > /etc/nginx/conf.d/default.conf && cat /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
 CMD ["nginx", "-g", "daemon off;"]

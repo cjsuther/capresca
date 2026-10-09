@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
     preAprobado: vi.fn(), enviarSolicitud: vi.fn(), misSolicitudes: vi.fn(), solicitudDetalle: vi.fn(),
     docsListar: vi.fn(), docSubir: vi.fn(), docAbrir: vi.fn(), docBorrar: vi.fn(),
     misCreditos: vi.fn(), creditoDetalle: vi.fn(), notificaciones: vi.fn(), videos: vi.fn(),
-    docsPedidos: vi.fn(),
+    requisitos: vi.fn(), corregirCbu: vi.fn(), reenviar: vi.fn(),
   },
 }));
 vi.mock("./api", async (original) => ({ ...(await original() as any), api: h.api }));
@@ -45,6 +45,10 @@ function stubLocation(pathname = "/", hash = "") {
   return window.location as any;
 }
 
+/** La respuesta de /requisitos: los documentos (obligatorios salvo que se diga) y los datos de la línea. */
+const conDocs = (documentos: any[], campos: any[] = []) =>
+  ({ campos, documentos: documentos.map((d) => ({ obligatorio: true, ...d })) });
+
 const DOCS_PEDIDOS = [
   { tipo: "DNI_FRENTE", titulo: "DNI (frente)", ayuda: "" },
   { tipo: "DNI_DORSO", titulo: "DNI (dorso)", ayuda: "" },
@@ -68,7 +72,7 @@ beforeEach(() => {
   api.preAprobado.mockRejectedValue(new Error("sin pre-aprobado"));
   api.loginUrl.mockResolvedValue({ authorize_url: "https://mi.catamarca/oidc" });
   api.videos.mockResolvedValue(VIDEOS);
-  api.docsPedidos.mockResolvedValue(DOCS_PEDIDOS);
+  api.requisitos.mockResolvedValue(conDocs(DOCS_PEDIDOS));
 });
 
 afterEach(() => {
@@ -115,7 +119,7 @@ async function adjuntarRequeridos(u: ReturnType<typeof userEvent.setup>) {
 async function llegarADocumentacion(u: ReturnType<typeof userEvent.setup>) {
   await completarDatos(u);
   await u.click(await screen.findByRole("button", { name: /Continuar/ }));
-  expect(await screen.findByText(/obligatoria para continuar/)).toBeInTheDocument();
+  expect(await screen.findByText(/Adjuntá una imagen o PDF/)).toBeInTheDocument();
 }
 
 /** Completa el paso 1 (identidad + situación + nacimiento y contacto) y pasa a la simulación. */
@@ -124,7 +128,7 @@ const NACIMIENTO = `${new Date().getFullYear() - 40}-01-01`;
 async function completarDatos(u: ReturnType<typeof userEvent.setup>) {
   await u.type(screen.getByLabelText(/Apellido/), "Prueba");
   await u.type(screen.getByLabelText(/^Nombre/), "Ana");
-  await u.type(screen.getByLabelText(/^DNI/), "30123456");
+  await u.type(screen.getByLabelText(/^CUIL/), "20301234563");
   await u.selectOptions(screen.getByLabelText(/Situación laboral/), "AGENTE_PUBLICO");
   fireEvent.change(screen.getByLabelText(/Fecha de nacimiento/), { target: { value: NACIMIENTO } });
   await u.clear(screen.getByLabelText(/Email/));
@@ -250,27 +254,36 @@ describe("paso 1 · tus datos", () => {
     expect(screen.getByText("Cargá tu apellido y nombre.")).toBeInTheDocument();
   });
 
-  it("valida el largo del DNI", async () => {
+  it("valida el largo del CUIL", async () => {
     const u = await montarLogueado();
     await u.type(screen.getByLabelText(/Apellido/), "Prueba");
     await u.type(screen.getByLabelText(/^Nombre/), "Ana");
-    await u.type(screen.getByLabelText(/DNI/), "123");
+    await u.type(screen.getByLabelText(/^CUIL/), "123");
     await u.click(screen.getByRole("button", { name: /Continuar/ }));
-    expect(screen.getByText("El DNI debe tener 7 u 8 dígitos.")).toBeInTheDocument();
+    expect(screen.getByText("El CUIL debe tener 11 dígitos.")).toBeInTheDocument();
   });
 
-  it("el DNI descarta lo que no sean dígitos", async () => {
+  it("valida el dígito verificador del CUIL", async () => {
+    const u = await montarLogueado();
+    await u.type(screen.getByLabelText(/Apellido/), "Prueba");
+    await u.type(screen.getByLabelText(/^Nombre/), "Ana");
+    await u.type(screen.getByLabelText(/^CUIL/), "20301234560");
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(screen.getByText("El CUIL no es válido: revisá los números.")).toBeInTheDocument();
+  });
+
+  it("el CUIL descarta lo que no sean dígitos y se muestra con guiones", async () => {
     await montarLogueado();
-    const dni = screen.getByLabelText(/DNI/) as HTMLInputElement;
-    fireEvent.change(dni, { target: { value: "30.123.456" } });
-    expect(dni.value).toBe("30123456");
+    const cuil = screen.getByLabelText(/^CUIL/) as HTMLInputElement;
+    fireEvent.change(cuil, { target: { value: "20.30123456.3" } });
+    expect(cuil.value).toBe("20-30123456-3");
   });
 
   it("exige la situación laboral", async () => {
     const u = await montarLogueado();
     await u.type(screen.getByLabelText(/Apellido/), "Prueba");
     await u.type(screen.getByLabelText(/^Nombre/), "Ana");
-    await u.type(screen.getByLabelText(/DNI/), "30123456");
+    await u.type(screen.getByLabelText(/^CUIL/), "20301234563");
     await u.click(screen.getByRole("button", { name: /Continuar/ }));
     expect(screen.getByText("Elegí tu situación laboral para continuar.")).toBeInTheDocument();
   });
@@ -412,10 +425,10 @@ describe("paso 4 · videos", () => {
 
   // La documentación que se pide la configura cada oficina (Créditos → Parámetros).
   it("pide sólo los documentos configurados", async () => {
-    api.docsPedidos.mockResolvedValue([
+    api.requisitos.mockResolvedValue(conDocs([
       { tipo: "DNI_FRENTE", titulo: "DNI (frente)", ayuda: "" },
       { tipo: "RECIBO", titulo: "Recibo de sueldo", ayuda: "" },
-    ]);
+    ]));
     const u = await montarLogueado();
     await llegarADocumentacion(u);
 
@@ -430,7 +443,7 @@ describe("paso 4 · videos", () => {
   });
 
   it("si no se pide ninguno, el paso no aparece", async () => {
-    api.docsPedidos.mockResolvedValue([]);
+    api.requisitos.mockResolvedValue(conDocs([]));
     const u = await montarLogueado();
     await completarDatos(u);
     await u.click(await screen.findByRole("button", { name: /Continuar/ }));
@@ -441,12 +454,12 @@ describe("paso 4 · videos", () => {
   });
 
   it("si la lista no se pudo cargar, no deja pasar de largo el requisito", async () => {
-    api.docsPedidos.mockRejectedValue(new Error("sin red"));
+    api.requisitos.mockRejectedValue(new Error("sin red"));
     const u = await montarLogueado();
     await completarDatos(u);
     await u.click(await screen.findByRole("button", { name: /Continuar/ }));
 
-    expect(await screen.findByText(/No se pudo cargar la documentación/)).toBeInTheDocument();
+    expect(await screen.findByText(/No se pudo cargar lo que pide este crédito/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
   });
 
@@ -485,7 +498,7 @@ describe("paso 2 · simulación", () => {
       await completarDatos(u);
       expect(await screen.findByText("Total a pagar")).toBeInTheDocument();
       await u.click(await screen.findByRole("button", { name: /Continuar/ }));
-      expect(await screen.findByText(/obligatoria para continuar/)).toBeInTheDocument();
+      expect(await screen.findByText(/Adjuntá una imagen o PDF/)).toBeInTheDocument();
     } finally {
       Object.defineProperty(globalThis.crypto, "randomUUID", { configurable: true, value: original });
     }
@@ -556,6 +569,22 @@ describe("paso 5 · confirmación y envío", () => {
     return { u, docs };
   }
 
+  it("con código de descuento avisa cómo le viene la cuota en el recibo", async () => {
+    api.productos.mockResolvedValue([{ ...PRODUCTO, cobro: { modalidad: "CODIGO_DESCUENTO", codigoDescuento: "4521",
+      conceptoRecibo: "CAPRESCA PREST PERSONAL", detalle: "Se descuenta desde el mes siguiente." } }]);
+    api.simular.mockResolvedValue({ ...SIM, cuotas: [{ numero: 1, vencimiento: "2026-11-10", capital: 40000, interes: 20000, cargos: 0, impuestos: 0, total: 60000 }] });
+    await llegarAConfirmacion();
+    const aviso = screen.getByRole("note", { name: "Cómo se cobra la cuota" });
+    expect(aviso).toHaveTextContent("La cuota de $ 60.000,00 se descuenta directamente de tu sueldo");
+    expect(aviso).toHaveTextContent("«CAPRESCA PREST PERSONAL», código de descuento 4521");
+    expect(aviso).toHaveTextContent("Se descuenta desde el mes siguiente.");
+  });
+
+  it("sin forma de cobro configurada no avisa nada", async () => {
+    await llegarAConfirmacion();
+    expect(screen.queryByRole("note", { name: "Cómo se cobra la cuota" })).toBeNull();
+  });
+
   it("no deja enviar sin CBU completo ni aceptaciones", async () => {
     const { u } = await llegarAConfirmacion();
     const enviar = screen.getByRole("button", { name: /Confirmar y enviar/ });
@@ -575,7 +604,7 @@ describe("paso 5 · confirmación y envío", () => {
 
     await waitFor(() => expect(api.enviarSolicitud).toHaveBeenCalled());
     const [cuerpo, idem] = api.enviarSolicitud.mock.calls[0];
-    expect(cuerpo).toMatchObject({ producto_id: "pp_1", cbu: "2".repeat(22), acepta_terminos: true, acepta_datos: true, dni: "30123456",
+    expect(cuerpo).toMatchObject({ producto_id: "pp_1", cbu: "2".repeat(22), acepta_terminos: true, acepta_datos: true, cuil: "20301234563",
                                    videos_vistos: ["video1", "video2", "video3"] });
     expect(idem).toBe("idem-fijo");
     expect(await screen.findByText(/Solicitud SOL-7 enviada/)).toBeInTheDocument();
@@ -641,11 +670,11 @@ describe("borrador del trámite", () => {
   });
 
   it("un borrador guardado en los videos se retoma en Documentación (los archivos no se guardan)", async () => {
-    localStorage.setItem("portal_borrador_u-1", JSON.stringify({ paso: 5, apellido: "Prueba", nombre: "Ana", dni: "30123456",
+    localStorage.setItem("portal_borrador_u-1", JSON.stringify({ paso: 5, apellido: "Prueba", nombre: "Ana", cuil: "20301234563",
       segmento: "AGENTE_PUBLICO", prodId: "pp_1", savedAt: new Date().toISOString() }));
     const u = await montarLogueado();
     await u.click(await screen.findByRole("button", { name: "Retomar" }));
-    expect(await screen.findByText(/obligatoria para continuar/)).toBeInTheDocument();
+    expect(await screen.findByText(/Adjuntá una imagen o PDF/)).toBeInTheDocument();
   });
 
   it("descartar borra el borrador guardado", async () => {
@@ -654,6 +683,86 @@ describe("borrador del trámite", () => {
     await u.click(await screen.findByRole("button", { name: "Descartar" }));
     expect(localStorage.getItem("portal_borrador_u-1")).toBeNull();
     expect(screen.queryByRole("button", { name: "Retomar" })).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("solicitud observada: corregir y reenviar", () => {
+  const SOL = {
+    numero: "SOL-9", estado: "OBSERVADA", producto: "Crédito Personal", monto: 500000,
+    plazo: 12, cuota_estimada: 58333, tna: 60, fecha: "2026-03-01", motivo_rechazo: "",
+  };
+  const BASE = {
+    ...SOL, sistema: "FRANCES", destino: "", segmento: "", fecha_nacimiento: null, edad: null, antiguedad_meses: null,
+    sueldo: null, afectacion: null, total_a_pagar: 700000, cuotas: [], puede_adjuntar: true,
+  };
+  const DOCS = (corregido: boolean) => [
+    { tipo: "DNI_FRENTE", titulo: "DNI (frente)", ayuda: "", obligatorio: true,
+      adjunto: { id: "d1", nombre: corregido ? "dni-nuevo.png" : "dni.png" }, observado: true, corregido },
+    { tipo: "RECIBO", titulo: "Recibo de sueldo", ayuda: "", obligatorio: true,
+      adjunto: { id: "d2", nombre: "recibo.pdf" }, observado: false, corregido: false },
+  ];
+  const OBS = (pendientes: string[], cbu = false) => ({
+    detalle: "La foto del DNI está borrosa.", fecha: "2026-10-05", cbu, cbu_corregido: false,
+    cbu_actual: "2850590940090418135201", pendientes,
+  });
+
+  async function abrir() {
+    api.misSolicitudes.mockResolvedValue([SOL]);
+    const u = await montarLogueado();
+    await u.click(screen.getByRole("button", { name: "Mis solicitudes" }));
+    expect(await screen.findByText("Tenés que corregir")).toBeInTheDocument();
+    await u.click(screen.getByText("SOL-9"));
+    return u;
+  }
+
+  it("muestra la explicación del asesor y no deja reenviar con algo pendiente", async () => {
+    api.solicitudDetalle.mockResolvedValue({ ...BASE, documentacion: DOCS(false), observacion: OBS(["DNI (frente)"]) });
+    await abrir();
+    expect(await screen.findByText("La foto del DNI está borrosa.")).toBeInTheDocument();
+    expect(screen.getByText("Falta: DNI (frente).")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reenviar solicitud" })).toBeDisabled();
+    // Sólo se reemplaza lo observado: el recibo no se toca.
+    expect(screen.getByLabelText("Reemplazar DNI (frente)")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Recibo de sueldo/)).toBeNull();
+  });
+
+  it("reemplaza el documento observado y reenvía", async () => {
+    api.solicitudDetalle
+      .mockResolvedValueOnce({ ...BASE, documentacion: DOCS(false), observacion: OBS(["DNI (frente)"]) })
+      .mockResolvedValue({ ...BASE, documentacion: DOCS(true), observacion: OBS([]) });
+    api.docSubir.mockResolvedValue({});
+    api.reenviar.mockResolvedValue({ ...SOL, estado: "EN_EVALUACION" });
+    const u = await abrir();
+
+    const archivo = new File(["x"], "dni-nuevo.png", { type: "image/png" });
+    await u.upload(await screen.findByLabelText("Reemplazar DNI (frente)"), archivo);
+    await waitFor(() => expect(api.docSubir).toHaveBeenCalledWith("SOL-9", archivo, "DNI_FRENTE"));
+    expect(await screen.findByText(/✓ Corregido/)).toBeInTheDocument();
+
+    await u.click(screen.getByRole("button", { name: "Reenviar solicitud" }));
+    await waitFor(() => expect(api.reenviar).toHaveBeenCalledWith("SOL-9"));
+    expect(await screen.findByText("Listo: la solicitud SOL-9 volvió a evaluación.")).toBeInTheDocument();
+  });
+
+  it("corrige el CBU cuando el asesor lo pide", async () => {
+    api.solicitudDetalle.mockResolvedValue({ ...BASE, documentacion: DOCS(true), observacion: OBS(["el CBU"], true) });
+    api.corregirCbu.mockResolvedValue({ ok: true });
+    const u = await abrir();
+    const campo = await screen.findByLabelText("CBU corregido");
+    await u.clear(campo);
+    await u.type(campo, "0110599520000001234567");
+    await u.click(screen.getByRole("button", { name: "Guardar CBU" }));
+    await waitFor(() => expect(api.corregirCbu).toHaveBeenCalledWith("SOL-9", "0110599520000001234567"));
+  });
+
+  it("en evaluación deja adjuntar el documento que no llegó", async () => {
+    api.solicitudDetalle.mockResolvedValue({ ...BASE, estado: "EN_EVALUACION", observacion: null, documentacion: [
+      { tipo: "CERTIFICADO_SERVICIOS", titulo: "Certificado de servicios", ayuda: "", obligatorio: true,
+        adjunto: null, observado: false, corregido: false }] });
+    await abrir();
+    expect(await screen.findByLabelText("Adjuntar Certificado de servicios")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reenviar solicitud" })).toBeNull();
   });
 });
 
@@ -788,5 +897,89 @@ describe("notificaciones", () => {
     const u = await montarLogueado();
     await u.click(await screen.findByRole("button", { name: "Notificaciones" }));
     expect(screen.getByText("No tenés notificaciones.")).toBeInTheDocument();
+  });
+});
+
+describe("paso 3 · lo que pide cada línea", () => {
+  const SALUD = conDocs(
+    [{ tipo: "ORDEN_MEDICA", titulo: "Orden médica", ayuda: "Firmada por el profesional" },
+     { tipo: "PRESUPUESTO", titulo: "Presupuesto del prestador", ayuda: "", obligatorio: false }],
+    [{ codigo: "COBERTURA", etiqueta: "Obra social", ayuda: "", tipo: "UNICA",
+       opciones: ["OSEP", "PAMI", "Sin cobertura"], obligatorio: true },
+     { codigo: "TRATAMIENTO", etiqueta: "Tipo de tratamiento", ayuda: "", tipo: "MULTIPLE",
+       opciones: ["Cirugía", "Odontología", "Óptica"], obligatorio: false }]);
+
+  beforeEach(() => {
+    api.requisitos.mockResolvedValue(SALUD);
+    api.videos.mockResolvedValue([]);          // sin videos: de acá se pasa a confirmar
+  });
+
+  async function llegarAlPaso3() {
+    const u = await montarLogueado();
+    await completarDatos(u);
+    await u.click(await screen.findByRole("button", { name: /Continuar/ }));
+    expect(await screen.findByText("Datos del crédito")).toBeInTheDocument();
+    return u;
+  }
+
+  it("pide lo de la línea elegida, con sus combos y sus documentos", async () => {
+    await llegarAlPaso3();
+    expect(api.requisitos).toHaveBeenCalledWith("pp_1");
+    expect(screen.getByRole("combobox", { name: /Obra social/ })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Óptica" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Adjuntar Orden médica")).toBeInTheDocument();
+    expect(screen.getByText("(opcional)", { selector: ".p-doc-meta .p-fine" })).toBeInTheDocument();
+  });
+
+  it("no deja seguir sin el combo obligatorio ni sin el documento obligatorio", async () => {
+    const u = await llegarAlPaso3();
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(screen.getByText("Completá: Obra social.")).toBeInTheDocument();
+
+    await u.selectOptions(screen.getByRole("combobox", { name: /Obra social/ }), "PAMI");
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(screen.getByText("Falta adjuntar: Orden médica.")).toBeInTheDocument();
+  });
+
+  it("el documento opcional y el combo opcional se pueden saltear, y lo elegido viaja con la solicitud", async () => {
+    api.enviarSolicitud.mockResolvedValue({ numero: "SOL-9" });
+    api.docSubir.mockResolvedValue({});
+    const u = await llegarAlPaso3();
+    await u.selectOptions(screen.getByRole("combobox", { name: /Obra social/ }), "OSEP");
+    await u.click(screen.getByRole("checkbox", { name: "Óptica" }));
+    await u.click(screen.getByRole("checkbox", { name: "Cirugía" }));
+    fireEvent.change(screen.getByLabelText("Adjuntar Orden médica"),
+                     { target: { files: [archivo("orden.pdf", "application/pdf")] } });
+    await u.click(screen.getByRole("button", { name: /Continuar/ }));
+
+    expect(await screen.findByText("Revisá y confirmá tu solicitud")).toBeInTheDocument();
+    expect(screen.getByText("Tipo de tratamiento").parentElement).toHaveTextContent("Óptica, Cirugía");
+    await u.type(screen.getByLabelText(/CBU/), "2".repeat(22));
+    await u.click(screen.getByRole("checkbox", { name: /términos y condiciones/ }));
+    await u.click(screen.getByRole("checkbox", { name: /tratamiento de mis datos/ }));
+    await u.click(screen.getByRole("button", { name: /Confirmar y enviar/ }));
+
+    await waitFor(() => expect(api.enviarSolicitud).toHaveBeenCalled());
+    expect(api.enviarSolicitud.mock.calls[0][0].respuestas).toEqual({ COBERTURA: ["OSEP"], TRATAMIENTO: ["Óptica", "Cirugía"] });
+    await waitFor(() => expect(api.docSubir).toHaveBeenCalledTimes(1));
+    expect(api.docSubir.mock.calls[0][2]).toBe("ORDEN_MEDICA");
+  });
+
+  it("una línea que no pide nada saltea el paso", async () => {
+    api.requisitos.mockResolvedValue(conDocs([]));
+    const u = await montarLogueado();
+    await completarDatos(u);
+    await u.click(await screen.findByRole("button", { name: /Continuar/ }));
+    expect(await screen.findByText("Revisá y confirmá tu solicitud")).toBeInTheDocument();
+  });
+});
+
+describe("espera después de un rechazo", () => {
+  it("con un rechazo reciente no muestra el formulario y dice desde cuándo puede volver a pedir", async () => {
+    api.me.mockResolvedValue({ ...CIUDADANO,
+      espera_rechazo: "Tu solicitud SOL-3 fue rechazada el 01/10/2026. Podés volver a solicitar un crédito desde el 31/10/2026." });
+    await montarLogueado();
+    expect(await screen.findByText(/Podés volver a solicitar un crédito desde el 31\/10\/2026/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^CUIL/)).toBeNull();
   });
 });

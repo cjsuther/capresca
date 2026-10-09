@@ -4,6 +4,7 @@ import { login } from "../api/auth";
 import { useAuthStore } from "../context/authStore";
 import { useIsAuthenticated } from "../context/usePermissions";
 import { ThemeToggle } from "../components/ThemeToggle";
+import LogoCapresca from "../components/LogoCapresca";
 
 export default function LoginPage() {
   const isAuth = useIsAuthenticated();
@@ -80,6 +81,7 @@ export default function LoginPage() {
             {loading ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
+        <LogoCapresca className="block h-12 w-auto mx-auto mt-8 pt-6 border-t border-gray-200 box-content" />
       </div>
     </div>
   );

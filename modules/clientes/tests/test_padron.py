@@ -366,3 +366,18 @@ def test_la_baja_no_se_cambia_desde_la_ficha(client, h, db, correr):
     r = client.put(f"/api/clientes/{cid}/padron", headers=h, json={"baja": True, "categoria": "X"})
     assert r.status_code == 200
     assert r.json()["padron"]["baja"] is False and r.json()["padron"]["categoria"] == "X"
+
+
+def test_la_ficha_interna_trae_sueldo_e_ingreso_para_creditos(client, h, db, correr):
+    """Créditos precarga la solicitud con el sueldo y la antigüedad del padrón."""
+    correr([fila("A1", "20305047571", "CORDOBA, EDGARDO", 30504757, NSUELDO=900000)])
+    cid = db.query(Client).one().id
+    client.put(f"/api/clientes/{cid}/padron", headers=h, json={"fecha_ingreso": "2005-03-01"})
+    f = client.get(f"/internal/clientes/{cid}/ficha").json()
+    assert f["sueldo"] == 900000 and f["fecha_ingreso"] == "2005-03-01"
+
+
+def test_la_ficha_interna_de_un_cliente_sin_padron(client, crear_ph):
+    cli = crear_ph(nombre="Ana", apellido="Manual", documento="28111222")
+    f = client.get(f"/internal/clientes/{cli['id']}/ficha").json()
+    assert f["sueldo"] is None and f["fecha_ingreso"] is None

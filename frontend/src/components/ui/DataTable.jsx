@@ -6,9 +6,25 @@ import { MenuAcciones } from "./MenuAcciones";
  * Tabla compartida: orden por columna y paginado, en modo servidor (el padre controla
  * `total/offset/sort/order`) o en modo cliente (`clientSort` / `pageSize` ordenan y paginan en memoria).
  *
- * columns: [{ key, label, align?: "right", sortable?, render?(row), sortValue?(row) }]
+ * columns: [{ key, label, align?: "right", sortable?, render?(row), sortValue?(row),
+ *             filtro?: "texto" | "opciones", filtroValor?(row) }]
  * acciones(row) → [{ label, onClick, danger?, oculta? }]: agrega la columna "⋯" con el menú de la fila.
+ *
+ * Filtros por columna: si alguna columna declara `filtro`, aparece una fila de filtros bajo el encabezado.
+ * "texto" busca sin distinguir mayúsculas ni acentos (y si lo escrito son sólo números, ignora guiones y
+ * puntos: un CUIL se encuentra con o sin ellos); "opciones" ofrece los valores presentes en las filas.
+ * Filtran las filas recibidas: en modo servidor, sólo la página cargada.
  */
+
+const normalizar = (v) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const soloDigitos = (v) => String(v ?? "").replace(/\D/g, "");
+
+function coincide(valor, buscado) {
+  if (/^[\d\s.\-/]+$/.test(buscado) && soloDigitos(buscado)) {
+    if (soloDigitos(valor).includes(soloDigitos(buscado))) return true;
+  }
+  return normalizar(valor).includes(normalizar(buscado).trim());
+}
 export function DataTable({
   columns, rows, total, limit = 25, offset = 0, sort, order = "asc",
   onSort, onPage, clientSort, pageSize, defaultSort, rowKey, rowClass, onRowClick, acciones,
@@ -18,6 +34,23 @@ export function DataTable({
   const [cSort, setCSort] = useState(defaultSort || "");
   const [cOrder, setCOrder] = useState("asc");
   const [cOffset, setCOffset] = useState(0);
+  const [filtros, setFiltros] = useState({});
+
+  const conFiltros = columns.some((c) => c.filtro);
+  const valorFiltro = (c, r) => {
+    const v = c.filtroValor ? c.filtroValor(r) : c.sortValue ? c.sortValue(r) : r[c.key];
+    return v == null ? "" : String(v);
+  };
+  const filtradas = useMemo(() => {
+    const activos = columns.filter((c) => c.filtro && filtros[c.key]);
+    if (!activos.length) return rows;
+    return rows.filter((r) => activos.every((c) => (c.filtro === "opciones"
+      ? valorFiltro(c, r) === filtros[c.key]
+      : coincide(valorFiltro(c, r), filtros[c.key]))));
+  }, [rows, columns, filtros]); // eslint-disable-line react-hooks/exhaustive-deps
+  const opcionesDe = (c) => [...new Set(rows.map((r) => valorFiltro(c, r)).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+  const filtrar = (key, valor) => { setFiltros((f) => ({ ...f, [key]: valor })); setCOffset(0); };
 
   const usaCliente = clientSort || pageSize != null;
   const sortActivo = usaCliente ? cSort : sort;
@@ -31,18 +64,18 @@ export function DataTable({
   }
 
   const ordenadas = useMemo(() => {
-    if (!usaCliente || !cSort) return rows;
+    if (!usaCliente || !cSort) return filtradas;
     const col = columns.find((c) => c.key === cSort);
     const val = (r) => (col?.sortValue ? col.sortValue(r) : r[cSort]);
     const dir = cOrder === "asc" ? 1 : -1;
-    return [...rows].sort((a, b) => {
+    return [...filtradas].sort((a, b) => {
       const va = val(a), vb = val(b);
       if (va == null) return 1;
       if (vb == null) return -1;
       if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
       return String(va).localeCompare(String(vb), "es", { numeric: true }) * dir;
     });
-  }, [usaCliente, cSort, cOrder, rows, columns]);
+  }, [usaCliente, cSort, cOrder, filtradas, columns]);
 
   const pageLimit = pageSize ?? limit;
   const pageOffset = pageSize != null ? cOffset : offset;
@@ -84,6 +117,26 @@ export function DataTable({
               })}
               {acciones && <th scope="col" className="px-3 py-2 w-10"><span className="sr-only">Acciones</span></th>}
             </tr>
+            {conFiltros && (
+              <tr className="border-b border-gray-200 bg-gray-50">
+                {columns.map((c) => (
+                  <th key={c.key} className="px-2 pb-2 font-normal">
+                    {c.filtro === "opciones" ? (
+                      <select className="input w-full py-1 text-xs" aria-label={`Filtrar ${c.label}`}
+                              value={filtros[c.key] || ""} onChange={(e) => filtrar(c.key, e.target.value)}>
+                        <option value="">Todos</option>
+                        {opcionesDe(c).map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : c.filtro ? (
+                      <input className="input w-full py-1 text-xs" aria-label={`Filtrar ${c.label}`}
+                             placeholder="Filtrar…" value={filtros[c.key] || ""}
+                             onChange={(e) => filtrar(c.key, e.target.value)} />
+                    ) : null}
+                  </th>
+                ))}
+                {acciones && <th />}
+              </tr>
+            )}
           </thead>
           <tbody className="divide-y divide-gray-100">
             {visibles.map((r, i) => (

@@ -516,6 +516,14 @@ class OrdenPago(Base):
     fecha_pago: Mapped[date | None] = mapped_column(Date)
     credito_id: Mapped[int | None] = mapped_column(ForeignKey("creditos.id"))
     creado: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Desembolsos del circuito actual: una OP por lote, pagada por transferencia (Tesorería → Interbanking).
+    # `referencia` es la del lote en Tesorería (reintentar el mismo envío reusa la OP), `contratos` los
+    # ids que paga y `resoluciones` los actos de Despacho que los otorgaron.
+    referencia: Mapped[str] = mapped_column(String(80), default="", index=True)
+    lote_tesoreria: Mapped[str] = mapped_column(String(20), default="", index=True)
+    resoluciones: Mapped[str] = mapped_column(String(200), default="")
+    contratos: Mapped[list] = mapped_column(JSON, default=list)
+    importe_pagado: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
 
 
 class AutorizacionOP(Base):

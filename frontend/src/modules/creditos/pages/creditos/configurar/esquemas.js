@@ -4,7 +4,7 @@
 export const ICONOS = {
   TERM_AMOUNT: "📐", INTEREST: "％", REPAYMENT_SCHEDULE: "📅", PAYMENT_RULES: "⇄", CHARGE: "＄",
   TAX: "🧾", OVERDUE: "⏰", PAYOFF: "✔", SETTLEMENT: "🧭", ACCOUNTING: "📚", AVAILABILITY: "🎯",
-  ACTIVITY_RESTRICTION: "🔒", PERIODIC: "🔁",
+  ACTIVITY_RESTRICTION: "🔒", PERIODIC: "🔁", REQUIREMENTS: "📎", COLLECTION: "💳",
 };
 
 /** Campos tipados por componente (editor genérico). t: num | text | bool | date | select | impuesto */
@@ -52,6 +52,15 @@ export const SCHEMA = {
   CHARGE: [
     { k: "momento", l: "Momento de aplicación", t: "select", o: ["DESEMBOLSO", "PRORRATEADO"] },
     { k: "financiable", l: "Financiable", t: "bool" },
+  ],
+  // Forma de cobro: con código de descuento, la solicitud avisa cómo viene la cuota en el recibo de sueldo.
+  COLLECTION: [
+    { k: "modalidad", l: "Modalidad", t: "select", o: ["CODIGO_DESCUENTO", "VENTANILLA", "DEBITO_AUTOMATICO"],
+      etq: { CODIGO_DESCUENTO: "Código de descuento (recibo de sueldo)", VENTANILLA: "Pago en ventanilla",
+             DEBITO_AUTOMATICO: "Débito automático" } },
+    { k: "codigoDescuento", l: "Código de descuento", t: "text" },
+    { k: "conceptoRecibo", l: "Cómo figura en el recibo", t: "text" },
+    { k: "detalle", l: "Aclaración para el solicitante (opcional)", t: "text" },
   ],
   OVERDUE: [
     { k: "diasGracia", l: "Días de gracia", t: "num" },
@@ -103,7 +112,29 @@ export const CONFIG_DEFAULT = {
                   vigenteDesde: "", vigenteHasta: "" },
   ACTIVITY_RESTRICTION: { permitePrepago: true, permiteRenegociacion: true, permiteVacacionPago: false },
   PERIODIC: { repricingFrecuencia: "NINGUNA", capitalizaInteres: false, diaAplicacion: 1 },
+  REQUIREMENTS: { documentos: [], campos: [] },
+  COLLECTION: { modalidad: "CODIGO_DESCUENTO", codigoDescuento: "", conceptoRecibo: "", detalle: "" },
 };
+
+/** La documentación general del portal, para agregarla de un clic a una línea (mismos códigos). */
+export const DOCUMENTOS_ESTANDAR = [
+  { codigo: "DNI_FRENTE", titulo: "DNI (frente)", ayuda: "" },
+  { codigo: "DNI_DORSO", titulo: "DNI (dorso)", ayuda: "" },
+  { codigo: "SELFIE_DNI", titulo: "Selfie con el DNI en la mano", ayuda: "Una foto tuya sosteniendo el DNI, que se lean los datos." },
+  { codigo: "RECIBO", titulo: "Recibo de sueldo", ayuda: "" },
+  { codigo: "CERTIFICADO_SERVICIOS", titulo: "Certificado de servicios", ayuda: "El que emite tu empleador con tu antigüedad y situación de revista." },
+  { codigo: "CONSTANCIA_CBU", titulo: "Constancia de CBU", ayuda: "La que baja tu banco o Home Banking con el CBU a tu nombre." },
+];
+
+/** Código de un documento o dato a partir de su título: "Orden médica" → ORDEN_MEDICA (hasta 20, único). */
+export function codigoDesde(texto, usados = []) {
+  const base = String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 20).replace(/_+$/, "");
+  if (!base) return "";
+  let cod = base;
+  for (let n = 2; usados.includes(cod); n++) cod = `${base.slice(0, 20 - String(n).length - 1)}_${n}`;
+  return cod;
+}
 
 // Catálogos de segmentación: el backend los puede sobreescribir (Parámetros de créditos, H-185).
 export const SEGMENTOS = ["AGENTE_PUBLICO", "JUBILADO", "PENSIONADO", "DOCENTE", "MUNICIPAL", "CONTRATADO", "LIBRE"];
@@ -170,6 +201,22 @@ export function valida(codigo, config, cfg) {
   if (codigo === "PAYOFF") {
     const p = config.penalidadPct ?? 0;
     if (p < 0 || p > 100) e.push("Penalidad 0–100%");
+  }
+  if (codigo === "COLLECTION" && config.modalidad === "CODIGO_DESCUENTO") {
+    if (!String(config.codigoDescuento || "").trim()) e.push("Falta el código de descuento");
+    if (!String(config.conceptoRecibo || "").trim()) e.push("Falta cómo figura en el recibo de sueldo");
+  }
+  if (codigo === "REQUIREMENTS") {
+    (config.documentos || []).forEach((d, i) => {
+      if (!String(d.titulo || "").trim()) e.push(`Documento #${i + 1}: falta el título`);
+    });
+    (config.campos || []).forEach((c, i) => {
+      const nombre = String(c.etiqueta || "").trim() || `#${i + 1}`;
+      if (!String(c.etiqueta || "").trim()) e.push(`Dato #${i + 1}: falta la pregunta`);
+      const op = c.opciones || [];
+      if (op.length < 2) e.push(`Dato ${nombre}: necesita al menos dos opciones`);
+      if (new Set(op).size !== op.length) e.push(`Dato ${nombre}: hay opciones repetidas`);
+    });
   }
   return e;
 }

@@ -116,6 +116,22 @@ class Resolucion(Base):
         return self.estado == FIRMADA or self.numero_real is not None or self.anulada
 
 
+class NumeracionSerie(Base):
+    """Desde qué número sigue cada serie en un año: la numeración continúa la del sistema anterior.
+
+    `desde_numero` es el próximo correlativo y `desde_oficial` el próximo N° oficial ("el siguiente de
+    la serie"). El próximo real es el mayor entre esto y el último usado + 1: nunca se repite un número."""
+    __tablename__ = "numeracion_series"
+
+    anio: Mapped[int] = mapped_column(Integer, primary_key=True)
+    serie: Mapped[int] = mapped_column(Integer, primary_key=True)
+    desde_numero: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    desde_oficial: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actualizado_por: Mapped[str] = mapped_column(String(60), default="")
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(),
+                                                     onupdate=func.now())
+
+
 class ResolucionBeneficiario(Base):
     """A quién alcanza el acto (VFP: beneficiarios.dbf). Es la grilla al pie de la resolución."""
     __tablename__ = "resolucion_beneficiarios"

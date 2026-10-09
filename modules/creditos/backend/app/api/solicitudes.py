@@ -4,16 +4,16 @@ Cliente registrado (maestro real) o no registrado (alta express, según permiso)
 cuatro-ojos: BORRADOR → EN_EVALUACION → APROBADA → ORIGINADA (o RECHAZADA / ANULADA). Una solicitud
 APROBADA alimenta la originación (ver contratos.originar con solicitud_pp_id).
 """
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.services import auditoria as audit
-from app.services import documentos
+from app.services import cobro, documentos, observaciones, requisitos
 from app.services import lotes_liquidacion as lotes
 
 from app.core import clientes_padron
@@ -34,7 +34,7 @@ from app.services.productos_calc import cronograma, resumen
 router = APIRouter(prefix="/api/creditos/solicitudes", tags=["solicitudes"],
                    dependencies=[Depends(get_current_user)])
 
-ESTADOS = ["BORRADOR", "EN_EVALUACION", "APROBADA", "RECHAZADA", "ORIGINADA", "ANULADA"]
+ESTADOS = ["BORRADOR", "EN_EVALUACION", "OBSERVADA", "APROBADA", "RECHAZADA", "ORIGINADA", "ANULADA"]
 
 # Permisos por ROLES (H-150): la capacidad en el circuito de créditos sale de los roles efectivos del
 # usuario (perfil + grupos) — misma regla para Solicitudes, Configurar y el motor de workflow.
@@ -69,9 +69,13 @@ class SolicitudIn(BaseModel):
 
 
 class AccionIn(BaseModel):
-    accion: str            # enviar | aprobar | rechazar | anular
+    accion: str            # enviar | aprobar | rechazar | anular | observar
     motivo: str = ""
     observacion: str = ""  # nota del asesor al resolver (queda en datos_adicionales.obs_revision)
+    # observar: qué tiene que corregir el ciudadano desde el portal (ver services/observaciones).
+    detalle: str = ""
+    documentos: list[str] = []
+    corregir_cbu: bool = False
 
 
 def _cliente_nombre(db: Session, s: m.PPSolicitud) -> str:
@@ -79,6 +83,14 @@ def _cliente_nombre(db: Session, s: m.PPSolicitud) -> str:
         cli = db.get(models.Cliente, s.cliente_id)
         return cli.apellido_nombre if cli else f"Cliente {s.cliente_id}"
     return (s.cliente_datos or {}).get("apellido_nombre") or "Sin nombre"
+
+
+def _cliente_dato(db: Session, s: m.PPSolicitud, campo: str) -> str:
+    """DNI o CUIL del solicitante: el del maestro si está registrado; si no, el declarado en la solicitud."""
+    if s.solicitante_tipo == "REGISTRADO" and s.cliente_id:
+        cli = db.get(models.Cliente, s.cliente_id)
+        return str((getattr(cli, campo) if cli else "") or "").strip()
+    return str((s.cliente_datos or {}).get(campo) or "").strip()
 
 
 def _evaluar(db: Session, s: m.PPSolicitud) -> dict:
@@ -135,9 +147,9 @@ def _datos_liquidacion(db: Session, s: m.PPSolicitud) -> dict:
     cbu = "".join(ch for ch in str(da.get("cbu") or "") if ch.isdigit())
     items = [
         {"campo": "nombre", "label": "Apellido y nombre", "requerido": True, "ok": bool(nombre), "valor": nombre},
-        {"campo": "dni", "label": "DNI", "requerido": True, "ok": bool(dni), "valor": dni},
+        {"campo": "cuil", "label": "CUIL", "requerido": True, "ok": bool(cuil), "valor": cuil},
         {"campo": "cbu", "label": "CBU de acreditación", "requerido": True, "ok": len(cbu) == 22, "valor": cbu},
-        {"campo": "cuil", "label": "CUIL", "requerido": False, "ok": bool(cuil), "valor": cuil},
+        {"campo": "dni", "label": "DNI", "requerido": False, "ok": bool(dni), "valor": dni},
         {"campo": "sueldo", "label": "Sueldo declarado", "requerido": False, "ok": bool(da.get("sueldo_declarado")),
          "valor": da.get("sueldo_declarado")},
     ]
@@ -158,11 +170,15 @@ def _lote(db: Session, s: m.PPSolicitud) -> dict | None:
 
 
 def _serial(db: Session, s: m.PPSolicitud) -> dict:
+    prod = db.get(m.PPProducto, s.producto_id) if s.producto_id else None
     return {
         "id": s.id, "numero": s.numero, "estado": s.estado, "solicitanteTipo": s.solicitante_tipo,
         "clienteId": s.cliente_id, "clienteDatos": s.cliente_datos or {},
-        "clienteNombre": _cliente_nombre(db, s),
+        "clienteNombre": _cliente_nombre(db, s), "clienteDni": _cliente_dato(db, s, "dni"),
+        "clienteCuil": _cliente_dato(db, s, "cuil"),
         "productoId": s.producto_id, "monto": float(s.monto_solicitado), "plazo": s.plazo_solicitado,
+        # La línea con su nombre: puede no estar más en la oferta (retirada), y el listado la muestra igual.
+        "productoNombre": prod.nombre if prod else None, "productoCodigo": prod.codigo if prod else None,
         "segmento": s.segmento, "canal": s.canal, "antiguedadMeses": s.antiguedad_meses,
         "fechaNacimiento": str(s.fecha_nacimiento) if s.fecha_nacimiento else None,
         "edad": edad_de(s.fecha_nacimiento) if s.fecha_nacimiento else s.edad,   # calculada; el dato viejo si no hay fecha
@@ -176,6 +192,8 @@ def _serial(db: Session, s: m.PPSolicitud) -> dict:
         "faltaParaLote": lotes.faltantes(db, s) if s.estado == "APROBADA" and not s.lote_liquidacion_id else [],
         "creadoPor": s.creado_por, "creadoEn": str(s.creado_en) if s.creado_en else None,
         "enviadaPor": s.enviada_por, "resueltaPor": s.resuelta_por,
+        "editable": s.estado in EDITABLES,
+        "ultimaModificacion": ((s.datos_adicionales or {}).get("modificaciones") or [None])[-1],
     }
 
 
@@ -202,8 +220,59 @@ def listar(estado: str = Query(""), q: str = Query(""), producto_id: str = Query
     items = [_serial(db, s) for s in qry.order_by(m.PPSolicitud.creado_en.desc()).all()]
     if q:
         ql = q.lower()
-        items = [i for i in items if ql in (i["clienteNombre"] or "").lower() or ql in i["numero"].lower()]
+        digitos = "".join(ch for ch in q if ch.isdigit())
+        items = [i for i in items if ql in (i["clienteNombre"] or "").lower() or ql in i["numero"].lower()
+                 or (digitos and any(digitos in "".join(ch for ch in i[k] if ch.isdigit())
+                                     for k in ("clienteDni", "clienteCuil")))]
     return {"items": items, "estados": ESTADOS, "permisos": _caps(db, user)}
+
+
+@router.get("/datos-cliente/{cliente_id}")
+def datos_cliente(cliente_id: int, db: Session = Depends(get_db),
+                  user: models.Usuario = Depends(get_current_user)):
+    """Lo que el padrón ya sabe del cliente para precargar la solicitud: nacimiento, antigüedad (desde el
+    ingreso al organismo), sueldo y CBU. Se trae fresco del padrón; si no responde, lo del espejo."""
+    _req_edita(db, user)
+    try:
+        cli = clientes_padron.obtener(db, cliente_id, refrescar=True)
+    except clientes_padron.DocumentoEspejadoConOtroId as e:
+        raise HTTPException(409, str(e))
+    if cli is None:
+        raise HTTPException(404, "El cliente no está en el padrón.")
+    hoy = date.today()
+    ing = cli.fecha_ingreso
+    meses = ((hoy.year - ing.year) * 12 + hoy.month - ing.month - (hoy.day < ing.day)) if ing else None
+    cbu = "".join(ch for ch in (cli.cbu or "") if ch.isdigit())
+    return {"cliente_id": cli.id, "nombre": cli.apellido_nombre, "cuil": cli.cuil,
+            "fecha_nacimiento": cli.fecha_nacimiento.isoformat() if cli.fecha_nacimiento else None,
+            "antiguedad_meses": max(0, meses) if meses is not None else None,
+            "sueldo": float(cli.sueldo) if cli.sueldo else None,
+            "cbu": cbu if len(cbu) == 22 else None}
+
+
+class PreAprobadoIn(BaseModel):
+    producto_id: str
+    plazo: int = Field(gt=0, le=240)
+    sueldo: float = Field(gt=0)
+
+
+@router.post("/pre-aprobado")
+def pre_aprobado(data: PreAprobadoIn, db: Session = Depends(get_db)):
+    """'¿Cuánto puede pedir?' con el sueldo del cliente: el mismo cálculo que el portal."""
+    from app.api.portal import calcular_pre_aprobado
+    prod = db.get(m.PPProducto, data.producto_id)
+    if not prod:
+        raise HTTPException(404, "Producto no encontrado.")
+    return calcular_pre_aprobado(db, _version_efectiva(prod), data.plazo, data.sueldo)
+
+
+def _cbu_valido(datos: dict) -> None:
+    """El CBU de acreditación, si viene, tiene que tener 22 dígitos (como en el portal)."""
+    cbu = "".join(ch for ch in str((datos or {}).get("cbu") or "") if ch.isdigit())
+    if (datos or {}).get("cbu") and len(cbu) != 22:
+        raise HTTPException(422, "El CBU de acreditación debe tener 22 dígitos.")
+    if cbu:
+        datos["cbu"] = cbu
 
 
 @router.post("", status_code=201)
@@ -226,10 +295,11 @@ def crear(data: SolicitudIn, db: Session = Depends(get_db),
     # (segmento/canal/edad/antigüedad/monto/plazo), no se puede pedir la solicitud — misma regla que el
     # portal. La evaluación usa la misma fuente que la simulación. (Un dato NO declarado no bloquea:
     # `_elegibilidad` sólo aplica la regla del atributo cuando ese dato viene.)
+    _cbu_valido(data.datos_adicionales)
     _tmp = m.PPSolicitud(producto_id=data.producto_id, monto_solicitado=Decimal(str(data.monto_solicitado)),
                          plazo_solicitado=data.plazo_solicitado, segmento=data.segmento, canal=data.canal,
                          edad=edad_de(data.fecha_nacimiento), fecha_nacimiento=data.fecha_nacimiento,
-                         antiguedad_meses=data.antiguedad_meses)
+                         antiguedad_meses=data.antiguedad_meses, datos_adicionales=data.datos_adicionales)
     _ev = _evaluar(db, _tmp)
     if not _ev.get("elegible"):
         raise HTTPException(422, "No cumple las condiciones para esta línea: " + "; ".join(_ev.get("motivos", [])))
@@ -238,6 +308,14 @@ def crear(data: SolicitudIn, db: Session = Depends(get_db),
         return _crear_solicitud(db, data, tipo, user)
     # Idempotencia de operación: un reintento con la misma Idempotency-Key no crea otra solicitud.
     return con_idempotencia(db, idempotency_key, "POST /api/solicitudes", _do, user.username)
+
+
+def _con_cobro(datos: dict | None, producto_id: str, db: Session) -> dict:
+    """Los datos de la solicitud con la forma de cobro de su línea, tal como se le avisó al cargarla."""
+    prod = db.get(m.PPProducto, producto_id)
+    forma = cobro.de(_version_efectiva(prod)) if prod else None
+    out = {k: v for k, v in (datos or {}).items() if k != "cobro"}
+    return {**out, "cobro": forma} if forma else out
 
 
 def _crear_solicitud(db: Session, data, tipo: str, user) -> dict:
@@ -250,7 +328,8 @@ def _crear_solicitud(db: Session, data, tipo: str, user) -> dict:
             plazo_solicitado=data.plazo_solicitado, segmento=data.segmento, canal=data.canal,
             edad=edad_de(data.fecha_nacimiento), fecha_nacimiento=data.fecha_nacimiento,
             antiguedad_meses=data.antiguedad_meses, relacion=data.relacion.upper(),
-            datos_adicionales=data.datos_adicionales, origen=data.origen, creado_por=user.username)
+            datos_adicionales=_con_cobro(data.datos_adicionales, data.producto_id, db),
+            origen=data.origen, creado_por=user.username)
         s.evaluacion = _evaluar(db, s)
         db.add(s)
         return s
@@ -265,29 +344,111 @@ def obtener(sid: str, db: Session = Depends(get_db)):
     s = db.get(m.PPSolicitud, sid)
     if not s:
         raise HTTPException(404, "Solicitud no encontrada.")
-    return _serial(db, s)
+    out = _serial(db, s)
+    if s.solicitante_tipo == "NO_REGISTRADO" and s.estado not in ("ANULADA", "RECHAZADA"):
+        # Si la persona ya está en el padrón, se sugiere vincularla (llegó antes de que estuviera, o con el
+        # otro documento).
+        cli = cliente_en_padron(db, _documentos_declarados(s))
+        out["clienteEnPadron"] = ({"id": cli.id, "nombre": cli.apellido_nombre, "documento": cli.cuil or cli.dni}
+                                  if cli is not None else None)
+    return out
+
+
+class SolicitudEditIn(BaseModel):
+    """Lo que se corrige de una solicitud en curso. Sólo cambia lo que viene (None = no se toca)."""
+    producto_id: str | None = None
+    monto_solicitado: float | None = Field(default=None, gt=0)
+    plazo_solicitado: int | None = Field(default=None, gt=0, le=240)
+    segmento: str | None = None
+    fecha_nacimiento: date | None = None
+    antiguedad_meses: int | None = Field(default=None, ge=0, le=1200)
+    relacion: str | None = None
+    sueldo: float | None = Field(default=None, ge=0)     # 0 = se borra el sueldo declarado
+    cbu: str | None = None
+    observaciones: str | None = None
+
+
+EDITABLES = ("BORRADOR", "EN_EVALUACION")
+MAX_MODIFICACIONES = 50
+
+
+def _foto(s: m.PPSolicitud) -> dict:
+    """Lo editable de la solicitud, para el diff de la auditoría."""
+    da = s.datos_adicionales or {}
+    return {"producto_id": s.producto_id, "monto": float(s.monto_solicitado), "plazo": s.plazo_solicitado,
+            "segmento": s.segmento, "fecha_nacimiento": str(s.fecha_nacimiento) if s.fecha_nacimiento else None,
+            "antiguedad_meses": s.antiguedad_meses, "relacion": s.relacion,
+            "sueldo": da.get("sueldo_declarado"), "cbu": da.get("cbu"), "observaciones": da.get("observaciones")}
 
 
 @router.put("/{sid}")
-def editar(sid: str, data: SolicitudIn, db: Session = Depends(get_db),
+def editar(sid: str, data: SolicitudEditIn, request: Request, db: Session = Depends(get_db),
            user: models.Usuario = Depends(get_current_user)):
+    """Corrige una solicitud en BORRADOR o EN_EVALUACION (también las del portal). Queda registrado quién
+    la modificó, cuándo y qué cambió (en la solicitud y en la auditoría). Si estaba en evaluación, lo que
+    se hubiera aprobado en la cadena ya no vale: se evalúa lo corregido."""
     _req_edita(db, user)
     s = db.get(m.PPSolicitud, sid)
     if not s:
         raise HTTPException(404, "Solicitud no encontrada.")
-    if s.estado != "BORRADOR":
-        raise HTTPException(409, "Sólo se puede editar una solicitud en BORRADOR.")
-    s.producto_id = data.producto_id
-    s.monto_solicitado = Decimal(str(data.monto_solicitado)); s.plazo_solicitado = data.plazo_solicitado
-    s.segmento = data.segmento; s.canal = data.canal
-    s.fecha_nacimiento = data.fecha_nacimiento; s.edad = edad_de(data.fecha_nacimiento)
-    s.antiguedad_meses = data.antiguedad_meses; s.relacion = data.relacion.upper()
-    s.datos_adicionales = data.datos_adicionales; s.origen = data.origen
-    s.solicitante_tipo = data.solicitante_tipo.upper()
-    s.cliente_id = data.cliente_id if s.solicitante_tipo == "REGISTRADO" else None
-    s.cliente_datos = {} if s.solicitante_tipo == "REGISTRADO" else data.cliente_datos
-    s.evaluacion = _evaluar(db, s)
+    if s.estado not in EDITABLES:
+        raise HTTPException(409, "Sólo se modifica una solicitud en BORRADOR o EN_EVALUACION.")
+    if data.producto_id is not None and not db.get(m.PPProducto, data.producto_id):
+        raise HTTPException(404, "Producto no encontrado.")
+    antes = _foto(s)
+    if data.producto_id is not None:
+        s.producto_id = data.producto_id
+    if data.monto_solicitado is not None:
+        s.monto_solicitado = Decimal(str(data.monto_solicitado))
+    if data.plazo_solicitado is not None:
+        s.plazo_solicitado = data.plazo_solicitado
+    if data.segmento is not None:
+        s.segmento = data.segmento
+    if data.fecha_nacimiento is not None:
+        s.fecha_nacimiento, s.edad = data.fecha_nacimiento, edad_de(data.fecha_nacimiento)
+    if data.antiguedad_meses is not None:
+        s.antiguedad_meses = data.antiguedad_meses
+    if data.relacion is not None:
+        s.relacion = data.relacion.upper()
+    da = dict(s.datos_adicionales or {})
+    if data.sueldo is not None:
+        if data.sueldo > 0:
+            da["sueldo_declarado"] = data.sueldo
+        else:
+            da.pop("sueldo_declarado", None)
+    if data.cbu is not None:
+        cbu = "".join(ch for ch in data.cbu if ch.isdigit())
+        if data.cbu.strip() and len(cbu) != 22:
+            raise HTTPException(422, "El CBU de acreditación debe tener 22 dígitos.")
+        da["cbu"] = cbu
+    if data.observaciones is not None:
+        da["observaciones"] = data.observaciones.strip()[:1000]
+    if data.producto_id is not None and data.producto_id != antes["producto_id"]:
+        da = _con_cobro(da, s.producto_id, db)          # la forma de cobro es la de la línea nueva
+    s.datos_adicionales = da
+    despues = _foto(s)
+    # Vacío y "" son lo mismo: no es un cambio (si no, cada guardado "cambiaba" las observaciones).
+    vacio = lambda v: None if v in (None, "") else v
+    cambios = [k for k in despues if vacio(despues[k]) != vacio(antes[k])]
+    if not cambios:
+        return _serial(db, s)
+    ev = _evaluar(db, s)
+    if not ev.get("elegible"):
+        raise HTTPException(422, "Con estos datos no cumple las condiciones de la línea: "
+                                 + "; ".join(ev.get("motivos", [])))
+    s.evaluacion = ev
+    # Qué cambió, con el valor anterior y el nuevo: es el historial que muestra el detalle de la solicitud.
+    registro = {"por": user.username, "en": datetime.now().isoformat(timespec="seconds"),
+                "estado": s.estado, "campos": cambios,
+                "cambios": {k: {"antes": antes[k], "despues": despues[k]} for k in cambios}}
+    s.datos_adicionales = {**da, "modificaciones": [*(da.get("modificaciones") or []), registro][-MAX_MODIFICACIONES:]}
+    if s.estado == "EN_EVALUACION":
+        from app.services import workflow as wf
+        wf.limpiar_aprobaciones(db, "SOLICITUD", s.id)
     db.commit(); db.refresh(s)
+    audit.registrar_cambio(db, usuario=user.username, ip=audit.ip_de(request), entidad="Solicitud",
+                           entidad_id=s.numero, operacion="MODIFICACION", antes=antes, despues=despues,
+                           detalle=f"Solicitud {s.numero} modificada en {s.estado}: {', '.join(cambios)}")
     return _serial(db, s)
 
 
@@ -322,6 +483,8 @@ def cambiar_estado(sid: str, data: AccionIn, db: Session = Depends(get_db),
             if not ok:
                 raise HTTPException(status, motivo)
             s.estado = "RECHAZADA"; s.motivo_rechazo = data.motivo or "Sin motivo"; s.resuelta_por = user.username
+            # Desde este día corre la espera para volver a pedir por el portal (services/espera_rechazo).
+            s.datos_adicionales = {**(s.datos_adicionales or {}), "rechazada_en": date.today().isoformat()}
             wf.limpiar_aprobaciones(db, "SOLICITUD", s.id)
         else:
             # H-203: no se puede aprobar la solicitud de un cliente NO registrado en el maestro (alta express
@@ -341,6 +504,20 @@ def cambiar_estado(sid: str, data: AccionIn, db: Session = Depends(get_db),
                 s.estado = "APROBADA"; s.evaluacion = ev; s.resuelta_por = user.username
                 s.aprobada_en = date.today()
                 lotes.asignar(db, s)     # si es liquidable, entra a su lote (tipo de crédito + fecha)
+    elif acc == "observar":
+        _req_edita(db, user)
+        if s.estado != "EN_EVALUACION":
+            raise HTTPException(409, "Sólo se observa una solicitud EN_EVALUACION.")
+        if s.origen != "PORTAL":
+            raise HTTPException(409, "Sólo se observan las solicitudes del portal: las de sucursal las corrige el asesor.")
+        prod = db.get(m.PPProducto, s.producto_id)
+        try:
+            observaciones.observar(db, s, _version_efectiva(prod) if prod else None, data.detalle,
+                                   data.documentos, data.corregir_cbu, user.username)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        # Lo que se haya aprobado en la cadena antes de observar ya no vale: se evalúa lo corregido.
+        wf.limpiar_aprobaciones(db, "SOLICITUD", s.id)
     elif acc == "anular":
         _req_edita(db, user)
         if s.estado == "ORIGINADA":
@@ -351,6 +528,25 @@ def cambiar_estado(sid: str, data: AccionIn, db: Session = Depends(get_db),
         raise HTTPException(422, f"Acción inválida: {data.accion}.")
     db.commit(); db.refresh(s)
     return _serial(db, s)
+
+
+def cliente_en_padron(db: Session, documentos: list[str]) -> models.Cliente | None:
+    """La persona en el padrón de Clientes por CUIL o DNI (el padrón tiene a unos por uno y a otros por el
+    otro), espejada en Créditos. None si no está o si el padrón no responde."""
+    docs = [d for d in dict.fromkeys("".join(ch for ch in str(x or "") if ch.isdigit()) for x in documentos) if d]
+    if not docs:
+        return None
+    try:
+        encontrados = clientes_padron.ids_por_documento(docs)
+        cid = next((encontrados[d] for d in docs if d in encontrados), None)
+        return clientes_padron.obtener(db, int(cid)) if cid else None
+    except (clientes_padron.PadronNoDisponible, clientes_padron.DocumentoEspejadoConOtroId):
+        return None
+
+
+def _documentos_declarados(s: m.PPSolicitud) -> list[str]:
+    cd = s.cliente_datos or {}
+    return [cd.get("cuil"), cd.get("dni")]
 
 
 class PromoverIn(BaseModel):
@@ -400,9 +596,13 @@ def promover_cliente(sid: str, data: PromoverIn, db: Session = Depends(get_db),
         raise HTTPException(409, "La solicitud ya es de un cliente registrado.")
     # Vincular un cliente YA existente (lo dieron de alta en Clientes → Maestro y vuelven a vincular).
     if data.cliente_id:
-        cli = db.get(models.Cliente, data.cliente_id)
+        # El buscador busca en el padrón de Clientes: la persona puede no estar todavía espejada en Créditos.
+        try:
+            cli = clientes_padron.obtener(db, data.cliente_id)
+        except clientes_padron.DocumentoEspejadoConOtroId as e:
+            raise HTTPException(409, str(e))
         if not cli:
-            raise HTTPException(404, "Cliente del maestro no encontrado.")
+            raise HTTPException(404, "El cliente no está en el padrón de clientes.")
         s.solicitante_tipo = "REGISTRADO"; s.cliente_id = cli.id; s.cliente_datos = {}
         db.commit(); db.refresh(s)
         documentos = _copiar_documentos(db, s, cli.id, user.username) if data.copiar_documentos else None
@@ -420,6 +620,14 @@ def promover_cliente(sid: str, data: PromoverIn, db: Session = Depends(get_db),
     documento = cuil or dni
     if not documento:
         raise HTTPException(422, "Hace falta el DNI o el CUIL para darlo de alta en el padrón de clientes.")
+    # Si ya está en el padrón (por CUIL o por DNI), se vincula: darla de alta con el otro documento la
+    # duplicaría.
+    existente = cliente_en_padron(db, [cuil, dni])
+    if existente is not None:
+        s.solicitante_tipo = "REGISTRADO"; s.cliente_id = existente.id; s.cliente_datos = {}
+        db.commit(); db.refresh(s)
+        documentos = _copiar_documentos(db, s, existente.id, user.username) if data.copiar_documentos else None
+        return {"solicitud": _serial(db, s), "clienteId": existente.id, "yaExistia": True, "documentos": documentos}
     apellido, _, nombres = nombre.partition(",")
     try:
         r = clientes_padron.importar([{
@@ -470,7 +678,17 @@ def documentos_solicitud(sid: str, db: Session = Depends(get_db),
     if not s:
         raise HTTPException(404, "Solicitud no encontrada.")
     docs = db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id).order_by(m.PPSolicitudDocumento.subido_en).all()
-    return {"items": [documentos.serial(d) for d in docs]}
+    # Cada línea define su documentación: el título sale de ahí (ORDEN_MEDICA → "Orden médica").
+    prod = db.get(m.PPProducto, s.producto_id)
+    pedidos = requisitos.documentos_de(db, _version_efectiva(prod) if prod else None)
+    titulos = {**documentos.TITULOS, **{d["tipo"]: d["titulo"] for d in pedidos}}
+    subidos = {d.tipo for d in docs}
+    # El portal sube los archivos después de enviar: si alguno no llegó, el asesor lo tiene que ver.
+    faltantes = ([d["titulo"] for d in pedidos if d["obligatorio"] and d["tipo"] not in subidos]
+                 if s.origen == "PORTAL" else [])
+    return {"items": [{**documentos.serial(d), "titulo": titulos.get(d.tipo, d.tipo)} for d in docs],
+            "pedidos": [{"tipo": d["tipo"], "titulo": d["titulo"], "obligatorio": d["obligatorio"]} for d in pedidos],
+            "faltantes": faltantes}
 
 
 @router.get("/{sid}/documentos/{doc_id}")

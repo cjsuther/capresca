@@ -195,3 +195,9 @@ class ListaImportaciones(BaseModel):
     """El listado va envuelto en `items`, igual que el importador del padrón de clientes."""
 
     items: list[ImportacionOut] = []
+
+
+class NumeracionIn(BaseModel):
+    """Próximo correlativo y próximo N° oficial de la serie en el año. None = sin fijar (sigue del último)."""
+    desde_numero: int | None = None
+    desde_oficial: int | None = None

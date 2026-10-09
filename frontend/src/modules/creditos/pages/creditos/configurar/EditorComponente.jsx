@@ -3,6 +3,8 @@ import { Pill } from "../../../components/Pill";
 import {
   SCHEMA, ITEM_SCHEMA, ITEM_NUEVO, ITEM_TITULO, ITEM_SINGULAR, ICONOS, FORMULA, esDefault,
 } from "./esquemas";
+import { EditorRequisitos } from "./EditorRequisitos";
+import { AvisoCobro } from "../solicitud/AvisoCobro";
 
 /** Campo del editor genérico (bool / select / texto o número). */
 function CampoEsquema({ f, valor, disabled, onChange }) {
@@ -20,7 +22,7 @@ function CampoEsquema({ f, valor, disabled, onChange }) {
     return (
       <Field label={f.l}>
         <select className="input w-full" disabled={disabled} value={valor ?? ""} onChange={(e) => onChange(e.target.value)}>
-          {f.o.map((o) => <option key={o} value={o}>{o}</option>)}
+          {f.o.map((o) => <option key={o} value={o}>{f.etq?.[o] || o}</option>)}
         </select>
       </Field>
     );
@@ -42,8 +44,11 @@ function CampoEsquema({ f, valor, disabled, onChange }) {
 export function EditorComponente({
   comp, cfg, errores, editable, editableDisp, tienePadre, indices, impuestos,
   catSegmentos, catCanales, setCfg, setCompCfg, toggleComp, reheredarComp, guardarDisponibilidad,
+  guardarRequisitos,
 }) {
   if (!comp) return null;
+  // Disponibilidad y "Documentación y datos" no son términos financieros: se editan con la línea publicada.
+  const sinVersion = ["AVAILABILITY", "REQUIREMENTS"].includes(comp.codigo);
 
   const indiceVal = indices.find((x) => x.codigo === cfg.indice)?.valor || 0;
   const tnaEfectiva = cfg.modalidad === "VARIABLE" ? indiceVal + (cfg.margen || 0) : cfg.tna;
@@ -56,7 +61,7 @@ export function EditorComponente({
       <div className="text-center py-10">
         <div className="text-4xl mb-2">{ICONOS[comp.codigo]}</div>
         <p className="text-gray-500 mb-4">Este componente no está agregado a la línea.</p>
-        <Boton disabled={comp.codigo === "AVAILABILITY" ? !editableDisp : !editable}
+        <Boton disabled={sinVersion ? !editableDisp : !editable}
                onClick={() => toggleComp(comp.codigo, true)}>
           ＋ Agregar “{comp.nombre}”
         </Boton>
@@ -317,12 +322,35 @@ export function EditorComponente({
         </div>
       )}
 
+      {comp.codigo === "REQUIREMENTS" && (
+        <>
+          <EditorRequisitos config={comp.config} editable={editableDisp}
+                            onChange={(patch) => setCompCfg(comp.codigo, patch)} />
+          {!editable && editableDisp && (
+            <div className="flex items-center gap-3 border-t border-gray-200 pt-3 mt-4">
+              <span className="text-sm text-gray-500">
+                Se puede modificar aunque la línea esté publicada: no crea versión nueva. Las solicitudes ya
+                enviadas no cambian.
+              </span>
+              <Boton onClick={guardarRequisitos}>Guardar documentación y datos</Boton>
+            </div>
+          )}
+        </>
+      )}
+
       {SCHEMA[comp.codigo] && (
         <div className={`grid gap-3 sm:grid-cols-3 ${["CHARGE", "OVERDUE"].includes(comp.codigo) ? "mt-3" : ""}`}>
           {SCHEMA[comp.codigo].map((f) => (
             <CampoEsquema key={f.k} f={f} valor={comp.config[f.k]} disabled={!editable}
                           onChange={(v) => setCompCfg(comp.codigo, { [f.k]: v })} />
           ))}
+        </div>
+      )}
+
+      {comp.codigo === "COLLECTION" && (
+        <div className="mt-4">
+          <p className="text-xs text-gray-500 mb-1">Así se lo avisa la solicitud al final (portal y sucursal):</p>
+          <AvisoCobro cobro={comp.config} cuota={null} money={(v) => v} titulo="Cómo se cobra la cuota" />
         </div>
       )}
 
@@ -374,7 +402,7 @@ export function EditorComponente({
       )}
 
       {!SCHEMA[comp.codigo] && !ITEM_SCHEMA[comp.codigo]
-        && !["INTEREST", "TERM_AMOUNT", "AVAILABILITY"].includes(comp.codigo) && (
+        && !["INTEREST", "TERM_AMOUNT", "AVAILABILITY", "REQUIREMENTS"].includes(comp.codigo) && (
         <dl className="text-sm text-gray-600">
           <div className="flex justify-between border-b border-gray-100 py-1"><dt>Estado</dt><dd>ACTIVO</dd></div>
           <div className="flex justify-between border-b border-gray-100 py-1"><dt>Categoría</dt><dd>{comp.categoria}</dd></div>

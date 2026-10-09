@@ -160,6 +160,11 @@ export default function ConfigurarCreditosPage() {
     upsert(await creditos.editarDisponibilidad(activo.id, { activo: true, ...comps.find((c) => c.codigo === sel).config }));
     setOk("Disponibilidad guardada (canales/segmentos).");
   });
+  const guardarRequisitos = conError(async () => {
+    const c = comps.find((x) => x.codigo === "REQUIREMENTS");
+    upsert(await creditos.editarRequisitos(activo.id, { activo: c.activo, ...c.config }));
+    setOk("Documentación y datos guardados.");
+  });
   const crearLinea = conError(async () => {
     const base = { nombre: nuevo.nombre || undefined, familia_id: nuevo.familia_id || undefined };
     if (nuevo.copiar_de && nuevo.heredar) base.padre_id = nuevo.copiar_de;
@@ -671,6 +676,7 @@ export default function ConfigurarCreditosPage() {
             indices={indices} impuestos={impuestos} catSegmentos={catSegmentos} catCanales={catCanales}
             setCfg={setCfg} setCompCfg={setCompCfg} toggleComp={toggleComp}
             reheredarComp={reheredarComp} guardarDisponibilidad={guardarDisponibilidad}
+            guardarRequisitos={guardarRequisitos}
           />
 
           {comp?.activo && (

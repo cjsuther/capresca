@@ -14,6 +14,7 @@ const DESC = {
   DECIMALES_MOSTRAR: "Decimales con que se MUESTRAN los importes de créditos en pantalla (0–6).",
   PORTAL_OMITIR_VIDEOS: "Saltear el paso de videos en la solicitud del portal (true/false).",
   PORTAL_DOCUMENTOS: "Documentación que pide la solicitud del portal (tipos separados por coma).",
+  PORTAL_ESPERA_RECHAZO_DIAS: "Días que tiene que esperar quien tuvo una solicitud rechazada para pedir otra por el portal (0 = sin espera).",
   LOTE_LIQUIDACION_MAX: "Cantidad máxima de créditos en un lote de liquidación.",
 };
 
@@ -30,6 +31,7 @@ const DOCUMENTOS = [
 const TODOS_LOS_DOCUMENTOS = DOCUMENTOS.map(([t]) => t);
 
 const acotar = (v) => Math.max(0, Math.min(6, Math.floor(Number(v) || 0)));
+const diasEspera = (v) => Math.max(0, Math.min(365, Math.floor(Number(v) || 0)));
 const topeLote = (v) => Math.max(1, Math.min(9999, Math.floor(Number(v) || 1)));
 
 export default function ParametrosCreditosPage() {
@@ -41,6 +43,8 @@ export default function ParametrosCreditosPage() {
   const [decimalesMostrar, setDecimalesMostrar] = useState(2);
   const [omitirVideos, setOmitirVideos] = useState(false);
   const [docs, setDocs] = useState(TODOS_LOS_DOCUMENTOS);
+  const [lineasConDocs, setLineasConDocs] = useState([]);
+  const [espera, setEspera] = useState(30);
   const [maxLote, setMaxLote] = useState(50);
   const [nuevoCanal, setNuevoCanal] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -52,6 +56,8 @@ export default function ParametrosCreditosPage() {
     setError(""); setCargando(true);
     try {
       const ps = await creditos.adminParametros("creditos");
+      // Si falla, la pantalla sigue andando: sólo se pierde el aviso.
+      creditos.documentacionPorLinea().then(setLineasConDocs).catch(() => setLineasConDocs([]));
       const m = {};
       ps.forEach((p) => { m[p.clave] = p.valor; });
       setCanales((m.CANALES || "SUCURSAL,WEB,APP,CONVENIO").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
@@ -60,9 +66,10 @@ export default function ParametrosCreditosPage() {
       setDecimales(acotar(m.DECIMALES_CALCULO ?? 2));
       setDecimalesMostrar(acotar(m.DECIMALES_MOSTRAR ?? 2));
       setOmitirVideos(String(m.PORTAL_OMITIR_VIDEOS || "").toLowerCase() === "true");
+      setEspera(diasEspera(m.PORTAL_ESPERA_RECHAZO_DIAS ?? 30));
+      setMaxLote(topeLote(m.LOTE_LIQUIDACION_MAX ?? 50));
       // Sin el parámetro cargado se piden todos: es el comportamiento anterior a que fuera
       // configurable. Cargado y vacío es una decisión explícita (no pedir ninguno).
-      setMaxLote(topeLote(m.LOTE_LIQUIDACION_MAX ?? 50));
       setDocs(m.PORTAL_DOCUMENTOS === undefined
         ? TODOS_LOS_DOCUMENTOS
         : TODOS_LOS_DOCUMENTOS.filter((t) => m.PORTAL_DOCUMENTOS.split(",")
@@ -96,6 +103,7 @@ export default function ParametrosCreditosPage() {
       await up("DECIMALES_MOSTRAR", String(acotar(decimalesMostrar)));
       await up("PORTAL_OMITIR_VIDEOS", omitirVideos ? "true" : "false");
       await up("PORTAL_DOCUMENTOS", docs.join(","));
+      await up("PORTAL_ESPERA_RECHAZO_DIAS", String(diasEspera(espera)));
       await up("LOTE_LIQUIDACION_MAX", String(topeLote(maxLote)));
       setOk("Parámetros de créditos guardados.");
       cargar();
@@ -189,6 +197,18 @@ export default function ParametrosCreditosPage() {
               </span>
             </label>
 
+            <h3 className="font-medium text-gray-800 mt-5">Espera después de un rechazo</h3>
+            <p className="text-sm text-gray-500 mt-0.5 mb-3">
+              Quien tuvo una solicitud rechazada no puede pedir otra por el portal hasta que pasen estos
+              días, contados desde el rechazo. Vale para la misma cuenta y para el mismo CUIL.
+            </p>
+            <div className="flex items-center gap-2">
+              <input type="number" min={0} max={365} step={1} className="input w-24" value={espera}
+                     disabled={!puedeEscribir} aria-label="Días de espera después de un rechazo"
+                     onChange={(e) => setEspera(diasEspera(e.target.value))} />
+              <span className="text-sm text-gray-600">{espera === 0 ? "días (sin espera)" : "días"}</span>
+            </div>
+
             <h3 className="font-medium text-gray-800 mt-5">Documentación que se pide</h3>
             <p className="text-sm text-gray-500 mt-0.5 mb-3">
               El paso 3 pide un archivo por cada documento marcado. Si no queda ninguno, el paso no
@@ -210,6 +230,13 @@ export default function ParametrosCreditosPage() {
               <p className="text-xs text-amber-700 mt-2">
                 No se pedirá ninguna documentación en la solicitud.
               </p>
+            )}
+            {lineasConDocs.length > 0 && (
+              <Alerta tipo="warn">
+                Esto vale para las líneas sin documentación propia. Estas piden la suya (Configurar créditos →
+                "Documentación y datos") y no usan este parámetro:{" "}
+                {lineasConDocs.map((l) => `${l.codigo} (${l.obligatorios} de ${l.documentos} obligatorios)`).join(", ")}.
+              </Alerta>
             )}
           </Card>
 

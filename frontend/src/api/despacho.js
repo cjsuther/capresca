@@ -104,3 +104,10 @@ export const getImportaciones = () =>
 
 export const getImportacion = (id) =>
   api.get(`/despacho/importaciones/${id}`).then((r) => r.data);
+
+// ── Numeración: desde qué número sigue cada serie en el año (continúa el sistema anterior) ──
+export const getNumeracion = (anio) =>
+  api.get("/despacho/numeracion", { params: { anio } }).then((r) => r.data);
+
+export const fijarNumeracion = (anio, serie, data) =>
+  api.put(`/despacho/numeracion/${anio}/${serie}`, data).then((r) => r.data);

@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     # Sin credenciales de Mi Catamarca, ¿se permite el proveedor MOCK fuera de development? (demo/QA)
     portal_mock_sso: bool = False
     # Videos que el ciudadano tiene que ver completos antes de confirmar la solicitud (paso 4 del portal).
-    # "id:Título" separados por coma; el archivo es /portal-creditos/videos/<id>.mp4 (carpeta montada en el
+    # "id:Título" separados por coma; el archivo es <ruta del portal>/videos/<id>.mp4 (carpeta montada en el
     # contenedor del portal, CREDITOS_PORTAL_VIDEOS_HOST_PATH). Vacío = el paso de videos no se exige.
     portal_videos: str = "video1:Video 1,video2:Video 2,video3:Video 3"
 

@@ -24,8 +24,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import (BORRADOR, FIRMADA, SERIE_POR_DEFECTO, SERIES, ModeloResolucion, Resolucion,
-                        ResolucionBeneficiario, TIPOS)
+from app.models import (BORRADOR, FIRMADA, SERIE_POR_DEFECTO, SERIES, ModeloResolucion, NumeracionSerie,
+                        Resolucion, ResolucionBeneficiario, TIPOS)
 
 REINTENTOS_NUMERO = 5
 
@@ -44,10 +44,18 @@ def _validar_serie(serie) -> int:
     return s
 
 
+def _desde(db: Session, anio: int, serie: int, campo: str) -> int:
+    """El próximo número fijado para la serie en el año (continúa el sistema anterior); 1 si no hay."""
+    n = db.get(NumeracionSerie, (anio, serie))
+    return (getattr(n, campo) if n is not None else None) or 1
+
+
+def _ultimo(db: Session, anio: int, serie: int, columna) -> int:
+    return db.scalar(select(func.max(columna)).where(Resolucion.anio == anio, Resolucion.serie == serie)) or 0
+
+
 def _proximo_numero(db: Session, anio: int, serie: int) -> int:
-    n = db.scalar(select(func.max(Resolucion.numero)).where(
-        Resolucion.anio == anio, Resolucion.serie == serie))
-    return (n or 0) + 1
+    return max(_ultimo(db, anio, serie, Resolucion.numero) + 1, _desde(db, anio, serie, "desde_numero"))
 
 
 def _numero_real_libre(db: Session, r: Resolucion, numero: int) -> None:
@@ -69,9 +77,48 @@ def _avisar_creditos(db: Session, r: Resolucion) -> None:
 
 
 def _proximo_numero_real(db: Session, anio: int, serie: int) -> int:
-    n = db.scalar(select(func.max(Resolucion.numero_real)).where(
-        Resolucion.anio == anio, Resolucion.serie == serie))
-    return (n or 0) + 1
+    return max(_ultimo(db, anio, serie, Resolucion.numero_real) + 1, _desde(db, anio, serie, "desde_oficial"))
+
+
+# --------------------------------------------------------------------------- numeración
+def numeracion(db: Session, anio: int) -> list[dict]:
+    """Por serie: el último número usado, desde cuál se fijó que siga y cuál va a ser el próximo."""
+    out = []
+    for serie, nombre in SERIES.items():
+        n = db.get(NumeracionSerie, (anio, serie))
+        out.append({
+            "anio": anio, "serie": serie, "nombre": nombre,
+            "ultimoNumero": _ultimo(db, anio, serie, Resolucion.numero) or None,
+            "ultimoOficial": _ultimo(db, anio, serie, Resolucion.numero_real) or None,
+            "desdeNumero": n.desde_numero if n else None, "desdeOficial": n.desde_oficial if n else None,
+            "proximoNumero": _proximo_numero(db, anio, serie),
+            "proximoOficial": _proximo_numero_real(db, anio, serie),
+            "actualizadoPor": n.actualizado_por if n else None,
+            "actualizadoEn": n.actualizado_en.isoformat() if n and n.actualizado_en else None,
+        })
+    return out
+
+
+def fijar_numeracion(db: Session, anio: int, serie: int, desde_numero: int | None, desde_oficial: int | None,
+                     usuario: str) -> dict:
+    """Fija desde qué número siguen el correlativo y el N° oficial de la serie en el año. No puede quedar
+    en un número ya usado: la numeración no vuelve atrás."""
+    serie = _validar_serie(serie)
+    for valor, columna, que in ((desde_numero, Resolucion.numero, "correlativo"),
+                                (desde_oficial, Resolucion.numero_real, "N° oficial")):
+        if valor is None:
+            continue
+        if valor < 1:
+            raise HTTPException(422, f"El próximo {que} tiene que ser 1 o más.")
+        ultimo = _ultimo(db, anio, serie, columna)
+        if valor <= ultimo:
+            raise HTTPException(422, f"Ya se usó el {que} {ultimo} en {anio} para esta serie: el próximo tiene "
+                                     f"que ser mayor que {ultimo}.")
+    n = db.get(NumeracionSerie, (anio, serie)) or NumeracionSerie(anio=anio, serie=serie)
+    n.desde_numero, n.desde_oficial, n.actualizado_por = desde_numero, desde_oficial, usuario[:60]
+    db.add(n)
+    db.commit()
+    return next(x for x in numeracion(db, anio) if x["serie"] == serie)
 
 
 def _modelo(db: Session, modelo_id: int | None) -> ModeloResolucion | None:

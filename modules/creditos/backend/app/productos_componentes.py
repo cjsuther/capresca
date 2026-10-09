@@ -19,6 +19,8 @@ COMPONENTES = [
     ("AVAILABILITY", "Disponibilidad", "Elegibilidad", False, False, 11),
     ("ACTIVITY_RESTRICTION", "Restricción de actividades", "Servicing", False, False, 12),
     ("PERIODIC", "Reglas periódicas", "Servicing", False, False, 13),
+    ("REQUIREMENTS", "Documentación y datos", "Originación", False, False, 14),
+    ("COLLECTION", "Forma de cobro", "Cobranza", False, False, 15),
 ]
 
 # Componentes activados por defecto al crear una versión nueva.
@@ -55,4 +57,10 @@ DEFAULT_CONFIG: dict[str, dict] = {
     "ACTIVITY_RESTRICTION": {"permitePrepago": True, "permiteRenegociacion": True,
                               "permiteVacacionPago": False},
     "PERIODIC": {"repricingFrecuencia": "NINGUNA", "capitalizaInteres": False, "diaAplicacion": 1},
+    # Lo que pide la solicitud de ESTA línea (app/services/requisitos.py). Inactivo = la documentación
+    # general de Parámetros y ningún dato.
+    "REQUIREMENTS": {"documentos": [], "campos": []},
+    # Cómo se cobra la cuota (app/services/cobro.py). Con código de descuento, la solicitud le avisa al
+    # solicitante cómo le va a venir detallada en el recibo de sueldo.
+    "COLLECTION": {"modalidad": "CODIGO_DESCUENTO", "codigoDescuento": "", "conceptoRecibo": "", "detalle": ""},
 }

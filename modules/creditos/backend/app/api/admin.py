@@ -74,3 +74,21 @@ def upsert_parametro(data: schemas.ParametroUpsert, db: Session = Depends(get_db
     db.commit()
     db.refresh(p)
     return p
+
+
+@router.get("/parametros/documentacion-por-linea")
+def documentacion_por_linea(db: Session = Depends(get_db)):
+    """Las líneas ofrecidas en el portal que piden su propia documentación (componente "Documentación y
+    datos"): para ellas no vale PORTAL_DOCUMENTOS. La pantalla de parámetros lo avisa."""
+    from app import models_productos as m
+    from app.api.productos import _version_publicada_vigente
+    from app.services import requisitos
+    out = []
+    for prod in db.scalars(select(m.PPProducto).order_by(m.PPProducto.codigo)).all():
+        v = _version_publicada_vigente(prod) if prod.versiones else None
+        if v is None or requisitos.config_activa(v) is None:
+            continue
+        docs = requisitos.documentos(v, None)
+        out.append({"id": prod.id, "codigo": prod.codigo, "nombre": prod.nombre, "version": v.numero_version,
+                    "documentos": len(docs), "obligatorios": sum(1 for d in docs if d["obligatorio"])})
+    return out

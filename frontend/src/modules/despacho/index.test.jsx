@@ -56,8 +56,9 @@ describe("DespachoModule", () => {
       "Modelo de resoluciones", "Resoluciones y disposiciones",
     ]);
     expect(despachoMenu.map((i) => i.permission)).toEqual([
-      "resoluciones:read", "resoluciones:read", "resoluciones:read", "resoluciones:read", "importar",
+      "resoluciones:read", "resoluciones:read", "resoluciones:read", "resoluciones:read", "resoluciones:read", "importar",
     ]);
+    expect(despachoMenu.find((i) => i.label === "Numeración")?.path).toBe("/modules/despacho/numeracion");
   });
 
   it("la raíz del módulo abre las resoluciones", async () => {

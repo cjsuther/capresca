@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { FileText, Files, ListChecks, FolderOpen, Upload } from "lucide-react";
+import { FileText, Files, ListChecks, FolderOpen, Hash, Upload } from "lucide-react";
 
 import { Layout } from "../../components/Layout";
 import { Sidebar } from "../../components/Sidebar";
@@ -8,12 +8,14 @@ import ResolucionesPage from "./pages/ResolucionesPage";
 import LotesPage from "./pages/LotesPage";
 import ExpedientesPage from "./pages/ExpedientesPage";
 import ImportarPage from "./pages/ImportarPage";
+import NumeracionPage from "./pages/NumeracionPage";
 
 export const despachoMenu = [
   { label: "Modelo de resoluciones", path: "/modules/despacho/modelos", permission: "resoluciones:read", icon: FileText },
   { label: "Resoluciones y disposiciones", path: "/modules/despacho/resoluciones", permission: "resoluciones:read", icon: Files },
   { label: "Lotes de créditos", path: "/modules/despacho/lotes", permission: "resoluciones:read", icon: ListChecks },
   { label: "Expedientes y pases", path: "/modules/despacho/expedientes", permission: "resoluciones:read", icon: FolderOpen },
+  { label: "Numeración", path: "/modules/despacho/numeracion", permission: "resoluciones:read", icon: Hash },
   { label: "Importar del sistema anterior", path: "/modules/despacho/importar", permission: "importar", icon: Upload },
 ];
 
@@ -30,6 +32,7 @@ export default function DespachoModule() {
         <Route path="anexo" element={<Navigate to="../lotes" replace />} />
         <Route path="expedientes" element={<ExpedientesPage />} />
         <Route path="importar" element={<ImportarPage />} />
+        <Route path="numeracion" element={<NumeracionPage />} />
       </Routes>
     </Layout>
   );

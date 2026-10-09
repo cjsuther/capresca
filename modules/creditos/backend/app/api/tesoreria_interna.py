@@ -3,9 +3,8 @@
 CONFIRMADO → el contrato se desembolsa (asiento + actividad) y pasa a ACTIVO. Se aplica aunque venga de un
 lote anterior: si la plata salió, el contrato tiene que quedar activo.
 FALLIDO / EXCLUIDO / RECHAZADO → el contrato sigue A_LIQUIDAR, queda OBSERVADO con el motivo y se puede
-volver a liquidar (los de una orden de pago se reintentan desde Tesorería). Un aviso de un lote que ya no
-es el vigente del contrato no lo toca.
-Un lote PARA_LIQUIDAR (orden de pago) queda LIQUIDADO cuando se acreditaron todos sus créditos.
+volver a liquidar. Los de una orden de pago se reintentan desde Tesorería.
+Un lote PARA_LIQUIDAR (orden de pago) queda LIQUIDADO cuando se acreditaron todos sus créditos. Un aviso de un lote que ya no es el vigente del contrato no lo toca.
 Idempotente: el mismo aviso dos veces no desembolsa dos veces.
 """
 from __future__ import annotations
@@ -18,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import models_productos as m
-from app.services import lotes_liquidacion as lotes
+from app.services import egresos, lotes_liquidacion as lotes
 from app.api.contratos import _desembolsar, _set_desembolso, desembolso_info
 from app.core.config import get_settings
 from app.core.database import get_db
@@ -82,6 +81,7 @@ def resultado(aviso: Aviso, db: Session = Depends(get_db)):
                 db.rollback(); ignorados.append(c.numero_contrato)
         else:
             db.rollback(); ignorados.append(c.numero_contrato)
+    _cerrar_op(db, aviso.lote)
     liquidados = []
     for lote_id in sorted(tocados):
         lt = db.query(m.PPLoteLiquidacion).filter_by(id=lote_id).with_for_update().first()
@@ -89,3 +89,13 @@ def resultado(aviso: Aviso, db: Session = Depends(get_db)):
             liquidados.append(lt.codigo)
     db.commit()
     return {"activados": activados, "observados": observados, "ignorados": ignorados, "lotesLiquidados": liquidados}
+
+
+def _cerrar_op(db: Session, lote: str) -> None:
+    """La OP del lote queda girada (o anulada) cuando ya no le queda ningún pago en Tesorería."""
+    op = egresos.op_de_lote(db, lote)
+    if op is None or op.estado != "P":
+        return
+    contratos = db.query(m.PPContrato).filter(m.PPContrato.id.in_(op.contratos or [])).all()
+    egresos.cerrar_op_si_termino(db, op, {c.id: desembolso_info(c) for c in contratos})
+    db.commit()

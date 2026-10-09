@@ -7,7 +7,7 @@ import { creditos } from "../../../../api/creditos";
 import { useAuthStore } from "../../../../context/authStore";
 
 vi.mock("../../../../api/creditos", () => ({
-  creditos: { adminParametros: vi.fn(), upsertParametro: vi.fn() },
+  creditos: { adminParametros: vi.fn(), upsertParametro: vi.fn(), documentacionPorLinea: vi.fn() },
 }));
 
 const PARS = [
@@ -27,9 +27,23 @@ beforeEach(() => {
   sesion(["creditos:read", "creditos:write"]);
   creditos.adminParametros.mockResolvedValue(PARS);
   creditos.upsertParametro.mockResolvedValue({});
+  creditos.documentacionPorLinea.mockResolvedValue([]);
 });
 
 describe("Parámetros de créditos", () => {
+  it("avisa qué líneas piden su propia documentación y no usan el parámetro", async () => {
+    creditos.documentacionPorLinea.mockResolvedValue([
+      { id: "p1", codigo: "LP-NUEVA-02", nombre: "Nueva", version: 1, documentos: 6, obligatorios: 6 }]);
+    render(<ParametrosCreditosPage />);
+    expect(await screen.findByText(/no usan este parámetro/)).toHaveTextContent("LP-NUEVA-02 (6 de 6 obligatorios)");
+  });
+
+  it("sin líneas con documentación propia no hay aviso", async () => {
+    render(<ParametrosCreditosPage />);
+    await screen.findByRole("button", { name: "Quitar SUCURSAL" });
+    expect(screen.queryByText(/no usan este parámetro/)).toBeNull();
+  });
+
   it("carga sólo el ámbito creditos y muestra canales y decimales", async () => {
     render(<ParametrosCreditosPage />);
     expect(await screen.findByRole("button", { name: "Quitar SUCURSAL" })).toBeInTheDocument();
@@ -65,11 +79,11 @@ describe("Parámetros de créditos", () => {
     await screen.findByRole("button", { name: "Quitar SUCURSAL" });
 
     await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
-    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(8));
+    await waitFor(() => expect(creditos.upsertParametro).toHaveBeenCalledTimes(9));
     const claves = creditos.upsertParametro.mock.calls.map((c) => c[0].clave);
     expect(claves).toEqual(["CANALES", "CANAL_PORTAL", "CANAL_BACKOFFICE", "DECIMALES_CALCULO",
                             "DECIMALES_MOSTRAR", "PORTAL_OMITIR_VIDEOS", "PORTAL_DOCUMENTOS",
-                            "LOTE_LIQUIDACION_MAX"]);
+                            "PORTAL_ESPERA_RECHAZO_DIAS", "LOTE_LIQUIDACION_MAX"]);
     expect(creditos.upsertParametro.mock.calls[0][0]).toMatchObject({ valor: "SUCURSAL,WEB", ambito: "creditos" });
     expect(await screen.findByText("Parámetros de créditos guardados.")).toBeInTheDocument();
   });
@@ -77,6 +91,17 @@ describe("Parámetros de créditos", () => {
   // --------------------------------------------------------------- documentación de la solicitud
   const guardado = (clave) =>
     creditos.upsertParametro.mock.calls.map((c) => c[0]).find((p) => p.clave === clave);
+
+  it("la espera después de un rechazo arranca en 30 días y se guarda lo que se cargue", async () => {
+    const u = userEvent.setup();
+    render(<ParametrosCreditosPage />);
+    const dias = await screen.findByLabelText("Días de espera después de un rechazo");
+    expect(dias).toHaveValue(30);
+    await u.clear(dias);
+    await u.type(dias, "45");
+    await u.click(screen.getByRole("button", { name: "Guardar parámetros" }));
+    await waitFor(() => expect(guardado("PORTAL_ESPERA_RECHAZO_DIAS")).toMatchObject({ valor: "45", ambito: "creditos" }));
+  });
 
   it("el máximo de créditos por lote arranca en 50 y se guarda lo que se cargue", async () => {
     const u = userEvent.setup();

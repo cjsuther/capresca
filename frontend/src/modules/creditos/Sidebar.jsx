@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
+import { Home } from "lucide-react";
 import clsx from "clsx";
 import { MENU } from "./menu";
 import { usePuedeVerHeredadas } from "./permisos";
@@ -14,6 +15,15 @@ export function CreditosSidebar({ onClose }) {
   return (
     <aside className="w-56 min-h-screen bg-surface border-r border-gray-200 pt-4 md:pt-6 overflow-y-auto">
       <nav className="flex flex-col px-2 pb-8">
+        {/* Salida del módulo, igual que en los demás (components/Sidebar): el logo también vuelve. */}
+        <Link
+          to="/dashboard"
+          onClick={onClose}
+          className="flex items-center gap-2 px-3 py-2 mb-3 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 border-b border-gray-200 pb-2"
+        >
+          <Home size={16} />
+          Inicio
+        </Link>
         {grupos.map((g) => (
           <div key={g.label} className="mb-3">
             <p className="px-3 py-1 text-[10px] uppercase tracking-wide text-gray-400 font-semibold">{g.label}</p>

@@ -31,7 +31,7 @@ from app.core.config import get_settings
 from app.core.permisos import requiere_permiso
 from app.deps import get_current_user
 from app import models, models_productos as m
-from app.services import auditoria as audit
+from app.services import auditoria as audit, egresos
 from app.services import lotes_liquidacion as lotes_liquidacion_svc
 from app.services.productos_calc import cronograma
 from app.api.productos import (_serial, _serial_efectivo, _version_efectiva,
@@ -773,7 +773,7 @@ def liquidar_lote(data: LiquidarLoteIn, db: Session = Depends(get_db),
                 "estado": lote.estado if lote else None,
                 "total": len(ids), "desembolsados": desembolsados,
                 "pendientesAprobacion": pendientes, "errores": errores,
-                "enTesoreria": teso["enviados"], "loteTesoreria": teso["lote"], "ordenPago": teso.get("ordenPago"),
+                "enTesoreria": teso["enviados"], "loteTesoreria": teso["lote"], "ordenPago": teso["ordenPago"],
                 "yaEnTesoreria": ya_en_tesoreria}
 
     return con_idempotencia(db, idempotency_key, f"POST /api/contratos/liquidar-lote {clave}",
@@ -1042,31 +1042,55 @@ def mandar_a_tesoreria(db: Session, contratos: list[m.PPContrato], user, descrip
             continue
         pagos.append(pago); por_id[c.id] = c
     if not pagos:
-        return {"lote": None, "enviados": [], "errores": errores}
+        return {"lote": None, "enviados": [], "errores": errores, "ordenPago": None}
     firma = ",".join(sorted(f"{cid}:{desembolso_info(c).get('intentos', 0)}" for cid, c in por_id.items()))
     referencia = f"desembolsos {hashlib.sha1(firma.encode()).hexdigest()[:16]}"
+    monto_de = {p["referencia_externa"]: p["monto"] for p in pagos}
+    # La OP del lote se emite antes de mandarlo, así el lote de Tesorería lleva su número. Se confirma
+    # ya: si el pedido se corta después de que Tesorería lo cargó, el reintento reusa la misma OP.
+    op = egresos.op_lote_desembolsos(db, referencia=referencia, contratos=list(por_id),
+                                     importe=Decimal(str(round(sum(monto_de.values()), 2))),
+                                     resoluciones=_resoluciones_de(db, list(por_id)), concepto=descripcion)
+    db.commit()
     try:
-        r = tesoreria.enviar_lote(referencia, descripcion, pagos, user.username)
+        r = tesoreria.enviar_lote(referencia, f"OP N° {op.numero} · {descripcion}"[:200], pagos, user.username)
     except tesoreria.TesoreriaNoDisponible as e:
         raise HTTPException(503, f"No se pudo enviar a Tesorería: {e}. Los contratos siguen A_LIQUIDAR.")
-    enviados = []
+    enviados, de_la_op = [], []
     for p in r.get("pagos", []):
         c = por_id.get(p["referencia_externa"])
         if c is not None:
-            _set_desembolso(c, estado="EN_TESORERIA", lote=r["codigo"], motivo="", enviado_por=user.username)
-            enviados.append(c.numero_contrato)
+            _set_desembolso(c, estado="EN_TESORERIA", lote=r["codigo"], motivo="", enviado_por=user.username,
+                            op=op.numero, monto=monto_de[c.id])
+            enviados.append(c.numero_contrato); de_la_op.append(c.id)
     for x in r.get("rechazados", []):
         c = por_id.get(x.get("referencia_externa"))
         if c is None:
             continue
         ya = re.search(r"Ya está en el lote (\S+)", x.get("motivo") or "")
         if ya:   # ya estaba en camino (p. ej. un pedido anterior que se cortó): se registra, no se duplica
-            _set_desembolso(c, estado="EN_TESORERIA", lote=ya.group(1), motivo="")
+            otra = egresos.op_de_lote(db, ya.group(1))
+            _set_desembolso(c, estado="EN_TESORERIA", lote=ya.group(1), motivo="", monto=monto_de[c.id],
+                            op=otra.numero if otra else None)
             enviados.append(c.numero_contrato)
         else:
             errores.append({"contrato": c.numero_contrato, "detalle": x.get("motivo") or "Rechazado por Tesorería"})
+    if de_la_op:
+        op.lote_tesoreria, op.contratos = r["codigo"], de_la_op
+        op.importe = Decimal(str(round(sum(monto_de[cid] for cid in de_la_op), 2)))
+    elif op.estado == "P" and not op.lote_tesoreria:
+        op.estado = "A"                               # Tesorería no tomó ningún pago: la OP no se gira
     db.commit()
-    return {"lote": r.get("codigo"), "enviados": enviados, "errores": errores}
+    return {"lote": r.get("codigo"), "enviados": enviados, "errores": errores,
+            "ordenPago": op.numero if de_la_op else None}
+
+
+def _resoluciones_de(db: Session, contrato_ids: list) -> str:
+    """Los actos de Despacho que otorgaron estos contratos, p. ej. "Res. 45 del 12/09/2026"."""
+    filas = (db.query(m.PPSolicitud.numero_resolucion, m.PPSolicitud.fecha_resolucion)
+             .filter(m.PPSolicitud.contrato_id.in_(contrato_ids), m.PPSolicitud.numero_resolucion > 0)
+             .distinct().all()) if contrato_ids else []
+    return ", ".join(f"Res. {n}" + (f" del {f:%d/%m/%Y}" if f else "") for n, f in sorted(filas, key=lambda x: x[0]))
 
 
 def _enviar_uno(db: Session, c: m.PPContrato, user) -> None:

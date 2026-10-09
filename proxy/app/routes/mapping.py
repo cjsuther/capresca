@@ -202,6 +202,8 @@ ROUTE_MAP = [
     ("POST", r"^/api/despacho/modelos$",                                settings.despacho_service_url, "despacho:modelos:write"),
     ("PUT",  r"^/api/despacho/modelos/\d+$",                            settings.despacho_service_url, "despacho:modelos:write"),
     ("POST", r"^/api/despacho/resoluciones/\d+/(firmar|numero-real|anular)$", settings.despacho_service_url, "despacho:resoluciones:firmar"),
+    # Desde qué número sigue cada serie (continúa el sistema anterior): lo fija quien emite los actos.
+    ("PUT",  r"^/api/despacho/numeracion/\d{4}/\d+$",                   settings.despacho_service_url, "despacho:resoluciones:firmar"),
     ("POST", r"^/api/despacho/resoluciones$",                           settings.despacho_service_url, "despacho:resoluciones:write"),
     ("PUT",  r"^/api/despacho/resoluciones/\d+$",                       settings.despacho_service_url, "despacho:resoluciones:write"),
     ("POST", r"^/api/despacho/anexo/(asignar|quitar)$",                 settings.despacho_service_url, "despacho:resoluciones:write"),

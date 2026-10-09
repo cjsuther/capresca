@@ -8,6 +8,7 @@ import { changeMyPassword } from "../api/security";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
+import LogoCapresca from "./LogoCapresca";
 
 export function Layout({ children, sidebar }) {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ export function Layout({ children, sidebar }) {
             <img src="/logo-condor.svg" alt="Portezuelo" className="logo-marca h-8 w-auto" />
             <span className="hidden sm:inline font-semibold text-sm text-gray-800">Portezuelo</span>
           </Link>
+          <LogoCapresca className="hidden sm:block h-8 w-auto pl-3 ml-1 border-l border-gray-200" />
           {/* La vuelta al inicio está en el menú de cada módulo (Sidebar) y en el logo: acá sería
               un tercer botón para lo mismo. */}
         </div>

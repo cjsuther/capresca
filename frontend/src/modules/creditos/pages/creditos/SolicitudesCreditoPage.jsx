@@ -3,15 +3,20 @@ import { Link } from "react-router-dom";
 import { creditos } from "../../../../api/creditos";
 import { PageHeader, Card, Field, Boton, Alerta, Modal } from "../../components/ui";
 import { Pill } from "../../components/Pill";
+import { DataTable } from "../../components/DataTable";
 import { Confirmacion } from "../../components/Confirmacion";
 import { VisorDocumento } from "../../components/VisorDocumento";
 import { BuscadorCliente, nombreCliente } from "../../components/BuscadorCliente";
 import { useSoloLectura } from "../../permisos";
 import { fecha, fmtBytes } from "../../components/format";
 import { CANAL_SOLICITUDES, resumenDocs, urlAltaCliente } from "./AltaClienteSolicitudPage";
+import { CampoCbu, CampoSueldo, CondicionesCredito, enRangoDe } from "./solicitud/CondicionesCredito";
+import { EditarSolicitud } from "./solicitud/EditarSolicitud";
+import { AvisoCobro } from "./solicitud/AvisoCobro";
+import { CAMPO_EDITADO, HistorialModificaciones, fechaHora } from "./solicitud/HistorialModificaciones";
 
 const TONO_ESTADO = {
-  BORRADOR: "neutral", EN_EVALUACION: "warn", APROBADA: "ok",
+  BORRADOR: "neutral", EN_EVALUACION: "warn", OBSERVADA: "warn", APROBADA: "ok",
   RECHAZADA: "crit", ORIGINADA: "brand", ANULADA: "neutral",
 };
 const RELACIONES = ["ESTANDAR", "PREFERENCIAL", "PREMIUM"];
@@ -37,6 +42,25 @@ export function edadDe(fecha) {
   if (m < 0 || (m === 0 && h.getDate() < n.getDate())) e--;
   return e;
 }
+/** 20301234563 → "20-30123456-3" (si no son 11 dígitos, tal cual). */
+const cuilFmt = (v) => {
+  const d = String(v || "").replace(/\D/g, "");
+  return d.length === 11 ? `${d.slice(0, 2)}-${d.slice(2, 10)}-${d[10]}` : String(v || "");
+};
+/** Situación laboral con el mismo texto que eligió el ciudadano en el portal. */
+const SITUACION = {
+  AGENTE_PUBLICO: "Empleado público provincial", MUNICIPAL: "Empleado municipal", DOCENTE: "Docente",
+  JUBILADO: "Jubilado", PENSIONADO: "Pensionado", CONTRATADO: "Contratado / monotributo", LIBRE: "Otro / independiente",
+};
+/** Códigos de catálogo sin texto propio, legibles: CONVENIO → "Convenio". */
+const humano = (cod) => String(cod || "").toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+/** 30 → "2 años y 6 meses". */
+const antiguedad = (meses) => {
+  const a = Math.floor(meses / 12), m = meses % 12;
+  const partes = [a && `${a} año${a === 1 ? "" : "s"}`, m && `${m} mes${m === 1 ? "" : "es"}`].filter(Boolean);
+  return partes.length ? partes.join(" y ") : "Menos de un mes";
+};
+
 const DESTINO = {
   VIVIENDA: "Vivienda / refacción", VEHICULO: "Vehículo", CONSUMO: "Consumo / gastos personales",
   EDUCACION: "Educación", SALUD: "Salud", REFINANCIACION: "Refinanciación de deudas",
@@ -52,7 +76,7 @@ const aniosAMeses = (v) => {
 
 const FORM_VACIO = {
   producto_id: "", monto_solicitado: 1000000, plazo_solicitado: 24,
-  segmento: "", canal: "SUCURSAL", fecha_nacimiento: "", antiguedad_meses: "", relacion: "ESTANDAR",
+  segmento: "", canal: "SUCURSAL", fecha_nacimiento: "", antiguedad_meses: "", relacion: "ESTANDAR", sueldo: "",
   datos_adicionales: { destino: "", cbu: "", observaciones: "" },
 };
 
@@ -67,6 +91,7 @@ export default function SolicitudesCreditoPage() {
   const [ok, setOk] = useState("");
 
   const [lineas, setLineas] = useState([]);
+  const [lineasTodas, setLineasTodas] = useState([]);   // para corregir: también las líneas sólo web del portal
   const [cat, setCat] = useState({ segmentos: [], canales: [] });
 
   // Alta (asistente de 3 pasos)
@@ -75,7 +100,9 @@ export default function SolicitudesCreditoPage() {
   const [cliente, setCliente] = useState(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [sim, setSim] = useState(null);
-  const [simulando, setSimulando] = useState(false);
+  const [precarga, setPrecarga] = useState(null);   // lo que vino del padrón al elegir el cliente
+  const [editando, setEditando] = useState(null);    // corrección de una solicitud en curso
+  const [enPadron, setEnPadron] = useState(null);    // la persona de una express, si ya está en el padrón
   const [creando, setCreando] = useState(false);
 
   // Detalle de una solicitud
@@ -83,6 +110,9 @@ export default function SolicitudesCreditoPage() {
   const selRef = useRef(null);
   selRef.current = sel;
   const [docs, setDocs] = useState([]);
+  const [docsPedidos, setDocsPedidos] = useState([]);       // lo que pide la línea (para observar)
+  const [observando, setObservando] = useState(null);       // { detalle, documentos: [], cbu }
+  const [docsFaltantes, setDocsFaltantes] = useState([]);   // obligatorios de la línea que no llegaron
   const [viendoDoc, setViendoDoc] = useState(null);   // índice del documento abierto en el visor
   const [crono, setCrono] = useState([]);
   const [cronoAbierto, setCronoAbierto] = useState(false);
@@ -95,6 +125,29 @@ export default function SolicitudesCreditoPage() {
   const [detOk, setDetOk] = useState(null);                // { texto, clienteId } tras crear/vincular/guardar docs
 
   const decimales = Math.max(0, Math.min(6, cat.decimalesMostrar ?? 2));
+  const columnas = [
+    { key: "numero", label: "N°", sortable: true, filtro: "texto",
+      render: (s) => <span className="font-medium">{s.numero}</span> },
+    { key: "clienteNombre", label: "Cliente", sortable: true, filtro: "texto",
+      render: (s) => (<>
+        {s.clienteNombre}
+        {s.solicitanteTipo === "NO_REGISTRADO" && <span className="ml-2"><Pill>express</Pill></span>}
+      </>) },
+    { key: "clienteCuil", label: "CUIL", sortable: true, filtro: "texto",
+      render: (s) => <span className="tabular-nums whitespace-nowrap">{cuilFmt(s.clienteCuil) || "—"}</span> },
+    { key: "productoNombre", label: "Línea", sortable: true, filtro: "opciones",
+      render: (s) => (
+        <span title={s.productoCodigo || ""}>{s.productoNombre || s.productoCodigo || "—"}</span>
+      ) },
+    { key: "monto", label: "Monto", align: "right", sortable: true, render: (s) => money(s.monto) },
+    { key: "plazo", label: "Plazo", align: "right", sortable: true },
+    { key: "cuota", label: "Cuota est.", align: "right", sortable: true,
+      sortValue: (s) => s.evaluacion?.cuota_estimada || 0, render: (s) => money(s.evaluacion?.cuota_estimada || 0) },
+    { key: "estado", label: "Estado", sortable: true, filtro: "opciones",
+      render: (s) => <Pill tono={TONO_ESTADO[s.estado] || "neutral"}>{s.estado}</Pill> },
+    { key: "elegible", label: "Elegible", sortable: true, filtro: "opciones",
+      sortValue: (s) => (s.evaluacion?.elegible ? "Sí" : "No"), render: (s) => (s.evaluacion?.elegible ? "Sí" : "No") },
+  ];
   const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR",
     { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
@@ -118,14 +171,22 @@ export default function SolicitudesCreditoPage() {
       .then((d) => { setLineas(d.items); if (d.items[0]) setForm((f) => ({ ...f, producto_id: f.producto_id || d.items[0].id })); })
       .catch(() => {});
     creditos.ctoSegmentos().then((c) => { setCat(c); cargarOferta(c?.canalBackoffice); }).catch(() => cargarOferta());
+    creditos.ppOferta({}).then((d) => setLineasTodas(d.items)).catch(() => {});
   }, []);
 
   // Al abrir una solicitud: documentación, cronograma estimado y observación previa.
   useEffect(() => {
-    setViendoDoc(null); setDetOk(null);
-    if (!sel?.id) { setDocs([]); setCrono([]); return; }
+    setViendoDoc(null); setDetOk(null); setEnPadron(null);
+    // Una express puede ser de alguien que ya está en el padrón (llegó con el CUIL y el padrón lo tiene
+    // por DNI, o lo dieron de alta después): el detalle del backend lo busca y se sugiere vincularlo.
+    if (sel?.id && sel.solicitanteTipo === "NO_REGISTRADO") {
+      Promise.resolve(creditos.ppSolicitud(sel.id)).then((d) => setEnPadron(d?.clienteEnPadron || null)).catch(() => {});
+    }
+    if (!sel?.id) { setDocs([]); setDocsFaltantes([]); setCrono([]); return; }
     setObs(sel.datosAdicionales?.obs_revision || ""); setDetErr(""); setCronoAbierto(false);
-    creditos.ppSolicitudDocs(sel.id).then((d) => setDocs(d.items)).catch(() => setDocs([]));
+    creditos.ppSolicitudDocs(sel.id)
+      .then((d) => { setDocs(d.items); setDocsFaltantes(d.faltantes || []); setDocsPedidos(d.pedidos || []); })
+      .catch(() => { setDocs([]); setDocsFaltantes([]); });
     if (!sel.productoId) { setCrono([]); return; }
     setCargandoCrono(true);
     creditos.ppSimPreview(sel.productoId, {
@@ -137,31 +198,36 @@ export default function SolicitudesCreditoPage() {
   const edadForm = edadDe(form.fecha_nacimiento);
   const edadInvalida = form.fecha_nacimiento !== "" && (edadForm === null || edadForm < 18 || edadForm > 99);
   const paso1OK = !!cliente && !edadInvalida;
-  const paso2OK = !!form.producto_id && Number(form.monto_solicitado) > 0 && Number(form.plazo_solicitado) > 0;
+  const lineaForm = lineas.find((l) => l.id === form.producto_id) || null;
+  const paso2OK = !!lineaForm && !!sim && sim.elegible !== false;
+  const cbuForm = String(form.datos_adicionales.cbu || "").replace(/\D/g, "");
+  const cbuOK = cbuForm.length === 22;
 
-  async function simular() {
-    if (!paso2OK) return;
-    setSimulando(true); setError("");
+  /** Monto y cuotas dentro del rango de la línea (al cambiarla o al entrar al paso 2). */
+  const enRango = (f, l) => {
+    const { monto, plazo } = enRangoDe(l, f.monto_solicitado, f.plazo_solicitado);
+    return { ...f, monto_solicitado: monto, plazo_solicitado: plazo };
+  };
+
+  /** Al elegir el cliente se precarga lo que el padrón ya sabe: nacimiento, antigüedad, sueldo y CBU. */
+  async function elegirCliente(c) {
+    setCliente(c); setPrecarga(null);
+    if (!c) return;
     try {
-      setSim(await creditos.ppSimPreview(form.producto_id, {
-        monto: Number(form.monto_solicitado), plazo: Number(form.plazo_solicitado),
-        segmento: form.segmento || undefined, canal: form.canal || undefined,
-        fecha_nacimiento: form.fecha_nacimiento || undefined,
-        antiguedad_meses: form.antiguedad_meses ? Number(form.antiguedad_meses) : undefined,
+      const d = await creditos.ppDatosCliente(c.id);
+      setPrecarga(d);
+      setForm((f) => ({
+        ...f,
+        fecha_nacimiento: d.fecha_nacimiento || "",
+        antiguedad_meses: d.antiguedad_meses == null ? "" : String(d.antiguedad_meses),
+        sueldo: d.sueldo || "",
+        datos_adicionales: { ...f.datos_adicionales, cbu: d.cbu || "" },
       }));
-    } catch (e) { setSim(null); setError(e.message); }
-    finally { setSimulando(false); }
+    } catch { /* sin padrón se carga a mano */ }
   }
 
-  // Simulación en vivo del paso 2 (H-195).
-  useEffect(() => {
-    if (!nueva || paso !== 2 || !paso2OK) return;
-    const t = setTimeout(() => { simular(); }, 450);
-    return () => clearTimeout(t);
-  }, [nueva, paso, form.producto_id, form.monto_solicitado, form.plazo_solicitado]); // eslint-disable-line
-
   function abrirNueva() {
-    setNueva(true); setSel(null); setPaso(1); setSim(null); setError(""); setCliente(null);
+    setNueva(true); setSel(null); setPaso(1); setSim(null); setError(""); setCliente(null); setPrecarga(null);
     // Se conserva la línea ofrecida (viene de la oferta del canal): si se limpiara, el paso 2
     // quedaría sin línea y la simulación en vivo no arrancaría.
     setForm((f) => ({ ...FORM_VACIO, producto_id: f.producto_id || lineas[0]?.id || "" }));
@@ -176,8 +242,13 @@ export default function SolicitudesCreditoPage() {
         solicitante_tipo: "REGISTRADO",
         cliente_id: cliente.id,
         fecha_nacimiento: form.fecha_nacimiento || null,
-        antiguedad_meses: form.antiguedad_meses ? Number(form.antiguedad_meses) : null,
+        antiguedad_meses: form.antiguedad_meses === "" ? null : Number(form.antiguedad_meses),
+        datos_adicionales: {
+          ...form.datos_adicionales,
+          ...(Number(form.sueldo) > 0 ? { sueldo_declarado: Number(form.sueldo) } : {}),
+        },
       };
+      delete payload.sueldo;
       let s = await creditos.ppSolicitudCrear(payload);
       if (enviar) {
         // Crear y mandar a evaluación en un paso: queda en el Inbox de aprobaciones.
@@ -206,12 +277,29 @@ export default function SolicitudesCreditoPage() {
     finally { setAccionando(false); setConfirmando(null); }
   }
 
-  async function vincularCliente(c) {
+  /** Abre el pedido de corrección con los obligatorios que no llegaron ya marcados. */
+  const abrirObservar = () => {
+    const faltan = docsPedidos.filter((d) => docsFaltantes.includes(d.titulo)).map((d) => d.tipo);
+    setObservando({ detalle: "", documentos: faltan, cbu: false });
+  };
+  async function observar() {
+    setAccionando(true); setDetErr("");
+    try {
+      setSel(await creditos.ppSolicitudEstado(sel.id, "observar", "", "", {
+        detalle: observando.detalle.trim(), documentos: observando.documentos, corregir_cbu: observando.cbu }));
+      setObservando(null);
+      setOk(`${sel.numero} quedó observada: el solicitante ve el pedido en el portal.`);
+      cargar();
+    } catch (e) { setDetErr(e.message); setObservando(null); }
+    finally { setAccionando(false); }
+  }
+
+  async function vincularCliente(c, solicitud = vinculando) {
     setDetErr("");
     try {
-      const r = await creditos.ppSolicitudPromover(vinculando.id, { cliente_id: c.id });
-      setVinculando(null); setSel(r.solicitud); cargar();
-      const texto = `Cliente ${nombreCliente(c)} vinculado a la solicitud.${resumenDocs(r.documentos)}`;
+      const r = await creditos.ppSolicitudPromover(solicitud.id, { cliente_id: c.id });
+      setVinculando(null); setEnPadron(null); setSel(r.solicitud); cargar();
+      const texto = `Cliente ${r.solicitud.clienteNombre || nombreCliente(c)} vinculado a la solicitud.${resumenDocs(r.documentos)}`;
       setOk(texto); setDetOk({ texto, clienteId: r.clienteId });
     } catch (e) { setDetErr(e.message); }
   }
@@ -271,44 +359,11 @@ export default function SolicitudesCreditoPage() {
             </button>
           ))}
           <input className="input ml-auto w-60" value={q} onChange={(e) => setQ(e.target.value)}
-                 placeholder="Buscar cliente o N°…" aria-label="Buscar cliente o número" />
+                 placeholder="Buscar cliente, CUIL o N°…" aria-label="Buscar cliente o número" />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
-                <th className="px-3 py-2 text-left">N°</th>
-                <th className="px-3 py-2 text-left">Cliente</th>
-                <th className="px-3 py-2 text-right">Monto</th>
-                <th className="px-3 py-2 text-right">Plazo</th>
-                <th className="px-3 py-2 text-right">Cuota est.</th>
-                <th className="px-3 py-2 text-left">Estado</th>
-                <th className="px-3 py-2 text-left">Elegible</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {items.map((s) => (
-                <tr key={s.id} onClick={() => { setSel(s); setNueva(false); }}
-                    className="cursor-pointer hover:bg-gray-50">
-                  <td className="px-3 py-2 font-medium">{s.numero}</td>
-                  <td className="px-3 py-2">
-                    {s.clienteNombre}
-                    {s.solicitanteTipo === "NO_REGISTRADO" && <span className="ml-2"><Pill>express</Pill></span>}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{money(s.monto)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{s.plazo}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{money(s.evaluacion?.cuota_estimada || 0)}</td>
-                  <td className="px-3 py-2"><Pill tono={TONO_ESTADO[s.estado] || "neutral"}>{s.estado}</Pill></td>
-                  <td className="px-3 py-2">{s.evaluacion?.elegible ? "Sí" : "No"}</td>
-                </tr>
-              ))}
-              {!items.length && (
-                <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">Sin solicitudes.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columnas} rows={items} clientSort rowKey={(s) => s.id}
+                   onRowClick={(s) => { setSel(s); setNueva(false); }} emptyText="Sin solicitudes." />
       </Card>
 
       {/* ── Asistente de alta ── */}
@@ -322,10 +377,10 @@ export default function SolicitudesCreditoPage() {
               <span className="flex-1" />
               {paso > 1 && <Boton variante="secundario" onClick={() => setPaso(paso - 1)}>← Volver</Boton>}
               {paso === 1 && (
-                <Boton disabled={!paso1OK} onClick={() => { setPaso(2); if (!sim) simular(); }}>Continuar →</Boton>
+                <Boton disabled={!paso1OK} onClick={() => { setForm((f) => enRango(f, lineaForm)); setPaso(2); }}>Continuar →</Boton>
               )}
               {paso === 2 && (
-                <Boton disabled={!paso2OK || sim?.elegible === false}
+                <Boton disabled={!paso2OK}
                        title={sim?.elegible === false ? "No cumple las condiciones de la línea" : ""}
                        onClick={() => setPaso(3)}>Continuar →</Boton>
               )}
@@ -334,7 +389,9 @@ export default function SolicitudesCreditoPage() {
                   <Boton variante="secundario" disabled={creando || sim?.elegible === false} onClick={() => crear(false)}>
                     Guardar borrador
                   </Boton>
-                  <Boton disabled={creando || sim?.elegible === false} onClick={() => crear(true)}>
+                  <Boton disabled={creando || sim?.elegible === false || !cbuOK}
+                         title={cbuOK ? "" : "Cargá el CBU de acreditación (22 dígitos) para enviarla."}
+                         onClick={() => crear(true)}>
                     {creando ? "Creando…" : "Crear y enviar a evaluación"}
                   </Boton>
                 </>
@@ -360,7 +417,7 @@ export default function SolicitudesCreditoPage() {
           {paso === 1 && (
             <>
               <Field label="Cliente (padrón del sistema)">
-                <BuscadorCliente seleccionado={cliente} onSelect={setCliente} />
+                <BuscadorCliente seleccionado={cliente} onSelect={elegirCliente} />
               </Field>
               {!cliente && (
                 <p className="text-xs text-gray-500 mt-1">
@@ -390,54 +447,36 @@ export default function SolicitudesCreditoPage() {
                          value={form.antiguedad_meses === "" ? "" : Number(form.antiguedad_meses) / 12}
                          onChange={(e) => setForm({ ...form, antiguedad_meses: aniosAMeses(e.target.value) })} />
                 </Field>
-                <Field label="Relación">
-                  <select className="input w-full" value={form.relacion}
-                          onChange={(e) => setForm({ ...form, relacion: e.target.value })}>
-                    {RELACIONES.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </Field>
+                <CampoSueldo valor={form.sueldo} onChange={(v) => setForm({ ...form, sueldo: v })} />
               </div>
+              {precarga && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Datos traídos del padrón de clientes
+                  {[!precarga.fecha_nacimiento && "sin fecha de nacimiento", !precarga.sueldo && "sin sueldo",
+                    precarga.antiguedad_meses == null && "sin fecha de ingreso", !precarga.cbu && "sin CBU"]
+                    .filter(Boolean).map((x, i) => `${i ? ", " : " ("}${x}`).join("")}{
+                    [!precarga.fecha_nacimiento, !precarga.sueldo, precarga.antiguedad_meses == null, !precarga.cbu].some(Boolean) ? ")" : ""}.
+                  {" "}Se pueden corregir para esta solicitud.
+                </p>
+              )}
             </>
           )}
 
           {paso === 2 && (
             <>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="Línea">
-                  <select className="input w-full" value={form.producto_id}
-                          onChange={(e) => { setForm({ ...form, producto_id: e.target.value }); setSim(null); }}>
-                    {lineas.map((l) => <option key={l.id} value={l.id}>{l.nombre} ({l.codigo})</option>)}
-                  </select>
-                </Field>
-                <Field label="Monto">
-                  <input type="number" min={1} max={999999999} className="input w-full" value={form.monto_solicitado}
-                         onChange={(e) => { setForm({ ...form, monto_solicitado: Math.max(0, Math.min(999999999, Math.floor(Number(e.target.value) || 0))) }); setSim(null); }} />
-                </Field>
-                <Field label="Plazo (cuotas, 1–240)">
-                  <input type="number" min={1} max={240} className="input w-full" value={form.plazo_solicitado}
-                         onChange={(e) => { setForm({ ...form, plazo_solicitado: Math.max(0, Math.min(240, Math.floor(Number(e.target.value) || 0))) }); setSim(null); }} />
-                </Field>
+              <Field label="Línea">
+                <select className="input w-full" value={form.producto_id}
+                        onChange={(e) => { setForm(enRango({ ...form, producto_id: e.target.value }, lineas.find((l) => l.id === e.target.value))); setSim(null); }}>
+                  {lineas.map((l) => <option key={l.id} value={l.id}>{l.nombre} ({l.codigo})</option>)}
+                </select>
+              </Field>
+              <div className="mt-4">
+                <CondicionesCredito linea={lineaForm} monto={Number(form.monto_solicitado)} plazo={Number(form.plazo_solicitado)}
+                                    sueldo={form.sueldo} money={money} onSim={setSim}
+                                    perfil={{ segmento: form.segmento, canal: form.canal, fecha_nacimiento: form.fecha_nacimiento,
+                                              antiguedad_meses: form.antiguedad_meses }}
+                                    onChange={({ monto, plazo }) => setForm((f) => ({ ...f, monto_solicitado: monto, plazo_solicitado: plazo }))} />
               </div>
-              <p className="text-sm text-gray-500 mt-3">
-                {simulando ? "Calculando…"
-                  : paso2OK ? "La simulación se recalcula sola al cambiar los datos."
-                  : "Completá línea, monto y plazo para simular."}
-              </p>
-              {sim && (
-                <div className="mt-3 border border-gray-200 rounded-xl p-3">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                    <div><p className="text-xs text-gray-500">Cuota promedio</p><b>{money(sim.cuotaPromedio)}</b></div>
-                    <div><p className="text-xs text-gray-500">Total a pagar</p><b>{money(sim.totalCuotas)}</b></div>
-                    <div><p className="text-xs text-gray-500">Cuotas</p><b>{sim.cantidadCuotas}</b></div>
-                    <div><p className="text-xs text-gray-500">TNA</p><b>{sim.tna}%</b></div>
-                  </div>
-                  <div className="mt-3">
-                    {sim.elegible === false
-                      ? <Alerta>No cumple las condiciones: {sim.motivos.join(" · ")}. Ajustá los datos o elegí otra línea.</Alerta>
-                      : <Alerta tipo="ok">Elegible con estos datos.</Alerta>}
-                  </div>
-                </div>
-              )}
             </>
           )}
 
@@ -461,7 +500,26 @@ export default function SolicitudesCreditoPage() {
                       <dt className="text-gray-500">Elegible</dt><dd>{sim.elegible === false ? "No (revisar)" : "Sí"}</dd></div>
                   </>
                 )}
+                {Number(form.sueldo) > 0 && (
+                  <div className="flex justify-between border-b border-gray-100 py-1">
+                    <dt className="text-gray-500">Sueldo neto</dt>
+                    <dd>{money(Number(form.sueldo))}{sim?.afectacion != null ? ` · cuota ${String(sim.afectacion).replace(".", ",")}%` : ""}</dd></div>
+                )}
               </dl>
+              {lineaForm?.cobro && (
+                <div className="mt-4">
+                  <AvisoCobro cobro={lineaForm.cobro} cuota={sim?.primeraCuota} money={money}
+                              titulo="Avisale al solicitante cómo se cobra" />
+                </div>
+              )}
+              <div className="mt-4">
+                <CampoCbu valor={form.datos_adicionales.cbu} requerido
+                          onChange={(v) => setForm({ ...form, datos_adicionales: { ...form.datos_adicionales, cbu: v } })} />
+                <p className="text-xs text-gray-500 mt-1">
+                  {precarga?.cbu && cbuForm === precarga.cbu ? "Es el CBU del cliente en el padrón. " : ""}
+                  A esta cuenta se transfiere el desembolso; sin CBU la solicitud no entra a un lote de liquidación.
+                </p>
+              </div>
               {/* El destino del crédito ya no se pregunta; las solicitudes viejas lo siguen mostrando. */}
               <div className="grid gap-3 sm:grid-cols-2 mt-4">
                 <Field label="Relación">
@@ -498,6 +556,9 @@ export default function SolicitudesCreditoPage() {
                   <Boton variante="secundario" onClick={() => abrirAltaCliente(sel)}>Crear cliente</Boton>
                 </>
               )}
+              {sel.editable && puedeEditar && (
+                <Boton variante="secundario" disabled={accionando} onClick={() => setEditando(sel)}>Modificar</Boton>
+              )}
               {sel.estado === "BORRADOR" && (
                 <Boton disabled={accionando || !puedeEditar} onClick={() => resolver("enviar")}>Enviar a evaluación</Boton>
               )}
@@ -511,6 +572,11 @@ export default function SolicitudesCreditoPage() {
                          confirmar: "Anular",
                          onSi: () => resolver("anular"),
                        })}>Anular</Boton>
+              )}
+              {sel.estado === "EN_EVALUACION" && sel.origen === "PORTAL" && (
+                <Boton variante="secundario" disabled={accionando || !puedeEditar}
+                       title="Le pide al solicitante que corrija documentación o datos desde el portal."
+                       onClick={abrirObservar}>Observar</Boton>
               )}
               {sel.estado === "EN_EVALUACION" && (
                 <>
@@ -537,9 +603,32 @@ export default function SolicitudesCreditoPage() {
             </div>
           )}
 
+          {enPadron && sel.solicitanteTipo === "NO_REGISTRADO" && (
+            <div className="mb-3">
+              <Alerta tipo="warn">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="flex-1">
+                    Esta persona ya está en el padrón de clientes: <b>{enPadron.nombre}</b> ({enPadron.documento}).
+                  </span>
+                  {puedeEditar && (
+                    <Boton disabled={accionando} onClick={() => vincularCliente({ id: enPadron.id }, sel)}>
+                      Vincular a este cliente
+                    </Boton>
+                  )}
+                </span>
+              </Alerta>
+            </div>
+          )}
+          {sel.ultimaModificacion && (
+            <p className="text-xs text-gray-500 mb-3">
+              Modificada por <b>{sel.ultimaModificacion.por}</b> el {fechaHora(sel.ultimaModificacion.en)}
+              {sel.ultimaModificacion.campos?.length ? ` (${sel.ultimaModificacion.campos.map((c) => (CAMPO_EDITADO[c] || c).toLowerCase()).join(", ")})` : ""}
+              {(sel.datosAdicionales?.modificaciones || []).length > 1 ? ` · ${sel.datosAdicionales.modificaciones.length} modificaciones` : ""}.
+            </p>
+          )}
           <dl className="grid sm:grid-cols-3 gap-3 text-sm">
             <div><dt className="text-xs text-gray-500">Línea</dt>
-              <dd className="font-medium">{lineas.find((l) => l.id === sel.productoId)?.nombre || sel.productoId}</dd></div>
+              <dd className="font-medium">{[...lineas, ...lineasTodas].find((l) => l.id === sel.productoId)?.nombre || sel.productoId}</dd></div>
             <div><dt className="text-xs text-gray-500">Monto</dt><dd className="font-medium">{money(sel.monto)}</dd></div>
             <div><dt className="text-xs text-gray-500">Plazo</dt><dd className="font-medium">{sel.plazo} cuotas</dd></div>
             <div><dt className="text-xs text-gray-500">TNA ofrecida</dt>
@@ -547,6 +636,27 @@ export default function SolicitudesCreditoPage() {
             <div><dt className="text-xs text-gray-500">Cuota estimada</dt>
               <dd className="font-medium">{money(sel.evaluacion?.cuota_estimada || 0)}</dd></div>
             <div><dt className="text-xs text-gray-500">Relación</dt><dd className="font-medium">{sel.relacion}</dd></div>
+            <div><dt className="text-xs text-gray-500">Origen</dt>
+              <dd className="font-medium">{sel.origen === "PORTAL" ? "Portal web" : sel.canal ? humano(sel.canal) : "Sucursal"}</dd></div>
+            {sel.clienteCuil && (
+              <div><dt className="text-xs text-gray-500">CUIL</dt><dd className="font-medium tabular-nums">{cuilFmt(sel.clienteCuil)}</dd></div>
+            )}
+            {sel.segmento && (
+              <div><dt className="text-xs text-gray-500">Situación laboral</dt>
+                <dd className="font-medium">{SITUACION[sel.segmento] || humano(sel.segmento)}</dd></div>
+            )}
+            {sel.antiguedadMeses != null && (
+              <div><dt className="text-xs text-gray-500">Antigüedad laboral</dt>
+                <dd className="font-medium">{antiguedad(sel.antiguedadMeses)}</dd></div>
+            )}
+            {sel.datosAdicionales?.sueldo_declarado > 0 && (
+              <div><dt className="text-xs text-gray-500">Sueldo neto declarado</dt>
+                <dd className="font-medium tabular-nums">{money(sel.datosAdicionales.sueldo_declarado)}</dd></div>
+            )}
+            {sel.datosAdicionales?.afectacion != null && (
+              <div><dt className="text-xs text-gray-500">Afectación (cuota / sueldo)</dt>
+                <dd className="font-medium tabular-nums">{String(sel.datosAdicionales.afectacion).replace(".", ",")}%</dd></div>
+            )}
             {sel.datosAdicionales?.destino && (
               <div><dt className="text-xs text-gray-500">Destino</dt>
                 <dd className="font-medium">{DESTINO[sel.datosAdicionales.destino] || sel.datosAdicionales.destino}</dd></div>
@@ -567,14 +677,67 @@ export default function SolicitudesCreditoPage() {
               <div><dt className="text-xs text-gray-500">Teléfono</dt>
                 <dd className="font-medium">{sel.clienteDatos?.telefono || sel.datosAdicionales?.telefono}</dd></div>
             )}
+            {sel.datosAdicionales?.consentimiento && (
+              <div><dt className="text-xs text-gray-500">Términos y tratamiento de datos</dt>
+                <dd className="font-medium">Aceptados{sel.datosAdicionales.consentimiento.fecha
+                  ? ` el ${fecha(sel.datosAdicionales.consentimiento.fecha)}` : ""}</dd></div>
+            )}
+            {sel.datosAdicionales?.videos_vistos?.videos?.length > 0 && (
+              <div><dt className="text-xs text-gray-500">Videos obligatorios</dt>
+                <dd className="font-medium">Vio {sel.datosAdicionales.videos_vistos.videos.length}
+                  {sel.datosAdicionales.videos_vistos.fecha ? ` · ${fecha(sel.datosAdicionales.videos_vistos.fecha)}` : ""}</dd></div>
+            )}
+            {/* Lo que pidió la línea (componente "Documentación y datos"), tal como se preguntó. */}
+            {(sel.datosAdicionales?.requisitos || []).map((r) => (
+              <div key={r.codigo}><dt className="text-xs text-gray-500">{r.etiqueta}</dt>
+                <dd className="font-medium">{r.valores.length ? r.valores.join(", ") : "—"}</dd></div>
+            ))}
           </dl>
 
+          {sel.datosAdicionales?.cobro && (
+            <div className="mt-3">
+              <AvisoCobro cobro={sel.datosAdicionales.cobro} cuota={sel.evaluacion?.cuota_estimada} money={money}
+                          titulo="Cómo se cobra (lo que se le avisó)" />
+            </div>
+          )}
           {sel.evaluacion?.motivos?.length > 0 && (
             <div className="mt-3"><Alerta>No elegible: {sel.evaluacion.motivos.join(" · ")}</Alerta></div>
           )}
           {sel.motivoRechazo && <p className="mt-3 text-sm text-gray-500">Motivo: {sel.motivoRechazo}</p>}
           {sel.datosAdicionales?.observaciones && (
             <p className="mt-2 text-sm text-gray-500">Nota del solicitante: {sel.datosAdicionales.observaciones}</p>
+          )}
+
+          {(sel.datosAdicionales?.correcciones || []).length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Observaciones al solicitante</h3>
+              <ul className="flex flex-col gap-2">
+                {[...sel.datosAdicionales.correcciones].reverse().map((o, i) => (
+                  <li key={o.fecha + i} className="border border-gray-200 rounded-lg p-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      {o.respondida
+                        ? <Pill tono="ok">Corregida · {fecha(o.respondida)}</Pill>
+                        : <Pill tono="warn">Esperando al solicitante</Pill>}
+                      <span className="text-xs text-gray-500">{fecha(o.fecha)} · {o.por}</span>
+                    </div>
+                    <p className="text-gray-800 whitespace-pre-line">{o.detalle}</p>
+                    {(o.documentos?.length > 0 || o.cbu) && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Pidió: {[...(o.documentos || []).map((t) => docsPedidos.find((d) => d.tipo === t)?.titulo || t),
+                                 ...(o.cbu ? ["corregir el CBU"] : [])].join(", ")}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <HistorialModificaciones modificaciones={sel.datosAdicionales?.modificaciones || []} money={money}
+                                   nombreLinea={(id) => [...lineas, ...lineasTodas].find((l) => l.id === id)?.nombre || id} />
+
+          {docsFaltantes.length > 0 && (
+            <div className="mt-3"><Alerta tipo="warn">Falta documentación obligatoria: {docsFaltantes.join(", ")}.</Alerta></div>
           )}
 
           {docs.length > 0 && (
@@ -589,7 +752,7 @@ export default function SolicitudesCreditoPage() {
               </div>
               {docs.map((d) => (
                 <div key={d.id} className="flex items-center gap-2 py-1 text-sm">
-                  <Pill>{TIPODOC[d.tipo] || d.tipo}</Pill>
+                  <Pill>{d.titulo || TIPODOC[d.tipo] || d.tipo}</Pill>
                   <button onClick={() => setViendoDoc(docs.indexOf(d))}
                           className="text-blue-600 hover:underline truncate max-w-xs" title={`Ver ${d.nombre}`}>{d.nombre}</button>
                   <span className="text-gray-400 text-xs">{fmtBytes(d.tamano)}</span>
@@ -716,6 +879,55 @@ export default function SolicitudesCreditoPage() {
         </Modal>
       )}
 
+      {/* Después del detalle: con el mismo z-index, el que va último en el DOM queda arriba. */}
+      {editando && (
+        <EditarSolicitud solicitud={editando} lineas={lineasTodas.length ? lineasTodas : lineas} segmentos={cat.segmentos}
+                         money={money} onClose={() => setEditando(null)}
+                         onGuardada={(r) => { setEditando(null); setSel(r); setOk(`${r.numero} modificada.`); cargar(); }} />
+      )}
+
+      {observando && (
+        <Modal
+          titulo="Observar solicitud"
+          eyebrow={`${sel.numero} · el solicitante corrige desde el portal`}
+          ancho="max-w-lg"
+          onClose={() => setObservando(null)}
+          footer={<>
+            <span className="flex-1" />
+            <Boton variante="secundario" onClick={() => setObservando(null)}>Cancelar</Boton>
+            <Boton disabled={accionando || !observando.detalle.trim()} onClick={observar}>Observar</Boton>
+          </>}
+        >
+          <Field label="Explicación para el solicitante">
+            <textarea className="input w-full" rows={4} value={observando.detalle} maxLength={1000} autoFocus
+                      placeholder="Ej.: La foto del DNI está borrosa y falta el certificado de servicios."
+                      onChange={(e) => setObservando((o) => ({ ...o, detalle: e.target.value }))} />
+          </Field>
+          {docsPedidos.length > 0 && (
+            <fieldset className="mt-4">
+              <legend className="text-sm font-medium text-gray-700 mb-1">Documentos a adjuntar o reemplazar</legend>
+              {docsPedidos.map((d) => (
+                <label key={d.tipo} className="flex items-center gap-2 text-sm text-gray-700 py-0.5">
+                  <input type="checkbox" checked={observando.documentos.includes(d.tipo)}
+                         onChange={(e) => setObservando((o) => ({ ...o, documentos: e.target.checked
+                           ? [...o.documentos, d.tipo] : o.documentos.filter((t) => t !== d.tipo) }))} />
+                  {d.titulo}
+                  {docsFaltantes.includes(d.titulo) && <Pill tono="warn">falta</Pill>}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <label className="flex items-center gap-2 text-sm text-gray-700 mt-3">
+            <input type="checkbox" checked={observando.cbu}
+                   onChange={(e) => setObservando((o) => ({ ...o, cbu: e.target.checked }))} />
+            Corregir el CBU de acreditación
+          </label>
+          <p className="text-xs text-gray-500 mt-3">
+            La solicitud queda observada: no se aprueba ni se rechaza hasta que el solicitante corrija y la reenvíe.
+          </p>
+        </Modal>
+      )}
+
       {vinculando && (
         <Modal
           titulo="Vincular cliente del padrón"
@@ -731,7 +943,8 @@ export default function SolicitudesCreditoPage() {
       )}
 
       {viendoDoc != null && sel && docs[viendoDoc] && (
-        <VisorDocumento docs={docs} inicial={viendoDoc} etiquetas={TIPODOC} eyebrow="Documentación del solicitante"
+        <VisorDocumento docs={docs} inicial={viendoDoc} etiquetas={{ ...TIPODOC, ...Object.fromEntries(docs.map((d) => [d.tipo, d.titulo || TIPODOC[d.tipo] || d.tipo])) }}
+                        eyebrow="Documentación del solicitante"
                         cargar={(d) => creditos.ppSolicitudDocArchivo(sel.id, d.id)}
                         onClose={() => setViendoDoc(null)} />
       )}

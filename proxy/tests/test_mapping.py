@@ -230,3 +230,12 @@ def test_rutas_nuevas_de_contabilidad(metodo, ruta, permiso):
     assert get_service_url(metodo, ruta) == settings.contabilidad_service_url
     assert get_required_permission(metodo, ruta) == permiso
 
+
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("GET", "/api/despacho/numeracion", "despacho:resoluciones:read"),
+    ("PUT", "/api/despacho/numeracion/2026/1", "despacho:resoluciones:firmar"),
+])
+def test_numeracion_de_despacho(metodo, ruta, permiso):
+    assert get_service_url(metodo, ruta) == settings.despacho_service_url
+    assert get_required_permission(metodo, ruta) == permiso

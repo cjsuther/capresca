@@ -22,6 +22,20 @@ def series(_u: Usuario = Depends(usuario_actual)):
     return [{"serie": s, "nombre": n} for s, n in SERIES.items()]
 
 
+@router.get("/numeracion")
+def ver_numeracion(anio: int = Query(..., ge=1990, le=2100), db: Session = Depends(get_db),
+                   _u: Usuario = Depends(usuario_actual)):
+    """Por serie: último número usado y próximo correlativo y N° oficial del año."""
+    return svc.numeracion(db, anio)
+
+
+@router.put("/numeracion/{anio}/{serie}")
+def fijar_numeracion(anio: int, serie: int, datos: schemas.NumeracionIn, db: Session = Depends(get_db),
+                     u: Usuario = Depends(requiere("resoluciones:firmar"))):
+    """Desde qué número sigue la serie en el año: continúa la numeración del sistema anterior."""
+    return svc.fijar_numeracion(db, anio, serie, datos.desde_numero, datos.desde_oficial, u.username)
+
+
 # --------------------------------------------------------------------------- modelos
 @router.get("/modelos", response_model=list[schemas.ModeloOut])
 def listar_modelos(tipo: str | None = None, buscar: str | None = None, serie: int | None = None,

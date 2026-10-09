@@ -67,10 +67,12 @@ export function nuevoId(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-export type Ciudadano = { sub: string; email: string; nombre: string };
+export type Ciudadano = { sub: string; email: string; nombre: string; espera_rechazo?: string };
 export type Haberes = { disponible: boolean; sueldo: number | null; antiguedad_meses: number | null; segmento: string; empleador: string; fuente: string };
 // Producto del product builder nuevo (pp_*), no la línea legacy.
-export type Producto = { id: string; nombre: string; codigo: string; sistema: string; tna: number; monto_min: number; monto_max: number; plazo_min: number; plazo_max: number };
+// Forma de cobro de la línea: con código de descuento, la cuota sale del recibo de sueldo.
+export type Cobro = { modalidad: "CODIGO_DESCUENTO" | "VENTANILLA" | "DEBITO_AUTOMATICO"; codigoDescuento: string; conceptoRecibo: string; detalle: string };
+export type Producto = { id: string; nombre: string; codigo: string; sistema: string; tna: number; monto_min: number; monto_max: number; plazo_min: number; plazo_max: number; cobro?: Cobro | null };
 export type Cuota = { numero: number; vencimiento: string; capital: number; interes: number; cargos: number; impuestos: number; total: number };
 export type Datos = { segmento?: string; fecha_nacimiento?: string; antiguedad_meses?: number; sueldo?: number;
                       email?: string; telefono?: string };
@@ -86,12 +88,27 @@ export type SolicitudDetalle = Solicitud & {
   sistema: string; destino: string; segmento: string; fecha_nacimiento: string | null; edad: number | null;
   antiguedad_meses: number | null;
   sueldo: number | null; afectacion: number | null; total_a_pagar: number; cuotas: Cuota[];
+  // Para completar o corregir: lo que pide la línea con lo adjuntado, y la observación del asesor.
+  documentacion?: DocDeLaSolicitud[]; observacion?: Observacion | null; puede_adjuntar?: boolean;
+};
+/** Documento que pide la solicitud, con lo que ya se adjuntó. `observado`: el asesor pidió (re)adjuntarlo. */
+export type DocDeLaSolicitud = DocPedido & {
+  adjunto: { id: string; nombre: string } | null; observado: boolean; corregido: boolean;
+};
+/** Lo que el asesor pidió corregir. `pendientes`: lo que todavía falta para poder reenviar. */
+export type Observacion = {
+  detalle: string; fecha: string; cbu: boolean; cbu_corregido: boolean; cbu_actual: string; pendientes: string[];
 };
 
 // Video obligatorio del paso 4: se ve completo (sin adelantar) antes de confirmar la solicitud.
 export type Video = { id: string; titulo: string; url: string };
-/** Documento que la solicitud pide adjuntar. La lista la configura Créditos → Parámetros. */
-export type DocPedido = { tipo: string; titulo: string; ayuda: string };
+/** Documento que la solicitud pide adjuntar. Cada línea define los suyos (o vale la lista de Parámetros). */
+export type DocPedido = { tipo: string; titulo: string; ayuda: string; obligatorio: boolean };
+/** Dato que pide la línea: un combo de selección única o múltiple. */
+export type CampoPedido = {
+  codigo: string; etiqueta: string; ayuda: string; tipo: "UNICA" | "MULTIPLE"; opciones: string[]; obligatorio: boolean;
+};
+export type Requisitos = { campos: CampoPedido[]; documentos: DocPedido[] };
 
 export type Solicitud = {
   numero: string; estado: string; producto: string; monto: number; plazo: number;
@@ -108,10 +125,10 @@ export const api = {
   preAprobado: (b: { producto_id: string; plazo: number; sueldo: number; afectacion_max?: number }): Promise<PreAprobado> =>
     req("/portal/pre-aprobado", { method: "POST", body: JSON.stringify(b) }),
   // Idempotency-Key: un doble-clic en "Enviar" no crea dos solicitudes.
-  enviarSolicitud: (b: { producto_id: string; monto: number; plazo: number; apellido?: string; nombre?: string; dni?: string; destino?: string; cbu?: string; acepta_terminos?: boolean; acepta_datos?: boolean; videos_vistos?: string[] } & Datos, idemKey: string): Promise<Solicitud> =>
+  enviarSolicitud: (b: { producto_id: string; monto: number; plazo: number; apellido?: string; nombre?: string; cuil?: string; destino?: string; cbu?: string; acepta_terminos?: boolean; acepta_datos?: boolean; videos_vistos?: string[]; respuestas?: Record<string, string[]> } & Datos, idemKey: string): Promise<Solicitud> =>
     req("/portal/solicitudes", { method: "POST", body: JSON.stringify(b), headers: { "Idempotency-Key": idemKey } }),
   videos: (): Promise<Video[]> => req("/portal/videos"),
-  docsPedidos: (): Promise<DocPedido[]> => req("/portal/documentos-requeridos"),
+  requisitos: (productoId: string): Promise<Requisitos> => req(`/portal/productos/${productoId}/requisitos`),
   misSolicitudes: (): Promise<Solicitud[]> => req("/portal/solicitudes"),
   solicitudDetalle: (numero: string): Promise<SolicitudDetalle> => req(`/portal/solicitudes/${numero}`),
   // Documentación adjunta
@@ -122,6 +139,9 @@ export const api = {
   },
   docAbrir: (numero: string, docId: string) => abrirArchivo(`/portal/solicitudes/${numero}/documentos/${docId}`),
   docBorrar: (numero: string, docId: string) => req(`/portal/solicitudes/${numero}/documentos/${docId}`, { method: "DELETE" }),
+  // Solicitud observada: corregir el CBU y reenviar a evaluación.
+  corregirCbu: (numero: string, cbu: string) => req(`/portal/solicitudes/${numero}/cbu`, { method: "PUT", body: JSON.stringify({ cbu }) }),
+  reenviar: (numero: string): Promise<Solicitud> => req(`/portal/solicitudes/${numero}/reenviar`, { method: "POST" }),
   // Mis créditos (préstamo otorgado + cuotas + notificaciones)
   misCreditos: (): Promise<Credito[]> => req("/portal/creditos"),
   creditoDetalle: (contrato: string): Promise<CreditoDetalle> => req(`/portal/creditos/${contrato}`),
@@ -133,4 +153,4 @@ export type ProximaCuota = { numero: number; vencimiento: string; total: number;
 export type Credito = { contrato: string; producto: string; monto: number; saldo: number; estado: string; tna: number; plazo: number; cuotas_pagadas: number; cuotas_total: number; progreso: number; en_mora: boolean; proxima: ProximaCuota | null };
 export type CuotaEstado = { numero: number; vencimiento: string; total: number; pagado: number; estado: string; vencida: boolean };
 export type CreditoDetalle = Credito & { fecha_alta: string; cuotas: CuotaEstado[] };
-export type Notificacion = { tipo: string; titulo: string; detalle: string; fecha: string; contrato: string };
+export type Notificacion = { tipo: string; titulo: string; detalle: string; fecha: string; contrato: string; solicitud?: string };

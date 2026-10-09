@@ -99,6 +99,20 @@ def _migrar_iam() -> None:
         except Exception as e:  # pragma: no cover
             print(f"[migrar] no se pudo soltar el default de clientes.id: {e}")
 
+        # OP por lote de desembolsos (Tesorería): de qué lote, qué contratos y qué resoluciones.
+        for col, tipo in (("referencia", "VARCHAR(80) DEFAULT '' NOT NULL"),
+                          ("lote_tesoreria", "VARCHAR(20) DEFAULT '' NOT NULL"),
+                          ("resoluciones", "VARCHAR(200) DEFAULT '' NOT NULL"),
+                          ("contratos", "JSON"),
+                          ("importe_pagado", "NUMERIC(14, 2) DEFAULT 0 NOT NULL")):
+            conn.execute(text(f"ALTER TABLE ordenes_pago ADD COLUMN IF NOT EXISTS {col} {tipo}"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ordenes_pago_referencia ON ordenes_pago (referencia)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ordenes_pago_lote_tesoreria ON ordenes_pago (lote_tesoreria)"))
+
+        # El tipo de documento es el código que define cada línea ("Documentación y datos"): con 20 no
+        # entraba ni el estándar CERTIFICADO_SERVICIOS (21). Ampliar es idempotente y no reescribe filas.
+        conn.execute(text("ALTER TABLE pp_solicitud_documento ALTER COLUMN tipo TYPE VARCHAR(40)"))
+
         # La solicitud guarda la FECHA DE NACIMIENTO y la edad se calcula (H-219). Idempotente.
         conn.execute(text("ALTER TABLE pp_solicitud ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE"))
 

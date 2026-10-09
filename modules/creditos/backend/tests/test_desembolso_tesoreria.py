@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from app import models_productos as m
+from app import models, models_productos as m
 from app.core import tesoreria
 from app.core.config import get_settings
 from app.core.database import SessionLocal
@@ -132,7 +132,7 @@ def test_fallido_queda_observado_y_se_puede_volver_a_mandar(client, teso):
     hoy = date.today().isoformat()
     item = next(x for l in client.get("/api/creditos/contratos/lotes-liquidacion", headers=h).json()["items"]
                 if l["fecha"] == hoy for x in l["contratos"] if x["id"] == c["id"])
-    assert item["desembolso"] == {"estado": "OBSERVADO", "lote": "LOT-2026-00001", "motivo": "CBU inexistente"}
+    assert item["desembolso"] == {"estado": "OBSERVADO", "lote": "LOT-2026-00001", "op": 1, "motivo": "CBU inexistente"}
     assert _contrato(client, h, c["id"])["estado"] == "A_LIQUIDAR"
 
     r = client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h).json()
@@ -206,3 +206,77 @@ def test_sin_el_flag_se_desembolsa_como_siempre(client):
     h = _auth(client)
     c = _a_liquidar(client, h)
     assert client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h).json()["estado"] == "ACTIVO"
+
+
+# ----------------------------- OP por lote de desembolsos -----------------------------
+
+def _op(numero):
+    with SessionLocal() as db:
+        op = db.query(models.OrdenPago).filter_by(numero=numero).one()
+        db.expunge(op)
+        return op
+
+
+def test_el_lote_lleva_una_op_con_su_numero(client, teso):
+    h = _auth(client)
+    a, b = _a_liquidar(client, h, "PEREZ JUAN"), _a_liquidar(client, h, "GOMEZ ANA", monto=500_000)
+    r = client.post("/api/creditos/contratos/liquidar-lote", headers=h,
+                    json={"fecha": date.today().isoformat()}).json()
+    op = _op(r["ordenPago"])
+    assert teso.lotes[0]["descripcion"].startswith(f"OP N° {op.numero} · ")
+    assert op.estado == "P" and op.tipo == "CREDITO" and op.lote_tesoreria == "LOT-2026-00001"
+    assert sorted(op.contratos) == sorted([a["id"], b["id"]])
+    assert float(op.importe) == sum(p["monto"] for p in teso.lotes[0]["pagos"])
+    assert op.medio_pago == "TRANSFERENCIA" and op.banco == "INTERBANKING"
+    item = next(x for l in client.get("/api/creditos/contratos/lotes-liquidacion", headers=h).json()["items"]
+                for x in l["contratos"] if x["id"] == a["id"])
+    assert item["desembolso"]["op"] == op.numero
+
+
+def test_la_op_se_gira_por_lo_acreditado_cuando_todos_tienen_resultado(client, teso):
+    h = _auth(client)
+    a, b = _a_liquidar(client, h, "PEREZ JUAN"), _a_liquidar(client, h, "GOMEZ ANA", monto=500_000)
+    r = client.post("/api/creditos/contratos/liquidar-lote", headers=h,
+                    json={"fecha": date.today().isoformat()}).json()
+    monto_a = next(p["monto"] for p in teso.lotes[0]["pagos"] if p["referencia_externa"] == a["id"])
+
+    _avisar(client, "LOT-2026-00001", (a["id"], "CONFIRMADO", ""))
+    op = _op(r["ordenPago"])
+    assert op.estado == "P" and float(op.importe_pagado) == monto_a      # b sigue en Tesorería
+
+    _avisar(client, "LOT-2026-00001", (b["id"], "FALLIDO", "CBU inexistente"))
+    op = _op(r["ordenPago"])
+    assert op.estado == "G" and float(op.importe_pagado) == monto_a and op.fecha_pago == date.today()
+
+
+def test_si_no_se_acredita_nada_la_op_se_anula_y_el_reenvio_emite_otra(client, teso):
+    h = _auth(client)
+    c = _a_liquidar(client, h)
+    client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h)
+    _avisar(client, "LOT-2026-00001", (c["id"], "FALLIDO", "CBU inexistente"))
+    assert _op(1).estado == "A"
+
+    client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h)
+    op2 = _op(2)
+    assert op2.estado == "P" and op2.lote_tesoreria == "LOT-2026-00002" and op2.contratos == [c["id"]]
+
+
+def test_reintentar_el_mismo_envio_reusa_la_op(client, teso):
+    h = _auth(client)
+    c = _a_liquidar(client, h)
+    teso.caida = True
+    assert client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h).status_code == 503
+    teso.caida = False
+    client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h)
+    with SessionLocal() as db:
+        assert db.query(models.OrdenPago).filter_by(tipo="CREDITO").count() == 1
+    assert _op(1).lote_tesoreria == "LOT-2026-00001"
+
+
+def test_si_tesoreria_no_toma_ningun_pago_la_op_se_anula(client, teso):
+    h = _auth(client)
+    c = _a_liquidar(client, h)
+    teso.rechazar = {c["id"]: "CBU bloqueado"}
+    client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h)
+    op = _op(1)
+    assert op.estado == "A" and op.lote_tesoreria == ""

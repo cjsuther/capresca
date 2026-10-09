@@ -137,6 +137,7 @@ class CiudadanoOut(BaseModel):
     sub: str
     email: str = ""
     nombre: str = ""
+    espera_rechazo: str = ""      # si tuvo un rechazo reciente: desde cuándo puede volver a solicitar
 
 
 class PortalProductoOut(BaseModel):
@@ -150,6 +151,7 @@ class PortalProductoOut(BaseModel):
     monto_max: float
     plazo_min: int
     plazo_max: int
+    cobro: dict | None = None    # forma de cobro (código de descuento): se avisa al final de la solicitud
 
 
 class DatosSolicitante(BaseModel):
@@ -232,10 +234,11 @@ class PortalSolicitudIn(DatosSolicitante):
     monto: float = Field(gt=0)
     plazo: int = Field(gt=0, le=240)
     # Datos personales que CARGA el ciudadano (H-162): Mi Catamarca sólo valida que la persona exista, no
-    # devuelve su perfil, así que apellido/nombre/DNI los declara él (el DNI se necesita para liquidar).
+    # devuelve su perfil, así que apellido/nombre/CUIL los declara él (el CUIL se necesita para liquidar;
+    # el DNI sale de él).
     apellido: str = ""
     nombre: str = ""
-    dni: str = ""
+    cuil: str = ""
     haberes_fuente: str = "declarado"   # queda "declarado": el ciudadano declara sus haberes
     destino: str = ""                   # para qué es el crédito (VIVIENDA, VEHICULO, …)
     cbu: str = ""                       # CBU de acreditación (22 dígitos)
@@ -244,6 +247,8 @@ class PortalSolicitudIn(DatosSolicitante):
     email: str = ""                     # contacto declarado (puede diferir del de Mi Catamarca)
     telefono: str = ""                  # contacto declarado
     videos_vistos: list[str] = []       # ids de los videos obligatorios que vio completos (paso 4)
+    # Datos que pide la línea (combos del componente "Documentación y datos"): código → opciones elegidas.
+    respuestas: dict[str, list[str]] = {}
 
 
 class PortalSolicitudOut(BaseModel):
@@ -296,11 +301,36 @@ class PortalCreditoDetalle(PortalCreditoOut):
 
 
 class PortalNotificacionOut(BaseModel):
-    tipo: str                 # otorgado | vencimiento | mora | pago
+    tipo: str                 # otorgado | vencimiento | mora | pago | observada
     titulo: str
     detalle: str
     fecha: str
     contrato: str = ""
+    solicitud: str = ""       # observada: la solicitud a corregir
+
+
+class PortalDocPedido(BaseModel):
+    """Un documento que pide la línea, con lo que el ciudadano ya adjuntó."""
+    tipo: str
+    titulo: str
+    ayuda: str = ""
+    obligatorio: bool = True
+    adjunto: dict | None = None      # {id, nombre}
+    observado: bool = False          # el asesor pidió adjuntarlo o reemplazarlo
+    corregido: bool = False          # ya subió uno nuevo después de la observación
+
+
+class PortalObservacion(BaseModel):
+    detalle: str
+    fecha: str
+    cbu: bool = False
+    cbu_corregido: bool = False
+    cbu_actual: str = ""
+    pendientes: list[str] = []
+
+
+class PortalCbuIn(BaseModel):
+    cbu: str
 
 
 class PortalSolicitudDetalle(PortalSolicitudOut):
@@ -314,6 +344,9 @@ class PortalSolicitudDetalle(PortalSolicitudOut):
     afectacion: float | None = None
     total_a_pagar: float = 0
     cuotas: list[PortalCuotaOut] = []
+    documentacion: list[PortalDocPedido] = []
+    observacion: PortalObservacion | None = None
+    puede_adjuntar: bool = False
 
 
 # ---------- Solicitudes ----------

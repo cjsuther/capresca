@@ -29,7 +29,8 @@ from app.core.numbering import crear_con_numero_unico
 from app.core.security import create_portal_token, create_state_token, decode_token
 from app.deps import Ciudadano, get_ciudadano
 from app.services import auditoria as audit
-from app.services import documentos
+from app.domain.margen import valida_cuil
+from app.services import cobro, documentos, espera_rechazo, observaciones, requisitos
 from app.services import haberes as haberes_svc
 from app.services.mi_catamarca import Desafio, get_provider
 from app.services.productos_calc import cronograma, resumen
@@ -39,7 +40,7 @@ from app.api.productos import (_calc_codigo_por_version, _tna_base, _cargo,
                                _params_cronograma, _feriados_engine, _version_publicada_vigente,
                                _disponibilidad, _elegibilidad, canal_portal, decimales_calculo)
 from app.api.contratos import _ctx
-from app.api.solicitudes import _numero as _numero_solicitud, _evaluar as _evaluar_solicitud
+from app.api.solicitudes import _numero as _numero_solicitud, _evaluar as _evaluar_solicitud, cliente_en_padron
 from app import models, models_productos as m, schemas
 
 router = APIRouter(prefix="/api/creditos/portal", tags=["portal"])
@@ -170,13 +171,10 @@ def omitir_videos(db: Session) -> bool:
     return str(p.valor if p else "").strip().lower() in ("true", "1", "si", "sí")
 
 
-def documentos_pedidos(db: Session) -> tuple[str, ...]:
-    """Qué documentación pide la solicitud (parámetro PORTAL_DOCUMENTOS, ámbito créditos).
-
-    Cada oficina decide cuáles exige. Sin el parámetro cargado se piden todos, que es lo que hacía
-    el portal antes de que esto se pudiera configurar."""
-    p = db.query(models.Parametro).filter(models.Parametro.clave == documentos.PARAMETRO).first()
-    return documentos.habilitados(p.valor if p else None)
+def _ruta_portal() -> str:
+    """Dónde se publica el portal, según PORTAL_WEB_URL: "/portal-creditos" en dev, "" en su dominio propio."""
+    from urllib.parse import urlparse
+    return urlparse(get_settings().portal_web_url).path.rstrip("/")
 
 
 def videos_obligatorios(db: Session | None = None) -> list[dict]:
@@ -190,15 +188,19 @@ def videos_obligatorios(db: Session | None = None) -> list[dict]:
         vid, _, titulo = item.strip().partition(":")
         if vid:
             out.append({"id": vid, "titulo": titulo.strip() or vid,
-                        "url": f"/portal-creditos/videos/{vid}.mp4"})
+                        "url": f"{_ruta_portal()}/videos/{vid}.mp4"})
     return out
 
 
-@router.get("/documentos-requeridos")
-def documentos_requeridos(db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciudadano)):
-    """La documentación que hay que adjuntar en el paso 3, según la configuración.
-    Vacío = no se pide ninguna y el portal saltea el paso."""
-    return documentos.para_portal(documentos_pedidos(db))
+@router.get("/productos/{producto_id}/requisitos")
+def requisitos_producto(producto_id: str, db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciudadano)):
+    """Lo que pide la solicitud de esta línea en el paso 3: los datos a completar y la documentación
+    a adjuntar. Las dos listas vacías = el portal saltea el paso."""
+    prod = db.get(m.PPProducto, producto_id)
+    v = _version_publicada_vigente(prod) if prod else None
+    if v is None:
+        raise HTTPException(404, "Producto no encontrado")
+    return {"campos": requisitos.campos(v), "documentos": requisitos.documentos_de(db, v)}
 
 
 @router.get("/videos", response_model=list[schemas.PortalVideoOut])
@@ -209,8 +211,10 @@ def videos(db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciudadano))
 
 
 @router.get("/me", response_model=schemas.CiudadanoOut)
-def me(c: Ciudadano = Depends(get_ciudadano)):
-    return schemas.CiudadanoOut(sub=c.sub, email=c.email, nombre=c.nombre)
+def me(db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciudadano)):
+    rechazo = espera_rechazo.bloqueo(db, _marca(c))
+    return schemas.CiudadanoOut(sub=c.sub, email=c.email, nombre=c.nombre,
+                                espera_rechazo=espera_rechazo.mensaje(rechazo) if rechazo else "")
 
 
 @router.get("/haberes", response_model=schemas.PortalHaberesOut)
@@ -251,7 +255,7 @@ def productos_publicos(db: Session = Depends(get_db), _c: Ciudadano = Depends(ge
             id=p.id, nombre=p.nombre, codigo=p.codigo,
             sistema=calc.get(v.calculador_version_id, "FRANCES"), tna=round(_tna_base(db, v), 4),
             monto_min=float(v.monto_minimo), monto_max=float(v.monto_maximo),
-            plazo_min=v.plazo_minimo, plazo_max=v.plazo_maximo))
+            plazo_min=v.plazo_minimo, plazo_max=v.plazo_maximo, cobro=cobro.de(v)))
     return sorted(out, key=lambda x: x.nombre)
 
 
@@ -304,18 +308,25 @@ def pre_aprobado(req: schemas.PortalPreAprobadoIn, db: Session = Depends(get_db)
     v = _version_publicada_vigente(prod)
     if v is None:
         raise HTTPException(409, "El producto no está disponible.")
-    if not (v.plazo_minimo <= req.plazo <= v.plazo_maximo):
+    return calcular_pre_aprobado(db, v, req.plazo, req.sueldo, req.afectacion_max)
+
+
+def calcular_pre_aprobado(db: Session, v, plazo: int, sueldo: float,
+                          afectacion_pedida: float | None = None) -> schemas.PortalPreAprobadoOut:
+    """El mayor monto de la versión `v` cuya primera cuota entra en la afectación del sueldo. Lo usan el
+    portal y el alta de solicitudes del backoffice: los dos ofrecen el mismo máximo."""
+    if not (v.plazo_minimo <= plazo <= v.plazo_maximo):
         raise HTTPException(422, f"Plazo fuera de rango ({v.plazo_minimo}–{v.plazo_maximo}).")
     # El tope lo fija la línea de crédito (componente Disponibilidad, "Tope del crédito"). El portal ya
     # no lo manda; si igual viene un valor, vale el más estricto de los dos.
     tope = (_disponibilidad(v) or {}).get("afectacionMaxPct")
-    afectacion_max = min([x for x in (tope, req.afectacion_max) if x] or [AFECTACION_MAX_DEFECTO])
-    target = req.sueldo * afectacion_max / 100
+    afectacion_max = min([x for x in (tope, afectacion_pedida) if x] or [AFECTACION_MAX_DEFECTO])
+    target = sueldo * afectacion_max / 100
     lo, hi = float(v.monto_minimo), float(v.monto_maximo)
-    cuota_de = lambda monto: _cuota_estimada(db, v, monto, req.plazo)[2]   # la primera cuota
+    cuota_de = lambda monto: _cuota_estimada(db, v, monto, plazo)[2]   # la primera cuota
     if cuota_de(lo) > target:                       # ni el mínimo entra en el margen
         return schemas.PortalPreAprobadoOut(monto_maximo=0, monto_min=lo, cuota=cuota_de(lo),
-                                            afectacion=round(cuota_de(lo) / req.sueldo * 100, 1), plazo=req.plazo,
+                                            afectacion=round(cuota_de(lo) / sueldo * 100, 1), plazo=plazo,
                                             afectacion_max=afectacion_max)
     if cuota_de(hi) <= target:                       # entra hasta el máximo de la línea
         best = hi
@@ -331,7 +342,7 @@ def pre_aprobado(req: schemas.PortalPreAprobadoIn, db: Session = Depends(get_db)
     cuota = cuota_de(best)
     return schemas.PortalPreAprobadoOut(
         monto_maximo=best, monto_min=float(v.monto_minimo), cuota=round(cuota, 2),
-        afectacion=round(cuota / req.sueldo * 100, 1), plazo=req.plazo,
+        afectacion=round(cuota / sueldo * 100, 1), plazo=plazo,
         afectacion_max=afectacion_max)
 
 
@@ -420,14 +431,26 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
     faltan = [v for v in requeridos if v not in set(req.videos_vistos)]
     if faltan:
         raise HTTPException(422, "Tenés que ver los videos completos antes de enviar la solicitud.")
+    # Paso 3: los datos que pide la línea (combos). Se validan contra la configuración del producto.
+    try:
+        respuestas = requisitos.respuestas(v, req.respuestas)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     # H-162: el ciudadano declara su identidad (Mi Catamarca sólo confirma que existe). Apellido, nombre y
-    # DNI son obligatorios para poder liquidar; el DNI debe tener 7 u 8 dígitos.
+    # CUIL son obligatorios para poder liquidar. El DNI no se pide: son los 8 dígitos del medio del CUIL.
     apellido, nombre = (req.apellido or "").strip(), (req.nombre or "").strip()
-    dni = "".join(ch for ch in (req.dni or "") if ch.isdigit())
+    cuil = "".join(ch for ch in (req.cuil or "") if ch.isdigit())
     if not apellido or not nombre:
         raise HTTPException(422, "Cargá tu apellido y nombre.")
-    if len(dni) not in (7, 8):
-        raise HTTPException(422, "El DNI debe tener 7 u 8 dígitos.")
+    if len(cuil) != 11:
+        raise HTTPException(422, "El CUIL debe tener 11 dígitos.")
+    if not valida_cuil(cuil):
+        raise HTTPException(422, "El CUIL no es válido: revisá los números.")
+    dni = str(int(cuil[2:10]))
+    # Después de un rechazo hay que esperar (parámetro PORTAL_ESPERA_RECHAZO_DIAS).
+    rechazo = espera_rechazo.bloqueo(db, _marca(c), cuil)
+    if rechazo:
+        raise HTTPException(409, espera_rechazo.mensaje(rechazo))
     apellido_nombre = f"{apellido}, {nombre}"
     # Fecha de nacimiento (en vez de la edad: no envejece sola) y contacto, obligatorios para evaluar
     # y para poder avisarle al ciudadano cómo siguió su trámite.
@@ -456,14 +479,19 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
     marca = _marca(c)
     ip = audit.ip_de(request)
     cuota_est, tna_est, primera = _cuota_estimada(db, v, req.monto, req.plazo)   # la que vio al simular
+    # Si ya es cliente (en el padrón por CUIL o por DNI), la solicitud entra vinculada: el asesor no tiene
+    # que darlo de alta ni buscarlo. Si el padrón no responde, entra como express y se vincula después.
+    registrado = cliente_en_padron(db, [cuil, dni])
 
     def _construir(numero: str) -> m.PPSolicitud:
         s = m.PPSolicitud(
-            numero=numero, estado="EN_EVALUACION", solicitante_tipo="NO_REGISTRADO", cliente_id=None,
+            numero=numero, estado="EN_EVALUACION",
+            solicitante_tipo="REGISTRADO" if registrado is not None else "NO_REGISTRADO",
+            cliente_id=registrado.id if registrado is not None else None,
             # Identidad DECLARADA por el ciudadano (H-162): Mi Catamarca sólo confirma que existe, no da su
-            # perfil. El CUIL no lo entrega el OIDC: queda para completar en el alta del backoffice.
+            # perfil. El CUIL lo carga él; el DNI se deriva del CUIL.
             cliente_datos={"apellido_nombre": apellido_nombre, "email": email, "telefono": telefono,
-                           "nacimiento": str(req.fecha_nacimiento), "cuil": "", "dni": dni},
+                           "nacimiento": str(req.fecha_nacimiento), "cuil": cuil, "dni": dni},
             producto_id=prod.id, monto_solicitado=Decimal(str(req.monto)), plazo_solicitado=req.plazo,
             # Datos declarados por el ciudadano (Fase 3): alimentan la evaluación del backoffice.
             segmento=req.segmento or "", canal="WEB", edad=edad, fecha_nacimiento=req.fecha_nacimiento,
@@ -474,6 +502,9 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
                                "cuota_estimada": cuota_est, "tna": tna_est,
                                "sueldo_declarado": req.sueldo, "haberes_fuente": req.haberes_fuente,
                                "destino": destino,
+                               "requisitos": respuestas,
+                               # Cómo se cobra, tal como se le avisó al enviar (código de descuento).
+                               "cobro": cobro.de(v),
                                "cbu": cbu, "consentimiento": {"terminos": True, "datos": True,
                                                               "fecha": str(date.today())},
                                "videos_vistos": {"videos": requeridos, "fecha": str(date.today())},
@@ -531,11 +562,38 @@ def detalle_solicitud(numero: str, db: Session = Depends(get_db), c: Ciudadano =
             cargos=round(float(f["cargos"]), 2), impuestos=round(float(f.get("impuestos", 0)), 2),
             total=round(float(f["total"]), 2)) for f in filas]
     return schemas.PortalSolicitudDetalle(
-        **base, sistema=sistema, destino=DESTINOS.get(da.get("destino", ""), ""),
+        **base, **_correcciones(db, s, v), sistema=sistema, destino=DESTINOS.get(da.get("destino", ""), ""),
         segmento=s.segmento or "", edad=s.edad,
         fecha_nacimiento=str(s.fecha_nacimiento) if s.fecha_nacimiento else None,
         antiguedad_meses=s.antiguedad_meses, sueldo=da.get("sueldo_declarado"),
         afectacion=da.get("afectacion"), total_a_pagar=total, cuotas=cuotas)
+
+
+# Estados en los que el ciudadano todavía puede tocar su documentación.
+_ABIERTA = ("EN_EVALUACION", "BORRADOR", observaciones.ESTADO)
+
+
+def _correcciones(db: Session, s: m.PPSolicitud, v) -> dict:
+    """Lo que el detalle necesita para que el ciudadano complete o corrija: la documentación que pide
+    la línea con lo que ya adjuntó, y la observación del asesor si la solicitud está OBSERVADA."""
+    pedidos = requisitos.documentos_de(db, v) if v is not None else []
+    titulos = {**documentos.TITULOS, **{d["tipo"]: d["titulo"] for d in pedidos}}
+    docs = db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id).order_by(m.PPSolicitudDocumento.subido_en).all()
+    por_tipo = {d.tipo: d for d in docs}
+    obs = observaciones.vigente(s)
+    listos = observaciones.documentos_listos(db, s, obs) if obs else {}
+    documentacion = [schemas.PortalDocPedido(
+        tipo=d["tipo"], titulo=d["titulo"], ayuda=d.get("ayuda", ""), obligatorio=d["obligatorio"],
+        adjunto=({"id": por_tipo[d["tipo"]].id, "nombre": por_tipo[d["tipo"]].nombre} if d["tipo"] in por_tipo else None),
+        observado=d["tipo"] in listos, corregido=listos.get(d["tipo"], False)) for d in pedidos]
+    observacion = None
+    if obs:
+        cbu = "".join(ch for ch in str((s.datos_adicionales or {}).get("cbu") or "") if ch.isdigit())
+        observacion = schemas.PortalObservacion(
+            detalle=obs["detalle"], fecha=obs["fecha"][:10], cbu=bool(obs.get("cbu")),
+            cbu_corregido=bool(obs.get("cbu_corregido")), cbu_actual=cbu,
+            pendientes=observaciones.pendientes(db, s, titulos))
+    return {"documentacion": documentacion, "observacion": observacion, "puede_adjuntar": s.estado in _ABIERTA}
 
 
 # ----------------------- Documentación adjunta (Fase 3+) -----------------------
@@ -553,7 +611,7 @@ def _solicitud_propia(db: Session, numero: str, c: Ciudadano) -> m.PPSolicitud:
 def listar_documentos(numero: str, db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciudadano)):
     s = _solicitud_propia(db, numero, c)
     docs = db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id).order_by(m.PPSolicitudDocumento.subido_en).all()
-    return {"items": [documentos.serial(d) for d in docs], "puede_subir": s.estado in ("EN_EVALUACION", "BORRADOR")}
+    return {"items": [documentos.serial(d) for d in docs], "puede_subir": s.estado in _ABIERTA}
 
 
 @router.post("/solicitudes/{numero}/documentos", status_code=201)
@@ -561,23 +619,31 @@ async def subir_documento(numero: str, request: Request, tipo: str = Form("OTRO"
                           archivo: UploadFile = File(...), db: Session = Depends(get_db),
                           c: Ciudadano = Depends(get_ciudadano)):
     s = _solicitud_propia(db, numero, c)
-    if s.estado not in ("EN_EVALUACION", "BORRADOR"):
+    if s.estado not in _ABIERTA:
         raise HTTPException(409, "No se pueden adjuntar documentos a una solicitud ya resuelta.")
     # El ciudadano adjunta exactamente un archivo de cada documento PEDIDO: ni otros tipos, ni uno
     # que la configuración no pide, ni un segundo del mismo. Para cambiarlo, el asesor lo gestiona.
     tipo = (tipo or "").upper()
-    pedidos = documentos_pedidos(db)
+    prod = db.get(m.PPProducto, s.producto_id)
+    v = _version_publicada_vigente(prod) if prod else None
+    pedidos = {d["tipo"]: d["titulo"] for d in requisitos.documentos_de(db, v)}
     if tipo not in pedidos:
-        detalle = (", ".join(documentos.TITULOS.get(t, t) for t in pedidos)
-                   if pedidos else "ninguna documentación")
+        detalle = ", ".join(pedidos.values()) or "ninguna documentación"
         raise HTTPException(422, f"Ese documento no se pide en esta solicitud. Se adjunta: {detalle}.")
-    if db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id, tipo=tipo).first():
-        raise HTTPException(409, f"Ya adjuntaste {documentos.ETIQUETAS[tipo]} en esta solicitud.")
+    # Si el asesor lo observó, el archivo nuevo REEMPLAZA al anterior (en la misma transacción: si la
+    # subida falla, el anterior queda). Si no, uno por documento.
+    anterior = db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id, tipo=tipo).first()
+    obs = observaciones.vigente(s)
+    reemplaza = bool(anterior and obs and tipo in (obs.get("documentos") or []))
+    if anterior and not reemplaza:
+        raise HTTPException(409, f"Ya adjuntaste «{pedidos[tipo]}» en esta solicitud.")
     contenido = await archivo.read()
     try:
         documentos.validar(archivo.content_type, len(contenido))
     except ValueError as e:
         raise HTTPException(422, str(e))
+    if reemplaza:
+        db.delete(anterior)
     doc = m.PPSolicitudDocumento(
         solicitud_id=s.id, tipo=tipo, nombre=(archivo.filename or "documento")[:200],
         content_type=archivo.content_type, tamano=len(contenido), contenido=contenido, subido_por=_marca(c))
@@ -604,13 +670,53 @@ def descargar_documento(numero: str, doc_id: str, db: Session = Depends(get_db),
 def borrar_documento(numero: str, doc_id: str, db: Session = Depends(get_db),
                      c: Ciudadano = Depends(get_ciudadano)):
     s = _solicitud_propia(db, numero, c)
-    if s.estado not in ("EN_EVALUACION", "BORRADOR"):
+    if s.estado not in _ABIERTA:
         raise HTTPException(409, "No se pueden quitar documentos de una solicitud ya resuelta.")
     doc = db.query(m.PPSolicitudDocumento).filter_by(id=doc_id, solicitud_id=s.id).first()
     if not doc:
         raise HTTPException(404, "Documento no encontrado")
     db.delete(doc); db.commit()
     return {"ok": True}
+
+
+@router.put("/solicitudes/{numero}/cbu")
+def corregir_cbu(numero: str, data: schemas.PortalCbuIn, request: Request, db: Session = Depends(get_db),
+                 c: Ciudadano = Depends(get_ciudadano)):
+    """El ciudadano corrige el CBU cuando el asesor se lo pidió en la observación."""
+    s = _solicitud_propia(db, numero, c)
+    antes = (s.datos_adicionales or {}).get("cbu")
+    try:
+        observaciones.corregir_cbu(s, data.cbu)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    db.commit()
+    audit.registrar_cambio(db, usuario=c.email or c.sub, ip=audit.ip_de(request), entidad="Solicitud",
+                           entidad_id=s.numero, operacion="MODIFICACION", resultado="OK",
+                           antes={"cbu": antes}, despues={"cbu": s.datos_adicionales["cbu"]},
+                           detalle=f"CBU corregido desde el portal en {s.numero} (observación del asesor)")
+    return {"ok": True}
+
+
+@router.post("/solicitudes/{numero}/reenviar", response_model=schemas.PortalSolicitudOut)
+def reenviar_solicitud(numero: str, request: Request, db: Session = Depends(get_db),
+                       c: Ciudadano = Depends(get_ciudadano)):
+    """Con lo observado corregido, la solicitud vuelve a evaluación."""
+    s = _solicitud_propia(db, numero, c)
+    if s.estado != observaciones.ESTADO:
+        raise HTTPException(409, "Esta solicitud no tiene nada que corregir.")
+    prod = db.get(m.PPProducto, s.producto_id)
+    v = _version_publicada_vigente(prod) if prod else None
+    titulos = {**documentos.TITULOS, **{d["tipo"]: d["titulo"] for d in requisitos.documentos_de(db, v)}}
+    faltan = observaciones.pendientes(db, s, titulos)
+    if faltan:
+        raise HTTPException(422, "Antes de reenviar, corregí: " + ", ".join(faltan) + ".")
+    observaciones.reenviar(s)
+    s.evaluacion = _evaluar_solicitud(db, s)
+    db.commit(); db.refresh(s)
+    audit.registrar_cambio(db, usuario=c.email or c.sub, ip=audit.ip_de(request), entidad="Solicitud",
+                           entidad_id=s.numero, operacion="MODIFICACION", resultado="OK",
+                           despues={"estado": s.estado}, detalle=f"{s.numero} reenviada desde el portal tras la observación")
+    return _serial_portal_solicitud(db, s)
 
 
 # ----------------------- Mis créditos (préstamo otorgado + cuotas + notificaciones) -----------------------
@@ -692,5 +798,12 @@ def notificaciones(db: Session = Depends(get_db), c: Ciudadano = Depends(get_ciu
                     tipo="vencimiento", titulo="Próximo vencimiento", contrato=ct.numero_contrato,
                     detalle=f"Tu cuota {prox.numero_cuota} de {float(prox.total or 0):.0f} vence en {dias} día(s).",
                     fecha=str(prox.fecha_vencimiento)))
+    for s in (db.query(m.PPSolicitud).filter(m.PPSolicitud.creado_por == _marca(c),
+                                              m.PPSolicitud.estado == observaciones.ESTADO).all()):
+        obs = observaciones.vigente(s)
+        notis.append(schemas.PortalNotificacionOut(
+            tipo="observada", titulo="Tenés que corregir tu solicitud", solicitud=s.numero,
+            detalle=f"{s.numero}: {obs['detalle']}" if obs else s.numero,
+            fecha=(obs or {}).get("fecha", "")[:10]))
     notis.sort(key=lambda n: n.fecha, reverse=True)
     return notis
