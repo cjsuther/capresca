@@ -209,7 +209,9 @@ def listar_transferencias_remoto(
         "date-since": date_since,
         "date-until": date_until,
         "page": page,
-        "rows": rows,
+        # Interbanking pagina con `limit` (página desde 0) y rechaza `rows` con 400
+        # "El parámetro rows no es esperado" (verificado en producción el 2026-10-09).
+        "limit": rows,
     }
     if debit_cbu:
         params["debit-account-number"] = debit_cbu

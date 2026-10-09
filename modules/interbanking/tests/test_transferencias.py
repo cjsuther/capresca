@@ -123,7 +123,7 @@ def test_listado_real_pide_el_detalle_a_interbanking(client, cred, red, h, sin_m
     assert r.status_code == 200 and r.json()["mock"] is False
     params = red.llamadas_a("/v1/transfers/details")[0]["params"]
     assert params == {"customer-id": "CUST-1", "date-since": "2026-03-01",
-                      "date-until": "2026-03-31", "page": 1, "rows": 50}
+                      "date-until": "2026-03-31", "page": 1, "limit": 50}
 
 
 def test_listado_real_sin_fechas_usa_hoy(client, cred, red, h, sin_mock):
