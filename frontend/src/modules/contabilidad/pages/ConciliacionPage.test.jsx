@@ -13,7 +13,7 @@ import ConciliacionPage from "./ConciliacionPage";
 import { useAuthStore } from "../../../context/authStore";
 
 const DATOS = {
-  cuenta: { codigo: "1.1.02", nombre: "Bancos" },
+  cuenta: { codigo: "1.1.1.2.001", nombre: "Bancos" },
   extracto: [
     { id: 1, fecha: "2026-09-20", descripcion: "Transferencia recibida", importe: 3000, conciliada: false },
     { id: 2, fecha: "2026-09-21", descripcion: "Gastos bancarios", importe: -500, conciliada: true },
@@ -33,7 +33,7 @@ const sesion = (acciones) => useAuthStore.setState({
 beforeEach(() => {
   vi.clearAllMocks();
   sesion(["asientos:read", "asientos:write"]);
-  api.listarCuentas.mockResolvedValue({ items: [{ codigo: "1.1.02", nombre: "Bancos" }, { codigo: "4.1.04", nombre: "Ingresos" }] });
+  api.listarCuentas.mockResolvedValue({ items: [{ codigo: "1.1.1.2.001", nombre: "Bancos" }, { codigo: "4.1.04", nombre: "Ingresos" }] });
   api.verConciliacion.mockResolvedValue(DATOS);
   api.conciliar.mockResolvedValue({ conciliada: true });
   api.conciliarAutomatica.mockResolvedValue({ conciliadas: 1 });
@@ -73,7 +73,7 @@ describe("Conciliación bancaria", () => {
     await u.type(screen.getByLabelText("Importe del extracto"), "-1200");
     await u.click(screen.getByRole("button", { name: "Agregar" }));
     await waitFor(() => expect(api.cargarExtracto).toHaveBeenCalledWith(
-      expect.objectContaining({ cuenta_codigo: "1.1.02", importe: -1200 })));
+      expect.objectContaining({ cuenta_codigo: "1.1.1.2.001", importe: -1200 })));
   });
 
   it("concilia automáticamente y muestra el resultado", async () => {

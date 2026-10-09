@@ -1,0 +1,625 @@
+codigo,nombre,rubro,imputable,saldo_normal,ajustable
+1.0.0.0.000,Activo,ACTIVO,0,DEUDOR,0
+1.1.0.0.000,Activo Corriente,ACTIVO,0,DEUDOR,0
+1.1.1.0.000,Caja y Bancos,ACTIVO,0,DEUDOR,0
+1.1.1.1.000,Caja,ACTIVO,1,DEUDOR,0
+1.1.1.2.000,Bancos Ctas. Ctes.,ACTIVO,0,DEUDOR,0
+1.1.1.2.001,Banco Nacion 1439/83,ACTIVO,1,DEUDOR,0
+1.1.1.2.002,Banco Nac. Rtas. Grles. 513-53,ACTIVO,1,DEUDOR,0
+1.1.1.2.003,Banco Nac.Fdo. Perm. 514-56,ACTIVO,1,DEUDOR,0
+1.1.1.2.004,Banco Nac. Cred. Pers. 520-53,ACTIVO,1,DEUDOR,0
+1.1.1.2.005,Banco Nacion Casino 525-68,ACTIVO,1,DEUDOR,0
+1.1.1.2.006,Banco Nac. Seguros 526-71,ACTIVO,1,DEUDOR,0
+1.1.1.2.007,Banco Nac. Quiniela 564-01,ACTIVO,1,DEUDOR,0
+1.1.1.2.008,Banco Nac. 466796/58,ACTIVO,1,DEUDOR,0
+1.1.1.2.009,Banco Nac. 1269,ACTIVO,1,DEUDOR,0
+1.1.1.2.010,Banco Nac. 521/71,ACTIVO,1,DEUDOR,0
+1.1.1.2.012,Banco Nac. Fdo. Perman. 1039/5,ACTIVO,1,DEUDOR,0
+1.1.1.2.013,Banco Nac. 46683722/06,ACTIVO,1,DEUDOR,0
+1.1.1.2.014,Bco Nac. Fdo.Perm. 46601200/15,ACTIVO,1,DEUDOR,0
+1.1.1.2.015,Bco. Nac. Cta. 1146601439/83,ACTIVO,1,DEUDOR,0
+1.1.1.2.016,Bco. Nac. 46600714/70,ACTIVO,1,DEUDOR,0
+1.1.1.2.017,Bco.Nac.Cta.46604019/40,ACTIVO,1,DEUDOR,0
+1.1.1.2.018,Bco. Nac. 561/00,ACTIVO,1,DEUDOR,0
+1.1.1.2.019,Bco. Nac. 1212313,ACTIVO,1,DEUDOR,0
+1.1.1.2.020,Bco. Nac.4667961588,ACTIVO,1,DEUDOR,0
+1.1.1.2.021,Bco. Nac.615/85,ACTIVO,1,DEUDOR,0
+1.1.1.2.022,Bco. Nac.566/71,ACTIVO,1,DEUDOR,0
+1.1.1.2.023,Bco.Nac. Titulos Val. 2369/8,ACTIVO,1,DEUDOR,0
+1.1.1.2.024,Bco.Nac. Telebingo 46602049/65,ACTIVO,1,DEUDOR,0
+1.1.1.2.025,Bco. Nac. ( Patagonia) 2131/39,ACTIVO,1,DEUDOR,0
+1.1.1.2.026,Bco.AGAP 2218/49,ACTIVO,1,DEUDOR,0
+1.1.1.2.027,Bco. Recupero AGAP 2269/17,ACTIVO,1,DEUDOR,0
+1.1.1.2.028,BCO. EMPRENDEDORES CTA. 46602625/77,ACTIVO,1,DEUDOR,0
+1.1.1.2.029,Fri. Nº 2 Gtos. Grales. 3671/11,ACTIVO,1,DEUDOR,0
+1.1.1.2.030,Fri Nº 3 Cajas Chicas. 3673/17,ACTIVO,1,DEUDOR,0
+1.1.1.2.031,Fri Nº 4 Comisiones 3672/14,ACTIVO,1,DEUDOR,0
+1.1.1.2.032,AMPARO SEGUROS 4122/35,ACTIVO,1,DEUDOR,0
+1.1.1.2.033,BANCO NACION .FR. PRINCIPAL SAF. 3001/06,ACTIVO,1,DEUDOR,0
+1.1.1.2.034,BCO.NACION RECUP.CTA.P. LA INDUSTRIA 4072/73,ACTIVO,1,DEUDOR,0
+1.1.2.0.000,Inversiones a Corto Plazo,ACTIVO,0,DEUDOR,0
+1.1.2.1.000,Deposito a Plazo Fijo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.2.2.000,Caja de Ahorro,ACTIVO,1,DEUDOR,0
+1.1.2.3.000,Caja de Ahorro Debitos Varios,ACTIVO,1,DEUDOR,0
+1.1.2.4.000,Caja de Ahorro 4667965610,ACTIVO,1,DEUDOR,0
+1.1.2.5.000,Caja de Ahorro 4668372190,ACTIVO,1,DEUDOR,0
+1.1.2.6.000,Acciones Ord.Telecomunic.SAPEM,ACTIVO,1,DEUDOR,0
+1.1.2.7.000,TITULOS DE DEUDAS BALAN,ACTIVO,1,DEUDOR,0
+1.1.2.8.000,FONDO INVERSION ADD CAP.,ACTIVO,1,DEUDOR,0
+1.1.2.9.000,ALLARIA FDO. INV.,ACTIVO,1,DEUDOR,0
+1.1.3.0.000,Créditos A Corto Plazo,ACTIVO,0,DEUDOR,0
+1.1.3.1.000,Provenientes de Prestamos,ACTIVO,0,DEUDOR,0
+1.1.3.1.001,Prestamos Personales A Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.1.002,Prest.Pers.C/Destino Esp. A Co,ACTIVO,1,DEUDOR,0
+1.1.3.1.003,Deud P/Prest.C/Dest.Esp.a Cobr,ACTIVO,1,DEUDOR,0
+1.1.3.1.004,Intereses a Cobrar Prest. Pers,ACTIVO,1,DEUDOR,0
+1.1.3.1.005,Intereses Punitorios a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.1.006,Int.Prest.C/Dest.Esp.a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.1.007,Ant.Prest.Pers.C/DE A Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.1.008,Deudores Financ. Morosos,ACTIVO,1,DEUDOR,0
+1.1.3.1.009,Deud.Moros.P/PDE A Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.2.000,Recup. Gtos Adm a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.2.001,Recup Gtos Adm Prest c/DE a c,ACTIVO,1,DEUDOR,0
+1.1.3.2.002,T.G.P. Int.P/Prest. a Tesoreri,ACTIVO,1,DEUDOR,0
+1.1.3.2.003,Deud.Fin P/Prest.Pers.a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.2.004,Creditos Prod. a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.2.005,Creditos Camelidos a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.2.006,Int. Creditos Prod. a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.2.007,Int. Creditos Camelidos a Cob,ACTIVO,1,DEUDOR,0
+1.1.3.2.008,Ds. Prest.C/DE en Gestion Jud.,ACTIVO,1,DEUDOR,0
+1.1.3.2.009,Int. Prest.C/DE por Mora,ACTIVO,1,DEUDOR,0
+1.1.3.3.000,Deud.P/Primas de Seguro a Cobr,ACTIVO,1,DEUDOR,0
+1.1.3.3.002,Seg.Gastos de Sepelio a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.3.003,Seg. Vida Adicional P/Cony.a C,ACTIVO,1,DEUDOR,0
+1.1.3.3.004,Seguro de Vida Adicional a Cb,ACTIVO,1,DEUDOR,0
+1.1.3.3.005,Seguro Adicional por Incapacid,ACTIVO,1,DEUDOR,0
+1.1.3.4.000,Juegos,ACTIVO,0,DEUDOR,0
+1.1.3.4.001,Quiniela,ACTIVO,1,DEUDOR,0
+1.1.3.4.002,Casino,ACTIVO,1,DEUDOR,0
+1.1.3.4.003,PRODE,ACTIVO,1,DEUDOR,0
+1.1.3.4.004,Loterias,ACTIVO,1,DEUDOR,0
+1.1.3.4.005,Rifas,ACTIVO,1,DEUDOR,0
+1.1.3.4.006,Bingo,ACTIVO,1,DEUDOR,0
+1.1.3.4.007,Quini 6,ACTIVO,1,DEUDOR,0
+1.1.3.4.008,Tragamonedas,ACTIVO,1,DEUDOR,0
+1.1.3.4.011,Apuestas a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.012,Cupones Faltantes a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.013,Agentes Morosos a Cob.Quiniela,ACTIVO,1,DEUDOR,0
+1.1.3.4.014,Multas a Cobrar Quiniela,ACTIVO,1,DEUDOR,0
+1.1.3.4.015,Valor Llave a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.016,Intereses a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.017,Formularios a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.018,Derecho de Sesion a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.019,Cambio de Domicilio A Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.020,Sorteo Extraordinario a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.021,Cupones Anulados a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.022,Premios Caducos a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.023,Reposicion Maquinas a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.024,Canon Casino a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.025,Int. Canon Casino a C,ACTIVO,1,DEUDOR,0
+1.1.3.4.026,Deudores Morosos Canon Casino,ACTIVO,1,DEUDOR,0
+1.1.3.4.027,Canon Casino y Tragam a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.028,Tragamonedas,ACTIVO,1,DEUDOR,0
+1.1.3.4.031,Recaudacion PRODE a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.041,Loterias a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.042,Int. P/MoraP/Imp. Loterias a C,ACTIVO,1,DEUDOR,0
+1.1.3.4.043,Multas a Cobrar Loterias,ACTIVO,1,DEUDOR,0
+1.1.3.4.044,Deudores Moosos Loterias,ACTIVO,1,DEUDOR,0
+1.1.3.4.045,Recaud. Loteria Chaqueña a Cob,ACTIVO,1,DEUDOR,0
+1.1.3.4.046,Fondo Asistencial Loteria a C.,ACTIVO,1,DEUDOR,0
+1.1.3.4.051,Arancel Rifas A Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.052,Imp. Rifas a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.053,Int. P/Mora Pag. Rifa a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.054,Multas a Cobrar Rifas,ACTIVO,1,DEUDOR,0
+1.1.3.4.055,Deudores Morosos Rifas,ACTIVO,1,DEUDOR,0
+1.1.3.4.061,Imp. Bingo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.062,Canon Explot. Bingo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.063,Int.P/Mora Pago Bingo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.064,Multas a Cobrar Bingo,ACTIVO,1,DEUDOR,0
+1.1.3.4.065,Arancel Bingo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.066,Deudores Morosos Bingo,ACTIVO,1,DEUDOR,0
+1.1.3.4.071,Recaudacion Quini 6 a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.072,Cupones Faltantes a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.073,Impugnadas a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.4.074,Inter P/Mora a Cobrar Quini 6,ACTIVO,1,DEUDOR,0
+1.1.3.4.075,Recaud. Cupones Quini 6 a Cobr,ACTIVO,1,DEUDOR,0
+1.1.3.4.076,Agentes Moros a Cobrar Quini 6,ACTIVO,1,DEUDOR,0
+1.1.3.4.077,Fdo. Asistencial Quini 6 a Cob,ACTIVO,1,DEUDOR,0
+1.1.3.4.081,Beneficio Explot. Tragam. a Co,ACTIVO,1,DEUDOR,0
+1.1.3.4.082,Inter. P/Mora a Cobrar Tragam,ACTIVO,1,DEUDOR,0
+1.1.3.4.083,Multas a Cobrar Tragamonedas,ACTIVO,1,DEUDOR,0
+1.1.3.4.084,Agentes Morosos a Cobrar Trag,ACTIVO,1,DEUDOR,0
+1.1.3.5.000,Otros Juegos,ACTIVO,0,DEUDOR,0
+1.1.3.5.001,Recaudacion Loto a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.002,Fdo. Asistencial Loto a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.003,Agentes Morosos Loto a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.004,Intereses P/Mora Loto a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.005,Recaudacion Telebingo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.006,Recaudacion Telekino a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.007,Int. P/Mora Telekino a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.008,Recaudacion Monobingo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.009,Recaudacion Brinco a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.5.010,Intereses a Cobrar Brinco,ACTIVO,1,DEUDOR,0
+1.1.3.5.011,Fdo. Asistencial Brinco a Cobr,ACTIVO,1,DEUDOR,0
+1.1.3.6.000,Anticipos de Obra- M.O.y S.P.,ACTIVO,1,DEUDOR,0
+1.1.3.7.000,(sin nombre),ACTIVO,0,DEUDOR,0
+1.1.3.7.001,Recaud. Lotimax a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.7.002,Recaud.Sorteo Bicent. a Cobr,ACTIVO,1,DEUDOR,0
+1.1.3.7.003,Fondo Asist. Lotimax a C.,ACTIVO,1,DEUDOR,0
+1.1.3.8.000,(sin nombre),ACTIVO,0,DEUDOR,0
+1.1.3.8.002,Recaud. Mi Bingo a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.3.9.000,(sin nombre),ACTIVO,0,DEUDOR,0
+1.1.3.9.001,RECAUDACION FANATIKON A COB.,ACTIVO,1,DEUDOR,0
+1.1.3.9.002,RECAUDACION JUEGO V.L.T. A COBRAR,ACTIVO,1,DEUDOR,0
+1.1.4.0.000,Otros Creditos,ACTIVO,0,DEUDOR,0
+1.1.4.1.000,Deudores Varios,ACTIVO,1,DEUDOR,0
+1.1.4.2.000,D.G.I. I.V.A. a Cobrar,ACTIVO,1,DEUDOR,0
+1.1.4.2.100,SALDO TECNICO IVA,ACTIVO,1,DEUDOR,0
+1.1.4.2.200,SALDO LIBRE DISPONIVILIDAD IVA,ACTIVO,1,DEUDOR,0
+1.1.4.3.000,Deudores Carta Credencial,ACTIVO,1,DEUDOR,0
+1.1.4.4.000,Deudores Morosos,ACTIVO,1,DEUDOR,0
+1.1.4.5.000,Deudores en Gestion Judicial,ACTIVO,1,DEUDOR,0
+1.1.4.6.000,Retencion Quebranto Deud Incob,ACTIVO,1,DEUDOR,0
+1.1.4.7.000,Prevision Deudores Incobrables,ACTIVO,1,ACREEDOR,0
+1.1.4.8.000,Fondo P. a Rendir,ACTIVO,1,DEUDOR,0
+1.1.4.9.000,Anticipo de Utilidades,ACTIVO,1,DEUDOR,0
+1.1.4.9.001,Int. por Mora Ds. en Gest. Jud,ACTIVO,1,DEUDOR,0
+1.1.5.0.000,Bienes de Cambio,ACTIVO,0,DEUDOR,0
+1.1.5.1.000,Cupones,ACTIVO,1,DEUDOR,0
+1.1.5.2.000,Formularios,ACTIVO,1,DEUDOR,0
+1.1.5.3.000,Premios Rifas A.G.J. Y S.,ACTIVO,1,DEUDOR,0
+1.1.5.4.000,Cupones P/Rifas,ACTIVO,1,DEUDOR,0
+1.1.6.0.000,Otros Activos Corrientes,ACTIVO,1,DEUDOR,0
+1.2.0.0.000,Activo No Corriente,ACTIVO,0,DEUDOR,0
+1.2.1.0.000,Creditos a Largo Plazo,ACTIVO,0,DEUDOR,0
+1.2.1.1.000,Creditos Personales,ACTIVO,0,DEUDOR,0
+1.2.1.1.001,Prest. C/Destino Especif. a Cb,ACTIVO,1,DEUDOR,0
+1.2.1.1.002,Deudores. P/D.E. A Cobrar,ACTIVO,1,DEUDOR,0
+1.2.1.1.003,Ints. P/D.E. A Cobrar,ACTIVO,1,DEUDOR,0
+1.2.1.1.004,D.G.I. I.V.A. Cobrar A l/P,ACTIVO,1,DEUDOR,0
+1.2.1.1.005,Prest Pers a Cobrar A L/P,ACTIVO,1,DEUDOR,0
+1.2.1.1.006,Int. Prest. Pers. a Cob A L/P,ACTIVO,1,DEUDOR,0
+1.2.1.1.007,Recup Gtos. Adm. a Cob L P,ACTIVO,1,DEUDOR,0
+1.2.1.2.000,Deudores en Gestion Judicial,ACTIVO,1,DEUDOR,0
+1.2.1.3.000,Deudores Varios,ACTIVO,1,DEUDOR,0
+1.2.2.0.000,Inversiones a Largo Plazo,ACTIVO,1,DEUDOR,0
+1.2.3.0.000,Bienes de Uso,ACTIVO,0,DEUDOR,1
+1.2.3.1.000,Inmuebles,ACTIVO,1,DEUDOR,1
+1.2.3.2.000,(sin nombre),ACTIVO,0,DEUDOR,1
+1.2.3.2.001,Muebles y Utiles,ACTIVO,1,DEUDOR,1
+1.2.3.2.002,Inversiones Administrativas Lb,ACTIVO,1,DEUDOR,1
+1.2.3.2.003,Otros Bienes (Herramientas),ACTIVO,1,DEUDOR,1
+1.2.3.3.000,Instalaciones de Maquinas y Eq,ACTIVO,1,DEUDOR,1
+1.2.3.4.000,Rodados,ACTIVO,1,DEUDOR,1
+1.2.3.5.000,Amortiz. Acumulada Rodados,ACTIVO,1,ACREEDOR,1
+1.2.3.6.000,Terrenos,ACTIVO,1,DEUDOR,1
+1.2.3.7.000,Edificios,ACTIVO,1,DEUDOR,1
+1.2.3.8.000,Bienes Inmateriales,ACTIVO,1,DEUDOR,1
+1.2.3.9.000,Marcas Registradas,ACTIVO,1,DEUDOR,1
+1.2.4.0.000,Patentes,ACTIVO,1,DEUDOR,1
+1.2.4.1.000,Programas de Computacion,ACTIVO,1,DEUDOR,1
+1.2.4.2.000,Cargos Diferidos,ACTIVO,0,DEUDOR,1
+1.2.4.2.001,Gastos de Organizacion,ACTIVO,1,DEUDOR,1
+1.2.4.2.002,Gastos de Investigacion,ACTIVO,1,DEUDOR,1
+1.2.4.3.000,Tierras y Terrenos,ACTIVO,1,DEUDOR,1
+1.2.4.4.000,Edificios e Instalaciones,ACTIVO,1,DEUDOR,1
+1.2.4.5.000,Maquinas y Equipos de pccion,ACTIVO,1,DEUDOR,1
+1.2.4.6.000,Equipos de transporte,ACTIVO,1,DEUDOR,1
+1.2.4.7.000,Equipos Sanitarios y de Labora,ACTIVO,1,DEUDOR,1
+1.2.4.8.000,Equipo de Comunicacion y de se,ACTIVO,1,DEUDOR,1
+1.2.4.9.000,Equipo Educacional y Recreativ,ACTIVO,1,DEUDOR,1
+1.2.5.0.000,Equipo Para Computacion,ACTIVO,0,DEUDOR,1
+1.2.5.1.000,Equipos de Oficina y Muebles,ACTIVO,1,DEUDOR,1
+1.2.5.2.000,Herramientas y Respuestos Mayo,ACTIVO,1,DEUDOR,1
+1.2.5.3.000,Equipos Varios,ACTIVO,1,DEUDOR,1
+1.2.5.4.000,"Libros, Revistas y Otros Eleme",ACTIVO,1,DEUDOR,1
+1.2.5.5.000,Obras de Arte,ACTIVO,1,DEUDOR,1
+1.2.5.6.000,Amort. Acum. Edificios e Insta,ACTIVO,1,ACREEDOR,1
+1.2.5.7.000,Amort. Acum. Maq y Eq.Pccion,ACTIVO,1,ACREEDOR,1
+1.2.5.8.000,Amort. Acum. Eq. de Transporte,ACTIVO,1,ACREEDOR,1
+1.2.5.9.000,Amort. Acum. Eq. Sanitario,ACTIVO,1,ACREEDOR,1
+1.2.6.0.000,Amort. Acum. Eq. de Comunicaci,ACTIVO,0,ACREEDOR,1
+1.2.6.1.000,Amort. Acum. Eq. Educ.y Recrea,ACTIVO,1,ACREEDOR,1
+1.2.6.2.000,Amort. Acum. Eq.P/Computacio,ACTIVO,1,ACREEDOR,1
+1.2.6.3.000,Amort. Acum. Eq Oficina y Mue,ACTIVO,1,ACREEDOR,1
+1.2.6.4.000,Amort. Acum. Herramientas,ACTIVO,1,ACREEDOR,1
+1.2.6.5.000,Amort. Acum. Eq. Varios,ACTIVO,1,ACREEDOR,1
+1.2.6.6.000,Amort. Acum. Programas de Comp,ACTIVO,1,ACREEDOR,1
+1.2.7.0.000,Agentes Morosos Loteria a Cobr,ACTIVO,1,DEUDOR,0
+1.2.8.0.000,Cuentas Varias a Cobrar,ACTIVO,1,DEUDOR,0
+1.2.9.0.000,D.G.I. I.V.A. Credito Fiscal,ACTIVO,1,DEUDOR,0
+2.0.0.0.000,Pasivo,PASIVO,0,ACREEDOR,0
+2.1.0.0.000,Pasivo Corriente,PASIVO,0,ACREEDOR,0
+2.1.1.0.000,Loto,PASIVO,0,ACREEDOR,0
+2.1.1.1.000,Premio Loto A Pagar,PASIVO,1,ACREEDOR,0
+2.1.1.2.000,LOTO a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.0.000,Acreedores Varios,PASIVO,0,ACREEDOR,0
+2.1.2.0.001,Prest. Personales a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.0.002,Reintegro Prestamos Pers. a Pg,PASIVO,1,ACREEDOR,0
+2.1.2.0.003,Ant. Prest.C/Destino Esp. a Pg,PASIVO,1,ACREEDOR,0
+2.1.2.0.004,Prest. C/Destino Esp. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.0.005,Prest. Bco Patagonia a Pagar.,PASIVO,1,ACREEDOR,0
+2.1.2.0.006,Prest. AGAP a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.0.007,Credito Producir A Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.0.008,SICAM Sist. Prev. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.0.009,Prest. a Org.Est. y Priv. a P.,PASIVO,1,ACREEDOR,0
+2.1.2.0.091,Reserva por Conting AGAP,PASIVO,1,ACREEDOR,0
+2.1.2.0.092,Transf. AGAP a Pagar (Conv),PASIVO,1,ACREEDOR,0
+2.1.2.0.093,Recup.Credito AGAP a Transf,PASIVO,1,ACREEDOR,0
+2.1.2.0.094,RECUPERO AMPARO A TRANSFERIR,PASIVO,1,ACREEDOR,0
+2.1.2.0.095,TRANSFERENCIA AMPARO A PAGAR,PASIVO,1,ACREEDOR,0
+2.1.2.0.096,RETENCION FOGACAT A TRANSFERIR,PASIVO,1,ACREEDOR,0
+2.1.2.1.000,Deudas Provenientes de Seguros,PASIVO,0,ACREEDOR,0
+2.1.2.1.001,Siniestros a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.1.002,Renta Vital. H.M. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.1.003,Centro Ex-Comb. H. M.a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.2.000,Otros a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.3.000,Cuentas Varias a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.4.000,Debitos Bancario a Pagar,PASIVO,1,ACREEDOR,0
+2.1.2.5.000,Reintegro de Primas a Pagar,PASIVO,1,ACREEDOR,0
+2.1.3.0.000,Proveedores,PASIVO,1,ACREEDOR,0
+2.1.4.0.000,Deudas Bancarias,PASIVO,1,ACREEDOR,0
+2.1.5.0.000,Deudas Financieras,PASIVO,1,ACREEDOR,0
+2.1.6.0.000,Deudas Impositivas,PASIVO,0,ACREEDOR,0
+2.1.6.1.000,Aminist. General de Rentas,PASIVO,0,ACREEDOR,0
+2.1.6.1.001,Ingresos Brutos A Pagar,PASIVO,1,ACREEDOR,0
+2.1.6.1.002,Impuesto A los Sellos a Pagar,PASIVO,1,ACREEDOR,0
+2.1.6.1.003,Reintegro Ingresos Brutos a Pa,PASIVO,1,ACREEDOR,0
+2.1.6.2.000,Direccion General Impositiva,PASIVO,0,ACREEDOR,0
+2.1.6.2.001,Impuesto a las Ganancias a Pag,PASIVO,1,ACREEDOR,0
+2.1.6.2.002,Impuesto a los Premios a Pagar,PASIVO,1,ACREEDOR,0
+2.1.6.2.003,D.G.I. I.V.A. Debito Fiscal,PASIVO,1,ACREEDOR,0
+2.1.6.2.004,I.V.A. A Pagar,PASIVO,1,ACREEDOR,0
+2.1.6.2.005,SUSS Cont. Patronales a Pagar,PASIVO,1,ACREEDOR,0
+2.1.6.2.006,Reint. Pliegos,PASIVO,1,ACREEDOR,0
+2.1.6.2.007,RETENCION IVA,PASIVO,1,ACREEDOR,0
+2.1.6.2.008,Impuesto Juegos On-line,PASIVO,1,ACREEDOR,0
+2.1.6.3.000,(sin nombre),PASIVO,0,ACREEDOR,0
+2.1.6.3.001,TASA SEG. HIGIENE A PAGAR,PASIVO,1,ACREEDOR,0
+2.1.7.0.000,Sueldos y Cargas Soc. a Pagar,PASIVO,0,ACREEDOR,0
+2.1.7.1.000,Sueldos a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.1.001,A.T.S.A. A Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.1.002,Cuota Alimentaria A Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.1.003,Asoc. Mutual del Magist. a Pag,PASIVO,1,ACREEDOR,0
+2.1.7.1.004,E.C.A. A Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.1.005,A.T.E. A Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.1.006,Creditos del Personal a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.1.007,Moratoria Rentas a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.1.008,O.S.E.P en tramite Ej.Adm. a p,PASIVO,1,ACREEDOR,0
+2.1.7.1.009,Embargo Judicial a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.2.000,Consejo Prof. Cs. Ec. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.2.001,I.P.V. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.2.002,BANCAT a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.2.003,U.C.R. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.2.004,UNICOPE y Otros a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.2.005,Fecat S.A. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.2.006,Mutual Virgen del Carmen,PASIVO,1,ACREEDOR,0
+2.1.7.2.007,Hab. Neg. Tope,PASIVO,1,ACREEDOR,0
+2.1.7.2.008,Hab. Abon. de,PASIVO,1,ACREEDOR,0
+2.1.7.2.009,Cooperat Nuevo Siglo,PASIVO,1,ACREEDOR,0
+2.1.7.2.010,Cuota Gremial a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.3.000,Asoc Mutual Policia a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.3.001,Prestamos Caja Creditos Municipal a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.3.002,Asoc. Mutual 25 Agosto,PASIVO,1,ACREEDOR,0
+2.1.7.3.003,Asoc. Mutual Virgen Belen,PASIVO,1,ACREEDOR,0
+2.1.7.3.004,Colegio Abogados,PASIVO,1,ACREEDOR,0
+2.1.7.3.005,Becas a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.3.006,Reint.Cuota Alim.,PASIVO,1,ACREEDOR,0
+2.1.7.3.007,Imp. Gcias. Sueldos,PASIVO,1,ACREEDOR,0
+2.1.7.3.008,TARJETA CENTRO CARD,PASIVO,1,ACREEDOR,0
+2.1.7.4.000,Seguros a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.5.000,Otros (Sueldos),PASIVO,1,ACREEDOR,0
+2.1.7.6.000,Cargas Sociales a Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.7.000,Mutual Virgen del Valle,PASIVO,1,ACREEDOR,0
+2.1.7.8.000,O.S.E.P. A Pagar,PASIVO,1,ACREEDOR,0
+2.1.7.9.000,ANSES A Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.0.000,Deudas Provenientes de Juegos,PASIVO,0,ACREEDOR,0
+2.1.8.1.000,Quiniela,PASIVO,0,ACREEDOR,0
+2.1.8.1.001,Aciertos a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.1.002,Premios Sorteo Ext. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.1.003,Comisiones a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.1.004,Apuestas Anuladas a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.1.005,Reten. Camara de Agenc. a Pg,PASIVO,1,ACREEDOR,0
+2.1.8.1.006,Reint. I.B. Ag. Quiniela a Pag,PASIVO,1,ACREEDOR,0
+2.1.8.1.007,Cupones Caducos a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.1.008,Reint. Imp a las Gan..,PASIVO,1,ACREEDOR,0
+2.1.8.1.009,Reint. Fdo. Gtia.,PASIVO,1,ACREEDOR,0
+2.1.8.2.000,(sin nombre),PASIVO,0,ACREEDOR,0
+2.1.8.2.001,Otros,PASIVO,1,ACREEDOR,0
+2.1.8.2.002,TRANSF. QUINSOFT. A PAGAR,PASIVO,1,ACREEDOR,0
+2.1.8.2.003,INST. LOTERIAS Y CASINOS SOC. ESTADO,PASIVO,1,ACREEDOR,0
+2.1.8.3.000,Loterias,PASIVO,0,ACREEDOR,0
+2.1.8.3.001,Inscripcion ALEA a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.4.000,QUINI 6,PASIVO,0,ACREEDOR,0
+2.1.8.4.001,C.A.S.Sta.Fe a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.4.002,Nota de Debito Cupones a Pg.,PASIVO,1,ACREEDOR,0
+2.1.8.4.003,Premio Quini 6 a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.4.004,Premio Brinco a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.4.005,Brinco a Pagar,PASIVO,1,ACREEDOR,0
+2.1.8.5.000,BINGO,PASIVO,1,ACREEDOR,0
+2.1.8.6.000,RIFAS,PASIVO,1,ACREEDOR,0
+2.1.8.7.000,CASINO,PASIVO,1,ACREEDOR,0
+2.1.8.9.000,TELEKINO,PASIVO,0,ACREEDOR,0
+2.1.8.9.002,PREMIO TELEKINO A PAGAR,PASIVO,1,ACREEDOR,0
+2.1.8.9.003,INT. LOTERIAS Y CASINO BS.AS.2189003,PASIVO,1,ACREEDOR,0
+2.1.9.0.000,MONO BINGO,PASIVO,1,ACREEDOR,0
+2.1.9.1.000,Loteria a Pagar,PASIVO,1,ACREEDOR,0
+2.1.9.2.000,ADHERENTE FANATIKON,PASIVO,1,ACREEDOR,0
+2.1.9.3.000,Premio Lotimax a Pagar,PASIVO,1,ACREEDOR,0
+2.1.9.4.000,Adherentes Lotimax,PASIVO,1,ACREEDOR,0
+2.1.9.5.000,Premio Fanatikon. a Pagar,PASIVO,1,ACREEDOR,0
+2.1.9.7.000,Premio Mi Bingo a Pagar,PASIVO,1,ACREEDOR,0
+2.1.9.8.000,Comisiones Telebingo a Pagar,PASIVO,1,ACREEDOR,0
+2.1.9.9.000,TRANSF. INST. MI BINGO A PAGAR,PASIVO,1,ACREEDOR,0
+2.2.0.0.000,Pasivo no Corriente,PASIVO,0,ACREEDOR,0
+2.2.1.0.000,Deudas Bancarias,PASIVO,1,ACREEDOR,0
+2.2.2.0.000,Deudas Financieras,PASIVO,1,ACREEDOR,0
+2.2.3.0.000,Otras Deudas,PASIVO,0,ACREEDOR,0
+2.2.3.1.000,Anticipo de Utilidades a Pagar,PASIVO,1,ACREEDOR,0
+2.2.3.2.000,OTRAS DEUDAS,PASIVO,1,ACREEDOR,0
+2.2.4.0.000,Previsiones,PASIVO,0,ACREEDOR,0
+2.2.4.1.000,Previsiones de Act. Juegos,PASIVO,1,ACREEDOR,0
+2.2.4.2.000,Prevision Por Despido,PASIVO,1,ACREEDOR,0
+2.2.4.3.000,Deudas en Gestion Jud. a Pagar,PASIVO,1,ACREEDOR,0
+2.2.4.4.000,Prev. Deudores Incobrables,PASIVO,1,ACREEDOR,0
+2.2.4.5.000,Garantia de Terceros a Pagar,PASIVO,1,ACREEDOR,0
+2.2.5.0.000,Ganancias a Realizar,PASIVO,1,ACREEDOR,0
+2.2.6.0.000,Intereses a Realizar,PASIVO,1,ACREEDOR,0
+2.2.7.0.000,Canon Casino a Realizar,PASIVO,1,ACREEDOR,0
+2.2.8.0.000,Minist Bienest. Social a Pagar,PASIVO,1,ACREEDOR,0
+2.2.9.0.000,Utilidades del Personal a Paga,PASIVO,1,ACREEDOR,0
+2.3.0.0.000,Gratif.Esp.a Pagar,PASIVO,1,ACREEDOR,0
+2.3.1.0.000,Minist. de Prod. y Desarrollo,PASIVO,1,ACREEDOR,0
+2.3.2.0.000,Minist. de Ob. y Serv. P. a P.,PASIVO,1,ACREEDOR,0
+2.3.3.0.000,D.G.I. Debito Fiscal L/P.,PASIVO,1,ACREEDOR,0
+2.3.4.0.000,IVA a Realizar,PASIVO,1,ACREEDOR,0
+2.3.5.0.000,Int. Morat.Ds en G. Jud.a Real,PASIVO,1,ACREEDOR,0
+2.3.6.0.000,Recupero Gtos Adm a Realizar,PASIVO,1,ACREEDOR,0
+3.0.0.0.000,Patrimonio Neto,PATRIMONIO,0,ACREEDOR,1
+3.1.0.0.000,Capital,PATRIMONIO,0,ACREEDOR,1
+3.1.1.0.000,Capital,PATRIMONIO,1,ACREEDOR,1
+3.1.2.0.000,Ajustes al Capital,PATRIMONIO,1,ACREEDOR,1
+3.2.0.0.000,Ganancias Reservadas,PATRIMONIO,0,ACREEDOR,1
+3.2.1.0.000,Reserva legal,PATRIMONIO,1,ACREEDOR,1
+3.2.2.0.000,Reserva Contable Ley 19742,PATRIMONIO,1,ACREEDOR,1
+3.2.3.0.000,Reserva Mat. Seg. Hipoteca,PATRIMONIO,1,ACREEDOR,1
+3.2.4.0.000,Reserva P/Banca de Juegos,PATRIMONIO,1,ACREEDOR,1
+3.2.5.0.000,Reserva P/Aquis. Equipos,PATRIMONIO,1,ACREEDOR,1
+3.2.6.0.000,Reserva P/Construc. Edificios,PATRIMONIO,1,ACREEDOR,1
+3.2.7.0.000,Reserva P/Dist. Pago Fut. Gaci,PATRIMONIO,1,ACREEDOR,1
+3.2.8.0.000,Reserva de Capital,PATRIMONIO,1,ACREEDOR,1
+3.3.0.0.000,Resultados no Asignados,PATRIMONIO,1,ACREEDOR,1
+3.4.0.0.000,Resultados Acumulados,PATRIMONIO,1,ACREEDOR,1
+3.5.0.0.000,Resultado del Ejercicio,PATRIMONIO,1,ACREEDOR,1
+3.6.0.0.000,Utilidades a Distribuir,PATRIMONIO,1,ACREEDOR,1
+3.7.0.0.000,Ajuste al Patrimonio,PATRIMONIO,1,ACREEDOR,1
+3.8.0.0.000,Ajuste Ejercicios Anteriores,PATRIMONIO,1,ACREEDOR,1
+3.9.0.0.000,Ajustes del Ejercicio,PATRIMONIO,1,ACREEDOR,1
+4.0.0.0.000,Cuentas de Resultados,INGRESO,0,ACREEDOR,0
+4.1.0.0.000,Resultado Positivo,INGRESO,0,ACREEDOR,0
+4.1.1.0.000,Juegos,INGRESO,0,ACREEDOR,0
+4.1.1.1.000,Quiniela,INGRESO,0,ACREEDOR,0
+4.1.1.1.001,Rtdo. Explotacion Quini 6,INGRESO,1,ACREEDOR,0
+4.1.1.1.002,Apuestas,INGRESO,1,ACREEDOR,0
+4.1.1.1.003,Intereses P/Mora Brinco,INGRESO,1,ACREEDOR,0
+4.1.1.1.004,Recaudacion Quini 6,INGRESO,1,ACREEDOR,0
+4.1.1.1.005,Intereses P/Mora Quiniela,INGRESO,1,ACREEDOR,0
+4.1.1.1.006,Rtdo. Explotacion Brinco,INGRESO,1,ACREEDOR,0
+4.1.1.1.007,Derecho de Cesion,INGRESO,1,ACREEDOR,0
+4.1.1.1.008,Cambio de Domicilio,INGRESO,1,ACREEDOR,0
+4.1.1.1.009,Cupones Anulados,INGRESO,1,ACREEDOR,0
+4.1.1.1.010,Cupones Faltantes,INGRESO,1,ACREEDOR,0
+4.1.1.1.011,Premios Caducos,INGRESO,1,ACREEDOR,0
+4.1.1.1.012,Cup. Anulados Esp. Debitados,INGRESO,1,ACREEDOR,0
+4.1.1.1.013,Garantia de Terceros,INGRESO,1,ACREEDOR,0
+4.1.1.1.014,Reposicion de Maquinas,INGRESO,1,ACREEDOR,0
+4.1.1.1.015,CuponesNo Leidos,INGRESO,1,ACREEDOR,0
+4.1.1.1.016,Fondo Asistencial brinco,INGRESO,1,ACREEDOR,0
+4.1.1.2.000,Loto,INGRESO,0,ACREEDOR,0
+4.1.1.2.001,Resultado Explotacion Loto,INGRESO,1,ACREEDOR,0
+4.1.1.2.002,Multas Loto,INGRESO,1,ACREEDOR,0
+4.1.1.2.003,Intereses Por Mora Loto,INGRESO,1,ACREEDOR,0
+4.1.1.2.004,Rtdo. Sorteo de Quiniela,INGRESO,1,ACREEDOR,0
+4.1.1.3.000,PRODE,INGRESO,0,ACREEDOR,0
+4.1.1.3.001,Rtdo. Explotacion Prode,INGRESO,1,ACREEDOR,0
+4.1.1.4.000,Rtdo. Explotacion ABC,INGRESO,1,ACREEDOR,0
+4.1.1.5.000,Rtdo. Explotacion Loteria Chaq,INGRESO,1,ACREEDOR,0
+4.1.1.6.000,Casino,INGRESO,0,ACREEDOR,0
+4.1.1.6.001,Canon Explotacion Casino,INGRESO,1,ACREEDOR,0
+4.1.1.6.002,Inter. P/Mora Pag Casino,INGRESO,1,ACREEDOR,0
+4.1.1.7.000,Bingo,INGRESO,0,ACREEDOR,0
+4.1.1.7.001,Impuesto Bingo,INGRESO,1,ACREEDOR,0
+4.1.1.7.002,Canon Explotacion Bingo,INGRESO,1,ACREEDOR,0
+4.1.1.7.003,Intereses P/Mora Bingo,INGRESO,1,ACREEDOR,0
+4.1.1.7.004,Arancel Bingo,INGRESO,1,ACREEDOR,0
+4.1.1.8.000,Impuesto Loterias,INGRESO,1,ACREEDOR,0
+4.1.1.8.001,Int. P/Mora P/Imp. Loterias,INGRESO,1,ACREEDOR,0
+4.1.1.8.002,Multas Loterias,INGRESO,1,ACREEDOR,0
+4.1.1.8.003,Arancel Rifas,INGRESO,1,ACREEDOR,0
+4.1.1.8.004,Comision Loterias,INGRESO,1,ACREEDOR,0
+4.1.1.9.000,Telekino,INGRESO,0,ACREEDOR,0
+4.1.1.9.001,Rtdo. Explotacion Telekino,INGRESO,1,ACREEDOR,0
+4.1.1.9.002,Intereses P/Mora Telekino,INGRESO,1,ACREEDOR,0
+4.1.1.9.003,Multas Telekino,INGRESO,1,ACREEDOR,0
+4.1.1.9.004,Recaudacion Telekino,INGRESO,1,ACREEDOR,0
+4.1.2.0.000,(sin nombre),INGRESO,0,ACREEDOR,0
+4.1.2.1.000,Tragamonedas,INGRESO,0,ACREEDOR,0
+4.1.2.1.001,Beneficio P/Explotacion Tragam,INGRESO,1,ACREEDOR,0
+4.1.2.1.002,Intereses P/Mora Tragamonedas,INGRESO,1,ACREEDOR,0
+4.1.2.1.003,Multas Tragamonedas,INGRESO,1,ACREEDOR,0
+4.1.2.1.004,Ingreso Extraordinario Juegos,INGRESO,1,ACREEDOR,0
+4.1.2.2.000,Resultado Vta. Loteria Federal,INGRESO,1,ACREEDOR,0
+4.1.2.4.000,Resultado Explot. Lotimax,INGRESO,1,ACREEDOR,0
+4.1.2.5.000,Resultado Expl. Sorteo Bicent.,INGRESO,1,ACREEDOR,0
+4.1.2.6.000,Int. P/Mora Telebingo,INGRESO,1,ACREEDOR,0
+4.1.2.7.000,Resultados Explotacion Teleb,INGRESO,1,ACREEDOR,0
+4.1.2.8.000,Rec. Explot. Fanatikon,INGRESO,1,ACREEDOR,0
+4.1.2.9.000,RDO. EXPLOTACION V.L.T.,INGRESO,1,ACREEDOR,0
+4.1.3.0.000,Prestamos,INGRESO,0,ACREEDOR,0
+4.1.3.1.000,Recupero de Gastos Adminisrati,INGRESO,1,ACREEDOR,0
+4.1.3.2.000,Intereses Ganados Prest. Pers.,INGRESO,1,ACREEDOR,0
+4.1.3.3.000,Intereses Punitorios Ganados,INGRESO,1,ACREEDOR,0
+4.1.3.4.000,Int. P/P con D.E. Ganados,INGRESO,1,ACREEDOR,0
+4.1.3.5.000,Retenciòn por Queb. Ds. Inc.,INGRESO,1,ACREEDOR,0
+4.1.3.6.000,Intereses Por Mora Lotimax,INGRESO,1,ACREEDOR,0
+4.1.3.7.000,Recupero Gtos de Originacion,INGRESO,1,ACREEDOR,0
+4.1.3.8.000,Comision Bco Patagonia Ganadas,INGRESO,1,ACREEDOR,0
+4.1.3.9.000,RECUPERO PREVISION,INGRESO,1,ACREEDOR,0
+4.1.3.9.100,COMIMISION OPERATPRIA AMPARO,INGRESO,1,ACREEDOR,0
+4.1.4.0.000,Primas de Seguro,INGRESO,0,ACREEDOR,0
+4.1.4.1.000,Seguro de Vida Obligatorio,INGRESO,1,ACREEDOR,0
+4.1.4.2.000,Seguro de Gastos de Sepelio,INGRESO,1,ACREEDOR,0
+4.1.4.3.000,Seguro Ad por Conyuge,INGRESO,1,ACREEDOR,0
+4.1.4.4.000,Seguro Adicional,INGRESO,1,ACREEDOR,0
+4.1.4.5.000,Siniestros,INGRESO,1,ACREEDOR,0
+4.1.4.6.000,Reintegro Primas de Seguros,INGRESO,1,ACREEDOR,0
+4.1.4.7.000,Retenc. Primas,INGRESO,1,ACREEDOR,0
+4.1.4.8.000,Rec. Gastos Seguros,INGRESO,1,ACREEDOR,0
+4.1.4.9.000,Ret. Primas Ganadas,INGRESO,1,ACREEDOR,0
+4.1.5.0.000,Otros Ingresos,INGRESO,0,ACREEDOR,0
+4.1.5.1.000,Ingreso P/Redondeo Titulos Pub,INGRESO,1,ACREEDOR,0
+4.1.5.2.000,Bonificaciones Obtenidas,INGRESO,1,ACREEDOR,0
+4.1.5.3.000,Ingresos Extraordinarios,INGRESO,1,ACREEDOR,0
+4.1.5.4.000,Venta Pliegos de Licitaciones,INGRESO,1,ACREEDOR,0
+4.1.5.5.000,Intereses Bancarios Ganados,INGRESO,1,ACREEDOR,0
+4.1.5.6.000,Recupero Gastos de Sueldos,INGRESO,1,ACREEDOR,0
+4.1.5.7.000,T.G.P. Aportes al Presupuesto,INGRESO,1,ACREEDOR,0
+4.1.5.8.000,Arancel Carreras,INGRESO,1,ACREEDOR,0
+4.1.5.9.000,Recupero Premios No Pagados,INGRESO,1,ACREEDOR,0
+4.1.6.0.000,Reintegro Viatico Fdo. Perma,INGRESO,1,ACREEDOR,0
+4.1.6.1.000,Otros Ing.,INGRESO,1,ACREEDOR,0
+4.1.6.2.000,Ingresos Caja Chica,INGRESO,1,ACREEDOR,0
+4.1.6.3.000,Reposicion Fdo. Permanente,INGRESO,1,ACREEDOR,0
+4.1.6.4.000,Resultados Financieros y por Tenencia,INGRESO,1,ACREEDOR,0
+4.1.6.5.000,RECPAM,INGRESO,1,ACREEDOR,0
+4.2.0.0.000,Resultado Negativo,EGRESO,0,DEUDOR,0
+4.2.1.0.000,Juegos,EGRESO,0,DEUDOR,0
+4.2.1.1.000,Quiniela,EGRESO,0,DEUDOR,0
+4.2.1.1.001,Aciertos,EGRESO,1,DEUDOR,0
+4.2.1.1.002,Comisiones,EGRESO,1,DEUDOR,0
+4.2.1.1.003,Premio Sorteo Extraordinario,EGRESO,1,DEUDOR,0
+4.2.1.1.004,Servicio de Automatizacion,EGRESO,1,DEUDOR,0
+4.2.1.1.005,Reint. I.B. Ag. Quiniela,EGRESO,1,DEUDOR,0
+4.2.1.1.006,Reintegro Derecho de Cesion,EGRESO,1,DEUDOR,0
+4.2.1.1.007,Cupones Caducos,EGRESO,1,DEUDOR,0
+4.2.1.1.008,Transferencia Premio Juego,EGRESO,1,DEUDOR,0
+4.2.1.1.009,Intereses Quniela,EGRESO,1,DEUDOR,0
+4.2.1.3.000,Casino,EGRESO,1,DEUDOR,0
+4.2.1.4.000,Bingo,EGRESO,1,DEUDOR,0
+4.2.1.5.000,Loterias,EGRESO,1,DEUDOR,0
+4.2.1.6.000,Rifas,EGRESO,1,DEUDOR,0
+4.2.1.7.000,Quini 6,EGRESO,1,DEUDOR,0
+4.2.1.7.001,Premio Quini 6,EGRESO,1,DEUDOR,0
+4.2.1.7.002,Comisiones Quini 6,EGRESO,1,DEUDOR,0
+4.2.1.8.000,Premio Loto,EGRESO,1,DEUDOR,0
+4.2.1.8.001,Premio Telekino,EGRESO,1,DEUDOR,0
+4.2.1.8.002,Premio Lotimax,EGRESO,1,DEUDOR,0
+4.2.1.9.000,Impuesto a los Premios,EGRESO,1,DEUDOR,0
+4.2.2.0.000,Seguros,EGRESO,0,DEUDOR,0
+4.2.2.1.000,Siniestros,EGRESO,0,DEUDOR,0
+4.2.2.1.001,Seguro de Vida Colectivo,EGRESO,1,DEUDOR,0
+4.2.2.1.002,Seguro Gastos de Sepelio,EGRESO,1,DEUDOR,0
+4.2.2.1.003,Subsidio Proteccion a la Famil,EGRESO,1,DEUDOR,0
+4.2.2.1.004,Seguro Adicional por Conyuge,EGRESO,1,DEUDOR,0
+4.2.2.1.005,Seguro Adicional P/Muerte,EGRESO,1,DEUDOR,0
+4.2.2.1.006,Reintegro Primas de Seguro,EGRESO,1,DEUDOR,0
+4.2.2.1.007,Seguro Adic por Incapacid,EGRESO,1,DEUDOR,0
+4.2.2.1.008,Renta Vitalicia H.M.,EGRESO,1,DEUDOR,0
+4.2.2.1.009,SICAM Sist. Previsional,EGRESO,1,DEUDOR,0
+4.2.3.0.000,Gastos de Administracion,EGRESO,0,DEUDOR,0
+4.2.3.1.000,Alquileres,EGRESO,1,DEUDOR,0
+4.2.3.2.000,Cargas Soc. en Tram Ej. Adm.,EGRESO,1,DEUDOR,0
+4.2.3.3.000,Viaticos,EGRESO,1,DEUDOR,0
+4.2.3.4.000,PLAN DE PAGO AFIP,EGRESO,1,DEUDOR,0
+4.2.3.5.000,Int. Multas y Recargos Imposit,EGRESO,1,DEUDOR,0
+4.2.3.6.000,Amortiz. Edificio e Instalac,EGRESO,1,DEUDOR,0
+4.2.3.7.000,Amortiz. Maq. y Eq. de Pccion,EGRESO,1,DEUDOR,0
+4.2.3.8.000,Amortiz.Eq.Transp.Trac. y Elev,EGRESO,1,DEUDOR,0
+4.2.3.9.000,Amortiz. Eq. Sanit. y Laborato,EGRESO,1,DEUDOR,0
+4.2.4.0.000,Amortiz. Eq. Comunic. y Señal,EGRESO,1,DEUDOR,0
+4.2.4.1.000,Amortiz. Eq. Educ. y Recreac,EGRESO,1,DEUDOR,0
+4.2.4.2.000,Amortiz. Eq. P/Computacion,EGRESO,1,DEUDOR,0
+4.2.4.3.000,Amortiz. Eq. de Ofic. y Mueble,EGRESO,1,DEUDOR,0
+4.2.4.4.000,Amortiz. Herramientas y Rep.,EGRESO,1,DEUDOR,0
+4.2.4.5.000,Amortiiz. Equipos Varios,EGRESO,1,DEUDOR,0
+4.2.4.6.000,Amortiz. Programas de Computac,EGRESO,1,DEUDOR,0
+4.2.4.7.000,Gtos. Judiciales,EGRESO,1,DEUDOR,0
+4.2.4.8.000,Intereses Bancarios,EGRESO,1,DEUDOR,0
+4.2.4.9.000,Comisiones y Sellados Bancario Devito Bancario,EGRESO,1,DEUDOR,0
+4.2.5.0.000,Gastos de Custodia y Valores,EGRESO,1,DEUDOR,0
+4.2.5.1.000,"Papeleria, Impresos y Ut. Ofic",EGRESO,1,DEUDOR,0
+4.2.5.2.000,Mantenimiento Maq. y Equipos,EGRESO,1,DEUDOR,0
+4.2.5.3.000,Mantenimiento de Rodados,EGRESO,1,DEUDOR,0
+4.2.5.4.000,Mantenimiento de Edificios,EGRESO,1,DEUDOR,0
+4.2.5.5.000,Publicidad,EGRESO,1,DEUDOR,0
+4.2.5.6.000,Locacion Serv. Profes. Honorar,EGRESO,1,DEUDOR,0
+4.2.5.7.000,Varios,EGRESO,1,DEUDOR,0
+4.2.5.8.000,Suscripciones,EGRESO,1,DEUDOR,0
+4.2.5.9.000,Prendas de Vesitir,EGRESO,1,DEUDOR,0
+4.2.6.0.000,D.G.R. Ingresos Brutos,EGRESO,1,DEUDOR,0
+4.2.6.1.000,Quebrantos Creditos Incob.,EGRESO,1,DEUDOR,0
+4.2.6.2.000,"Tel.Agua,Luz,Gas,Franq.y Teleg",EGRESO,1,DEUDOR,0
+4.2.6.3.000,Elementos Limpieza y Cafeteria,EGRESO,1,DEUDOR,0
+4.2.6.4.000,Movilidad y Combustible,EGRESO,1,DEUDOR,0
+4.2.6.5.000,Fletes Acarreos y Transpore,EGRESO,1,DEUDOR,0
+4.2.6.6.000,Sueldos,EGRESO,1,DEUDOR,0
+4.2.6.7.000,Cargas Sociales,EGRESO,1,DEUDOR,0
+4.2.6.8.000,Sueldos en Tram. Ej. Administ,EGRESO,1,DEUDOR,0
+4.2.6.9.000,Contribuciones S/Inmuebles,EGRESO,1,DEUDOR,0
+4.2.7.0.000,Contrib. Inspec. Ccios.Ind.,EGRESO,1,DEUDOR,0
+4.2.7.1.000,Habilitacion Ccios. Indust.,EGRESO,1,DEUDOR,0
+4.2.7.2.000,Contrib. S/Diversiones,EGRESO,1,DEUDOR,0
+4.2.7.3.000,Contrib. Circul. Valores,EGRESO,1,DEUDOR,0
+4.2.7.4.000,Diferencia de Caja,EGRESO,1,DEUDOR,0
+4.2.7.5.000,Gastos Administrativos,EGRESO,1,DEUDOR,0
+4.2.7.6.000,Seguro del Automotor,EGRESO,1,DEUDOR,0
+4.2.7.7.000,Servicio Medico,EGRESO,1,DEUDOR,0
+4.2.7.8.000,Reintegro Prest. Pers.,EGRESO,1,DEUDOR,0
+4.2.7.9.000,Alimentos p/personas,EGRESO,1,DEUDOR,0
+4.2.8.0.000,Gratificaciones Especiales,EGRESO,1,DEUDOR,0
+4.2.8.1.000,Debitos Bancarios,EGRESO,1,DEUDOR,0
+4.2.8.2.000,Dev. Derecho de Cesion,EGRESO,1,DEUDOR,0
+4.2.8.3.000,Gastos Caja Chica,EGRESO,1,DEUDOR,0
+4.2.8.4.000,Indumentaria Personal,EGRESO,1,DEUDOR,0
+4.2.8.5.000,Servicios de Ceremonial,EGRESO,1,DEUDOR,0
+4.2.8.6.000,Mantenim.Muebles y Ut.,EGRESO,1,DEUDOR,0
+4.2.8.7.000,Minist. de Obras y Serv. Pcos.,EGRESO,1,DEUDOR,0
+4.2.8.8.000,Elementos de Computacion,EGRESO,1,DEUDOR,0
+4.2.8.9.000,Productos Metalicos,EGRESO,1,DEUDOR,0
+4.2.9.0.000,Productos no metalicos,EGRESO,1,DEUDOR,0
+4.2.9.1.000,Productos Quimicos,EGRESO,1,DEUDOR,0
+4.2.9.2.000,Becas,EGRESO,1,DEUDOR,0
+4.2.9.3.000,A.F.I.P Imp. al Valor Agregado,EGRESO,1,DEUDOR,0
+4.2.9.4.000,Ayudas Sociales a Personas,EGRESO,1,DEUDOR,0
+4.2.9.5.000,Quebranto Deudores Incobrables,EGRESO,1,DEUDOR,0
+4.2.9.6.000,Gastos Varios Fdo. Permanente,EGRESO,1,DEUDOR,0
+4.2.9.7.000,Intereses Caja Ahorro,EGRESO,1,DEUDOR,0
+4.2.9.8.000,Costo de Bienes de Uso,EGRESO,1,DEUDOR,0
+4.2.9.9.000,Reposicion Fondo Permanente,EGRESO,1,DEUDOR,0
+4.2.9.9.001,Contribuciones Figurativas,EGRESO,1,DEUDOR,0
+4.3.0.0.000,RECPAM,EGRESO,1,DEUDOR,0
+4.6.0.0.000,(sin nombre),INGRESO,0,ACREEDOR,0
+4.6.6.0.000,(sin nombre),INGRESO,0,ACREEDOR,0
+4.6.6.0.401,Bco. Nac. Cta. 46604019/40,INGRESO,1,ACREEDOR,0
+5.0.0.0.000,Cuentas de Movimiento,ORDEN,0,DEUDOR,0
+5.1.0.0.000,Juegos,ORDEN,0,DEUDOR,0
+5.1.1.0.000,Impuesto Loterias,ORDEN,0,DEUDOR,0
+5.1.1.1.000,Imp. Lot. Federal a Pagar,ORDEN,1,DEUDOR,0
+5.1.2.0.000,Loteria Federal a Cobrar,ORDEN,1,DEUDOR,0
+5.1.3.0.000,Premio Loteria Federal a Pagar,ORDEN,1,DEUDOR,0
+5.1.5.0.000,Pub. y Propag. Lot. Fed. a Pag,ORDEN,1,DEUDOR,0
+5.1.6.0.000,Transf. Premios Juegos,ORDEN,1,DEUDOR,0
+5.2.0.0.000,(sin nombre),ORDEN,0,DEUDOR,0
+5.2.1.0.000,D.G.R. Imp. Ing. Brutos a Cobr,ORDEN,1,DEUDOR,0
+5.2.2.0.000,D.G.R. Imp. Sellos a Cobrar,ORDEN,1,DEUDOR,0
+5.2.3.0.000,D.G.I. Imp. Ganancias a Cobrar,ORDEN,1,DEUDOR,0
+5.2.4.0.000,D.G.I. Imp. Premios a Cobrar,ORDEN,1,DEUDOR,0
+5.2.5.0.000,D.G.I. I.V.A. Credito Fiscal,ORDEN,1,DEUDOR,0
+5.3.0.0.000,Producido de Quiniela,ORDEN,0,DEUDOR,0
+5.3.1.0.000,Costo de Venta de Cupones,ORDEN,1,DEUDOR,0
+5.3.2.0.000,Costo de Venta de Formularios,ORDEN,1,DEUDOR,0
+5.4.0.0.000,Fondo Permanente,ORDEN,1,DEUDOR,0
+6.0.0.0.000,Cuentas de Orden,ORDEN,0,DEUDOR,0
+6.1.0.0.000,Deposito en Garant. Fdo. Terc.,ORDEN,1,DEUDOR,0
+6.2.0.0.000,Garantias de Agencias,ORDEN,1,DEUDOR,0
+7.0.0.0.000,REI,EGRESO,1,DEUDOR,0

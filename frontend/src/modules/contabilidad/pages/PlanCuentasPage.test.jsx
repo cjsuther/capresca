@@ -11,19 +11,21 @@ import * as api from "../../../api/contabilidad";
 import PlanCuentasPage from "./PlanCuentasPage";
 import { useAuthStore } from "../../../context/authStore";
 
+let ids = 0;
 const cuenta = (codigo, nombre, extra = {}) => ({
-  id: codigo.length, codigo, nombre, rubro: "ACTIVO", imputable: true, saldoNormal: "DEUDOR",
+  id: ++ids, codigo, nombre, rubro: "ACTIVO", imputable: true, saldoNormal: "DEUDOR",
   moneda: "ARS", ajustable: false, requiereCentro: false, descripcion: "", activa: true,
   movimientos: 0, enUso: false, ...extra,
 });
 
 const CUENTAS = [
-  cuenta("1", "Activo", { imputable: false }),
-  cuenta("1.1", "Activo corriente", { imputable: false }),
-  cuenta("1.1.01", "Caja"),
-  cuenta("1.1.02", "Banco", { movimientos: 3, enUso: true }),
-  cuenta("2", "Pasivo", { rubro: "PASIVO", imputable: false, saldoNormal: "ACREEDOR" }),
-  cuenta("2.1.01", "IVA débito fiscal", { rubro: "PASIVO", saldoNormal: "ACREEDOR" }),
+  cuenta("1.0.0.0.000", "Activo", { imputable: false }),
+  cuenta("1.1.0.0.000", "Activo corriente", { imputable: false }),
+  cuenta("1.1.1.0.000", "Caja"),
+  cuenta("1.1.2.0.000", "Banco", { movimientos: 3, enUso: true }),
+  cuenta("1.1.2.0.001", "Banco Nación", { rubro: "ACTIVO" }),
+  cuenta("2.0.0.0.000", "Pasivo", { rubro: "PASIVO", imputable: false, saldoNormal: "ACREEDOR" }),
+  cuenta("2.1.1.0.000", "IVA débito fiscal", { rubro: "PASIVO", saldoNormal: "ACREEDOR" }),
 ];
 
 const sesion = (acciones) => useAuthStore.setState({
@@ -36,8 +38,8 @@ beforeEach(() => {
   sesion(["asientos:read", "definiciones:write"]);
   api.listarCuentas.mockResolvedValue({ items: CUENTAS, total: CUENTAS.length,
                                         rubros: ["ACTIVO", "PASIVO", "PATRIMONIO", "INGRESO", "EGRESO", "ORDEN"] });
-  api.crearCuenta.mockResolvedValue(cuenta("1.1.03", "Nueva"));
-  api.editarCuenta.mockResolvedValue(cuenta("1.1.01", "Caja chica"));
+  api.crearCuenta.mockResolvedValue(cuenta("1.1.3.0.000", "Nueva"));
+  api.editarCuenta.mockResolvedValue(cuenta("1.1.1.0.000", "Caja chica"));
   api.borrarCuenta.mockResolvedValue({});
 });
 
@@ -48,7 +50,7 @@ describe("Plan de cuentas", () => {
     expect(await screen.findByText("Activo corriente")).toBeInTheDocument();
     expect(screen.getByText("Caja")).toBeInTheDocument();
 
-    await u.click(screen.getByLabelText("Plegar 1.1"));
+    await u.click(screen.getByLabelText("Plegar 1.1.0.0.000"));
     expect(screen.queryByText("Caja")).toBeNull();          // se plegó la rama
     expect(screen.getByText("Activo corriente")).toBeInTheDocument();
   });
@@ -59,7 +61,7 @@ describe("Plan de cuentas", () => {
     await u.click(await screen.findByText("Caja"));
     expect(screen.getByText("Datos de la cuenta")).toBeInTheDocument();
     expect(screen.getByLabelText("Nombre")).toHaveValue("Caja");
-    expect(screen.getByLabelText("Código")).toHaveValue("1.1.01");
+    expect(screen.getByLabelText("Código")).toHaveValue("1.1.1.0.000");
     expect(screen.getByText("Sin movimientos")).toBeInTheDocument();
   });
 
@@ -78,22 +80,47 @@ describe("Plan de cuentas", () => {
     render(<PlanCuentasPage />);
     await screen.findByText("Activo corriente");
 
-    await u.click(screen.getByLabelText("Agregar subcuenta de 1.1"));
+    await u.click(screen.getByLabelText("Agregar subcuenta de 1.1.0.0.000"));
     expect(screen.getByText("Nueva cuenta")).toBeInTheDocument();
-    expect(screen.getByLabelText("Código")).toHaveValue("1.1.03");     // sigue a 1.1.02
+    expect(screen.getByLabelText("Código")).toHaveValue("1.1.3.0.000");     // sigue a 1.1.2.0.000
     expect(screen.getByText("Nueva cuenta…")).toBeInTheDocument();      // aparece en el árbol
 
     await u.type(screen.getByLabelText("Nombre"), "Recaudaciones");
     await u.click(screen.getByRole("button", { name: "Crear cuenta" }));
     await waitFor(() => expect(api.crearCuenta).toHaveBeenCalledWith(expect.objectContaining({
-      codigo: "1.1.03", nombre: "Recaudaciones", rubro: "ACTIVO", saldo_normal: "DEUDOR" })));
+      codigo: "1.1.3.0.000", nombre: "Recaudaciones", rubro: "ACTIVO", saldo_normal: "DEUDOR" })));
+  });
+
+  it("el árbol sigue la máscara: la madre de 1.1.2.0.001 es 1.1.2.0.000", async () => {
+    const u = userEvent.setup();
+    render(<PlanCuentasPage />);
+    expect(await screen.findByText("Banco Nación")).toBeInTheDocument();
+    await u.click(screen.getByLabelText("Plegar 1.1.2.0.000"));
+    expect(screen.queryByText("Banco Nación")).toBeNull();
+    expect(screen.getByText("Caja")).toBeInTheDocument();
+  });
+
+  it("una rama sin cuenta propia aparece igual, y el último nivel no admite subcuentas", async () => {
+    render(<PlanCuentasPage />);
+    await screen.findByText("IVA débito fiscal");
+    expect(screen.getByLabelText("Plegar 2.1.0.0.000")).toBeInTheDocument();
+    expect(screen.getByLabelText("Agregar subcuenta de 1.1.2.0.000")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Agregar subcuenta de 1.1.2.0.001")).toBeNull();
+  });
+
+  it("el ＋ del último nivel numera con el ancho del segmento", async () => {
+    const u = userEvent.setup();
+    render(<PlanCuentasPage />);
+    await screen.findByText("Banco Nación");
+    await u.click(screen.getByLabelText("Agregar subcuenta de 1.1.2.0.000"));
+    expect(screen.getByLabelText("Código")).toHaveValue("1.1.2.1.000");
   });
 
   it("la subcuenta hereda el rubro del padre y su saldo normal", async () => {
     const u = userEvent.setup();
     render(<PlanCuentasPage />);
     await screen.findByText("Pasivo");
-    await u.click(screen.getByLabelText("Agregar subcuenta de 2"));
+    await u.click(screen.getByLabelText("Agregar subcuenta de 2.0.0.0.000"));
     expect(screen.getByLabelText("Rubro")).toHaveValue("PASIVO");
     expect(screen.getByLabelText("Saldo normal")).toHaveValue("ACREEDOR");
   });
@@ -104,7 +131,7 @@ describe("Plan de cuentas", () => {
     await u.click(await screen.findByText("Caja"));
     await u.click(screen.getByLabelText("Duplicar cuenta"));
     expect(screen.getByLabelText("Nombre")).toHaveValue("Caja (copia)");
-    expect(screen.getByLabelText("Código")).toHaveValue("1.1.03");
+    expect(screen.getByLabelText("Código")).toHaveValue("1.1.3.0.000");
   });
 
   it("avisa antes de perder cambios sin guardar", async () => {
@@ -135,7 +162,7 @@ describe("Plan de cuentas", () => {
     await u.clear(screen.getByLabelText("Nombre"));
     await u.type(screen.getByLabelText("Nombre"), "Caja chica");
     await u.click(screen.getByRole("button", { name: "Guardar" }));
-    await waitFor(() => expect(api.editarCuenta).toHaveBeenCalledWith(6, expect.objectContaining({
+    await waitFor(() => expect(api.editarCuenta).toHaveBeenCalledWith(3, expect.objectContaining({
       nombre: "Caja chica" })));
   });
 
@@ -144,9 +171,9 @@ describe("Plan de cuentas", () => {
     render(<PlanCuentasPage />);
     await u.click(await screen.findByText("Caja"));
     await u.click(screen.getByLabelText("Borrar cuenta"));
-    const dialogo = screen.getByRole("dialog", { name: /Borrar la cuenta 1.1.01/ });
+    const dialogo = screen.getByRole("dialog", { name: /Borrar la cuenta 1\.1\.1\.0\.000/ });
     await u.click(within(dialogo).getByRole("button", { name: "Borrar" }));
-    await waitFor(() => expect(api.borrarCuenta).toHaveBeenCalledWith(6));
+    await waitFor(() => expect(api.borrarCuenta).toHaveBeenCalledWith(3));
   });
 
   it("sólo lectura: se ve el árbol y los datos, sin editar", async () => {
@@ -155,7 +182,7 @@ describe("Plan de cuentas", () => {
     render(<PlanCuentasPage />);
     await u.click(await screen.findByText("Caja"));
     expect(screen.getByLabelText("Nombre")).toBeDisabled();
-    expect(screen.queryByLabelText("Agregar subcuenta de 1.1")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Agregar subcuenta de 1.1.0.0.000")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Borrar cuenta")).not.toBeInTheDocument();
   });

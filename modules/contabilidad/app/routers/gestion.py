@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.db.session import get_db
 from app.dependencies.auth import Usuario, requiere, usuario_actual
+from app.seed import CUENTA_BANCO, CUENTA_RESULTADO
 from app.services import conciliacion, libros, motor
 
 # Todo el módulo pide, como mínimo, el permiso de consulta (el gateway ya lo exige; acá se revalida
@@ -41,12 +42,17 @@ class CuentaIn(BaseModel):
     activa: bool = True
 
 
+def _nivel(codigo: str) -> int:
+    """1 para 1.0.0.0.000, 5 para 1.1.1.2.001: los segmentos en cero no son un nivel."""
+    return max((i + 1 for i, s in enumerate(codigo.split(".")) if s.strip("0")), default=1)
+
+
 def _serial_cuenta(c: models.Cuenta, movimientos: int = 0) -> dict:
     return {"id": c.id, "codigo": c.codigo, "nombre": c.nombre, "rubro": c.rubro,
             "imputable": c.imputable, "saldoNormal": c.saldo_normal, "moneda": c.moneda,
             "ajustable": c.ajustable, "requiereCentro": c.requiere_centro,
             "descripcion": c.descripcion, "activa": c.activa,
-            "nivel": c.codigo.count(".") + 1,
+            "nivel": _nivel(c.codigo),
             # Una cuenta en uso no se borra ni cambia de rubro: la pantalla lo muestra.
             "movimientos": movimientos, "enUso": movimientos > 0}
 
@@ -193,7 +199,7 @@ class EjercicioIn(BaseModel):
     numero: int
     desde: date
     hasta: date
-    cuenta_resultado: str = "3.1.03"
+    cuenta_resultado: str = CUENTA_RESULTADO
 
 
 def _serial_ejercicio(e: models.Ejercicio) -> dict:
@@ -602,7 +608,7 @@ class ConciliarIn(BaseModel):
 
 
 @router.get("/conciliacion")
-def ver_conciliacion(cuenta: str = "1.1.02", desde: date | None = None, hasta: date | None = None,
+def ver_conciliacion(cuenta: str = CUENTA_BANCO, desde: date | None = None, hasta: date | None = None,
                      db: Session = Depends(get_db)):
     try:
         return conciliacion.estado(db, cuenta, desde=desde, hasta=hasta)
@@ -650,7 +656,7 @@ def desconciliar(extracto_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/conciliacion/automatica", dependencies=[Depends(_escribe)])
-def conciliar_automatica(cuenta: str = "1.1.02", db: Session = Depends(get_db),
+def conciliar_automatica(cuenta: str = CUENTA_BANCO, db: Session = Depends(get_db),
                          user: Usuario = Depends(usuario_actual)):
     """Empareja lo pendiente por importe y fecha (misma fecha y, si no, hasta 5 días)."""
     try:

@@ -79,8 +79,8 @@ DEFINICION_DESEMBOLSO = {
     "modulo": "creditos", "tipo": "DESEMBOLSO", "nombre": "Desembolso de crédito", "diario_codigo": "BANCO",
     "leyenda": "Desembolso {referencia}",
     "lineas": [
-        {"cuenta": "1.1.05.01", "dc": "DEBE", "importe": "capital + gastos", "detalle": "Préstamo otorgado"},
-        {"cuenta": "1.1.02", "dc": "HABER", "importe": "capital", "detalle": "Transferencia al cliente"},
-        {"cuenta": "4.1.03", "dc": "HABER", "importe": "gastos", "detalle": "Cargo de otorgamiento"},
+        {"cuenta": "1.1.3.1.001", "dc": "DEBE", "importe": "capital + gastos", "detalle": "Préstamo otorgado"},
+        {"cuenta": "1.1.1.2.001", "dc": "HABER", "importe": "capital", "detalle": "Transferencia al cliente"},
+        {"cuenta": "4.1.3.8.000", "dc": "HABER", "importe": "gastos", "detalle": "Cargo de otorgamiento"},
     ],
 }

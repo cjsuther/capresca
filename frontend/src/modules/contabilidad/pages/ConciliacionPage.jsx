@@ -20,7 +20,7 @@ const VACIO = { fecha: hoy(), importe: "", descripcion: "", referencia: "" };
 export default function ConciliacionPage() {
   const puedeConciliar = useHasPermission("contabilidad", "asientos:write");
   const [cuentas, setCuentas] = useState([]);
-  const [cuenta, setCuenta] = useState("1.1.02");
+  const [cuenta, setCuenta] = useState("1.1.1.2.001");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [datos, setDatos] = useState(null);

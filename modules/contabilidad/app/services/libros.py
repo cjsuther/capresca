@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import models
+from app.seed import RAMA_DISPONIBILIDADES
 from app.services import motor
 
 CERO = Decimal("0.00")
@@ -268,12 +269,12 @@ def flujo_efectivo(db: Session, *, desde: date | None = None, hasta: date | None
 
 
 def _cuentas_de_fondos(db: Session) -> list[str]:
-    """Caja y bancos: las cuentas de activo cuyo nombre o código las identifica como disponibilidades."""
+    """Caja y bancos: las imputables de activo bajo Caja y Bancos del plan, o que se llaman así."""
     codigos = []
     for c in db.scalars(select(models.Cuenta).where(models.Cuenta.rubro == "ACTIVO",
                                                      models.Cuenta.imputable.is_(True))).all():
         nombre = c.nombre.lower()
-        if "caja" in nombre or "banco" in nombre or "efectivo" in nombre:
+        if c.codigo.startswith(RAMA_DISPONIBILIDADES) or any(p in nombre for p in ("caja", "banco", "efectivo")):
             codigos.append(c.codigo)
     return codigos
 

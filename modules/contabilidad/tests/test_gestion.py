@@ -9,7 +9,7 @@ HOY = date.today().isoformat()
 ANIO = date.today().year
 
 
-def _asiento(client, contador, *, debe="1.1.01", haber="1.1.02", importe=1000.0, concepto="Ajuste",
+def _asiento(client, contador, *, debe="1.1.1.1.000", haber="1.1.1.2.001", importe=1000.0, concepto="Ajuste",
              fecha=None, borrador=False, centro=""):
     return client.post(f"{API}/asientos", headers=contador, json={
         "fecha": fecha or HOY, "concepto": concepto, "borrador": borrador,
@@ -38,7 +38,7 @@ def test_una_cuenta_sin_uso_se_borra_y_una_con_movimientos_no(client, contador, 
     assert client.delete(f"{API}/cuentas/{nueva['id']}", headers=contador).status_code == 204
 
     _asiento(client, contador)
-    caja = db.query(models.Cuenta).filter_by(codigo="1.1.01").one()
+    caja = db.query(models.Cuenta).filter_by(codigo="1.1.1.1.000").one()
     r = client.delete(f"{API}/cuentas/{caja.id}", headers=contador)
     assert r.status_code == 409 and "movimiento" in r.json()["detail"]
 
@@ -49,7 +49,7 @@ def test_no_se_borra_una_cuenta_que_usa_una_definicion(client, contador):
     client.post(f"{API}/definiciones", headers=contador, json={
         "modulo": "x", "tipo": "Y", "nombre": "Prueba",
         "lineas": [{"cuenta": "9.9.98", "dc": "DEBE", "importe": "monto"},
-                   {"cuenta": "1.1.02", "dc": "HABER", "importe": "monto"}]})
+                   {"cuenta": "1.1.1.2.001", "dc": "HABER", "importe": "monto"}]})
     r = client.delete(f"{API}/cuentas/{nueva['id']}", headers=contador)
     assert r.status_code == 409 and "definición" in r.json()["detail"]
 
@@ -79,11 +79,11 @@ def test_un_borrador_se_borra_y_un_registrado_no(client, contador):
 def _ejercicio_siguiente(client, contador):
     return client.post(f"{API}/ejercicios", headers=contador, json={
         "numero": ANIO + 1, "desde": f"{ANIO + 1}-01-01", "hasta": f"{ANIO + 1}-12-31",
-        "cuenta_resultado": "3.3"}).json()
+        "cuenta_resultado": "3.5.0.0.000"}).json()
 
 
 def test_el_ejercicio_nuevo_abre_con_los_saldos_patrimoniales_del_anterior(client, contador):
-    _asiento(client, contador, debe="1.1.01", haber="3.1", importe=50000)   # aporte de capital
+    _asiento(client, contador, debe="1.1.1.1.000", haber="3.1.1.0.000", importe=50000)   # aporte de capital
     ej_actual = client.get(f"{API}/ejercicios", headers=contador).json()["items"][0]
     client.post(f"{API}/ejercicios/{ej_actual['id']}/cerrar", headers=contador)
     nuevo = _ejercicio_siguiente(client, contador)
@@ -91,7 +91,7 @@ def test_el_ejercicio_nuevo_abre_con_los_saldos_patrimoniales_del_anterior(clien
     a = client.post(f"{API}/ejercicios/{nuevo['id']}/apertura", headers=contador).json()
 
     assert a["origen"] == "APERTURA" and a["debe"] == a["haber"] == 50000.0
-    assert {l["cuenta"] for l in a["lineas"]} == {"1.1.01", "3.1"}
+    assert {l["cuenta"] for l in a["lineas"]} == {"1.1.1.1.000", "3.1.1.0.000"}
     # No se abre dos veces.
     assert client.post(f"{API}/ejercicios/{nuevo['id']}/apertura", headers=contador).status_code == 422
 
@@ -104,7 +104,7 @@ def test_sin_ejercicio_anterior_no_hay_apertura(client, contador):
 
 
 def test_reabrir_un_ejercicio_anula_su_asiento_de_cierre(client, contador):
-    _asiento(client, contador, debe="1.1.01", haber="4.1.04", importe=7000)
+    _asiento(client, contador, debe="1.1.1.1.000", haber="4.1.3.1.000", importe=7000)
     ej = client.get(f"{API}/ejercicios", headers=contador).json()["items"][0]
     client.post(f"{API}/ejercicios/{ej['id']}/cerrar", headers=contador)
 
@@ -121,16 +121,16 @@ def test_reabrir_un_ejercicio_anula_su_asiento_de_cierre(client, contador):
 
 def _extracto(client, contador, importe, fecha=None, descripcion="Transferencia"):
     return client.post(f"{API}/conciliacion/extracto", headers=contador, json={
-        "cuenta_codigo": "1.1.02", "fecha": fecha or HOY, "importe": importe,
+        "cuenta_codigo": "1.1.1.2.001", "fecha": fecha or HOY, "importe": importe,
         "descripcion": descripcion}).json()
 
 
 def test_la_conciliacion_muestra_las_dos_columnas_y_la_diferencia(client, contador):
-    _asiento(client, contador, debe="1.1.02", haber="4.1.04", importe=3000)   # entra plata al banco
+    _asiento(client, contador, debe="1.1.1.2.001", haber="4.1.3.1.000", importe=3000)   # entra plata al banco
     _extracto(client, contador, 3000)
     _extracto(client, contador, -500, descripcion="Gastos bancarios no registrados")
 
-    d = client.get(f"{API}/conciliacion?cuenta=1.1.02", headers=contador).json()
+    d = client.get(f"{API}/conciliacion?cuenta=1.1.1.2.001", headers=contador).json()
 
     assert d["totales"]["saldoExtracto"] == 2500.0 and d["totales"]["saldoMayor"] == 3000.0
     assert d["totales"]["diferencia"] == -500.0
@@ -138,9 +138,9 @@ def test_la_conciliacion_muestra_las_dos_columnas_y_la_diferencia(client, contad
 
 
 def test_conciliar_exige_que_los_importes_coincidan(client, contador):
-    _asiento(client, contador, debe="1.1.02", haber="4.1.04", importe=3000)
+    _asiento(client, contador, debe="1.1.1.2.001", haber="4.1.3.1.000", importe=3000)
     e = _extracto(client, contador, 2500)
-    d = client.get(f"{API}/conciliacion?cuenta=1.1.02", headers=contador).json()
+    d = client.get(f"{API}/conciliacion?cuenta=1.1.1.2.001", headers=contador).json()
     mov = d["movimientos"][0]["asientoLineaId"]
     r = client.post(f"{API}/conciliacion/conciliar", headers=contador,
                     json={"extracto_id": e["id"], "asiento_linea_id": mov})
@@ -148,14 +148,14 @@ def test_conciliar_exige_que_los_importes_coincidan(client, contador):
 
 
 def test_conciliar_y_desconciliar_a_mano(client, contador):
-    _asiento(client, contador, debe="1.1.02", haber="4.1.04", importe=3000)
+    _asiento(client, contador, debe="1.1.1.2.001", haber="4.1.3.1.000", importe=3000)
     e = _extracto(client, contador, 3000)
-    d = client.get(f"{API}/conciliacion?cuenta=1.1.02", headers=contador).json()
+    d = client.get(f"{API}/conciliacion?cuenta=1.1.1.2.001", headers=contador).json()
     mov = d["movimientos"][0]["asientoLineaId"]
 
     assert client.post(f"{API}/conciliacion/conciliar", headers=contador,
                        json={"extracto_id": e["id"], "asiento_linea_id": mov}).json()["conciliada"] is True
-    d = client.get(f"{API}/conciliacion?cuenta=1.1.02", headers=contador).json()
+    d = client.get(f"{API}/conciliacion?cuenta=1.1.1.2.001", headers=contador).json()
     assert d["extracto"][0]["conciliada"] and d["movimientos"][0]["conciliada"]
     assert d["totales"]["pendienteExtracto"] == 0.0
 
@@ -166,18 +166,18 @@ def test_conciliar_y_desconciliar_a_mano(client, contador):
     assert r.status_code == 422 and "ya está conciliado" in r.json()["detail"]
 
     client.post(f"{API}/conciliacion/desconciliar/{e['id']}", headers=contador)
-    assert client.get(f"{API}/conciliacion?cuenta=1.1.02", headers=contador).json()["extracto"][0]["conciliada"] is False
+    assert client.get(f"{API}/conciliacion?cuenta=1.1.1.2.001", headers=contador).json()["extracto"][0]["conciliada"] is False
 
 
 def test_la_conciliacion_automatica_empareja_por_importe_y_fecha(client, contador):
     ayer = (date.today() - timedelta(days=1)).isoformat()
-    _asiento(client, contador, debe="1.1.02", haber="4.1.04", importe=1200)
-    _asiento(client, contador, debe="1.1.02", haber="4.1.04", importe=800, fecha=ayer)
-    _asiento(client, contador, debe="1.1.02", haber="4.1.04", importe=999)      # sin par en el extracto
+    _asiento(client, contador, debe="1.1.1.2.001", haber="4.1.3.1.000", importe=1200)
+    _asiento(client, contador, debe="1.1.1.2.001", haber="4.1.3.1.000", importe=800, fecha=ayer)
+    _asiento(client, contador, debe="1.1.1.2.001", haber="4.1.3.1.000", importe=999)      # sin par en el extracto
     _extracto(client, contador, 1200)
     _extracto(client, contador, 800, fecha=ayer)
 
-    r = client.post(f"{API}/conciliacion/automatica?cuenta=1.1.02", headers=contador).json()
+    r = client.post(f"{API}/conciliacion/automatica?cuenta=1.1.1.2.001", headers=contador).json()
 
     assert r["conciliadas"] == 2 and r["pendienteExtracto"] == 0.0
     assert r["pendienteMayor"] == 999.0
@@ -187,23 +187,23 @@ def test_la_conciliacion_automatica_empareja_por_importe_y_fecha(client, contado
 # ── Flujo de efectivo, IVA y centros ─────────────────────────────────────────────────────────────
 
 def test_flujo_de_efectivo_por_caja_y_bancos(client, contador):
-    _asiento(client, contador, debe="1.1.01", haber="4.1.04", importe=5000, concepto="Cobro")
-    _asiento(client, contador, debe="5.1.03", haber="1.1.02", importe=1200, concepto="Pago de servicios")
+    _asiento(client, contador, debe="1.1.1.1.000", haber="4.1.3.1.000", importe=5000, concepto="Cobro")
+    _asiento(client, contador, debe="4.2.6.2.000", haber="1.1.1.2.001", importe=1200, concepto="Pago de servicios")
 
     r = client.get(f"{API}/libros/flujo-efectivo", headers=contador).json()
 
     assert r["entradas"] == 5000.0 and r["salidas"] == 1200.0 and r["neto"] == 3800.0
-    assert r["saldosPorCuenta"]["1.1.01"] == 5000.0 and r["saldosPorCuenta"]["1.1.02"] == -1200.0
-    assert any("Gastos administrativos" in m["contrapartida"] for m in r["movimientos"])
+    assert r["saldosPorCuenta"]["1.1.1.1.000"] == 5000.0 and r["saldosPorCuenta"]["1.1.1.2.001"] == -1200.0
+    assert any("Recupero de Gastos" in m["contrapartida"] for m in r["movimientos"])
 
 
 def test_posicion_de_iva_del_periodo(client, contador, interna):
     """Débito contra crédito fiscal: lo que hay que pagar."""
     for libro, tipo, neto, iva, cuentas in [
-            ("VENTAS", "FACTURA_VENTA", 100000, 21000, [("1.2.01", "DEBE", "neto + iva"),
-                                                         ("4.1.04", "HABER", "neto"), ("2.1.01", "HABER", "iva")]),
-            ("COMPRAS", "FACTURA_COMPRA", 40000, 8400, [("5.1.03", "DEBE", "neto"), ("1.2.04", "DEBE", "iva"),
-                                                         ("2.1.01", "HABER", "neto + iva")])]:
+            ("VENTAS", "FACTURA_VENTA", 100000, 21000, [("1.1.3.1.002", "DEBE", "neto + iva"),
+                                                         ("4.1.3.1.000", "HABER", "neto"), ("2.3.3.0.000", "HABER", "iva")]),
+            ("COMPRAS", "FACTURA_COMPRA", 40000, 8400, [("4.2.6.2.000", "DEBE", "neto"), ("1.2.9.0.000", "DEBE", "iva"),
+                                                         ("2.3.3.0.000", "HABER", "neto + iva")])]:
         client.post(f"{API}/definiciones", headers=contador, json={
             "modulo": "compras", "tipo": tipo, "nombre": tipo, "diario_codigo": "VAR",
             "lineas": [{"cuenta": c, "dc": dc, "importe": imp} for c, dc, imp in cuentas]})
@@ -224,9 +224,9 @@ def test_posicion_de_iva_del_periodo(client, contador, interna):
 def test_analisis_por_centro_de_costo(client, contador):
     client.post(f"{API}/centros", headers=contador, json={"codigo": "SUC1", "nombre": "Sucursal Centro"})
     client.post(f"{API}/centros", headers=contador, json={"codigo": "SUC2", "nombre": "Sucursal Valle"})
-    _asiento(client, contador, debe="1.1.01", haber="4.1.04", importe=9000, centro="SUC1")
-    _asiento(client, contador, debe="5.1.03", haber="1.1.01", importe=2000, centro="SUC1")
-    _asiento(client, contador, debe="5.1.03", haber="1.1.01", importe=500, centro="SUC2")
+    _asiento(client, contador, debe="1.1.1.1.000", haber="4.1.3.1.000", importe=9000, centro="SUC1")
+    _asiento(client, contador, debe="4.2.6.2.000", haber="1.1.1.1.000", importe=2000, centro="SUC1")
+    _asiento(client, contador, debe="4.2.6.2.000", haber="1.1.1.1.000", importe=500, centro="SUC2")
 
     r = client.get(f"{API}/reportes/por-centro", headers=contador).json()
 
@@ -251,53 +251,63 @@ def test_el_centro_de_costo_se_edita(client, contador):
 # ── El plan sembrado es el del sistema anterior ──────────────────────────────────────────────────
 
 def test_el_plan_es_el_del_sistema_anterior(client, contador):
-    """Misma codificación que venía usando el motor de asientos de Créditos."""
+    """El del Excel del sistema anterior, con su máscara y la jerarquía que sale de ella."""
     cuentas = {c["codigo"]: c for c in client.get(f"{API}/cuentas", headers=contador).json()["items"]}
-    esperadas = {"1.1.01": "Caja", "1.1.02": "Banco", "1.1.05.01": "Préstamos otorgados",
-                 "1.2.01": "Créditos a cobrar", "1.2.04": "IVA crédito fiscal",
-                 "2.1.01": "IVA débito fiscal", "2.1.02": "Proveedores",
-                 "3.3": "Resultado del ejercicio", "4.1.01": "Intereses ganados",
-                 "4.1.02": "Intereses punitorios ganados", "4.1.03": "Seguros",
-                 "4.1.04": "Gastos administrativos", "5.2.02": "Comisiones y gastos bancarios"}
-    for codigo, nombre in esperadas.items():
-        assert cuentas[codigo]["nombre"] == nombre, codigo
-    assert cuentas["1"]["imputable"] is False and cuentas["1.1.01"]["imputable"] is True
+    assert len(cuentas) == 624
+    assert cuentas["1.0.0.0.000"]["nombre"] == "Activo" and cuentas["1.0.0.0.000"]["imputable"] is False
+    assert cuentas["1.0.0.0.000"]["nivel"] == 1 and cuentas["1.1.1.2.001"]["nivel"] == 5
+    banco = cuentas["1.1.1.2.001"]
+    assert banco["nombre"] == "Banco Nacion 1439/83" and banco["imputable"] is True
+    assert banco["rubro"] == "ACTIVO" and banco["saldoNormal"] == "DEUDOR"
+    # Rubros por grupo: 4.1 ingresos, 4.2 egresos, 5 y 6 orden, 7 (REI) egreso.
+    assert cuentas["4.1.3.2.000"]["rubro"] == "INGRESO" and cuentas["4.2.6.6.000"]["rubro"] == "EGRESO"
+    assert cuentas["5.4.0.0.000"]["rubro"] == cuentas["6.1.0.0.000"]["rubro"] == "ORDEN"
+    assert cuentas["7.0.0.0.000"]["rubro"] == "EGRESO"
+    # Las amortizaciones acumuladas restan al activo; los bienes de uso y el patrimonio se ajustan.
+    assert cuentas["1.2.5.6.000"]["saldoNormal"] == "ACREEDOR" and cuentas["1.2.5.6.000"]["ajustable"] is True
+    assert cuentas["3.1.1.0.000"]["ajustable"] is True and cuentas["1.1.1.1.000"]["ajustable"] is False
+    # Una cuenta real que por la numeración corrida tiene "hijas" sigue recibiendo asientos.
+    assert cuentas["1.2.4.0.000"]["nombre"] == "Patentes" and cuentas["1.2.4.0.000"]["imputable"] is True
     ej = client.get(f"{API}/ejercicios", headers=contador).json()["items"][0]
-    assert ej["cuentaResultado"] == "3.3"
+    assert ej["cuentaResultado"] == "3.5.0.0.000"
 
 
-def test_una_siembra_vieja_se_alinea_con_el_plan(client, contador, db):
-    """Si la base venía de un plan anterior: se corrigen los nombres y se van las cuentas sin uso."""
+def test_reiniciar_no_pisa_ni_borra_lo_que_cargo_el_contador(client, contador, db):
+    """El plan se siembra una sola vez: después lo mantiene el contador desde la pantalla."""
     from app.models import Cuenta
     from app.seed import sembrar
-    db.add(Cuenta(codigo="9.9.90", nombre="Cuenta de otro plan", rubro="ACTIVO"))
-    caja = db.query(Cuenta).filter_by(codigo="1.1.01").one()
-    caja.nombre = "Caja chica (nombre viejo)"
+    db.add(Cuenta(codigo="1.1.1.2.099", nombre="Banco nuevo", rubro="ACTIVO"))
+    db.query(Cuenta).filter_by(codigo="1.1.1.1.000").one().nombre = "Caja central"
     db.commit()
 
     sembrar(db)
 
-    assert db.query(Cuenta).filter_by(codigo="9.9.90").first() is None      # no la usaba nadie
-    assert db.query(Cuenta).filter_by(codigo="1.1.01").one().nombre == "Caja"
+    assert db.query(Cuenta).filter_by(codigo="1.1.1.2.099").one().nombre == "Banco nuevo"
+    assert db.query(Cuenta).filter_by(codigo="1.1.1.1.000").one().nombre == "Caja central"
 
 
-def test_una_cuenta_de_otro_plan_con_movimientos_no_se_borra(client, contador, db):
-    from app.models import Cuenta
-    from app.seed import sembrar
-    db.add(Cuenta(codigo="9.9.91", nombre="Vieja con uso", rubro="ACTIVO"))
+def test_reemplazar_el_plan_vacia_la_contabilidad_y_carga_el_csv(client, contador, db, monkeypatch):
+    from app import reemplazar_plan
+    from app.models import Asiento, Cuenta
+    _asiento(client, contador, debe="1.1.1.1.000", haber="4.1.3.1.000", importe=100)
+    db.add(Cuenta(codigo="9.9.9.9.999", nombre="De otro plan", rubro="ACTIVO"))
     db.commit()
-    client.post(f"{API}/asientos", headers=contador, json={
-        "fecha": HOY, "concepto": "Movimiento viejo",
-        "lineas": [{"cuenta": "9.9.91", "debe": 100}, {"cuenta": "1.1.01", "haber": 100}]})
+    monkeypatch.setattr(reemplazar_plan, "SessionLocal", lambda: db)
 
-    sembrar(db)
+    reemplazar_plan.main(confirmar=False)
+    assert db.query(Asiento).count() == 1                 # sin --confirmar no toca nada
 
-    assert db.query(Cuenta).filter_by(codigo="9.9.91").first() is not None
+    reemplazar_plan.main(confirmar=True)
+    assert db.query(Asiento).count() == 0
+    assert db.query(Cuenta).filter_by(codigo="9.9.9.9.999").first() is None
+    assert db.query(Cuenta).count() == 624
+    ej = client.get(f"{API}/ejercicios", headers=contador).json()["items"]
+    assert len(ej) == 1 and ej[0]["estado"] == "ABIERTO" and ej[0]["cuentaResultado"] == "3.5.0.0.000"
 
 
 def test_el_plan_dice_que_cuentas_estan_en_uso(client, contador):
     """La pantalla necesita saberlo: una cuenta con movimientos no se borra ni cambia de rubro."""
-    _asiento(client, contador, debe="1.1.01", haber="1.1.02", importe=100)
+    _asiento(client, contador, debe="1.1.1.1.000", haber="1.1.1.2.001", importe=100)
     cuentas = {c["codigo"]: c for c in client.get(f"{API}/cuentas", headers=contador).json()["items"]}
-    assert cuentas["1.1.01"]["enUso"] is True and cuentas["1.1.01"]["movimientos"] == 1
-    assert cuentas["1.2.01"]["enUso"] is False and cuentas["1.2.01"]["movimientos"] == 0
+    assert cuentas["1.1.1.1.000"]["enUso"] is True and cuentas["1.1.1.1.000"]["movimientos"] == 1
+    assert cuentas["1.1.3.1.002"]["enUso"] is False and cuentas["1.1.3.1.002"]["movimientos"] == 0

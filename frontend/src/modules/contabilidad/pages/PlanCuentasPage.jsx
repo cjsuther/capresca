@@ -13,7 +13,7 @@ import { Pill } from "../../../components/ui/Pill";
  * subcuenta con el código ya sugerido, y la cuenta que se está creando aparece en el árbol para ver
  * dónde va a quedar.
  */
-const RUBRO_DE_RAIZ = { 1: "ACTIVO", 2: "PASIVO", 3: "PATRIMONIO", 4: "INGRESO", 5: "EGRESO" };
+const RUBRO_DE_RAIZ = { 1: "ACTIVO", 2: "PASIVO", 3: "PATRIMONIO", 4: "INGRESO", 5: "ORDEN", 6: "ORDEN", 7: "EGRESO" };
 const COLOR_RUBRO = {
   ACTIVO: "bg-blue-500", PASIVO: "bg-amber-500", PATRIMONIO: "bg-purple-500",
   INGRESO: "bg-green-500", EGRESO: "bg-red-500", ORDEN: "bg-gray-400",
@@ -22,14 +22,26 @@ const ACREEDORAS = ["PASIVO", "PATRIMONIO", "INGRESO"];
 const MONEDAS = ["ARS", "USD", "EUR"];
 
 const cmp = (a, b) => a.localeCompare(b, undefined, { numeric: true });
-const padreDe = (codigo) => codigo.split(".").slice(0, -1).join(".");
+// Códigos de máscara fija, como en el sistema anterior: 1.1.1.2.001. Un segmento en cero no es un
+// nivel, así que la madre de una cuenta es el mismo código con su último segmento usado en cero.
+const MASCARA = [1, 1, 1, 1, 3];
+const nivelDe = (codigo) => codigo.split(".").findLastIndex((seg) => /[^0]/.test(seg));   // 0 = principal
+const padreDe = (codigo) => {
+  const segs = codigo.split(".");
+  const i = nivelDe(codigo);
+  if (i <= 0) return "";
+  segs[i] = "0".repeat(segs[i].length);
+  return segs.join(".");
+};
+const admiteSubcuentas = (codigo) => nivelDe(codigo) < MASCARA.length - 1;
 const rubroDeRaiz = (codigo) => RUBRO_DE_RAIZ[codigo.split(".")[0]] || "ACTIVO";
 
 const VACIA = () => ({ id: 0, codigo: "", nombre: "", rubro: "ACTIVO", imputable: true,
                        saldo_normal: "DEUDOR", moneda: "ARS", ajustable: false, requiere_centro: false,
                        descripcion: "", activa: true });
 
-/** Árbol a partir de los códigos: 1 → 1.1 → 1.1.01. Las ramas sin cuenta propia también aparecen. */
+/** Árbol a partir de los códigos: 1.0.0.0.000 → 1.1.0.0.000 → 1.1.1.0.000. Las ramas sin cuenta propia
+ *  también aparecen. */
 function armarArbol(cuentas) {
   const nodos = new Map();
   const asegurar = (codigo) => {
@@ -38,12 +50,11 @@ function armarArbol(cuentas) {
   };
   cuentas.forEach((c) => { asegurar(c.codigo).cuenta = c; });
   [...nodos.keys()].forEach((codigo) => {
-    const segs = codigo.split(".");
-    for (let i = 1; i < segs.length; i++) asegurar(segs.slice(0, i).join("."));
+    for (let p = padreDe(codigo); p; p = padreDe(p)) asegurar(p);
   });
   const raices = [];
   nodos.forEach((n) => {
-    const padre = n.codigo.includes(".") ? nodos.get(padreDe(n.codigo)) : null;
+    const padre = nodos.get(padreDe(n.codigo));
     (padre ? padre.hijos : raices).push(n);
   });
   const ordenar = (arr) => { arr.sort((a, b) => cmp(a.codigo, b.codigo)); arr.forEach((n) => ordenar(n.hijos)); };
@@ -51,14 +62,17 @@ function armarArbol(cuentas) {
   return raices;
 }
 
-/** Próximo código libre bajo un padre: 1.1 → 1.1.01, 1.1.02… */
+/** Próximo código libre bajo una madre: 1.1.1.2.000 → 1.1.1.2.001, 1.1.1.2.002… ("" = cuenta principal).
+ *  Vacío si la numeración de ese nivel ya se terminó: el código se escribe a mano. */
 function proximoCodigo(padre, hermanos) {
-  const max = hermanos.reduce((m, h) => {
-    const n = parseInt(h.split(".").pop(), 10);
-    return isNaN(n) ? m : Math.max(m, n);
-  }, 0);
-  const sufijo = String(max + 1).padStart(2, "0");
-  return padre ? `${padre}.${sufijo}` : sufijo;
+  const segs = padre ? padre.split(".") : MASCARA.map((ancho) => "0".repeat(ancho));
+  const i = padre ? nivelDe(padre) + 1 : 0;
+  if (i >= segs.length) return "";
+  const max = hermanos.reduce((m, h) => Math.max(m, parseInt(h.split(".")[i], 10) || 0), 0);
+  const siguiente = String(max + 1);
+  if (siguiente.length > segs[i].length) return "";
+  segs[i] = siguiente.padStart(segs[i].length, "0");
+  return segs.join(".");
 }
 
 export default function PlanCuentasPage() {
@@ -136,7 +150,7 @@ export default function PlanCuentasPage() {
   const nuevaBajo = (padre) => seguir(() => {
     const hermanos = cuentas.filter((c) => padreDe(c.codigo) === padre).map((c) => c.codigo);
     const cuentaPadre = cuentas.find((c) => c.codigo === padre);
-    const rubro = cuentaPadre?.rubro || rubroDeRaiz(padre || "1");
+    const rubro = cuentaPadre?.rubro || rubroDeRaiz(padre || "1.0.0.0.000");
     setColapsados((p) => { const s = new Set(p); s.delete(padre); return s; });
     setEsAlta(true); setSel("");
     setBorrador({ ...VACIA(), codigo: proximoCodigo(padre, hermanos), rubro,
@@ -219,7 +233,7 @@ export default function PlanCuentasPage() {
         </span>
         {c && !c.activa && <Pill tono="crit">baja</Pill>}
         <span className="flex-1" />
-        {puedeEditar && (
+        {puedeEditar && admiteSubcuentas(n.codigo) && (
           <button type="button" aria-label={`Agregar subcuenta de ${n.codigo}`} title="Agregar subcuenta"
                   onClick={(e) => { e.stopPropagation(); nuevaBajo(n.codigo); }}
                   className="text-gray-300 hover:text-blue-600 px-1">

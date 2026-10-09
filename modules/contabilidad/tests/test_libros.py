@@ -8,7 +8,7 @@ API = "/api/contabilidad"
 HOY = date.today().isoformat()
 
 
-def _asiento(client, contador, concepto="Ajuste", debe="1.1.01", haber="1.1.02", importe=1000.0, fecha=None):
+def _asiento(client, contador, concepto="Ajuste", debe="1.1.1.1.000", haber="1.1.1.2.001", importe=1000.0, fecha=None):
     return client.post(f"{API}/asientos", headers=contador, json={
         "fecha": fecha or HOY, "concepto": concepto, "diario_codigo": "VAR",
         "lineas": [{"cuenta": debe, "debe": importe, "detalle": "sale"},
@@ -20,19 +20,19 @@ def _asiento(client, contador, concepto="Ajuste", debe="1.1.01", haber="1.1.02",
 def test_el_asiento_manual_exige_partida_doble(client, contador):
     r = client.post(f"{API}/asientos", headers=contador, json={
         "fecha": HOY, "concepto": "Descuadrado",
-        "lineas": [{"cuenta": "1.1.01", "debe": 100}, {"cuenta": "1.1.02", "haber": 90}]})
+        "lineas": [{"cuenta": "1.1.1.1.000", "debe": 100}, {"cuenta": "1.1.1.2.001", "haber": 90}]})
     assert r.status_code == 422 and "no balancea" in r.json()["detail"]
 
 
 def test_una_linea_no_puede_ir_al_debe_y_al_haber(client, contador):
     r = client.post(f"{API}/asientos", headers=contador, json={
         "fecha": HOY, "concepto": "Rara",
-        "lineas": [{"cuenta": "1.1.01", "debe": 100, "haber": 100}, {"cuenta": "1.1.02", "haber": 100}]})
+        "lineas": [{"cuenta": "1.1.1.1.000", "debe": 100, "haber": 100}, {"cuenta": "1.1.1.2.001", "haber": 100}]})
     assert r.status_code == 422
 
 
 def test_no_se_imputa_en_una_cuenta_de_agrupacion(client, contador):
-    assert _asiento(client, contador, debe="1").status_code == 422
+    assert _asiento(client, contador, debe="1.0.0.0.000").status_code == 422
 
 
 def test_no_se_asienta_fuera_de_un_ejercicio_abierto(client, contador):
@@ -49,7 +49,7 @@ def test_un_asiento_se_anula_con_su_contra_asiento(client, contador, db):
     rev = r["reversa"]
     assert rev["origen"] == "REVERSA" and rev["reversaDe"] == a["id"]
     assert [(l["cuenta"], l["debe"], l["haber"]) for l in rev["lineas"]] == [
-        ("1.1.01", 0.0, 1000.0), ("1.1.02", 1000.0, 0.0)]
+        ("1.1.1.1.000", 0.0, 1000.0), ("1.1.1.2.001", 1000.0, 0.0)]
     assert client.post(f"{API}/asientos/{a['id']}/anular", headers=contador, json={}).status_code == 422
 
 
@@ -71,7 +71,7 @@ def test_libro_diario_y_mayor(client, contador):
     assert [a["concepto"] for a in diario["items"]] == ["Uno", "Dos"]
     assert diario["items"][0]["debe"] == diario["items"][0]["haber"] == 1500.0
 
-    mayor = client.get(f"{API}/libros/mayor/1.1.01", headers=contador).json()
+    mayor = client.get(f"{API}/libros/mayor/1.1.1.1.000", headers=contador).json()
     assert mayor["cuenta"]["nombre"] == "Caja"
     assert [m["saldo"] for m in mayor["movimientos"]] == [1500.0, 2000.0]
     assert mayor["saldoFinal"] == 2000.0
@@ -94,7 +94,7 @@ def test_el_anulado_y_su_contra_asiento_quedan_en_el_libro_y_se_compensan(client
     a = _asiento(client, contador, importe=800).json()
     client.post(f"{API}/asientos/{a['id']}/anular", headers=contador, json={})
 
-    mayor = client.get(f"{API}/libros/mayor/1.1.01", headers=contador).json()
+    mayor = client.get(f"{API}/libros/mayor/1.1.1.1.000", headers=contador).json()
     assert [m["debe"] for m in mayor["movimientos"]] == [800.0, 0.0]
     assert mayor["saldoFinal"] == 0.0
 
@@ -109,10 +109,10 @@ def test_estados_contables(client, contador):
     # Cobro de un servicio: entra plata (activo) contra un ingreso.
     client.post(f"{API}/asientos", headers=contador, json={
         "fecha": HOY, "concepto": "Cobro de servicio",
-        "lineas": [{"cuenta": "1.1.01", "debe": 10000}, {"cuenta": "4.1.04", "haber": 10000}]})
+        "lineas": [{"cuenta": "1.1.1.1.000", "debe": 10000}, {"cuenta": "4.1.3.1.000", "haber": 10000}]})
     client.post(f"{API}/asientos", headers=contador, json={
         "fecha": HOY, "concepto": "Gasto bancario",
-        "lineas": [{"cuenta": "5.2.02", "debe": 1500}, {"cuenta": "1.1.01", "haber": 1500}]})
+        "lineas": [{"cuenta": "4.2.4.9.000", "debe": 1500}, {"cuenta": "1.1.1.1.000", "haber": 1500}]})
 
     r = client.get(f"{API}/libros/estados", headers=contador).json()
 
@@ -129,9 +129,9 @@ def test_la_transaccion_con_comprobante_alimenta_el_libro_iva(client, interna, c
     client.post(f"{API}/definiciones", headers=contador, json={
         "modulo": "creditos", "tipo": "FACTURA", "nombre": "Factura de servicios", "diario_codigo": "VTA",
         "leyenda": "Factura {referencia}",
-        "lineas": [{"cuenta": "1.2.01", "dc": "DEBE", "importe": "neto + iva"},
-                   {"cuenta": "4.1.04", "dc": "HABER", "importe": "neto"},
-                   {"cuenta": "2.1.01", "dc": "HABER", "importe": "iva"}]})
+        "lineas": [{"cuenta": "1.1.3.1.002", "dc": "DEBE", "importe": "neto + iva"},
+                   {"cuenta": "4.1.3.1.000", "dc": "HABER", "importe": "neto"},
+                   {"cuenta": "2.3.3.0.000", "dc": "HABER", "importe": "iva"}]})
     client.post("/internal/contabilidad/transacciones", headers=interna, json=transaccion(
         tipo="FACTURA", referencia="A-0001-00000123",
         datos={"neto": 100000, "iva": 21000,
@@ -160,8 +160,8 @@ def test_no_se_pueden_superponer_ejercicios(client, contador):
 
 def test_el_cierre_refunde_los_resultados_y_bloquea_el_ejercicio(client, contador, db):
     client.post(f"{API}/asientos", headers=contador, json={
-        "fecha": HOY, "concepto": "Cobro", "lineas": [{"cuenta": "1.1.01", "debe": 5000},
-                                                       {"cuenta": "4.1.04", "haber": 5000}]})
+        "fecha": HOY, "concepto": "Cobro", "lineas": [{"cuenta": "1.1.1.1.000", "debe": 5000},
+                                                       {"cuenta": "4.1.3.1.000", "haber": 5000}]})
     ej = client.get(f"{API}/ejercicios", headers=contador).json()["items"][0]
 
     r = client.post(f"{API}/ejercicios/{ej['id']}/cerrar", headers=contador).json()

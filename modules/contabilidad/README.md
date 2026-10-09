@@ -72,10 +72,27 @@ transacción real antes de aplicarla.
 - **Entes contables**: razón social, CUIT, condición frente al IVA y domicilio.
 - **Plan de cuentas** con la misma experiencia del sistema anterior: **árbol jerárquico** plegable con
   buscador a la izquierda y los **datos de la cuenta** a la derecha. Cada rama tiene su "＋" para
-  agregarle una subcuenta con el **código ya sugerido** (1.1 → 1.1.03), la cuenta que se está creando
+  agregarle una subcuenta con el **código ya sugerido** (1.1.1.2.000 → 1.1.1.2.001), la cuenta que se está creando
   aparece en el árbol para ver dónde queda, se puede **duplicar** una cuenta y avisa antes de perder
   cambios sin guardar. Una cuenta **en uso** muestra sus movimientos y deja fijos el código, el rubro y
   la imputabilidad (para dejar de usarla, se le saca "Activa"); una cuenta sin movimientos se borra.
+
+### De dónde sale el plan
+
+Es el del sistema anterior, exportado a Excel, con su **máscara fija** `0.0.0.0.000`: un segmento en cero
+no es un nivel, así que la madre de `1.1.1.2.001` es `1.1.1.2.000`. Vive en `app/plan_cuentas.csv`, que
+se genera con `python scripts/plan_desde_excel.py <excel>`: el Excel trae sólo código, nombre e
+imputable, y el script deduce rubro, saldo normal y ajuste por inflación, crea las madres que faltan y
+lista lo que corrigió.
+
+Se siembra **una sola vez**, con la tabla vacía: después el plan es del contador y un reinicio no le
+pisa ni le borra nada. Para cambiarlo entero (con datos de prueba, porque vacía asientos,
+transacciones, definiciones, IVA, extracto y ejercicios):
+
+```bash
+docker compose exec contabilidad python -m app.reemplazar_plan              # muestra qué borraría
+docker compose exec contabilidad python -m app.reemplazar_plan --confirmar
+```
 
 ## Permisos
 

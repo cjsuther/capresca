@@ -43,7 +43,7 @@ export default function EjerciciosPage() {
         <PermissionGate moduleCode="contabilidad" action="ejercicios:write">
           <Boton onClick={() => {
             const anio = (ejercicios[0]?.numero || new Date().getFullYear()) + 1;
-            setNuevo({ numero: anio, desde: `${anio}-01-01`, hasta: `${anio}-12-31`, cuenta_resultado: "3.3" });
+            setNuevo({ numero: anio, desde: `${anio}-01-01`, hasta: `${anio}-12-31`, cuenta_resultado: "3.5.0.0.000" });
           }}>＋ Abrir ejercicio</Boton>
         </PermissionGate>
       </PageHeader>
