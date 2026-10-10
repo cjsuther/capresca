@@ -124,3 +124,30 @@ class OrdenPago(Base):
     @property
     def codigo(self) -> str:
         return f"OP-{self.anio}-{self.numero:05d}"
+
+
+def _utc_ahora() -> datetime:
+    from datetime import timezone
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class OutboxContable(Base):
+    """Transacciones para Contabilidad, guardadas en el mismo commit que el evento (outbox).
+
+    Un hilo las manda después y reintenta hasta que Contabilidad las recibe (es idempotente por
+    módulo/tipo/referencia). accion: REGISTRAR | ANULAR. Horas en UTC sin zona.
+    """
+    __tablename__ = "outbox_contable"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    accion: Mapped[str] = mapped_column(String(10), default="REGISTRAR")
+    tipo: Mapped[str] = mapped_column(String(60), index=True)
+    referencia: Mapped[str] = mapped_column(String(80), index=True)
+    asiento_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    estado: Mapped[str] = mapped_column(String(10), default="PENDIENTE", index=True)
+    intentos: Mapped[int] = mapped_column(Integer, default=0)
+    ultimo_error: Mapped[str] = mapped_column(String(300), default="")
+    proximo_intento: Mapped[datetime] = mapped_column(DateTime, default=lambda: _utc_ahora())
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=lambda: _utc_ahora())
+    enviado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

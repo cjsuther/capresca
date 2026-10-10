@@ -285,7 +285,8 @@ def reprocesar_pendientes(db: Session, *, modulo: str = "", tipo: str = "", usua
     return {"contabilizadas": contabilizadas, "pendientes": pendientes, "errores": errores}
 
 
-def anular(db: Session, asiento: models.Asiento, usuario: str, motivo: str = "") -> models.Asiento:
+def anular(db: Session, asiento: models.Asiento, usuario: str, motivo: str = "",
+           fecha: date | None = None) -> models.Asiento:
     """Contra-asiento: un asiento no se borra ni se edita (libro inalterable)."""
     if asiento.estado == "ANULADO":
         raise ErrorContable("El asiento ya está anulado.")
@@ -295,7 +296,7 @@ def anular(db: Session, asiento: models.Asiento, usuario: str, motivo: str = "")
                "debe": l.haber, "haber": l.debe, "centro_codigo": l.centro_codigo,
                "detalle": l.detalle} for l in asiento.lineas]
     concepto = f"Anulación del asiento {asiento.numero}" + (f" · {motivo}" if motivo else "")
-    reversa = registrar_asiento(db, fecha=date.today(), concepto=concepto, lineas=lineas,
+    reversa = registrar_asiento(db, fecha=fecha or date.today(), concepto=concepto, lineas=lineas,
                                 diario=asiento.diario_codigo, origen="REVERSA", usuario=usuario,
                                 transaccion_id=asiento.transaccion_id, reversa_de=asiento.id)
     asiento.estado = "ANULADO"
@@ -306,6 +307,43 @@ def anular(db: Session, asiento: models.Asiento, usuario: str, motivo: str = "")
             t.estado, t.motivo = "ANULADA", motivo[:300] or f"Asiento {asiento.numero} anulado"
     db.commit()
     return reversa
+
+
+def anular_transaccion(db: Session, datos: dict) -> tuple[models.Transaccion, bool]:
+    """El módulo de origen deshizo el evento (reversa): se anula su transacción. Idempotente.
+
+    - Contabilizada: contra-asiento con la fecha de la reversa y la transacción queda ANULADA.
+    - Pendiente o con error: queda ANULADA sin asiento (ya no se va a contabilizar).
+    - Todavía no llegó: se guarda ANULADA, así si llega después no se contabiliza.
+    Devuelve (transacción, ya_estaba_anulada).
+    """
+    modulo, tipo = str(datos["modulo"]), str(datos["tipo"])
+    referencia = str(datos["referencia"])[:80]
+    motivo = str(datos.get("motivo") or "Reversa en el módulo de origen")[:300]
+    fecha = datos.get("fecha") or date.today()
+    t = db.scalar(select(models.Transaccion).where(models.Transaccion.modulo == modulo,
+                                                   models.Transaccion.tipo == tipo,
+                                                   models.Transaccion.referencia == referencia))
+    if t is not None and t.estado == "ANULADA":
+        return t, True
+    if t is None:
+        t = models.Transaccion(modulo=modulo, tipo=tipo, referencia=referencia, fecha=fecha,
+                               descripcion="Anulada antes de recibirse", datos={},
+                               usuario_origen=str(datos.get("usuario") or "")[:60],
+                               estado="ANULADA", motivo=motivo)
+        db.add(t)
+        db.commit()
+        db.refresh(t)
+        return t, False
+    asiento = db.get(models.Asiento, t.asiento_id) if t.asiento_id else None
+    if asiento is not None and asiento.estado != "ANULADO":
+        anular(db, asiento, str(datos.get("usuario") or "sistema"), motivo, fecha=fecha)
+        t.motivo = motivo
+    else:
+        t.estado, t.motivo = "ANULADA", motivo
+    db.commit()
+    db.refresh(t)
+    return t, False
 
 
 def asiento_apertura(db: Session, ejercicio, usuario: str):

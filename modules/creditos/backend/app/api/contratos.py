@@ -974,9 +974,13 @@ def _originar_impl(db: Session, data: OriginarIn, user, desde_lote: bool = False
     return _serial_contrato(c, db)
 
 
-def _desembolsar(db: Session, c: m.PPContrato, user) -> None:
-    """Registra el desembolso: asiento contable de otorgamiento + actividad DISBURSEMENT."""
-    asiento = cont.asiento_pp_otorgamiento(db, c)
+def _desembolsar(db: Session, c: m.PPContrato, user, fecha=None, tesoreria: dict | None = None) -> None:
+    """Registra el desembolso: asiento contable de otorgamiento + actividad DISBURSEMENT.
+
+    Cuando paga Tesorería, `fecha` es la de la acreditación y `tesoreria` trae lote, orden de pago y
+    operación de Interbanking (van en la transacción para Contabilidad).
+    """
+    asiento = cont.asiento_pp_otorgamiento(db, c, fecha=fecha, tesoreria=tesoreria)
     db.add(m.PPActividad(contrato_id=c.id, tipo="DISBURSEMENT", fecha=c.fecha_valor,
                          importe=c.monto_original, detalle="Desembolso inicial",
                          dato={"asiento_id": asiento.id}, creado_por=user.username))
@@ -1251,7 +1255,8 @@ def devengar(contrato_id: str, db: Session = Depends(get_db),
         q = pend[0]
         q.devengada = True
         asiento = cont.asiento_pp_devengo(db, c, q.interes, date.today(),
-                                          f"Devengamiento interés cuota {q.numero_cuota} — contrato {c.numero_contrato}")
+                                          f"Devengamiento interés cuota {q.numero_cuota} — contrato {c.numero_contrato}",
+                                          cuota=q.numero_cuota)
         db.add(m.PPActividad(contrato_id=c.id, tipo="ACCRUAL", fecha=date.today(), importe=q.interes,
                              detalle=f"Devengamiento interés cuota {q.numero_cuota}",
                              dato={"asiento_id": asiento.id, "cuota": q.numero_cuota}, creado_por=user.username))
@@ -1480,7 +1485,8 @@ def _actividad_impl(db: Session, contrato_id: str, data: ActividadIn, user) -> d
             db.add(act); db.flush()
             asi = cont.asiento_pp_pago(db, c, q, fecha,
                                        f"Pago cuota {q.numero_cuota} (adelanto) — contrato {c.numero_contrato}",
-                                       int_punitorio=ip, iva_punitorio=iv)
+                                       int_punitorio=ip, iva_punitorio=iv,
+                                       medio_pago=medio.get("medio_pago"))
             act.dato = {**(act.dato or {}), "asiento_id": asi.id}
         _recompute(c); db.commit()
         return _serial_contrato(c, db)
@@ -1560,14 +1566,18 @@ def _actividad_impl(db: Session, contrato_id: str, data: ActividadIn, user) -> d
         asiento = cont.asiento_pp_pago(db, c, cuota_pago, fecha,
                                        (f"Pago parcial cuota {cuota_pago.numero_cuota}" if parcial else f"Pago cuota {cuota_pago.numero_cuota}") + f" — contrato {c.numero_contrato}",
                                        int_punitorio=int_pun, iva_punitorio=iva_pun,
-                                       monto=Decimal(str(importe)) if parcial else None)
+                                       monto=Decimal(str(importe)) if parcial else None,
+                                       medio_pago=(data.medio_pago or "").upper() or None)
     elif data.tipo == "PAYOFF":
         asiento = cont.asiento_pp_payoff(db, c, importe, fecha,
-                                         f"Cancelación total — contrato {c.numero_contrato}")
+                                         f"Cancelación total — contrato {c.numero_contrato}",
+                                         medio_pago=(data.medio_pago or "").upper() or None)
     elif data.tipo == "PARTIAL_PREPAYMENT":
         # Debe Caja / Haber capital, por el importe prepagado (baja el capital).
         asiento = cont.asiento_pp_payoff(db, c, importe, fecha,
-                                         f"Prepago de capital — contrato {c.numero_contrato}")
+                                         f"Prepago de capital — contrato {c.numero_contrato}",
+                                         tipo="PREPAGO_PARCIAL",
+                                         medio_pago=(data.medio_pago or "").upper() or None)
     if asiento is not None:
         act.dato = {**(act.dato or {}), "asiento_id": asiento.id}
     _recompute(c)

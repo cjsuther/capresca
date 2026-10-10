@@ -75,7 +75,7 @@ export default function SituacionClienteLineaPage() {
     <>
       <PageHeader
         titulo="Situación del cliente (línea nueva)"
-        descripcion="Contratos del cliente con su plan, actividades y asientos. Cada préstamo se opera desde su propio panel."
+        descripcion="Contratos del cliente con su plan y actividades. Cada préstamo se opera desde su propio panel."
       >
         <input
           className="input w-64"

@@ -154,3 +154,52 @@ def test_sin_permiso_no_se_configura_ni_se_registra(client, solo_lectura):
         "lineas": [{"cuenta": "1.1.1.1.000", "debe": 10}, {"cuenta": "1.1.1.2.001", "haber": 10}]}).status_code == 403
     assert client.get(f"{API}/asientos", headers=solo_lectura).status_code == 200
     assert client.get(f"{API}/asientos", headers=gateway("x")).status_code == 403
+
+
+# ── Anulación desde el módulo de origen (reversa) ────────────────────────────────────────────────
+
+def _anular(client, interna, referencia="CTO-1", fecha=None, **kw):
+    return client.post(f"{INTERNA}/anular", headers=interna, json={
+        "modulo": "creditos", "tipo": "DESEMBOLSO", "referencia": referencia,
+        "fecha": (fecha or date.today()).isoformat(), "motivo": "Reversa del cobro", **kw})
+
+
+def test_anular_una_transaccion_asentada_genera_el_contra_asiento(client, interna, contador, db):
+    _definir(client, contador)
+    _mandar(client, interna, referencia="CTO-1")
+
+    r = _anular(client, interna)
+
+    assert r.status_code == 200 and r.json()["estado"] == "ANULADA"
+    original, reversa = db.query(models.Asiento).order_by(models.Asiento.id).all()
+    assert original.estado == "ANULADO" and reversa.origen == "REVERSA" and reversa.reversa_de == original.id
+    assert reversa.fecha == date.today()
+    assert sum(l.debe for l in original.lineas) == sum(l.haber for l in reversa.lineas)
+
+
+def test_anular_es_idempotente(client, interna, contador, db):
+    _definir(client, contador)
+    _mandar(client, interna, referencia="CTO-1")
+    _anular(client, interna)
+    r = _anular(client, interna)
+    assert r.json()["ya_anulada"] is True
+    assert db.query(models.Asiento).count() == 2          # un solo contra-asiento
+
+
+def test_anular_una_pendiente_la_saca_del_reproceso(client, interna, contador, db):
+    _mandar(client, interna, referencia="CTO-1")
+    assert _anular(client, interna).json()["estado"] == "ANULADA"
+    _definir(client, contador)                            # al definir, no se contabiliza
+    assert db.query(models.Asiento).count() == 0
+
+
+def test_si_la_anulacion_llega_antes_la_transaccion_ya_no_se_contabiliza(client, interna, contador, db):
+    _definir(client, contador)
+    assert _anular(client, interna, referencia="CTO-9").json()["estado"] == "ANULADA"
+    r = _mandar(client, interna, referencia="CTO-9")
+    assert r.json()["ya_existia"] is True and r.json()["estado"] == "ANULADA"
+    assert db.query(models.Asiento).count() == 0
+
+
+def test_anular_exige_la_clave(client):
+    assert client.post(f"{INTERNA}/anular", json={}).status_code == 401

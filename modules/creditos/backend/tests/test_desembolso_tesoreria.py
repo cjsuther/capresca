@@ -280,3 +280,23 @@ def test_si_tesoreria_no_toma_ningun_pago_la_op_se_anula(client, teso):
     client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h)
     op = _op(1)
     assert op.estado == "A" and op.lote_tesoreria == ""
+
+
+def test_el_desembolso_por_tesoreria_va_a_contabilidad_con_lote_y_fecha_de_acreditacion(client, teso, monkeypatch):
+    from app import models
+    from app.api.tesoreria_interna import hoy_argentina
+    from app.services import contabilidad_central as contab
+    monkeypatch.setattr(contab, "CLAVE", "clave-test")
+    monkeypatch.setattr(contab, "_asegurar_hilo", lambda: None)
+    h = _auth(client)
+    c = _a_liquidar(client, h, "CONTAB TESO")
+    client.post(f"/api/creditos/contratos/{c['id']}/desembolsar", headers=h)
+    client.post(AVISO, headers={"X-Api-Key": CLAVE}, json={
+        "lote": "LOT-2026-00007", "referencia_origen": "OP-2026-00003", "simulado": False,
+        "pagos": [{"referencia_externa": c["id"], "estado": "CONFIRMADO", "id_operacion_ib": "IB-55"}]})
+    with SessionLocal() as db:
+        f = db.query(models.OutboxContable).filter_by(tipo="DESEMBOLSO", referencia=c["numero_contrato"]).one()
+    assert f.payload["fecha"] == hoy_argentina().isoformat()
+    d = f.payload["datos"]
+    assert d["via_tesoreria"] is True and d["lote"] == "LOT-2026-00007"
+    assert d["orden_pago"] == "OP-2026-00003" and d["id_operacion_ib"] == "IB-55"

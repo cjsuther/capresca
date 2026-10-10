@@ -1068,3 +1068,33 @@ def _asiento_balanceado(mapper, connection, target):
         raise ValueError(
             f"Asiento desbalanceado (origen={target.origen!r}, concepto={target.concepto!r}): "
             f"Σdebe={d} ≠ Σhaber={h}. Todo asiento de la app debe balancear (contabilidad balanceada).")
+
+
+class OutboxContable(Base):
+    """Transacciones para Contabilidad, guardadas en la misma transacción de base que el evento.
+
+    Se graban junto con la operación (si la operación no se confirma, tampoco sale la transacción) y
+    un hilo las manda después, reintentando hasta que Contabilidad las recibe. Contabilidad es
+    idempotente por (módulo, tipo, referencia), así que un reenvío no duplica nada.
+    accion: REGISTRAR (alta de la transacción) | ANULAR (el evento se revirtió acá).
+    """
+    __tablename__ = "outbox_contable"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    accion: Mapped[str] = mapped_column(String(10), default="REGISTRAR")
+    tipo: Mapped[str] = mapped_column(String(60), index=True)
+    referencia: Mapped[str] = mapped_column(String(80), index=True)
+    asiento_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # asiento local
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    estado: Mapped[str] = mapped_column(String(10), default="PENDIENTE", index=True)    # PENDIENTE|ENVIADA
+    intentos: Mapped[int] = mapped_column(Integer, default=0)
+    ultimo_error: Mapped[str] = mapped_column(String(300), default="")
+    # Horas en UTC sin zona (las compara el hilo de envío con su propio reloj, también en UTC).
+    proximo_intento: Mapped[datetime] = mapped_column(DateTime, default=lambda: _utc_ahora())
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=lambda: _utc_ahora())
+    enviado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+def _utc_ahora() -> datetime:
+    from datetime import timezone
+    return datetime.now(timezone.utc).replace(tzinfo=None)

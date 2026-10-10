@@ -10,6 +10,7 @@ Idempotente: el mismo aviso dos veces no desembolsa dos veces.
 from __future__ import annotations
 
 import hmac
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -49,6 +50,11 @@ class Aviso(BaseModel):
     pagos: list[PagoAviso]
 
 
+def hoy_argentina():
+    """Fecha de hoy en Argentina (UTC-3, sin horario de verano): el contenedor corre en UTC."""
+    return datetime.now(timezone(timedelta(hours=-3))).date()
+
+
 @router.post("/resultado", dependencies=[Depends(api_tesoreria)])
 def resultado(aviso: Aviso, db: Session = Depends(get_db)):
     activados, observados, ignorados = [], [], []
@@ -61,7 +67,10 @@ def resultado(aviso: Aviso, db: Session = Depends(get_db)):
             tocados.add(c.lote_liquidacion_id)
         if p.estado == "CONFIRMADO":
             if c.estado == "A_LIQUIDAR":
-                _desembolsar(db, c, TESORERIA)
+                # La fecha del desembolso es la de la acreditación (hoy en Argentina), no la fecha valor.
+                _desembolsar(db, c, TESORERIA, fecha=hoy_argentina(), tesoreria={
+                    "lote": aviso.lote, "orden_pago": aviso.referencia_origen or None,
+                    "id_operacion_ib": p.id_operacion_ib})
                 _set_desembolso(c, estado="CONFIRMADO", lote=aviso.lote, motivo="",
                                 id_operacion_ib=p.id_operacion_ib, simulado=aviso.simulado)
                 db.commit()

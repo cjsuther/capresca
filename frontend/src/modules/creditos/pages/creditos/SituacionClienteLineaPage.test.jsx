@@ -84,15 +84,16 @@ describe("Situación del cliente (línea nueva)", () => {
     expect(sessionStorage.getItem("situacion_cliente_q")).toBeNull();
   });
 
-  it("desplegar un contrato trae su servicing (plan, actividades y asientos)", async () => {
+  it("desplegar un contrato trae su servicing (plan y actividades), sin asientos contables", async () => {
     const u = userEvent.setup();
     render(<SituacionClienteLineaPage />);
     await abrirContrato(u);
 
     await waitFor(() => expect(creditos.ctoObtener).toHaveBeenCalledWith("c1"));
     expect(await screen.findByText("Actividades (servicing)")).toBeInTheDocument();
-    expect(screen.getByText(/Asientos contables \(1\)/)).toBeInTheDocument();
-    expect(screen.getByText("1.1.01 · Caja")).toBeInTheDocument();
+    // Los asientos se consultan en Contabilidad, no en Créditos.
+    expect(screen.queryByText(/Asientos contables/)).not.toBeInTheDocument();
+    expect(screen.queryByText("1.1.01 · Caja")).not.toBeInTheDocument();
   });
 
   it("paga la próxima cuota con la fecha valor indicada", async () => {

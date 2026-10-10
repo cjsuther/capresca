@@ -15,7 +15,7 @@ const NO_REVERSABLES = ["DISBURSEMENT", "REVERSAL", "RENEGOTIATION"];
 
 /**
  * Servicing de un contrato: acciones sobre el préstamo (pagos, prepago, diferimiento,
- * refinanciación, cancelación total), plan de cuotas, actividades y asientos.
+ * refinanciación, cancelación total), plan de cuotas y actividades. Los asientos se ven en Contabilidad.
  * Las acciones que mueven dinero o cierran el contrato se confirman.
  */
 export function ContratoServicing({ c, onChange, onReload, soloLectura }) {
@@ -223,37 +223,6 @@ export function ContratoServicing({ c, onChange, onReload, soloLectura }) {
         </div>
       </div>
 
-      {c.asientos?.length > 0 && (
-        <div className="border-t border-gray-200 p-3">
-          <h3 className="text-sm font-semibold text-gray-800 mb-2">
-            Asientos contables ({c.asientos.length})
-            <span className="font-normal text-gray-400"> — también en el Libro Diario</span>
-          </h3>
-          <div className="max-h-60 overflow-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs uppercase tracking-wide text-gray-500">
-                  <th className="px-2 py-1 text-left">N°</th><th className="px-2 py-1 text-left">Fecha</th>
-                  <th className="px-2 py-1 text-left">Concepto</th><th className="px-2 py-1 text-left">Cuenta</th>
-                  <th className="px-2 py-1 text-right">Debe</th><th className="px-2 py-1 text-right">Haber</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {c.asientos.map((as) => as.lineas.map((l, j) => (
-                  <tr key={`${as.id}-${j}`} className={as.origen === "pp_reversa" ? "text-red-600" : ""}>
-                    <td className="px-2 py-1">{j === 0 ? as.id : ""}</td>
-                    <td className="px-2 py-1">{j === 0 ? fecha(as.fecha) : ""}</td>
-                    <td className="px-2 py-1 max-w-[220px] truncate" title={as.concepto}>{j === 0 ? as.concepto : ""}</td>
-                    <td className="px-2 py-1">{l.cuenta} · {l.nombre}</td>
-                    <td className="px-2 py-1 text-right tabular-nums">{l.debe ? money(l.debe) : ""}</td>
-                    <td className="px-2 py-1 text-right tabular-nums">{l.haber ? money(l.haber) : ""}</td>
-                  </tr>
-                )))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {pedido === "parcial" && (
         <PedirNumero

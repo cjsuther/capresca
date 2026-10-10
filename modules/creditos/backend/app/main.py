@@ -47,6 +47,9 @@ async def lifespan(app: FastAPI):
     # Los asientos migrados (ETL) traen ids explícitos: resincronizamos la secuencia para que
     # los asientos generados por la app (originación/servicing de contratos) no colisionen.
     _resync_secuencia_asientos()
+    # Transacciones para Contabilidad que quedaron pendientes (outbox): el hilo las reenvía.
+    from app.services import contabilidad_central
+    contabilidad_central.iniciar()
     yield
 
 

@@ -64,7 +64,7 @@ export default function CajaCreditosPage() {
       const nuevo = await creditos.ctoObtener(cto.id);
       setCto(nuevo);
       const act = [...nuevo.actividades].reverse().find((a) => a.tipo === tipo && a.estado !== "REVERSADA");
-      setRecibo({ act, asiento: nuevo.asientos?.[nuevo.asientos.length - 1], cliente: nuevo.cliente_nombre, contrato: nuevo.numero_contrato });
+      setRecibo({ act, cliente: nuevo.cliente_nombre, contrato: nuevo.numero_contrato });
       cargar();
     } catch (e) { setError(e.message); }
   }
@@ -165,26 +165,6 @@ export default function CajaCreditosPage() {
                     )}
                     <div><p className="text-xs text-gray-500">Fecha</p><b>{fecha(recibo.act?.fecha)}</b></div>
                   </div>
-                  {recibo.asiento && (
-                    <table className="w-full text-sm border-t border-gray-200">
-                      <thead>
-                        <tr className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                          <th className="px-4 py-2 text-left">Cuenta</th>
-                          <th className="px-4 py-2 text-right">Debe</th>
-                          <th className="px-4 py-2 text-right">Haber</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {recibo.asiento.lineas.map((l, i) => (
-                          <tr key={i}>
-                            <td className="px-4 py-1.5">{l.cuenta}{l.nombre ? ` · ${l.nombre}` : ""}</td>
-                            <td className="px-4 py-1.5 text-right tabular-nums">{l.debe ? money(l.debe) : ""}</td>
-                            <td className="px-4 py-1.5 text-right tabular-nums">{l.haber ? money(l.haber) : ""}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
                 </div>
               )}
 

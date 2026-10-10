@@ -261,24 +261,49 @@ def _dec(x) -> Decimal:
     return x if isinstance(x, Decimal) else Decimal(str(x or 0))
 
 
-def asiento_pp_otorgamiento(db: Session, contrato) -> models.Asiento:
-    """Debe cuenta de capital / Haber Caja, por el capital desembolsado."""
+def _iso(f):
+    return f.isoformat() if hasattr(f, "isoformat") else (str(f) if f else None)
+
+
+def asiento_pp_otorgamiento(db: Session, contrato, fecha=None, tesoreria: dict | None = None) -> models.Asiento:
+    """Debe cuenta de capital / Haber Caja, por el capital desembolsado.
+
+    `fecha`: la de la acreditación cuando paga Tesorería (por defecto, la fecha valor del contrato).
+    `tesoreria`: {lote, orden_pago, id_operacion_ib} del pago que acreditó el desembolso.
+    """
     ct = (contrato.snapshot_producto or {}).get("contabilidad", {})
     cap = ct.get("cuentaCapital") or "1.2.01"
     monto = _dec(contrato.monto_original)
-    a = models.Asiento(fecha=contrato.fecha_valor, origen="pp_otorgamiento", ref_id=None,
+    fecha = fecha or contrato.fecha_valor
+    a = models.Asiento(fecha=fecha, origen="pp_otorgamiento", ref_id=None,
                        concepto=f"Otorgamiento contrato {contrato.numero_contrato}",
                        lineas=[_lpp(cap, debe=monto), _lpp(CAJA_PP, haber=monto)])
     db.add(a); db.flush()
     # El módulo Contabilidad arma su propio asiento desde esta transacción (no se le mandan asientos).
-    contab.registrar(tipo="DESEMBOLSO", referencia=contrato.numero_contrato, fecha=contrato.fecha_valor,
-                     descripcion=f"Otorgamiento contrato {contrato.numero_contrato}",
-                     datos={"capital": float(monto), "contrato": contrato.numero_contrato,
+    # Lo que Contabilidad necesita para no contar dos veces la salida de fondos: el desembolso va
+    # contra una cuenta puente (Desembolsos a pagar) por el neto, y Tesorería la cancela contra el
+    # banco al pagar (PAGO_CREDITOS). Los cargos financiados suben el capital a cobrar.
+    liq = (contrato.snapshot_producto or {}).get("liquidacion") or {}
+    financiados = float(liq.get("cargosFinanciados") or 0)
+    teso = tesoreria or {}
+    contab.registrar(db, tipo="DESEMBOLSO", referencia=contrato.numero_contrato, fecha=fecha,
+                     descripcion=f"Otorgamiento contrato {contrato.numero_contrato}", asiento_id=a.id,
+                     datos={"capital": float(monto),
+                            "cargos_financiados": financiados,
+                            "capital_amortizar": float(liq.get("capitalAmortizar") or float(monto) + financiados),
+                            "cargos_en_cuotas": float(liq.get("cargosEnCuotas") or 0),
+                            "neto": float(liq.get("neto") or monto),
+                            "via_tesoreria": bool(tesoreria),
+                            "lote": teso.get("lote"), "orden_pago": teso.get("orden_pago"),
+                            "id_operacion_ib": teso.get("id_operacion_ib"),
+                            "fecha_valor": _iso(contrato.fecha_valor),
+                            "contrato": contrato.numero_contrato,
                             "cliente": contrato.cliente_nombre, "plazo": contrato.plazo})
     return a
 
 
-def asiento_pp_devengo(db: Session, contrato, interes: Decimal, fecha, concepto) -> models.Asiento:
+def asiento_pp_devengo(db: Session, contrato, interes: Decimal, fecha, concepto,
+                       cuota: int | None = None) -> models.Asiento:
     """Devengamiento: Debe Intereses a devengar (activo) / Haber Intereses ganados (ingreso)."""
     ct = (contrato.snapshot_producto or {}).get("contabilidad", {})
     intc = ct.get("cuentaInteres") or "4.1.01"
@@ -286,15 +311,17 @@ def asiento_pp_devengo(db: Session, contrato, interes: Decimal, fecha, concepto)
     a = models.Asiento(fecha=fecha, origen="pp_devengo", ref_id=None, concepto=concepto,
                        lineas=[_lpp(INT_A_DEVENGAR, debe=monto), _lpp(intc, haber=monto)])
     db.add(a); db.flush()
-    contab.registrar(tipo="DEVENGAMIENTO_INTERES", referencia=f"{contrato.numero_contrato}/{fecha}",
-                     fecha=fecha, descripcion=concepto,
-                     datos={"interes": float(monto), "contrato": contrato.numero_contrato})
+    # Referencia por asiento: dos devengos del mismo día no se pisan.
+    contab.registrar(db, tipo="DEVENGAMIENTO_INTERES", referencia=f"{contrato.numero_contrato}/A{a.id}",
+                     fecha=fecha, descripcion=concepto, asiento_id=a.id,
+                     datos={"interes": float(monto), "contrato": contrato.numero_contrato,
+                            "cuota": cuota})
     return a
 
 
 def asiento_pp_pago(db: Session, contrato, cuota, fecha, concepto,
                     int_punitorio: Decimal = CERO, iva_punitorio: Decimal = CERO,
-                    monto: Decimal | None = None) -> models.Asiento:
+                    monto: Decimal | None = None, medio_pago: str | None = None) -> models.Asiento:
     """Debe Caja / Haber capital, interés, comisiones, impuestos y punitorios (separados).
 
     - El interés, si la cuota ya fue devengada, se acredita a Intereses a devengar (salda la
@@ -330,28 +357,35 @@ def asiento_pp_pago(db: Session, contrato, cuota, fecha, concepto,
             lineas.append(_lpp(cod, haber=monto))
     a = models.Asiento(fecha=fecha, origen="pp_cobranza", ref_id=None, concepto=concepto, lineas=lineas)
     db.add(a); db.flush()
-    contab.registrar(tipo="COBRANZA_CUOTA",
-                     referencia=f"{contrato.numero_contrato}/{getattr(cuota, 'numero_cuota', '')}/{fecha}",
-                     fecha=fecha, descripcion=concepto,
+    # Referencia por asiento: dos pagos parciales de la misma cuota en el día no se pisan.
+    contab.registrar(db, tipo="COBRANZA_CUOTA",
+                     referencia=f"{contrato.numero_contrato}/C{getattr(cuota, 'numero_cuota', '')}/A{a.id}",
+                     fecha=fecha, descripcion=concepto, asiento_id=a.id,
                      datos={"cobrado": float(caja), "capital": float(capital), "interes": float(interes),
                             "comisiones": float(comisiones), "impuestos": float(impuestos),
                             "punitorio": float(int_pun), "iva_punitorio": float(iva_pun),
                             "contrato": contrato.numero_contrato,
-                            "cuota": getattr(cuota, "numero_cuota", None)})
+                            "cuota": getattr(cuota, "numero_cuota", None),
+                            "parcial": monto is not None, "medio_pago": medio_pago})
     return a
 
 
-def asiento_pp_payoff(db: Session, contrato, saldo, fecha, concepto) -> models.Asiento:
-    """Debe Caja / Haber cuenta de capital, por el capital cancelado."""
+def asiento_pp_payoff(db: Session, contrato, saldo, fecha, concepto,
+                      tipo: str = "CANCELACION_ANTICIPADA", medio_pago: str | None = None) -> models.Asiento:
+    """Debe Caja / Haber cuenta de capital, por el capital cancelado.
+
+    `tipo`: CANCELACION_ANTICIPADA (cancela el contrato) o PREPAGO_PARCIAL (sólo baja capital).
+    """
     ct = (contrato.snapshot_producto or {}).get("contabilidad", {})
     cap = ct.get("cuentaCapital") or "1.2.01"
     monto = _dec(saldo)
     a = models.Asiento(fecha=fecha, origen="pp_cobranza", ref_id=None, concepto=concepto,
                        lineas=[_lpp(CAJA_PP, debe=monto), _lpp(cap, haber=monto)])
     db.add(a); db.flush()
-    contab.registrar(tipo="CANCELACION_ANTICIPADA", referencia=f"{contrato.numero_contrato}/{fecha}",
-                     fecha=fecha, descripcion=concepto,
-                     datos={"capital": float(monto), "contrato": contrato.numero_contrato})
+    contab.registrar(db, tipo=tipo, referencia=f"{contrato.numero_contrato}/A{a.id}",
+                     fecha=fecha, descripcion=concepto, asiento_id=a.id,
+                     datos={"capital": float(monto), "contrato": contrato.numero_contrato,
+                            "medio_pago": medio_pago})
     return a
 
 
@@ -361,4 +395,6 @@ def asiento_pp_reversa(db: Session, original: models.Asiento, fecha) -> models.A
     a = models.Asiento(fecha=fecha, origen="pp_reversa", ref_id=None,
                        concepto=f"Reversa asiento N° {original.id} — {original.concepto}", lineas=lineas)
     db.add(a); db.flush()
+    # Contabilidad anula la transacción que salió con el asiento original (contra-asiento allá).
+    contab.anular_de_asiento(db, original.id, fecha=fecha, motivo=f"Reversa en Créditos — {original.concepto}"[:300])
     return a

@@ -39,6 +39,25 @@ def recibir(data: TransaccionIn, db: Session = Depends(get_db)):
             "ya_existia": ya_existia}
 
 
+class AnulacionIn(BaseModel):
+    modulo: str = Field(min_length=1, max_length=30)
+    tipo: str = Field(min_length=1, max_length=60)
+    referencia: str = Field(min_length=1, max_length=80)
+    fecha: date                                           # fecha de la reversa (la del contra-asiento)
+    motivo: str = ""
+    usuario: str = ""
+
+
+@router.post("/transacciones/anular")
+def anular(data: AnulacionIn, db: Session = Depends(get_db)):
+    """El módulo revirtió el evento: se anula la transacción (con contra-asiento si ya estaba asentada)."""
+    try:
+        t, ya = motor.anular_transaccion(db, data.model_dump())
+    except motor.ErrorContable as e:
+        raise HTTPException(422, str(e))
+    return {"id": t.id, "estado": t.estado, "motivo": t.motivo, "asientoId": t.asiento_id, "ya_anulada": ya}
+
+
 @router.get("/transacciones/{modulo}/{tipo}/{referencia}")
 def estado(modulo: str, tipo: str, referencia: str, db: Session = Depends(get_db)):
     t = db.scalar(select(models.Transaccion).where(models.Transaccion.modulo == modulo,

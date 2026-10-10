@@ -326,7 +326,7 @@ def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str) -> 
         p.estado = interbanking.clasificar(p.estado_banco)
         if p.estado == "CONFIRMADO":
             p.confirmado_en = _ahora()
-            _contabilizar(lote, p)
+            _contabilizar(db, lote, p)
     except interbanking.EnvioRechazado as e:
         p.estado, p.motivo = "FALLIDO", f"Interbanking rechazó la transferencia: {e}"[:300]
     except interbanking.EnvioIncierto as e:
@@ -335,16 +335,26 @@ def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str) -> 
     db.commit()
 
 
-def _contabilizar(lote: models.Lote, p: models.Pago) -> None:
-    """El pago acreditado es la transacción que Contabilidad convierte en asiento (no le mandamos uno)."""
-    contab.registrar(tipo=f"PAGO_{lote.origen}", referencia=f"{lote.codigo}/{p.referencia_externa}",
+def _contabilizar(db: Session, lote: models.Lote, p: models.Pago) -> None:
+    """El pago acreditado es la transacción que Contabilidad convierte en asiento (no le mandamos uno).
+
+    Se graba en el outbox con el mismo commit que deja el pago CONFIRMADO. Lleva la cuenta bancaria de
+    la que salió (para imputar el banco correcto) y la orden de pago / lote de origen.
+    """
+    op = db.query(models.OrdenPago).filter_by(lote_id=lote.id).first() if lote.id else None
+    contab.registrar(db, tipo=f"PAGO_{lote.origen}", referencia=f"{lote.codigo}/{p.referencia_externa}",
                      fecha=(p.confirmado_en or _ahora()).date(),
                      descripcion=f"Pago a {p.beneficiario} · lote {lote.codigo}",
                      usuario=lote.enviado_por,
                      datos={"importe": float(p.monto), "beneficiario": p.beneficiario,
-                            "documento": p.documento, "cbu": p.cbu, "lote": lote.codigo,
-                            "referencia_origen": p.referencia_externa, "simulado": lote.simulado,
-                            "id_operacion_ib": p.id_operacion_ib})
+                            "documento": p.documento, "cbu": p.cbu, "concepto": p.concepto,
+                            "lote": lote.codigo, "referencia_origen": p.referencia_externa,
+                            "origen": lote.origen, "lote_origen": lote.referencia_origen,
+                            "orden_pago": op.codigo if op else None,
+                            "cuenta_origen": lote.cuenta_origen, "cuenta_origen_tipo": lote.cuenta_origen_tipo,
+                            "cuenta_origen_banco": lote.cuenta_origen_banco,
+                            "cuenta_origen_nombre": lote.cuenta_origen_nombre,
+                            "simulado": lote.simulado, "id_operacion_ib": p.id_operacion_ib})
 
 
 def recalcular(lote: models.Lote) -> None:
@@ -420,7 +430,7 @@ def actualizar(db: Session, lote: models.Lote, usuario: str = "sistema") -> int:
             continue
         if lote.simulado or p.estado_banco == "SIMULADO":
             p.estado, p.estado_banco, p.confirmado_en = "CONFIRMADO", "SIMULADO", _ahora()
-            _contabilizar(lote, p)
+            _contabilizar(db, lote, p)
             cambios += 1
             continue
         if not p.transfer_id:
@@ -434,7 +444,7 @@ def actualizar(db: Session, lote: models.Lote, usuario: str = "sistema") -> int:
             p.estado_banco, p.estado = eb, nuevo
             if nuevo == "CONFIRMADO":
                 p.confirmado_en = _ahora()
-                _contabilizar(lote, p)
+                _contabilizar(db, lote, p)
             if nuevo == "FALLIDO":
                 p.motivo = f"El banco informó {eb}."
             cambios += 1
@@ -485,10 +495,9 @@ def resolver_incierto(db: Session, lote: models.Lote, pago_id: int, resultado: s
         raise HTTPException(422, "Indicá qué verificaste en el banco.")
     p.estado, p.motivo = resultado, f"Resuelto a mano: {observacion}"[:300]
     if resultado == "CONFIRMADO":
-        p.confirmado_en = p.confirmado_en or _ahora()
-        _contabilizar(lote, p)
-    if resultado == "CONFIRMADO":
+        # La fecha que se registra es la misma que va a Contabilidad.
         p.confirmado_en = _ahora()
+        _contabilizar(db, lote, p)
     evento(db, lote, user.username, "INCIERTO_RESUELTO", f"{p.beneficiario}: {resultado} — {observacion}")
     recalcular(lote)
     db.commit()

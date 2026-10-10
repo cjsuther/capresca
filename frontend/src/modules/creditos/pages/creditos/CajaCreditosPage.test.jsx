@@ -65,7 +65,7 @@ describe("Caja de créditos", () => {
     expect(screen.getByText(/#2 ·/)).toBeInTheDocument();
   });
 
-  it("cobra la cuota con el medio de pago elegido y muestra el recibo con su asiento", async () => {
+  it("cobra la cuota con el medio de pago elegido y muestra el recibo sin el asiento contable", async () => {
     const u = userEvent.setup();
     render(<CajaCreditosPage />);
     await abrirContrato(u);
@@ -76,7 +76,7 @@ describe("Caja de créditos", () => {
     await waitFor(() => expect(creditos.ctoActividadCaja).toHaveBeenCalledWith(
       "c1", "PAYMENT", 0, "TRANSFERENCIA", undefined, undefined));
     expect(await screen.findByText(/Recibo — CTO-1/)).toBeInTheDocument();
-    expect(screen.getByText("1.1.01 · Caja")).toBeInTheDocument();
+    expect(screen.queryByText("1.1.01 · Caja")).not.toBeInTheDocument();
   });
 
   it("el cobro parcial pide el importe antes de cobrar", async () => {
