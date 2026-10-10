@@ -1,6 +1,7 @@
 """Transferencias: alta (modo mock y modo real), listado, validación de CBU,
 estado y registro local."""
-from datetime import date, datetime, timezone
+import os
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -96,7 +97,7 @@ def test_el_listado_incluye_la_transferencia_recien_creada(client, h):
     r = client.get(BASE, headers=h).json()
 
     assert r["general_data"]["total_rows"] == 4
-    assert r["transfers"][0]["comments"] == "Pago agencia A001"   # orden desc por alta
+    assert r["transfers"][0]["transfer_comments"] == "Pago agencia A001"   # orden desc por alta
 
 
 def test_el_listado_pagina(client, h):
@@ -172,11 +173,20 @@ def test_alta_real_resuelve_el_cbu_debito_y_confecciona(client, db, cred, red, h
 
     envio = red.llamadas_a("/v1/transfers/confection/third-party")[0]
     transferencia = envio["json"]["found_transfers"][0]
-    assert transferencia["debit_account"] == {"account_cbu": "0110599520000046600513"}
-    assert transferencia["credit_account"] == {"account_cbu": "0070068930004021957614"}
-    assert transferencia["amount"] == "1500.50"
-    assert transferencia["request_date"] == date.today().isoformat()
+    assert transferencia["debit_account"] == {
+        "bank_number": 11, "account_type": "CC", "currency": "ARS",
+        "account_number": 46600513539, "account_cbu": "0110599520000046600513",
+    }
+    assert transferencia["credit_account"] == {
+        "bank_number": 7, "currency": "ARS", "account_cbu": "0070068930004021957614",
+    }
+    assert transferencia["amount"] == 1500.50
+    assert transferencia["request_date"] == datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
     assert envio["json"]["unified_send"] is True
+    # Producción exige confection_id (error 1005 si falta) de hasta 7 dígitos (1007): es el id local.
+    assert transferencia["confection_id"] == r.json()["id"]
+    assert len(str(transferencia["confection_id"])) <= 7
+    assert envio["json"]["payment_number"] == transferencia["confection_id"]
 
     # Cada scope pidió su propio token: info-financiera para la cuenta, password para el envío.
     grants = [ll["data"]["grant_type"] for ll in red.llamadas_a("/cas/oidc/accessToken")]
@@ -198,7 +208,7 @@ def test_alta_real_lee_el_cbu_debito_con_los_nombres_de_la_api_productiva(client
 
     assert r.status_code == 200, r.text
     envio = red.llamadas_a("/v1/transfers/confection/third-party")[0]
-    assert envio["json"]["found_transfers"][0]["debit_account"] == {"account_cbu": "0110599520000046600513"}
+    assert envio["json"]["found_transfers"][0]["debit_account"]["account_cbu"] == "0110599520000046600513"
 
 
 def test_alta_real_cae_a_la_primera_cuenta_si_no_matchea_el_tipo(client, cred, red, h, sin_mock):
@@ -211,8 +221,7 @@ def test_alta_real_cae_a_la_primera_cuenta_si_no_matchea_el_tipo(client, cred, r
     client.post(BASE, json=NUEVA, headers=h)
 
     envio = red.llamadas_a("/v1/transfers/confection/third-party")[0]
-    assert envio["json"]["found_transfers"][0]["debit_account"] == {
-        "account_cbu": "1110599520000046600513"}
+    assert envio["json"]["found_transfers"][0]["debit_account"]["account_cbu"] == "1110599520000046600513"
 
 
 def test_alta_real_sin_cbu_debito_resoluble_es_400(client, db, cred, red, h, sin_mock):
@@ -272,7 +281,7 @@ def test_el_mock_filtra_por_cuenta_de_debito_y_credito():
     assert sin_match["transfers"] == [] and sin_match["general_data"]["total_rows"] == 0
 
 
-def test_alta_real_con_error_del_proveedor_no_persiste_la_transferencia(client, db, cred, red, h, sin_mock):
+def test_alta_real_con_error_del_proveedor_queda_en_error(client, db, cred, red, h, sin_mock):
     red.token()
     _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CC",
                         "bank_id": "011", "cbu": "0110599520000046600513"}])
@@ -282,7 +291,7 @@ def test_alta_real_con_error_del_proveedor_no_persiste_la_transferencia(client, 
     r = client.post(BASE, json=NUEVA, headers=h)
 
     assert r.status_code == 500 and "confección rechazada" in r.json()["detail"]
-    assert db.query(Transfer).count() == 0
+    assert db.query(Transfer).one().status == "ERROR"
     fallida = db.query(ApiAuditLog).filter_by(operation="CREAR_TRANSFERENCIA").one()
     assert fallida.success is False
 
@@ -365,3 +374,49 @@ def test_listado_local_pagina_y_ordena_por_fecha_desc(client, db, h):
 
     r = client.get(f"{BASE}/local?page=2&per_page=2").json()
     assert [t["concepto"] for t in r["data"]] == ["t1"]
+
+
+def test_alta_real_informa_el_numero_de_operador(client, db, cred, red, h, sin_mock):
+    cred.username = "-3|1791557092844|portezuelo"
+    db.commit()
+    red.token()
+    _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CC", "bank_number": "011",
+                        "account_cbu": "0110599520000046600513"}])
+    red.ruta("/v1/transfers/confection/third-party", body={"operation_id": "OP-1", "found_transfers": [{}]})
+
+    assert client.post(BASE, json=NUEVA, headers=h).status_code == 200
+    envio = red.llamadas_a("/v1/transfers/confection/third-party")[0]["json"]
+    assert envio["operator_id"] == 1791557092844
+
+
+def test_alta_real_rechazada_queda_registrada_como_error(client, db, cred, red, h, sin_mock):
+    red.token()
+    _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CC", "bank_number": "011",
+                        "account_cbu": "0110599520000046600513"}])
+    red.ruta("/v1/transfers/confection/third-party", status=400,
+             body={"message": "1004 - La fecha de solicitud no es una fecha válida"})
+
+    r = client.post(BASE, json=NUEVA, headers=h)
+
+    assert r.status_code >= 400
+    t = db.query(Transfer).one()
+    assert t.status == "ERROR"
+    assert t.last_status_payload["confection_id"] == t.id
+    # El próximo intento usa otro confection_id.
+    red.limpiar_rutas().token()
+    _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CC", "bank_number": "011",
+                        "account_cbu": "0110599520000046600513"}])
+    red.ruta("/v1/transfers/confection/third-party", body={"operation_id": "OP-2", "found_transfers": [{}]})
+    assert client.post(BASE, json=NUEVA, headers=h).status_code == 200
+    ids = [ll["json"]["found_transfers"][0]["confection_id"] for ll in red.llamadas_a("/v1/transfers/confection/third-party")]
+    assert ids[0] != ids[-1]
+
+
+def test_los_envios_rechazados_no_van_a_conciliacion(client, db):
+    db.add_all([Transfer(cbu_destino="1" * 22, monto=10, status="ERROR"),
+                Transfer(cbu_destino="2" * 22, monto=20, status="PENDING_AUTHORIZATION")])
+    db.commit()
+    r = client.get(f"/internal/interbanking/transactions?date={date.today().isoformat()}",
+                   headers={"X-Internal-API-Key": os.environ.get("INTERNAL_API_KEY", "")})
+    assert r.status_code == 200, r.text
+    assert [t["status_ib"] for t in r.json()] == ["PENDING_AUTHORIZATION"]

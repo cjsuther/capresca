@@ -115,8 +115,10 @@ def get_transactions(
     date: date = Query(...),
     db: Session = Depends(get_db),
 ):
+    # Los envíos que Interbanking rechazó (o que no llegaron a salir) no son transacciones.
     transfers = db.query(Transfer).filter(
-        cast(Transfer.initiated_at, Date) == date
+        cast(Transfer.initiated_at, Date) == date,
+        Transfer.status.notin_(["ERROR", "ENVIANDO"]),
     ).all()
     return [
         {

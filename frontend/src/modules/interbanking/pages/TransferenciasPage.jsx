@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   listarTransferencias,
   crearTransferencia,
@@ -21,6 +21,43 @@ const STATUS_COLORS = {
 const fmtMoney = (n, cur = "ARS") =>
   `${cur} ${Number(n ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Interbanking pagina el listado; se traen todas las páginas del rango para que los filtros de
+// columna miren todas las transferencias y no sólo la primera página. Tope por si el rango es enorme.
+const POR_PAGINA = 500;
+const MAX_PAGINAS = 20;
+
+const TAMANIOS = [25, 50, 100];
+
+const SIN_FILTROS = { fecha: "", id: "", origen: "", destino: "", montoMin: "", montoMax: "", comentario: "", estado: "" };
+
+const norm = (v) => String(v ?? "").toLowerCase();
+const textoCuenta = (c) =>
+  c ? [c.bank_name, c.account_type, c.account_number, c.account_cbu, c.cbu, c.customer_cuit, c.cuit].join(" ") : "";
+const estadoDe = (t) => t._status || t.status || "—";
+// Acepta "1500.5" y el formato local "1.500,50".
+const numero = (v) => {
+  if (v === "") return null;
+  const s = String(v).trim();
+  const n = Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s);
+  return Number.isNaN(n) ? null : n;
+};
+
+function pasaFiltros(t, f) {
+  const contiene = (valor, buscado) => !buscado || norm(valor).includes(norm(buscado).trim());
+  const min = numero(f.montoMin);
+  const max = numero(f.montoMax);
+  return (
+    contiene(t.request_date, f.fecha) &&
+    contiene(`${t.transfer_id} ${t.transaction_number ?? ""} ${t.reference_number ?? ""}`, f.id) &&
+    contiene(textoCuenta(t.debit_account), f.origen) &&
+    contiene(textoCuenta(t.credit_account), f.destino) &&
+    (min == null || Number(t.amount) >= min) &&
+    (max == null || Number(t.amount) <= max) &&
+    contiene(`${t.transfer_comments ?? t.comments ?? ""} ${t.transfer_type_description ?? ""}`, f.comentario) &&
+    (!f.estado || estadoDe(t) === f.estado)
+  );
+}
+
 // FastAPI devuelve `detail` como string en 4xx normales y como array de
 // {loc, msg, type, ...} en 422. Convertir a string siempre.
 const errMsg = (err, fallback) => {
@@ -33,6 +70,11 @@ const errMsg = (err, fallback) => {
 export default function TransferenciasPage() {
   const [filtros, setFiltros] = useState({ date_since: todayISO(), date_until: todayISO() });
   const [data, setData] = useState({ transfers: [], general_data: {} });
+  const [col, setColRaw] = useState(SIN_FILTROS);
+  const [pagina, setPagina] = useState(0);
+  const [porPagina, setPorPagina] = useState(50);
+  // Cambiar un filtro vuelve a la primera página.
+  const setCol = (v) => { setColRaw(v); setPagina(0); };
   const [isMock, setIsMock] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,11 +98,16 @@ export default function TransferenciasPage() {
     setLoading(true);
     setError("");
     try {
-      const result = await listarTransferencias(filtros);
-      setData({
-        transfers: result.transfers || [],
-        general_data: result.general_data || {},
-      });
+      let result = await listarTransferencias({ ...filtros, page: 0, rows: POR_PAGINA });
+      const transfers = [...(result.transfers || [])];
+      const total = result.general_data?.total_rows ?? transfers.length;
+      for (let page = 1; transfers.length < total && page < MAX_PAGINAS; page++) {
+        const sig = await listarTransferencias({ ...filtros, page, rows: POR_PAGINA });
+        if (!sig.transfers?.length) break;
+        transfers.push(...sig.transfers);
+      }
+      setData({ transfers, general_data: result.general_data || {} });
+      setPagina(0);
       setIsMock(!!result.mock);
     } catch (err) {
       setError(errMsg(err, "Error al listar transferencias"));
@@ -121,6 +168,17 @@ export default function TransferenciasPage() {
     `${c.bank_id || c.bank_number || ""}|${c.account_number || ""}|${c.account_type || ""}`;
   const cuentaSeleccionada = cuentas.find((c) => accountKey(c) === form.cuenta_debito_key);
 
+  const estados = useMemo(() => [...new Set(data.transfers.map(estadoDe))].sort(), [data.transfers]);
+  const visibles = useMemo(() => data.transfers.filter((t) => pasaFiltros(t, col)), [data.transfers, col]);
+  const paginas = Math.max(1, Math.ceil(visibles.length / porPagina));
+  const paginaActual = Math.min(pagina, paginas - 1);
+  const enPagina = visibles.slice(paginaActual * porPagina, (paginaActual + 1) * porPagina);
+  const desde = visibles.length ? paginaActual * porPagina + 1 : 0;
+  const hasta = Math.min((paginaActual + 1) * porPagina, visibles.length);
+  const hayFiltros = Object.values(col).some(Boolean);
+  const total = data.general_data?.total_rows;
+  const incompleto = total != null && data.transfers.length < total;
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -170,10 +228,26 @@ export default function TransferenciasPage() {
           <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           Consultar
         </button>
-        <div className="ml-auto text-xs text-gray-400">
-          {data.general_data?.total_rows != null && `${data.general_data.total_rows} resultados`}
+        <div className="ml-auto flex items-center gap-3 text-xs text-gray-400">
+          {hayFiltros && (
+            <button onClick={() => setCol(SIN_FILTROS)} className="text-blue-600 hover:underline">
+              Limpiar filtros
+            </button>
+          )}
+          <span>
+            {hayFiltros
+              ? `${visibles.length} de ${data.transfers.length} resultados`
+              : total != null && `${total} resultados`}
+          </span>
         </div>
       </div>
+
+      {incompleto && !loading && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2 text-sm mb-4">
+          Se cargaron {data.transfers.length} de {total} transferencias: los filtros sólo miran esas.
+          Achicá el rango de fechas para verlas todas.
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{error}</div>
@@ -199,11 +273,31 @@ export default function TransferenciasPage() {
             <tr>
               <th className="text-left px-4 py-3 font-medium">Fecha</th>
               <th className="text-left px-4 py-3 font-medium">ID</th>
-              <th className="text-left px-4 py-3 font-medium">CBU Débito</th>
-              <th className="text-left px-4 py-3 font-medium">CBU Crédito</th>
+              <th className="text-left px-4 py-3 font-medium">Origen</th>
+              <th className="text-left px-4 py-3 font-medium">Destino</th>
               <th className="text-right px-4 py-3 font-medium">Monto</th>
               <th className="text-left px-4 py-3 font-medium">Comentario</th>
               <th className="text-left px-4 py-3 font-medium">Estado</th>
+            </tr>
+            <tr className="bg-surface">
+              <th className="px-2 pb-2"><FiltroTexto etiqueta="Fecha" valor={col.fecha} onChange={(v) => setCol({ ...col, fecha: v })} /></th>
+              <th className="px-2 pb-2"><FiltroTexto etiqueta="ID" valor={col.id} onChange={(v) => setCol({ ...col, id: v })} /></th>
+              <th className="px-2 pb-2"><FiltroTexto etiqueta="Origen" placeholder="Banco, cuenta, CBU, CUIT" valor={col.origen} onChange={(v) => setCol({ ...col, origen: v })} /></th>
+              <th className="px-2 pb-2"><FiltroTexto etiqueta="Destino" placeholder="Banco, cuenta, CBU, CUIT" valor={col.destino} onChange={(v) => setCol({ ...col, destino: v })} /></th>
+              <th className="px-2 pb-2">
+                <div className="flex gap-1">
+                  <FiltroTexto etiqueta="Monto desde" placeholder="Desde" valor={col.montoMin} onChange={(v) => setCol({ ...col, montoMin: v })} />
+                  <FiltroTexto etiqueta="Monto hasta" placeholder="Hasta" valor={col.montoMax} onChange={(v) => setCol({ ...col, montoMax: v })} />
+                </div>
+              </th>
+              <th className="px-2 pb-2"><FiltroTexto etiqueta="Comentario" placeholder="Texto o tipo" valor={col.comentario} onChange={(v) => setCol({ ...col, comentario: v })} /></th>
+              <th className="px-2 pb-2">
+                <select aria-label="Filtrar Estado" className="input text-xs w-full font-normal" value={col.estado}
+                  onChange={(e) => setCol({ ...col, estado: e.target.value })}>
+                  <option value="">Todos</option>
+                  {estados.map((e) => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -211,16 +305,23 @@ export default function TransferenciasPage() {
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
             ) : data.transfers.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Sin transferencias en el rango</td></tr>
-            ) : data.transfers.map((t) => {
-              const status = t._status || t.status || "—";
+            ) : visibles.length === 0 ? (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Ninguna transferencia coincide con los filtros</td></tr>
+            ) : enPagina.map((t) => {
+              const status = estadoDe(t);
               return (
                 <tr key={t.transfer_id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500 text-xs">{t.request_date}</td>
                   <td className="px-4 py-3 font-mono text-xs">{t.transfer_id}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{t.debit_account?.cbu || "—"}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{t.credit_account?.cbu || "—"}</td>
+                  <td className="px-4 py-3"><Cuenta c={t.debit_account} /></td>
+                  <td className="px-4 py-3"><Cuenta c={t.credit_account} /></td>
                   <td className="px-4 py-3 text-right font-mono">{fmtMoney(t.amount, t.currency)}</td>
-                  <td className="px-4 py-3 text-gray-600">{t.comments || "—"}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {t.transfer_comments || t.comments || "—"}
+                    {t.transfer_type_description && (
+                      <div className="text-xs text-gray-400">{t.transfer_type_description}</div>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[status] || "bg-gray-100 text-gray-600"}`}>
                       {status}
@@ -232,6 +333,34 @@ export default function TransferenciasPage() {
           </tbody>
         </table>
       </div>
+
+      {visibles.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <span>{`${desde}–${hasta} de ${visibles.length.toLocaleString("es-AR")}`}</span>
+            <label className="flex items-center gap-1">
+              Por página
+              <select aria-label="Filas por página" className="input text-xs py-1" value={porPagina}
+                onChange={(e) => { setPorPagina(Number(e.target.value)); setPagina(0); }}>
+                {TAMANIOS.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Página {paginaActual + 1} de {paginas}</span>
+            <button
+              disabled={paginaActual <= 0}
+              onClick={() => setPagina(paginaActual - 1)}
+              className="px-3 py-1.5 text-sm border rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-surface"
+            >‹ Anterior</button>
+            <button
+              disabled={paginaActual >= paginas - 1}
+              onClick={() => setPagina(paginaActual + 1)}
+              className="px-3 py-1.5 text-sm border rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-surface"
+            >Siguiente ›</button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Nueva Transferencia */}
       {showForm && (
@@ -365,5 +494,35 @@ export default function TransferenciasPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Cuenta de origen o destino de una transferencia: banco, tipo y número, CBU y CUIT del titular.
+// Interbanking manda `account_cbu` y `customer_cuit`; se aceptan también `cbu`/`cuit`.
+function Cuenta({ c }) {
+  if (!c) return <span className="text-gray-400">—</span>;
+  const cbu = c.account_cbu || c.cbu;
+  const cuit = c.customer_cuit || c.cuit;
+  const cuenta = [c.account_type, c.account_number].filter(Boolean).join(" ");
+  return (
+    <div className="text-xs leading-5">
+      <div className="text-gray-800 font-medium">
+        {c.bank_name || "—"}{cuenta && <span className="text-gray-500 font-normal"> · {cuenta}</span>}
+      </div>
+      {cbu && <div className="font-mono text-gray-500">CBU {cbu}</div>}
+      {cuit && <div className="text-gray-400">CUIT {cuit}</div>}
+    </div>
+  );
+}
+
+function FiltroTexto({ etiqueta, valor, onChange, placeholder = "Buscar" }) {
+  return (
+    <input
+      aria-label={`Filtrar ${etiqueta}`}
+      className="input text-xs w-full font-normal"
+      placeholder={placeholder}
+      value={valor}
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 }

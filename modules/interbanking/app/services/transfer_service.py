@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -58,6 +58,26 @@ def _resolve_debit_cbu(db: Session, user_id: int, account_number: str, account_t
     return None
 
 
+def _numero_operador(username: Optional[str]) -> Optional[int]:
+    """El usuario del Operador de API es `-3|<número de operador>|<usuario>`."""
+    partes = (username or "").split("|")
+    return int(partes[1]) if len(partes) == 3 and partes[1].isdigit() else None
+
+
+def _num(v: str):
+    """La especificación tipa número de cuenta y banco como enteros; si no es numérico va tal cual."""
+    return int(v) if str(v).isdigit() else v
+
+
+# Interbanking valida la fecha de solicitud contra el día de Argentina (UTC-3, sin horario de verano);
+# el contenedor corre en UTC y desde las 21 h ya sería "mañana".
+_ARGENTINA = timezone(timedelta(hours=-3))
+
+# `confection_id`: hasta 7 dígitos (400 "1007 - La longitud del campo confection_id debe ser de un
+# máximo de 7"). Se usa el id del registro local de la transferencia, que es único y creciente.
+_MAX_CONFECTION_ID = 10_000_000
+
+
 def crear_transferencia(
     db: Session,
     user_id: int,
@@ -71,7 +91,7 @@ def crear_transferencia(
     username: Optional[str] = None,
     ip: Optional[str] = None,
 ) -> Transfer:
-    request_date = date.today().isoformat()
+    request_date = datetime.now(_ARGENTINA).date().isoformat()
     amount_str = f"{monto:.2f}"
     cuenta_origen_label = "/".join(filter(None, [
         cuenta_debito_bank_id, cuenta_debito_account_number, cuenta_debito_account_type,
@@ -105,34 +125,69 @@ def crear_transferencia(
                     "Verificá que la cuenta tenga CBU asociado."
                 ),
             )
+        # Cuerpo según el ejemplo de la especificación productiva (docs/trans.txt): producción exige
+        # `confection_id` en cada transferencia (400 "1005 - No se informó el campo confection_id").
+        cred = token_manager.get_active_credential(db)
+        # El registro local se crea antes del envío: su id es el confection_id y, si Interbanking
+        # rechaza el pedido, queda asentado como ERROR.
+        transfer = Transfer(
+            cuenta_origen=cuenta_origen_label, cbu_destino=cbu_destino, monto=monto, moneda=moneda,
+            concepto=comentario, status="ENVIANDO", initiated_by=user_id,
+        )
+        db.add(transfer)
+        db.flush()
+        confection_id = transfer.id % _MAX_CONFECTION_ID
         payload = {
             "consolidated_check": False,
+            "description": comentario,
+            "payment_number": confection_id,
             "unified_send": True,
-            "resend_validated": True,
             "found_transfers": [
                 {
+                    "confection_id": confection_id,
+                    # Sólo la fecha: con hora ("...T00:00:00.000Z") responde 1004 "no es una fecha válida".
                     "request_date": request_date,
-                    "amount": amount_str,
+                    "amount": float(amount_str),
                     "comments": comentario,
-                    "debit_account": {"account_cbu": debit_cbu},
-                    "credit_account": {"account_cbu": cbu_destino},
+                    "debit_account": {
+                        "bank_number": int(cuenta_debito_bank_id or debit_cbu[:3]),
+                        "account_type": cuenta_debito_account_type,
+                        "currency": moneda,
+                        "account_number": _num(cuenta_debito_account_number),
+                        "account_cbu": debit_cbu,
+                    },
+                    "credit_account": {
+                        "bank_number": int(cbu_destino[:3]),
+                        "currency": moneda,
+                        "account_cbu": cbu_destino,
+                    },
                     "concept": "VAR",
                     "disclaimer_accepted": True,
                     "reason": comentario,
                 }
             ],
         }
-        result = interbanking_client.call(
-            db=db,
-            user_id=user_id,
-            operation="CREAR_TRANSFERENCIA",
-            method="POST",
-            path="/v1/transfers/confection/third-party",
-            scope=TRANSFERENCIAS_CONFECCION,
-            payload=payload,
-            username=username,
-            ip_address=ip,
-        )
+        operador = _numero_operador(cred.username)
+        if operador:
+            payload["operator_id"] = operador
+        db.commit()
+        try:
+            result = interbanking_client.call(
+                db=db,
+                user_id=user_id,
+                operation="CREAR_TRANSFERENCIA",
+                method="POST",
+                path="/v1/transfers/confection/third-party",
+                scope=TRANSFERENCIAS_CONFECCION,
+                payload=payload,
+                username=username,
+                ip_address=ip,
+            )
+        except HTTPException as e:
+            transfer.status = "ERROR"
+            transfer.last_status_payload = {"confection_id": confection_id, "error": str(e.detail)}
+            db.commit()
+            raise
 
     # Persistir en tabla local
     found = (result.get("found_transfers") or [{}])[0]
@@ -141,18 +196,15 @@ def crear_transferencia(
         or result.get("confection_id")
         or found.get("confection_id")
     )
-    transfer = Transfer(
-        cuenta_origen=cuenta_origen_label,
-        cbu_destino=cbu_destino,
-        monto=monto,
-        moneda=moneda,
-        concepto=comentario,
-        id_operacion_ib=str(id_op) if id_op else None,
-        status=found.get("status") or result.get("status") or "INICIADA",
-        initiated_by=user_id,
-        last_status_payload=result,
-    )
-    db.add(transfer)
+    if settings.interbanking_mock_transfers:
+        transfer = Transfer(
+            cuenta_origen=cuenta_origen_label, cbu_destino=cbu_destino, monto=monto, moneda=moneda,
+            concepto=comentario, initiated_by=user_id,
+        )
+        db.add(transfer)
+    transfer.id_operacion_ib = str(id_op) if id_op else None
+    transfer.status = found.get("status") or result.get("status") or "INICIADA"
+    transfer.last_status_payload = result
     db.commit()
     db.refresh(transfer)
 

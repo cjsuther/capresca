@@ -24,11 +24,12 @@ const CUENTA = {
 const TRANSFERENCIA = {
   transfer_id: "TR-1",
   request_date: "2026-02-10",
-  debit_account: { cbu: "0".repeat(22) },
-  credit_account: { cbu: "1".repeat(22) },
+  debit_account: { bank_name: "B.N.A.", account_type: "CC", account_number: "31554660300106", account_cbu: "0".repeat(22), customer_cuit: "30999255724" },
+  credit_account: { bank_name: "Banco Macro", account_type: "CA", account_number: "4001234", account_cbu: "1".repeat(22), customer_cuit: "20123456789" },
   amount: 25000,
   currency: "ARS",
-  comments: "Pago agencia 42",
+  transfer_type_description: "Proveedores",
+  transfer_comments: "Pago agencia 42",
   status: "ACREDITADA",
 };
 
@@ -83,7 +84,7 @@ describe("TransferenciasPage — listado", () => {
     const hoy = new Date().toISOString().slice(0, 10);
     render(<TransferenciasPage />);
     await waitFor(() =>
-      expect(listarTransferencias).toHaveBeenCalledWith({ date_since: hoy, date_until: hoy })
+      expect(listarTransferencias).toHaveBeenCalledWith({ date_since: hoy, date_until: hoy, page: 0, rows: 500 })
     );
     expect(getCuentas).toHaveBeenCalledTimes(1);
   });
@@ -92,9 +93,142 @@ describe("TransferenciasPage — listado", () => {
     render(<TransferenciasPage />);
     expect(await screen.findByText("TR-1")).toBeInTheDocument();
     expect(screen.getByText("Pago agencia 42")).toBeInTheDocument();
-    expect(screen.getByText("ACREDITADA")).toBeInTheDocument();
+    expect(within(screen.getByText("TR-1").closest("tr")).getByText("ACREDITADA")).toBeInTheDocument();
     expect(screen.getByText("1 resultados")).toBeInTheDocument();
     expect(screen.getByText("ARS 25.000,00")).toBeInTheDocument();
+  });
+
+  it("trae todas las páginas del rango, no sólo la primera", async () => {
+    const tr = (id) => ({ ...TRANSFERENCIA, transfer_id: id });
+    listarTransferencias
+      .mockResolvedValueOnce({ transfers: [tr("P0-A"), tr("P0-B")], general_data: { total_rows: 3 } })
+      .mockResolvedValueOnce({ transfers: [tr("P1-A")], general_data: { total_rows: 3 } });
+    render(<TransferenciasPage />);
+    expect(await screen.findByText("P1-A")).toBeInTheDocument();
+    expect(screen.getByText("P0-A")).toBeInTheDocument();
+    expect(listarTransferencias).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, rows: 500 }));
+  });
+
+  describe("paginador", () => {
+    const muchas = (n) => Array.from({ length: n }, (_, i) => ({ ...TRANSFERENCIA, transfer_id: `T-${i + 1}` }));
+    const ids = () => screen.getAllByRole("row").slice(2).map((f) => within(f).getAllByRole("cell")[1].textContent);
+
+    it("muestra 50 por página y navega entre páginas", async () => {
+      const user = userEvent.setup();
+      listarTransferencias.mockResolvedValue({ transfers: muchas(120), general_data: { total_rows: 120 } });
+      render(<TransferenciasPage />);
+      await screen.findByText("T-1");
+      expect(ids()).toHaveLength(50);
+      expect(screen.getByText("1–50 de 120")).toBeInTheDocument();
+      expect(screen.getByText("Página 1 de 3")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "‹ Anterior" })).toBeDisabled();
+
+      await user.click(screen.getByRole("button", { name: "Siguiente ›" }));
+      expect(ids()[0]).toBe("T-51");
+      await user.click(screen.getByRole("button", { name: "Siguiente ›" }));
+      expect(ids()).toHaveLength(20);
+      expect(screen.getByText("101–120 de 120")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Siguiente ›" })).toBeDisabled();
+    });
+
+    it("cambia la cantidad por página y vuelve a la primera al filtrar", async () => {
+      const user = userEvent.setup();
+      listarTransferencias.mockResolvedValue({ transfers: muchas(120), general_data: { total_rows: 120 } });
+      render(<TransferenciasPage />);
+      await screen.findByText("T-1");
+      await user.selectOptions(screen.getByLabelText("Filas por página"), "25");
+      expect(screen.getByText("Página 1 de 5")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Siguiente ›" }));
+      expect(ids()[0]).toBe("T-26");
+
+      fireEvent.change(screen.getByLabelText("Filtrar ID"), { target: { value: "T-11" } });
+      expect(ids()).toEqual(["T-11", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119"]);
+      expect(screen.getByText("Página 1 de 1")).toBeInTheDocument();
+    });
+  });
+
+  describe("filtros por columna", () => {
+    const OTRA = {
+      transfer_id: "TR-2",
+      request_date: "2026-02-11T09:00:00",
+      debit_account: { bank_name: "B.N.A.", account_type: "CC", account_number: "31554660052053", account_cbu: "3".repeat(22) },
+      credit_account: { bank_name: "Banco Galicia", account_type: "CC", account_number: "9998887", account_cbu: "4".repeat(22) },
+      amount: 1200000,
+      currency: "ARS",
+      transfer_type_description: "Cuentas Propias",
+      transfer_comments: "HABERES SETIEMBRE",
+      status: "Anulada",
+    };
+
+    beforeEach(() => {
+      listarTransferencias.mockResolvedValue({ transfers: [TRANSFERENCIA, OTRA], general_data: { total_rows: 2 } });
+    });
+
+    const filas = () => screen.getAllByRole("row").slice(2).map((f) => f.textContent);
+    const filtrar = (columna, valor) => fireEvent.change(screen.getByLabelText(`Filtrar ${columna}`), { target: { value: valor } });
+
+    it.each([
+      ["Fecha", "02-11", "TR-2"],
+      ["ID", "tr-1", "TR-1"],
+      ["Origen", "52053", "TR-2"],
+      ["Destino", "macro", "TR-1"],
+      ["Destino", "1".repeat(22), "TR-1"],
+      ["Comentario", "haberes", "TR-2"],
+      ["Comentario", "proveedores", "TR-1"],
+    ])("%s = %s deja sólo %s", async (columna, valor, queda) => {
+      render(<TransferenciasPage />);
+      await screen.findByText("TR-2");
+      filtrar(columna, valor);
+      expect(filas()).toHaveLength(1);
+      expect(filas()[0]).toContain(queda);
+      expect(screen.getByText("1 de 2 resultados")).toBeInTheDocument();
+    });
+
+    it("filtra el monto por rango, también con formato local", async () => {
+      render(<TransferenciasPage />);
+      await screen.findByText("TR-2");
+      filtrar("Monto desde", "100.000");
+      expect(filas()).toHaveLength(2); // "100.000" sin coma = 100: entran las dos
+      filtrar("Monto desde", "100.000,00");
+      expect(filas()).toHaveLength(1);
+      expect(filas()[0]).toContain("TR-2");
+      filtrar("Monto desde", "");
+      filtrar("Monto hasta", "30000");
+      expect(filas()[0]).toContain("TR-1");
+      expect(filas()).toHaveLength(1);
+    });
+
+    it("filtra por estado con los estados que vinieron y limpia todo", async () => {
+      const user = userEvent.setup();
+      render(<TransferenciasPage />);
+      await screen.findByText("TR-2");
+      await user.selectOptions(screen.getByLabelText("Filtrar Estado"), "Anulada");
+      expect(filas()).toHaveLength(1);
+      expect(filas()[0]).toContain("TR-2");
+      await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+      expect(filas()).toHaveLength(2);
+    });
+
+    it("avisa cuando ninguna coincide", async () => {
+      render(<TransferenciasPage />);
+      await screen.findByText("TR-2");
+      filtrar("ID", "no-existe");
+      expect(screen.getByText("Ninguna transferencia coincide con los filtros")).toBeInTheDocument();
+    });
+  });
+
+  it("muestra de qué cuenta sale y a qué cuenta va cada transferencia", async () => {
+    render(<TransferenciasPage />);
+    const fila = (await screen.findByText("TR-1")).closest("tr");
+    const [, , origen, destino] = within(fila).getAllByRole("cell");
+    expect(origen).toHaveTextContent("B.N.A.");
+    expect(origen).toHaveTextContent("CC 31554660300106");
+    expect(origen).toHaveTextContent(`CBU ${"0".repeat(22)}`);
+    expect(origen).toHaveTextContent("CUIT 30999255724");
+    expect(destino).toHaveTextContent("Banco Macro");
+    expect(destino).toHaveTextContent("CA 4001234");
+    expect(destino).toHaveTextContent(`CBU ${"1".repeat(22)}`);
+    expect(within(fila).getByText("Proveedores")).toBeInTheDocument();
   });
 
   it("prefiere _status y rellena con guiones lo que falta", async () => {
@@ -103,10 +237,10 @@ describe("TransferenciasPage — listado", () => {
       general_data: {},
     });
     render(<TransferenciasPage />);
-    expect(await screen.findByText("PROCESANDO")).toBeInTheDocument();
-    expect(screen.queryByText("INICIADA")).not.toBeInTheDocument();
-    const fila = screen.getByText("TR-2").closest("tr");
-    expect(within(fila).getAllByText("—")).toHaveLength(3);   // CBUs + comentario
+    const fila = (await screen.findByText("TR-2")).closest("tr");
+    expect(within(fila).getByText("PROCESANDO")).toBeInTheDocument();
+    expect(within(fila).queryByText("INICIADA")).not.toBeInTheDocument();
+    expect(within(fila).getAllByText("—")).toHaveLength(3);   // origen, destino y comentario
   });
 
   it("avisa cuando no hay transferencias en el rango", async () => {
@@ -132,7 +266,7 @@ describe("TransferenciasPage — listado", () => {
 
     await waitFor(() =>
       expect(listarTransferencias).toHaveBeenLastCalledWith({
-        date_since: "2026-01-01", date_until: "2026-01-31",
+        date_since: "2026-01-01", date_until: "2026-01-31", page: 0, rows: 500,
       })
     );
   });

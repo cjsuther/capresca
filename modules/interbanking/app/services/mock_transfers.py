@@ -81,7 +81,7 @@ def _build_transfer_record(
     # CBU "sintético" sólo para que la grilla muestre algo cuando el sandbox no devuelve CBU
     debit_cbu_display = f"{bank_id.zfill(3)}{str(debit_account_number).zfill(19)}"[:22]
     return {
-        # Schema de transfersDetailsGet (campo transfers[])
+        # Schema de transfersDetailsGet (campo transfers[]), con los nombres que devuelve producción
         "transfer_id": tid,
         "transaction_number": tid + 50000,
         "lot_number": 1,
@@ -89,20 +89,20 @@ def _build_transfer_record(
         "request_date": request_date,
         "amount": float(amount),
         "currency": currency,
-        "comments": comments,
+        "transfer_comments": comments,
         "credit_account": {
-            "cbu": credit_cbu,
+            "account_cbu": credit_cbu,
             "bank_number": credit_cbu[:3] if credit_cbu else "",
-            "cuit": "30-12345678-9",
+            "customer_cuit": "30123456789",
             "bank_name": "Banco Mock S.A.",
             "account_number": credit_cbu[8:] if credit_cbu else "",
             "account_type": "CC",
             "currency": currency,
         },
         "debit_account": {
-            "cbu": debit_cbu_display,
+            "account_cbu": debit_cbu_display,
             "bank_number": bank_id,
-            "cuit": "30-87654321-0",
+            "customer_cuit": "30876543210",
             "bank_name": "Banco Origen S.A.",
             "account_number": debit_account_number,
             "account_type": debit_account_type,
