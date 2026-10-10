@@ -31,6 +31,7 @@ from app.db.session import SessionLocal
 from app.models import (IMPORT_ERROR, IMPORT_INTERRUMPIDA, IMPORT_PROCESANDO, IMPORT_TERMINADA,
                         SERIE_POR_DEFECTO, ImportacionDespacho, ModeloResolucion, Resolucion,
                         ResolucionBeneficiario)
+from app.services import auditoria_central as central
 from app.services.dbf import DbfReader
 from app.services.rtf import rtf_a_html
 
@@ -80,6 +81,8 @@ def _origen(x: dict) -> str:
 # el mismo nombre. Si no se extrae, las tablas entran completas pero todas las resoluciones quedan
 # sin cuerpo y los modelos sin plantilla.
 EXTENSIONES_DBF = (".dbf", ".fpt", ".dbt")
+# Tope de lo descomprimido: un ZIP chico puede expandirse hasta llenar el disco (zip bomb).
+MAX_DESCOMPRIMIDO = 4 * 1024 * 1024 * 1024
 
 
 def extraer(ruta: str) -> str:
@@ -89,6 +92,7 @@ def extraer(ruta: str) -> str:
     destino = os.path.splitext(ruta)[0] + "-extraido"
     os.makedirs(destino, exist_ok=True)
     with zipfile.ZipFile(ruta) as z:
+        escrito = 0
         for nombre in z.namelist():
             if nombre.lower().endswith(EXTENSIONES_DBF) and not nombre.startswith("__"):
                 with z.open(nombre) as src, open(os.path.join(destino, os.path.basename(nombre)), "wb") as dst:
@@ -96,6 +100,9 @@ def extraer(ruta: str) -> str:
                         trozo = src.read(4 * 1024 * 1024)      # los memos pesan cientos de MB
                         if not trozo:
                             break
+                        escrito += len(trozo)
+                        if escrito > MAX_DESCOMPRIMIDO:
+                            raise ValueError("El ZIP descomprimido supera los 4 GB.")
                         dst.write(trozo)
     return destino
 
@@ -129,14 +136,27 @@ def procesar(import_id: int, ruta: str, session_factory=None) -> None:
             imp.estado, imp.mensaje = IMPORT_ERROR, str(e)[:500]
             imp.terminado_en = datetime.datetime.now(datetime.timezone.utc)
             db.commit()
+            _auditar(imp)
             return
         imp = db.get(ImportacionDespacho, import_id)
         imp.estado = IMPORT_TERMINADA
         imp.terminado_en = datetime.datetime.now(datetime.timezone.utc)
         db.commit()
+        _auditar(imp)
     finally:
         if propia:
             db.close()
+
+
+def _auditar(imp: ImportacionDespacho) -> None:
+    """El hilo corre fuera de la request: el listener de Auditoría no lo ve y miles de filas serían ruido.
+    Queda un evento con el resultado, a nombre de quien subió el archivo."""
+    central.registrar(
+        usuario_id=imp.usuario_id, operacion="ACCION", entidad="ImportacionDespacho",
+        entidad_id=str(imp.id), descripcion=f"Importación de Despacho {imp.estado.lower()}: {imp.archivo}",
+        cambios={k: [None, getattr(imp, k)] for k in
+                 ("modelos", "resoluciones", "beneficiarios", "solicitudes", "omitidas", "reparadas")},
+        detalle=imp.mensaje or "", exito=imp.estado == IMPORT_TERMINADA)
 
 
 def _importar(db: Session, imp: ImportacionDespacho, carpeta: str) -> None:

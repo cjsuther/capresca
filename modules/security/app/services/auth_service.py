@@ -21,14 +21,18 @@ def hash_password(plain: str) -> str:
     return pwd_context.hash(plain)
 
 
-def create_access_token(user_id: int, username: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expire_hours)
+def create_access_token(user_id: int, username: str, auth_time: int | None = None) -> str:
+    """`auth_time`: cuándo se ingresó con usuario y clave. Las renovaciones lo conservan, así una sesión
+    no se puede estirar para siempre (ver `jwt_sesion_max_horas`)."""
+    ahora = datetime.now(timezone.utc)
+    expire = ahora + timedelta(hours=settings.jwt_expire_hours)
     payload = {
         "sub": str(user_id),
         "username": username,
         "jti": str(uuid.uuid4()),
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": ahora,
+        "auth_time": auth_time or int(ahora.timestamp()),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 

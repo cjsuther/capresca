@@ -14,7 +14,9 @@ from app.models.transfers import Transfer
 from app.scopes import INFO_FINANCIERA
 from app.services import interbanking_client, token_manager, transfer_service
 
-router = APIRouter(tags=["internal"])
+from app.clave_interna import exigir
+
+router = APIRouter(tags=["internal"], dependencies=[Depends(exigir)])
 
 
 class PaymentRequest(BaseModel):

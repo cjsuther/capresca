@@ -13,6 +13,9 @@ class _ClienteFalso:
     enviados: list = []
     error: Exception | None = None
 
+    def __init__(self, *a, **kw):
+        pass
+
     def __enter__(self):
         return self
 

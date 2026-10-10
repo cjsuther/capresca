@@ -68,7 +68,9 @@ def save_config(data: CredentialCreate, db: Session = Depends(get_db)):
         password_encrypted = None
 
     # Desactivar credenciales previas y todos sus tokens (cambiaron secretos)
-    db.query(InterbankingCredential).update({"is_active": False})
+    # Fila por fila (no un UPDATE masivo) para que Auditoría registre qué credencial se dio de baja.
+    for previa in db.query(InterbankingCredential).filter(InterbankingCredential.is_active == True).all():
+        previa.is_active = False
     db.query(InterbankingToken).filter(InterbankingToken.is_active == True).update({"is_active": False})
 
     cred = InterbankingCredential(

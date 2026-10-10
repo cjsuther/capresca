@@ -13,6 +13,7 @@ generan ruido. Nunca frena ni voltea la operación: se encola y lo manda un hilo
 """
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import logging
 import os
@@ -53,9 +54,12 @@ def instalar(app, excluir: set[str] | tuple[str, ...] = ()) -> None:
     @app.middleware("http")
     async def _contexto(request, call_next):             # noqa: ANN001
         fwd = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-        uid = request.headers.get("x-user-id") or ""
+        # El portal llega directo desde nginx, sin gateway: sus headers de identidad no son confiables.
+        # El autor lo completa `get_ciudadano` con el ciudadano del token.
+        portal = request.scope["path"].startswith("/api/creditos/portal")
+        uid = "" if portal else (request.headers.get("x-user-id") or "")
         token = _ctx.set({
-            "usuario": request.headers.get("x-username") or "",
+            "usuario": "portal" if portal else (request.headers.get("x-username") or ""),
             "usuario_id": int(uid) if uid.isdigit() else None,
             "ip": (fwd or (request.client.host if request.client else ""))[:64],
             "request_id": (request.headers.get("x-request-id") or "")[:40],
@@ -71,6 +75,17 @@ def instalar(app, excluir: set[str] | tuple[str, ...] = ()) -> None:
 
 def contexto() -> dict | None:
     return _ctx.get()
+
+
+@contextlib.contextmanager
+def como_sistema(proceso: str):
+    """Procesos automáticos (schedulers, hilos): sus cambios se auditan a nombre de `sistema:<proceso>`."""
+    token = _ctx.set({"usuario": f"sistema:{proceso}"[:60], "usuario_id": None, "ip": "",
+                      "request_id": "", "ruta": proceso})
+    try:
+        yield
+    finally:
+        _ctx.reset(token)
 
 
 # ── Registro manual (acciones de negocio: aprobar, enviar, publicar…) ────────────────────────────

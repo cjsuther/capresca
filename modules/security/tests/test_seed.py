@@ -145,7 +145,8 @@ def test_los_roles_operativos_reciben_su_subconjunto(correr_seed, db):
         "rules:read", "rules:write", "clients:read"}
 
 
-def test_el_usuario_admin_queda_operativo(correr_seed, db, client):
+def test_el_usuario_admin_queda_operativo(correr_seed, db, client, monkeypatch):
+    monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", "Admin1234!")
     correr_seed()
     admin = db.query(User).filter_by(username="admin").one()
     assert admin.is_active and verify_password("Admin1234!", admin.hashed_password)
@@ -221,3 +222,11 @@ def test_el_seed_aborta_con_exit_1_ante_un_error(db, monkeypatch, capsys):
 
     db.expire_all()
     assert db.query(Permission).count() == 0
+
+
+def test_sin_clave_inicial_el_admin_no_usa_una_conocida(correr_seed, db, monkeypatch):
+    """Nada de clave fija en el código: sin ADMIN_INITIAL_PASSWORD se genera una al azar."""
+    monkeypatch.delenv("ADMIN_INITIAL_PASSWORD", raising=False)
+    correr_seed()
+    admin = db.query(User).filter_by(username="admin").one()
+    assert not verify_password("Admin1234!", admin.hashed_password)

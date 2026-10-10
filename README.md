@@ -158,10 +158,9 @@ Esto levanta todos los servicios, ejecuta las migraciones de base de datos autom
 
 ### 4. Acceder al sistema
 
-Abrir el navegador en `http://localhost` e iniciar sesion con las credenciales por defecto:
-
-- **Usuario:** `admin`
-- **Password:** `Admin1234!`
+Abrir el navegador en `http://localhost` e iniciar sesion con el usuario `admin`. La clave inicial es la
+de `ADMIN_INITIAL_PASSWORD` en el `.env`; si no se define, el seed genera una al azar y la muestra una sola
+vez en el log de `security` (`docker compose logs security | grep "clave inicial"`).
 
 > Cambiar la contraseña del administrador luego del primer inicio de sesion.
 

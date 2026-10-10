@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import httpx
 
+from app import clave_interna
+
 from app.config import settings
 
 TIMEOUT = 30.0
@@ -31,7 +33,7 @@ def _url(path: str) -> str:
 def cuentas() -> dict:
     """Cuentas desde las que se puede pagar, para elegir el origen del lote."""
     try:
-        r = httpx.get(_url("/internal/interbanking/payment-accounts"), timeout=TIMEOUT)
+        r = httpx.get(_url("/internal/interbanking/payment-accounts"), headers=clave_interna.headers(), timeout=TIMEOUT)
         r.raise_for_status()
     except httpx.HTTPError as e:
         return {"items": [], "error": f"No se pudo consultar Interbanking: {e}"[:200]}
@@ -45,7 +47,7 @@ def enviar(cbu: str, monto: float, concepto: str, cuenta: dict | None = None) ->
         cuerpo |= {"cuenta_origen": cuenta["account_number"], "cuenta_origen_tipo": cuenta.get("account_type") or "CC",
                    "cuenta_origen_banco": cuenta.get("bank_number") or "011"}
     try:
-        r = httpx.post(_url("/internal/interbanking/payments"), json=cuerpo, timeout=TIMEOUT)
+        r = httpx.post(_url("/internal/interbanking/payments"), json=cuerpo, headers=clave_interna.headers(), timeout=TIMEOUT)
     except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError) as e:
         raise EnvioIncierto(f"Sin respuesta de Interbanking: {e}") from e
     if r.status_code >= 500:
@@ -59,7 +61,7 @@ def enviar(cbu: str, monto: float, concepto: str, cuenta: dict | None = None) ->
 
 def estado(transfer_id: int) -> str:
     """Estado actual de la transferencia en Interbanking (texto del banco)."""
-    r = httpx.get(_url(f"/internal/interbanking/payments/{transfer_id}"), timeout=TIMEOUT)
+    r = httpx.get(_url(f"/internal/interbanking/payments/{transfer_id}"), headers=clave_interna.headers(), timeout=TIMEOUT)
     r.raise_for_status()
     return str(r.json().get("status") or "").upper()
 

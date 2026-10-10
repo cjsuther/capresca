@@ -1,5 +1,6 @@
 """Base de tests del gateway: JWT propio y un httpx falso (nunca se sale a la red)."""
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("JWT_SECRET", "secreto-de-test")
@@ -16,9 +17,11 @@ from app.middleware import auth as auth_mod
 @pytest.fixture(autouse=True)
 def cache_limpia():
     """La caché de permisos es global (TTLCache): se limpia entre tests."""
-    auth_mod._permissions_cache.clear()
+    for cache in (auth_mod._permissions_cache, auth_mod._vigentes, auth_mod._revocados):
+        cache.clear()
     yield
-    auth_mod._permissions_cache.clear()
+    for cache in (auth_mod._permissions_cache, auth_mod._vigentes, auth_mod._revocados):
+        cache.clear()
 
 
 @pytest.fixture
@@ -27,7 +30,7 @@ def client():
 
 
 def token_de(user_id: int = 7, username: str = "ana", minutos: int = 60, secreto: str | None = None) -> str:
-    payload = {"sub": str(user_id), "username": username,
+    payload = {"sub": str(user_id), "username": username, "jti": uuid.uuid4().hex,
                "exp": datetime.now(timezone.utc) + timedelta(minutes=minutos)}
     return jwt.encode(payload, secreto or settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
@@ -56,6 +59,7 @@ class ClienteFalso:
     respuesta_permisos = None
     respuesta_destino = None
     error = None
+    revocados: set = set()          # jti dados de baja con logout
 
     def __init__(self, *a, **kw):
         pass
@@ -67,6 +71,8 @@ class ClienteFalso:
         return False
 
     async def get(self, url, **kw):
+        if "/internal/tokens/" in url:           # revocación: no cuenta como llamada a permisos
+            return RespuestaFalsa(200, {"revocado": url.split("/")[-2] in ClienteFalso.revocados})
         ClienteFalso.llamadas.append({"metodo": "GET", "url": url, "headers": kw.get("headers", {})})
         if ClienteFalso.error is not None:
             raise ClienteFalso.error
@@ -86,6 +92,7 @@ def httpx_falso(monkeypatch):
     ClienteFalso.respuesta_permisos = None
     ClienteFalso.respuesta_destino = None
     ClienteFalso.error = None
+    ClienteFalso.revocados = set()
     monkeypatch.setattr(auth_mod.httpx, "AsyncClient", ClienteFalso)
     from app.routes import proxy as proxy_mod
     monkeypatch.setattr(proxy_mod.httpx, "AsyncClient", ClienteFalso)

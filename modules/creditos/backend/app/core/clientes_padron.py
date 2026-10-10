@@ -12,6 +12,8 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import httpx
+
+from app import clave_interna
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -37,7 +39,7 @@ def _url(path: str) -> str:
 def ficha(cliente_id: int) -> dict | None:
     """Identidad del cliente en el padrón. None si no existe."""
     try:
-        r = httpx.get(_url(f"/internal/clientes/{cliente_id}/ficha"), timeout=TIMEOUT)
+        r = httpx.get(_url(f"/internal/clientes/{cliente_id}/ficha"), headers=clave_interna.headers(), timeout=TIMEOUT)
         r.raise_for_status()
         return r.json() or None
     except httpx.HTTPError as e:
@@ -50,7 +52,7 @@ def ids_por_documento(documentos: list[str]) -> dict[str, int]:
         return {}
     try:
         r = httpx.post(_url("/internal/clientes/buscar-por-documento"),
-                       json={"documentos": documentos}, timeout=TIMEOUT)
+                       json={"documentos": documentos}, headers=clave_interna.headers(), timeout=TIMEOUT)
         r.raise_for_status()
         return r.json().get("encontrados", {})
     except httpx.HTTPError as e:
@@ -59,7 +61,7 @@ def ids_por_documento(documentos: list[str]) -> dict[str, int]:
 
 def importar(personas: list[dict]) -> dict:
     """Alta/actualización de personas en el padrón (idempotente por documento)."""
-    r = httpx.post(_url("/internal/clientes/importar"), json={"personas": personas}, timeout=60.0)
+    r = httpx.post(_url("/internal/clientes/importar"), json={"personas": personas}, headers=clave_interna.headers(), timeout=60.0)
     r.raise_for_status()
     return r.json()
 
@@ -69,7 +71,7 @@ def copiar_documentos(cliente_id: int, documentos: list[dict]) -> dict:
     duplica. Cada documento: {nombre, content_type, tipo, origen, contenido_base64}."""
     try:
         r = httpx.post(_url(f"/internal/clientes/{cliente_id}/documentos"),
-                       json={"documentos": documentos}, timeout=60.0)
+                       json={"documentos": documentos}, headers=clave_interna.headers(), timeout=60.0)
         r.raise_for_status()
         return r.json()
     except httpx.HTTPError as e:

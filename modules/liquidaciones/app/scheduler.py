@@ -14,6 +14,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import settings
 from app.db.session import SessionLocal
+from app.services import auditoria_central as central
 from app.services.processing import process_from_path
 
 logger = logging.getLogger("liquidaciones.scheduler")
@@ -46,7 +47,8 @@ def scan_inbox() -> None:
             continue
         db = SessionLocal()
         try:
-            batch = process_from_path(db, path, settings.inbox_default_user_id)
+            with central.como_sistema("ingesta-automatica"):
+                batch = process_from_path(db, path, settings.inbox_default_user_id)
             dest = error if getattr(batch, "status", "ERROR") == "ERROR" else processed
             shutil.move(path, os.path.join(dest, name))
             logger.info("Procesado %s -> batch %s (%s)", name, getattr(batch, "id", "?"), getattr(batch, "status", "?"))

@@ -13,6 +13,7 @@ generan ruido. Nunca frena ni voltea la operación: se encola y lo manda un hilo
 """
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import logging
 import os
@@ -71,6 +72,17 @@ def instalar(app, excluir: set[str] | tuple[str, ...] = ()) -> None:
 
 def contexto() -> dict | None:
     return _ctx.get()
+
+
+@contextlib.contextmanager
+def como_sistema(proceso: str):
+    """Procesos automáticos (schedulers, hilos): sus cambios se auditan a nombre de `sistema:<proceso>`."""
+    token = _ctx.set({"usuario": f"sistema:{proceso}"[:60], "usuario_id": None, "ip": "",
+                      "request_id": "", "ruta": proceso})
+    try:
+        yield
+    finally:
+        _ctx.reset(token)
 
 
 # ── Registro manual (acciones de negocio: aprobar, enviar, publicar…) ────────────────────────────

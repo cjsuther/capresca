@@ -71,7 +71,8 @@ async def proxy_request(path: str, request: Request):
     # `x-permissions` y `x-api-key` también se descartan: los módulos los usan para decidir acceso.
     headers = {
         k: v for k, v in request.headers.items()
-        if k.lower() not in ("host", "content-length", "x-permissions", "x-api-key")
+        if k.lower() not in ("host", "content-length", "x-permissions", "x-api-key", "x-internal-key",
+                             "x-request-id")
         and not k.lower().startswith("x-user")
     }
     # Inyectar usuario autenticado y sus permisos efectivos ("modulo:accion" separados por coma)

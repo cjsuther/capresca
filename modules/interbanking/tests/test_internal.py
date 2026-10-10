@@ -262,3 +262,20 @@ def test_si_el_banco_no_responde_igual_se_puede_elegir_la_configurada(client, cr
 
     assert [c["account_number"] for c in r["items"]] == ["99900011122"]
     assert "No se pudieron listar las cuentas" in r["error"]
+
+
+# ── Clave interna (revisión de seguridad 2026-10) ──────────────────────────────────────────────────
+def test_con_clave_configurada_sin_header_no_se_transfiere(client, monkeypatch):
+    """Cualquier contenedor de la red podía pedir transferencias: ahora hace falta X-Internal-Key."""
+    monkeypatch.setenv("INTERNAL_SERVICE_KEY", "k-interna")
+    r = client.post("/internal/interbanking/payments", json={"cbu_destino": "0" * 22, "monto": "1"})
+    assert r.status_code == 401
+    r = client.post("/internal/interbanking/payments", headers={"X-Internal-Key": "otra"},
+                    json={"cbu_destino": "0" * 22, "monto": "1"})
+    assert r.status_code == 401
+
+
+def test_con_la_clave_correcta_pasa_el_control(client, monkeypatch):
+    monkeypatch.setenv("INTERNAL_SERVICE_KEY", "k-interna")
+    r = client.get("/internal/interbanking/payment-accounts", headers={"X-Internal-Key": "k-interna"})
+    assert r.status_code != 401

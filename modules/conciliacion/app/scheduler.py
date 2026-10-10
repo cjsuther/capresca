@@ -16,7 +16,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import settings
 from app.db.session import SessionLocal
-from app.services import matching_service, payments_service
+from app.services import auditoria_central as central, matching_service, payments_service
 
 logger = logging.getLogger("conciliacion.scheduler")
 
@@ -25,6 +25,12 @@ _scheduler: BackgroundScheduler | None = None
 
 def _run_auto_match() -> None:
     db = SessionLocal()
+    # Los cambios del cruce y de los pagos automáticos se auditan a nombre del proceso.
+    with central.como_sistema("cruce-automatico"):
+        _cruzar(db)
+
+
+def _cruzar(db) -> None:
     try:
         hoy = datetime.now().date()
         for delta in range(0, settings.auto_match_lookback_days + 1):

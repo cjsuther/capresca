@@ -56,9 +56,11 @@ def update_cbu(
     fields = data.model_dump(exclude_none=True)
     # Solo un CBU por cliente puede ser cuenta de cobro
     if fields.get("is_payment_account"):
-        db.query(ClientCbu).filter(
-            ClientCbu.client_id == client_id, ClientCbu.id != cbu_id
-        ).update({"is_payment_account": False})
+        # Fila por fila (no un UPDATE masivo) para que Auditoría registre el cambio de cada CBU.
+        for otro in db.query(ClientCbu).filter(
+            ClientCbu.client_id == client_id, ClientCbu.id != cbu_id, ClientCbu.is_payment_account == True
+        ).all():
+            otro.is_payment_account = False
     for k, v in fields.items():
         setattr(cbu, k, v)
     db.commit()

@@ -50,7 +50,20 @@ def para_portal(tipos_habilitados) -> list[dict]:
             for t in tipos_habilitados]
 
 
-def validar(content_type: str | None, tamano: int) -> None:
+def _firma_coincide(content_type: str, contenido: bytes) -> bool:
+    """El tipo lo declara el navegador: se confirma con los primeros bytes del archivo."""
+    if content_type == "image/jpeg":
+        return contenido[:3] == b"\xff\xd8\xff"
+    if content_type == "image/png":
+        return contenido[:8] == b"\x89PNG\r\n\x1a\n"
+    if content_type == "image/webp":
+        return contenido[:4] == b"RIFF" and contenido[8:12] == b"WEBP"
+    if content_type == "application/pdf":
+        return contenido[:5] == b"%PDF-"
+    return False
+
+
+def validar(content_type: str | None, tamano: int, contenido: bytes | None = None) -> None:
     """Levanta ValueError con un mensaje claro si el archivo no es válido."""
     if (content_type or "") not in ALLOWED:
         raise ValueError("Formato no permitido. Subí una imagen (JPG, PNG, WEBP) o un PDF.")
@@ -58,6 +71,8 @@ def validar(content_type: str | None, tamano: int) -> None:
         raise ValueError("El archivo está vacío.")
     if tamano > MAX_BYTES:
         raise ValueError(f"El archivo supera el máximo de {MAX_BYTES // 1024 // 1024} MB.")
+    if contenido is not None and not _firma_coincide(content_type, contenido):
+        raise ValueError("El archivo no es la imagen o el PDF que dice ser. Probá exportarlo de nuevo.")
 
 
 def serial(d) -> dict:

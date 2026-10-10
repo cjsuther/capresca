@@ -1,3 +1,4 @@
+import hmac
 from typing import Optional
 
 from fastapi import Header, HTTPException
@@ -9,7 +10,7 @@ def verify_api_key(x_api_key: str = Header(...)):
     """Autenticación de endpoints internos (contenedor-a-contenedor)."""
     if not settings.internal_api_key:
         raise HTTPException(status_code=503, detail="API key no configurada")
-    if x_api_key != settings.internal_api_key:
+    if not hmac.compare_digest(x_api_key, settings.internal_api_key):
         raise HTTPException(status_code=401, detail="API key inválida")
 
 

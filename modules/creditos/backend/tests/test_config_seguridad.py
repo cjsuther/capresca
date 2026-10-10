@@ -14,8 +14,18 @@ def test_produccion_rechaza_secreto_default():
 
 def test_produccion_con_secreto_propio_ok():
     from app.core.config import Settings
-    s = Settings(environment="production", jwt_secret="un-secreto-propio-largo-123", _env_file=None)
-    assert s.jwt_secret == "un-secreto-propio-largo-123"
+    s = Settings(environment="production", jwt_secret="un-secreto-propio-largo-de-mas-de-32-caracteres",
+                 _env_file=None)
+    assert s.jwt_secret.startswith("un-secreto-propio")
+
+
+def test_produccion_con_secreto_corto_o_vacio_no_arranca():
+    """Variable sin definir en el compose = secreto vacío: se podrían forjar tokens del portal."""
+    import pytest
+    from app.core.config import Settings
+    for secreto in ("", "corto"):
+        with pytest.raises(ValueError):
+            Settings(environment="production", jwt_secret=secreto, _env_file=None)
 
 
 def test_development_permite_default():

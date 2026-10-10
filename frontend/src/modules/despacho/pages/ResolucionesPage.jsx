@@ -8,6 +8,7 @@ import {
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { useHasPermission } from "../../../context/usePermissions";
 import { EditorTexto } from "../components/EditorTexto";
+import { sanitizar } from "../sanitizar";
 
 const TIPOS = [["RES", "Resolución"], ["DIS", "Disposición"]];
 const nombreTipo = (t) => TIPOS.find(([v]) => v === t)?.[1] || t;
@@ -321,7 +322,7 @@ export default function ResolucionesPage() {
           )}
 
           <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-4 max-h-72 overflow-auto"
-               dangerouslySetInnerHTML={{ __html: detalle.texto || "<p class='text-gray-400'>Sin texto</p>" }} />
+               dangerouslySetInnerHTML={{ __html: detalle.texto ? sanitizar(detalle.texto) : "<p class='text-gray-400'>Sin texto</p>" }} />
 
           {detalle.beneficiarios?.length > 0 && (
             <div className="mb-4">

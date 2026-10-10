@@ -155,3 +155,53 @@ def test_permisos_que_no_llegan_a_ser_dict_no_rompen(client, auth, httpx_falso):
     """Si security devuelve un status raro, el gateway responde 503 (no 500)."""
     httpx_falso.respuesta_permisos = RespuestaFalsa(500, None)
     assert client.get("/api/clientes", headers=auth()).status_code == 503
+
+
+# ── Endurecimiento (revisión de seguridad 2026-10) ─────────────────────────────────────────────────
+def test_un_token_cerrado_con_logout_no_entra(client, permisos):
+    falso = permisos({"clientes": ["clients:read"]})
+    tok = token_de()
+    assert client.get("/api/clientes", headers={"Authorization": f"Bearer {tok}"}).status_code == 200
+    falso.revocados.add(jwt.get_unverified_claims(tok)["jti"])
+    auth_mod._vigentes.clear()
+    r = client.get("/api/clientes", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 401 and r.json()["detail"] == "Sesión cerrada"
+
+
+def test_un_token_del_portal_no_es_una_sesion_de_portezuelo(client, permisos):
+    """Aunque estuviera firmado con el mismo secreto, un token con `scope` es de otro realm."""
+    permisos({"clientes": ["clients:read"]})
+    tok = jwt.encode({"sub": "1", "jti": "x", "scope": "portal",
+                      "exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
+                     settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    assert client.get("/api/clientes", headers={"Authorization": f"Bearer {tok}"}).status_code == 401
+
+
+def test_un_token_sin_jti_no_entra(client, permisos):
+    permisos({"clientes": ["clients:read"]})
+    tok = jwt.encode({"sub": "1", "exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
+                     settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    assert client.get("/api/clientes", headers={"Authorization": f"Bearer {tok}"}).status_code == 401
+
+
+@pytest.mark.parametrize("ruta", ["/api/clientes/1%3F/x", "/api/clientes/1%23x", "/api/clientes/a%5Cb",
+                                  "/api/clientes/a%0d%0ab"])
+def test_ruta_con_caracteres_codificados_se_rechaza(client, auth, permisos, ruta):
+    """El permiso se decide con la ruta decodificada: un `?` o `#` codificado acortaría la que ve el módulo."""
+    permisos({"clientes": ["clients:read"]})
+    assert client.get(ruta, headers=auth()).status_code == 400
+
+
+def test_la_clave_interna_viaja_a_security(client, auth, permisos, monkeypatch):
+    monkeypatch.setenv("INTERNAL_SERVICE_KEY", "k-interna")
+    capturados = {}
+    original = auth_mod.httpx.AsyncClient
+
+    def con_headers(*a, **kw):
+        capturados.update(kw.get("headers") or {})
+        return original(*a, **kw)
+
+    monkeypatch.setattr(auth_mod.httpx, "AsyncClient", con_headers)
+    permisos({"clientes": ["clients:read"]})
+    client.get("/api/clientes", headers=auth())
+    assert capturados.get("X-Internal-Key") == "k-interna"

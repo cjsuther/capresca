@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Bold, Italic, Underline, List, AlignLeft, AlignCenter, AlignJustify, Heading } from "lucide-react";
+import { sanitizar } from "../sanitizar";
 
 /**
  * Editor del cuerpo del instrumento legal: un mini-Word.
@@ -20,10 +21,11 @@ const BOTONES = [
 export function EditorTexto({ value, onChange, disabled = false, alto = "min-h-[16rem]", label }) {
   const ref = useRef(null);
 
-  // Sólo se escribe el HTML de afuera cuando es distinto: si no, el cursor salta en cada tecla.
+  // Sólo se escribe el HTML de afuera cuando es distinto: si no, el cursor salta en cada tecla. Lo que
+  // viene de afuera (guardado, modelo, importado) se sanitiza antes de meterlo en el DOM.
   useEffect(() => {
     if (ref.current && ref.current.innerHTML !== (value || "")) {
-      ref.current.innerHTML = value || "";
+      ref.current.innerHTML = sanitizar(value);
     }
   }, [value]);
 

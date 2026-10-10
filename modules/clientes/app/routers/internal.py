@@ -7,7 +7,9 @@ from app.models.padron import ClientPadron
 from app.services.client_service import _generate_code
 from app.schemas.cbu import ClientCbuResponse
 
-router = APIRouter(tags=["internal"])
+from app.clave_interna import exigir
+
+router = APIRouter(tags=["internal"], dependencies=[Depends(exigir)])
 
 
 @router.get("/internal/clientes/agencies")

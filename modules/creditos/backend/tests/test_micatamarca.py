@@ -286,8 +286,17 @@ def test_los_endpoints_salen_del_issuer_y_se_pueden_pisar():
 def test_con_credenciales_se_usa_el_proveedor_real(monkeypatch):
     monkeypatch.setattr(mc, "get_settings", lambda: _settings())
     assert isinstance(mc.get_provider(), mc.MiCatamarcaProvider)
-    monkeypatch.setattr(mc, "get_settings", lambda: Settings(environment="production",
-                                                             portal_mock_sso=False))
+    monkeypatch.setattr(mc, "get_settings", lambda: Settings(environment="production", portal_mock_sso=False,
+                                                             jwt_secret="x" * 40))
     from fastapi import HTTPException
     with pytest.raises(HTTPException):     # sin credenciales y en producción: no se entra con el mock
+        mc.get_provider()
+
+
+def test_en_produccion_nunca_el_mock(monkeypatch):
+    """Aunque quede PORTAL_MOCK_SSO=true copiado de otro entorno."""
+    monkeypatch.setattr(mc, "get_settings", lambda: Settings(environment="production", portal_mock_sso=True,
+                                                             jwt_secret="x" * 40))
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException):
         mc.get_provider()

@@ -1,8 +1,10 @@
+import time
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import Optional
 
+from app.config import settings
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, UserInfo, PermissionsPayload
@@ -74,5 +76,15 @@ def refresh_token(
     if not user:
         raise HTTPException(status_code=401, detail="Usuario inactivo")
 
-    new_token = create_access_token(int(payload["sub"]), payload["username"])
+    # Tope absoluto: una sesión robada no se puede renovar indefinidamente.
+    auth_time = int(payload.get("auth_time") or payload.get("iat") or 0)
+    if time.time() - auth_time > settings.jwt_sesion_max_horas * 3600:
+        raise HTTPException(status_code=401, detail="La sesión venció: volvé a ingresar")
+
+    new_token = create_access_token(int(payload["sub"]), payload["username"], auth_time=auth_time)
+    # El token renovado reemplaza al anterior, que deja de servir.
+    if jti:
+        exp = payload.get("exp")
+        expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc) if exp else datetime.now(timezone.utc)
+        blacklist_token(db, jti, payload["sub"], expires_at)
     return {"access_token": new_token, "token_type": "bearer"}

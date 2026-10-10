@@ -4,6 +4,7 @@ El gateway valida el JWT, resuelve los permisos del usuario y los manda en `X-Us
 exige el permiso de cada ruta (`proxy/app/routes/mapping.py`). Acá se revalida el permiso de
 escritura (defensa en profundidad): una request que llegue sin pasar por el gateway no escribe.
 """
+import hmac
 from fastapi import Depends, Header, HTTPException
 
 from app.config import settings
@@ -39,5 +40,5 @@ def requiere(accion: str):
 def api_interna(x_api_key: str = Header("")) -> None:
     """La API interna sólo la usan otros módulos, con la clave compartida. Sin clave configurada,
     queda cerrada (no abierta por defecto)."""
-    if not settings.internal_api_key or x_api_key != settings.internal_api_key:
+    if not settings.internal_api_key or not hmac.compare_digest(x_api_key, settings.internal_api_key):
         raise HTTPException(401, "API interna: clave inválida.")

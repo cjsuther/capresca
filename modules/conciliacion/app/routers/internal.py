@@ -13,6 +13,8 @@ from app.services import cbu_cache_service, payments_service
 from app.services.notifications_client import notifications_client
 from app.models.liquidacion_record import LiquidacionConciliacionRecord
 
+from app.clave_interna import exigir
+
 router = APIRouter(tags=["internal"])
 
 
@@ -39,7 +41,7 @@ def resultado_tesoreria(aviso: AvisoTesoreria, db: Session = Depends(get_db)):
     return payments_service.aplicar_resultado_tesoreria(db, aviso.lote, [p.model_dump() for p in aviso.pagos])
 
 
-@router.post("/internal/conciliacion/refresh-cbu-cache")
+@router.post("/internal/conciliacion/refresh-cbu-cache", dependencies=[Depends(exigir)])
 async def refresh_cbu_cache(db: Session = Depends(get_db)):
     count = await cbu_cache_service.rebuild_cache(db)
     return {"refreshed": count}
@@ -65,7 +67,7 @@ class LiquidacionesPayload(BaseModel):
     agencies: list[LiquidacionAgenciaItem]
 
 
-@router.post("/internal/conciliacion/liquidaciones")
+@router.post("/internal/conciliacion/liquidaciones", dependencies=[Depends(exigir)])
 def receive_liquidaciones(payload: LiquidacionesPayload, db: Session = Depends(get_db)):
     records = []
     for agency in payload.agencies:

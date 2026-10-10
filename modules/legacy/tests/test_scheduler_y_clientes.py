@@ -78,6 +78,9 @@ def test_el_cliente_arma_el_payload_esperado(monkeypatch):
     enviados = {}
 
     class ClienteFalso:
+        def __init__(self, *a, **kw):
+            enviados.update(headers=kw.get("headers"))
+
         def __enter__(self):
             return self
 
@@ -101,7 +104,7 @@ def test_el_cliente_arma_el_payload_esperado(monkeypatch):
 
 
 def test_una_falla_al_notificar_no_se_propaga(monkeypatch):
-    def _explota():
+    def _explota(*a, **kw):
         raise httpx.ConnectError("sin red")
 
     monkeypatch.setattr(httpx, "Client", _explota)

@@ -5,6 +5,8 @@ Seed de datos iniciales:
   - Rol admin (todos los permisos)
   - Usuario admin inicial
 """
+import os
+import secrets
 import sys
 from app.db.session import SessionLocal
 from app.models.module import Module
@@ -240,10 +242,14 @@ def run():
         # ── Usuario admin ────────────────────────────────────────
         admin_user = db.query(User).filter(User.username == "admin").first()
         if not admin_user:
+            # Sin clave conocida en el código: ADMIN_INITIAL_PASSWORD o una al azar que se muestra una vez.
+            clave_admin = os.getenv("ADMIN_INITIAL_PASSWORD") or secrets.token_urlsafe(12)
+            if not os.getenv("ADMIN_INITIAL_PASSWORD"):
+                print(f"[seed] Usuario admin creado con la clave inicial: {clave_admin} (cambiala al ingresar)")
             admin_user = User(
                 username="admin",
                 email="admin@sistema.local",
-                hashed_password=hash_password("Admin1234!"),
+                hashed_password=hash_password(clave_admin),
                 full_name="Administrador del Sistema",
                 is_active=True,
             )

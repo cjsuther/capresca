@@ -42,6 +42,7 @@ from app.db.session import SessionLocal
 from app.models import (Client, ClientCbu, ClientImport, ClientImportRechazo, ClientLegacyRef,
                         ClientPadron, ClientType, HumanClient, IMPORT_ERROR, IMPORT_INTERRUMPIDA,
                         IMPORT_PROCESANDO, IMPORT_TERMINADA)
+from app.services import auditoria_central as central
 from app.services.dbf import DbfReader
 
 log = logging.getLogger("clientes.padron")
@@ -143,6 +144,7 @@ def clave_persona(cuil: str, dni: str) -> tuple[str, str] | None:
 
 
 # --------------------------------------------------------------------------- archivo
+MAX_DBF = 1024 * 1024 * 1024
 def extraer_dbf(ruta: str) -> str:
     """Devuelve la ruta del .dbf: si subieron un ZIP, saca el primer .dbf al lado del archivo."""
     if not zipfile.is_zipfile(ruta):
@@ -152,11 +154,15 @@ def extraer_dbf(ruta: str) -> str:
         if not dbfs:
             raise ValueError("El ZIP no contiene ningún archivo .dbf")
         destino = os.path.join(os.path.dirname(ruta), os.path.basename(dbfs[0]))
+        escrito = 0
         with z.open(dbfs[0]) as src, open(destino, "wb") as dst:
             while True:
                 chunk = src.read(1024 * 1024)
                 if not chunk:
                     break
+                escrito += len(chunk)
+                if escrito > MAX_DBF:             # zip bomb: el padrón real pesa ~50 MB
+                    raise ValueError("El DBF descomprimido supera 1 GB.")
                 dst.write(chunk)
         return destino
 
@@ -202,13 +208,26 @@ def procesar(import_id: int, ruta: str, session_factory=None) -> None:
             imp.estado, imp.mensaje = IMPORT_ERROR, str(e)[:500]
             imp.terminado_en = datetime.now(timezone.utc)
             db.commit()
+            _auditar(imp)
             return
         imp.estado = IMPORT_TERMINADA
         imp.terminado_en = datetime.now(timezone.utc)
         db.commit()
+        _auditar(imp)
     finally:
         if propia:
             db.close()
+
+
+def _auditar(imp: ClientImport) -> None:
+    """El hilo corre fuera de la request: el listener de Auditoría no lo ve y miles de filas serían ruido.
+    Queda un evento con el resultado, a nombre de quien subió el archivo."""
+    central.registrar(
+        usuario_id=imp.usuario_id, operacion="ACCION", entidad="ClientImport", entidad_id=str(imp.id),
+        descripcion=f"Importación del padrón {imp.estado.lower()}: {imp.archivo}",
+        cambios={"creados": [None, imp.creados], "actualizados": [None, imp.actualizados],
+                 "rechazados": [None, imp.rechazados], "total": [None, imp.total]},
+        detalle=imp.mensaje or "", exito=imp.estado == IMPORT_TERMINADA)
 
 
 def _importar(db: Session, imp: Ctx, reader: DbfReader) -> None:

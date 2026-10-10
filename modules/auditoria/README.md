@@ -19,7 +19,18 @@ Los dos lados se cruzan por `request_id`: el gateway genera uno por operación y
 - un **middleware** que guarda quién está haciendo la request (usuario, IP, `request_id`);
 - un **listener de SQLAlchemy** que, en cada `flush`, anota las filas insertadas, modificadas y borradas.
 
-Sólo registra lo que ocurre dentro de una request HTTP: los ETL, seeds y migraciones no generan ruido.
+Registra lo que ocurre dentro de una request HTTP; los ETL, seeds y migraciones no generan ruido. Fuera
+de una request:
+- los procesos automáticos (cruce y pagos de Conciliación, ingesta de Liquidaciones) corren dentro de
+  `central.como_sistema("<proceso>")` y quedan a nombre de `sistema:<proceso>`;
+- las importaciones en segundo plano (padrón de Clientes, DBF de Despacho) dejan un evento con el
+  resultado, a nombre de quien subió el archivo.
+
+El listener sólo ve cambios hechos con el ORM: un `query(...).update()` / `.delete()` masivo no pasa por
+él. Donde el cambio importa, se recorre fila por fila.
+
+El portal ciudadano llega directo a Créditos (sin gateway): ahí no se confía en los headers `X-User-*`
+y el autor es `portal:<documento>` del token del ciudadano.
 Nunca frena ni voltea la operación del usuario (cola en memoria + hilo aparte); si Auditoría no
 responde, el evento se pierde y queda en el log del módulo.
 

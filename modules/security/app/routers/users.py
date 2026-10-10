@@ -17,6 +17,12 @@ from app.services.permissions_service import get_user_permissions
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+def _no_a_si_mismo(user_id: int, x_user_id: Optional[str]) -> None:
+    """Nadie se asigna roles ni grupos a sí mismo: un `security:users:write` se convertiría en admin."""
+    if x_user_id and x_user_id.isdigit() and int(x_user_id) == user_id:
+        raise HTTPException(status_code=403, detail="No podés modificar tus propios roles o grupos: pedíselo a otro administrador.")
+
+
 @router.get("", response_model=UserListResponse)
 def list_users(
     page: int = Query(1, ge=1),
@@ -48,12 +54,16 @@ def deactivate(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{user_id}/roles", response_model=UserResponse)
-def assign(user_id: int, data: AssignRolesRequest, db: Session = Depends(get_db)):
+def assign(user_id: int, data: AssignRolesRequest, db: Session = Depends(get_db),
+           x_user_id: Optional[str] = Header(None)):
+    _no_a_si_mismo(user_id, x_user_id)
     return assign_roles(db, user_id, data.role_ids)
 
 
 @router.post("/{user_id}/groups", response_model=UserResponse)
-def assign_groups(user_id: int, data: AssignGroupsRequest, db: Session = Depends(get_db)):
+def assign_groups(user_id: int, data: AssignGroupsRequest, db: Session = Depends(get_db),
+                  x_user_id: Optional[str] = Header(None)):
+    _no_a_si_mismo(user_id, x_user_id)
     return assign_user_groups(db, get_user(db, user_id), data.group_ids)
 
 

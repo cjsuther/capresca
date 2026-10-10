@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     permissions_cache_ttl: int = 60  # segundos
+    # Orígenes con CORS (separados por coma). Vacío: ninguno (el frontend es del mismo dominio).
+    cors_origins: str = ""
     # Los reportes de créditos (PDF/Excel sobre la base completa) pueden pasar los 30s.
     upstream_timeout: float = 120.0
 

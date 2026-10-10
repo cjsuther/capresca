@@ -9,7 +9,9 @@ from app.db.session import get_db
 from app.services.permissions_service import get_user_permissions, get_user_modules
 from app.services.auth_service import decode_token, is_token_blacklisted
 
-router = APIRouter(prefix="/internal", tags=["internal"])
+from app.clave_interna import exigir
+
+router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(exigir)])
 
 
 @router.get("/permissions/{user_id}")
@@ -20,6 +22,12 @@ def user_permissions(user_id: int, db: Session = Depends(get_db)):
 @router.get("/modules/{user_id}")
 def user_modules(user_id: int, db: Session = Depends(get_db)):
     return {"modules": get_user_modules(db, user_id)}
+
+
+@router.get("/tokens/{jti}/revocado")
+def token_revocado(jti: str, db: Session = Depends(get_db)):
+    """El gateway lo consulta para cortar las sesiones cerradas con logout."""
+    return {"revocado": is_token_blacklisted(db, jti)}
 
 
 @router.get("/validate-token")

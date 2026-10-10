@@ -80,7 +80,10 @@ def aprobar_paso(db: Session, objeto: str, objeto_id: str, user: models.Usuario,
 
 def limpiar_aprobaciones(db: Session, objeto: str, objeto_id: str) -> None:
     """Descarta las aprobaciones de un objeto (al rechazar/reenviar reinicia la cadena)."""
-    db.query(m.PPWorkflowAprobacion).filter_by(objeto=objeto, objeto_id=objeto_id).delete()
+    # Fila por fila (no un DELETE masivo) para que Auditoría registre qué aprobaciones se descartaron.
+    for a in db.query(m.PPWorkflowAprobacion).filter_by(objeto=objeto, objeto_id=objeto_id).all():
+        db.delete(a)
+    db.flush()   # antes que cualquier alta del mismo nivel (la unidad de trabajo inserta antes de borrar)
 
 
 def puede_aprobar(db: Session, objeto: str, user: models.Usuario,

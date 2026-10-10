@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.gateway import identidad
 from app.core.security import decode_token
+from app.services import auditoria_central as central
 from app import models
 
 # Perfil con el que se crea el Usuario local de un usuario de Portezuelo (el perfil ya no autoriza nada).
@@ -92,6 +93,11 @@ def get_ciudadano(request: Request) -> Ciudadano:
         raise cred_exc
     if payload.get("scope") != "portal":
         raise cred_exc
+    # El portal no pasa por el gateway: en Auditoría, el autor es el ciudadano del token (nunca los
+    # headers X-User-*/X-Username, que en esta ruta los podría mandar el propio cliente).
+    ctx = central.contexto()
+    if ctx is not None:
+        ctx.update(usuario=f"portal:{payload.get('documento') or payload.get('sub', '')}"[:60], usuario_id=None)
     return Ciudadano(sub=payload.get("sub", ""), email=payload.get("email", ""),
                      nombre=payload.get("nombre", ""), documento=payload.get("documento", ""))
 

@@ -34,6 +34,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 "JWT_SECRET no configurado: en producción debe setearse un secreto propio por entorno "
                 "(el default del código permitiría forjar tokens). Configurá la variable JWT_SECRET.")
+        # Uno vacío o corto (variable sin definir en el compose) también permite forjar tokens del portal.
+        if self.environment.lower() not in ("development", "dev", "test", "testing") \
+                and len(self.jwt_secret) < 32:
+            raise ValueError("JWT_SECRET demasiado corto: fuera de development debe tener al menos 32 caracteres.")
         return self
 
     # Padrón de clientes: vive en el módulo Clientes de Portezuelo. Créditos NO tiene maestro propio;

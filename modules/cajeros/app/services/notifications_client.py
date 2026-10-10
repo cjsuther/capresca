@@ -1,4 +1,6 @@
 import httpx
+
+from app import clave_interna
 from app.config import settings
 
 
@@ -10,7 +12,7 @@ class NotificationsClient:
                      module: str, entity_type: str, entity_id: int,
                      redirect_path: str) -> None:
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(headers=clave_interna.headers()) as client:
                 await client.post(
                     f"{self.base_url}/internal/notifications",
                     json={
@@ -32,7 +34,7 @@ class NotificationsClient:
 
     async def notify_many(self, notifications: list[dict]) -> None:
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(headers=clave_interna.headers()) as client:
                 await client.post(
                     f"{self.base_url}/internal/notifications",
                     json={"notifications": notifications},

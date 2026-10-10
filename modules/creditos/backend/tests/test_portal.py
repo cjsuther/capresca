@@ -233,15 +233,15 @@ def test_enviar_exige_identidad_declarada(client):
         assert r.status_code == 422 and "CUIL" in r.text, r.text
     # completo → 201, con la identidad declarada, el CUIL normalizado y el DNI que sale de él
     r = client.post("/api/creditos/portal/solicitudes", headers={**h, "Idempotency-Key": "idc-1"},
-                    json={**base, "apellido": "GOMEZ", "nombre": "ANA", "cuil": "27-27345678-9"})
+                    json={**base, "apellido": "GOMEZ", "nombre": "ANA", "cuil": "20-30123456-3"})
     assert r.status_code == 201, r.text
     numero = r.json()["numero"]
     tok = client.post("/api/creditos/auth/login", data={"username": "admin", "password": "admin123"}).json()["access_token"]
     s = next(x for x in client.get("/api/creditos/solicitudes", headers={"Authorization": f"Bearer {tok}"}).json()["items"]
              if x["numero"] == numero)
     assert s["clienteDatos"]["apellido_nombre"] == "GOMEZ, ANA"
-    assert (s["clienteDatos"]["cuil"], s["clienteDatos"]["dni"]) == ("27273456789", "27345678")
-    assert s["clienteCuil"] == "27273456789"
+    assert (s["clienteDatos"]["cuil"], s["clienteDatos"]["dni"]) == ("20301234563", "30123456")
+    assert s["clienteCuil"] == "20301234563"
 
 
 def test_ciudadano_envia_solicitud_cae_en_inbox(client):
@@ -1428,3 +1428,35 @@ def test_en_su_dominio_propio_los_videos_salen_de_la_raiz(client, monkeypatch):
     h = _ingresar(client)
     vs = client.get("/api/creditos/portal/videos", headers=h).json()
     assert vs[0]["url"] == "/videos/video1.mp4"
+
+
+# ── Endurecimiento (revisión de seguridad 2026-10) ─────────────────────────────────────────────────
+def test_no_se_puede_pedir_a_nombre_de_otro(client):
+    """Mi Catamarca informó el documento 30123456: un CUIL de otra persona se rechaza."""
+    h = _ingresar(client)
+    p = _un_producto(client, h)
+    r = client.post("/api/creditos/portal/solicitudes", headers=h, json={
+        "cbu": "2850590940090418135201", "acepta_terminos": True, "acepta_datos": True,
+        "producto_id": p["id"], "monto": 500000.0, "plazo": 12, "videos_vistos": VIDEOS,
+        "fecha_nacimiento": NACIMIENTO_40, "email": "ana@example.com", "telefono": "3834765432",
+        "apellido": "GOMEZ", "nombre": "ANA", "cuil": "27-27345678-9"})
+    assert r.status_code == 422 and "no corresponde" in r.text
+
+
+def test_el_callback_desde_otro_navegador_no_inicia_sesion(client):
+    """Login CSRF: el link del callback de otra persona no sirve sin la cookie de quien empezó el ingreso."""
+    state = client.get("/api/creditos/portal/auth/login").json()["authorize_url"].split("state=")[1]
+    client.cookies.clear()                       # otro navegador
+    cb = client.get("/api/creditos/portal/auth/callback",
+                    params={"code": "mock-code", "state": state}, follow_redirects=False)
+    assert cb.status_code in (302, 307)
+    assert "#error=sso" in cb.headers["location"] and "token=" not in cb.headers["location"]
+
+
+def test_un_archivo_que_no_es_lo_que_dice_se_rechaza(client):
+    h = _ingresar(client)
+    numero = _crear_sol(client, h)
+    r = client.post(f"/api/creditos/portal/solicitudes/{numero}/documentos", headers=h,
+                    files={"archivo": ("dni.png", b"<html><script>x</script></html>", "image/png")},
+                    data={"tipo": "DNI_FRENTE"})
+    assert r.status_code == 422 and "no es la imagen" in r.text

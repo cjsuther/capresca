@@ -1,10 +1,12 @@
 import httpx
+
+from app import clave_interna
 from app.config import settings
 
 
 def get_registered_agency_numbers() -> set[str]:
     """Fetch all registered agency numbers from the clientes module."""
-    with httpx.Client() as client:
+    with httpx.Client(headers=clave_interna.headers()) as client:
         response = client.get(
             f"{settings.clientes_service_url}/internal/clientes/agencies",
             timeout=15.0,

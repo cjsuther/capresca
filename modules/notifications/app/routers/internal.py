@@ -4,7 +4,9 @@ from app.db.session import get_db
 from app.schemas.notification import BulkNotificationCreate
 from app.services import notification_service
 
-router = APIRouter(tags=["internal"])
+from app.clave_interna import exigir
+
+router = APIRouter(tags=["internal"], dependencies=[Depends(exigir)])
 
 
 @router.post("/internal/notifications", status_code=201)

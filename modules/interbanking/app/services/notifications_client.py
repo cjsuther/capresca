@@ -2,6 +2,8 @@ import logging
 
 import httpx
 
+from app import clave_interna
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -21,7 +23,7 @@ class NotificationsClient:
                entity_type: str | None = None, entity_id: int | None = None,
                redirect_path: str | None = None) -> None:
         try:
-            with httpx.Client() as client:
+            with httpx.Client(headers=clave_interna.headers()) as client:
                 client.post(
                     f"{self.base_url}/internal/notifications",
                     json={

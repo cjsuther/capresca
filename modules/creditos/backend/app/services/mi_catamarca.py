@@ -85,7 +85,8 @@ class MiCatamarcaProvider:
         # Un login empezado con la versión anterior (o sin PKCE) no tiene verifier: no se manda uno vacío.
         if self.s.micatamarca_pkce and desafio.code_verifier:
             datos["code_verifier"] = desafio.code_verifier
-        with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as c:
+        # Sin seguir redirecciones: un 307/308 reenviaría el client_secret a otro host.
+        with httpx.Client(timeout=TIMEOUT, follow_redirects=False) as c:
             tok = c.post(self.s.mc_token_url, data=datos, headers={"Accept": "application/json"})
             tok.raise_for_status()
             cuerpo = tok.json()
@@ -114,6 +115,9 @@ class MiCatamarcaProvider:
         exigidos = ["exp", "iat", "iss", "aud"]
         cabecera = jwt.get_unverified_header(id_token)
         alg = cabecera.get("alg", "RS256")
+        # El algoritmo viene en la cabecera, que todavía no está verificada: sólo se aceptan estos.
+        if alg not in ("RS256", "HS256"):
+            raise ValueError(f"El ID Token usa un algoritmo no admitido ({alg})")
         try:
             if alg.startswith("HS"):
                 claims = jwt.decode(id_token, self.s.micatamarca_client_secret, algorithms=[alg],
@@ -208,7 +212,10 @@ def get_provider():
     s = get_settings()
     if s.micatamarca_configurado:
         return MiCatamarcaProvider(s)
+    from fastapi import HTTPException
+    if s.environment.lower() in ("production", "prod"):
+        # En producción nunca el mock, aunque quede PORTAL_MOCK_SSO=true copiado de otro entorno.
+        raise HTTPException(503, "El portal no tiene configurado el ingreso con Mi Catamarca.")
     if s.environment.lower() in ("development", "dev", "test", "testing") or s.portal_mock_sso:
         return MockMiCatamarca(s)
-    from fastapi import HTTPException
     raise HTTPException(503, "El portal no tiene configurado el ingreso con Mi Catamarca.")

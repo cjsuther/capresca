@@ -91,6 +91,8 @@ services:
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       # Auditoría central: el gateway registra toda operación que modifica datos.
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
       - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
@@ -126,6 +128,8 @@ services:
       - JWT_EXPIRE_HOURS=8
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
     depends_on:
       db_security:
         condition: service_healthy
@@ -162,6 +166,8 @@ services:
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
     depends_on:
       db_cajeros:
         condition: service_healthy
@@ -199,6 +205,8 @@ services:
       - LEGACY_INTERNAL_API_KEY=${LEGACY_INTERNAL_API_KEY}
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
       - PADRON_IMPORT_DIR=/data/padron
     volumes:
       # Padrón subido por la web: queda en disco para poder reprocesarlo si el módulo se reinicia.
@@ -244,6 +252,8 @@ services:
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
     depends_on:
       db_interbanking:
         condition: service_healthy
@@ -279,6 +289,8 @@ services:
       - DATABASE_URL=postgresql://notif_user:notif_pass@db_notifications:5432/notifications_db
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
     depends_on:
       db_notifications:
         condition: service_healthy
@@ -319,6 +331,8 @@ services:
       - NOTIFICATIONS_SERVICE_URL=http://notifications:8005
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
       # Pagos salientes automáticos. Arrancan seguros: apagados y en simulación.
       # Poné AUTO_PAYMENTS_ENABLED=true y PAYMENTS_DRY_RUN=false para pagar de verdad.
       - AUTO_PAYMENTS_ENABLED=${CONCILIACION_AUTO_PAYMENTS_ENABLED:-false}
@@ -370,6 +384,8 @@ services:
       - INBOX_CRON_HOUR=${LIQUIDACIONES_INBOX_CRON_HOUR:-7}
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
     volumes:
       - ./externalfiles:/data/externalfiles:ro
       # Carpeta de entrada del archivo diario de liquidación. Apuntar
@@ -417,6 +433,8 @@ services:
       - SANDBOX_WRITE_ROOT=/data/agjs_sandbox
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
     volumes:
       # Montaje SMB/CIFS del share legacy hecho en el HOST, bind-mount read-only.
       # Ajustar la ruta del host (${LEGACY_SHARE_HOST_PATH}) al punto de montaje real.
@@ -611,6 +629,8 @@ services:
       - DATABASE_URL=postgresql://${TESORERIA_DB_USER}:${TESORERIA_DB_PASS}@db_tesoreria:5432/${TESORERIA_DB_NAME}
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
       - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
       - CONTABILIDAD_INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
       # Autentica a los módulos que le mandan lotes y a los avisos de resultado que Tesorería les devuelve.
@@ -655,17 +675,19 @@ services:
       context: ./modules/creditos/backend
       dockerfile: Dockerfile
     environment:
-      - ENVIRONMENT=production
+      - ENVIRONMENT=${CREDITOS_ENVIRONMENT:-production}
       - DATABASE_URL=postgresql+psycopg://${CREDITOS_DB_USER}:${CREDITOS_DB_PASS}@db_creditos:5432/${CREDITOS_DB_NAME}
       - AUDITORIA_SERVICE_URL=http://auditoria:8013
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
+      # Llamadas entre módulos a /internal/* (header X-Internal-Key).
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
       - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
       - CONTABILIDAD_INTERNAL_API_KEY=${CONTABILIDAD_INTERNAL_API_KEY}
       # Anexo de resolución: la clave con la que Despacho consulta y asigna las solicitudes.
       - DESPACHO_INTERNAL_API_KEY=${DESPACHO_INTERNAL_API_KEY:-}
       # Firma SOLO los tokens del portal ciudadano (realm propio). Debe ser distinto de JWT_SECRET:
       # los usuarios del backoffice los autentica el gateway de Portezuelo.
-      - JWT_SECRET=${CREDITOS_PORTAL_JWT_SECRET}
+      - JWT_SECRET=${CREDITOS_PORTAL_JWT_SECRET:?Falta CREDITOS_PORTAL_JWT_SECRET en .env}
       # SSO Mi Catamarca del portal. Sin credenciales, el login del portal responde 503 salvo que se
       # habilite el proveedor MOCK (sólo demo/QA: deja entrar a cualquiera como un ciudadano de prueba).
       - MICATAMARCA_CLIENT_ID=${MICATAMARCA_CLIENT_ID:-}

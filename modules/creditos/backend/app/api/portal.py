@@ -10,9 +10,11 @@ Superficie PÚBLICA y separada del backoffice:
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, UploadFile, File, Form
@@ -72,39 +74,65 @@ def _destino_norm(v: str) -> str:
 # H-158: anti-replay del state OIDC. El state va firmado (CSRF stateless) pero además el `nonce` se guarda
 # al emitirlo y se CONSUME (borra) en el callback: un state válido no expirado no puede reusarse (one-time).
 # Se usa el store genérico de claves vistas (pp_idempotencia), cuya PK es árbitro de la unicidad.
-def _reservar_nonce(db: Session, nonce: str, desafio: Desafio) -> None:
+# El state se ata además al navegador que empezó el ingreso (cookie httpOnly): sin esto, alguien podría
+# completar un login con SU cuenta y mandarle a otro el link del callback, que quedaría operando en la
+# cuenta del atacante (login CSRF) y le cargaría ahí sus datos y documentos.
+COOKIE_LOGIN = "portal_login"
+ESTADOS_VIGENTES = timedelta(minutes=30)
+
+
+def _huella(valor: str) -> str:
+    return hashlib.sha256(valor.encode()).hexdigest()
+
+
+def _reservar_nonce(db: Session, nonce: str, desafio: Desafio, vinculo: str = "") -> None:
     """Guarda el intento de login: el nonce (que es de un solo uso) y, con él, el nonce OIDC y el
     code_verifier de PKCE, que el callback necesita y que NUNCA viajan al navegador."""
     from app import models_productos as mp
+    # Los ingresos abandonados no se consumen nunca: se purgan para que no crezca la tabla.
+    limite = datetime.now(timezone.utc).replace(tzinfo=None) - ESTADOS_VIGENTES
+    db.query(mp.PPIdempotencia).filter(mp.PPIdempotencia.endpoint == "oidc-state",
+                                       mp.PPIdempotencia.creado_en < limite).delete()
     try:
         db.add(mp.PPIdempotencia(clave=f"oidc-state:{nonce}", endpoint="oidc-state", usuario="portal",
                                  respuesta={"nonce": desafio.nonce,
-                                            "code_verifier": desafio.code_verifier}))
+                                            "code_verifier": desafio.code_verifier,
+                                            "vinculo": _huella(vinculo) if vinculo else ""}))
         db.commit()
     except Exception:
         db.rollback()   # colisión de nonce (imposible en la práctica): que el callback lo rechace
 
 
-def _consumir_nonce(db: Session, nonce: str) -> Desafio | None:
-    """El desafío guardado si el nonce estaba pendiente (se consume); None si ya fue usado o es
-    desconocido (replay)."""
+def _consumir_nonce(db: Session, nonce: str) -> tuple[Desafio, str] | None:
+    """El desafío guardado (y la huella del navegador que lo pidió) si el nonce estaba pendiente (se
+    consume); None si ya fue usado o es desconocido (replay)."""
     from app import models_productos as mp
     rec = db.get(mp.PPIdempotencia, f"oidc-state:{nonce}")
     if rec is None:
         return None
     guardado = rec.respuesta or {}
     db.delete(rec); db.commit()
-    return Desafio(nonce=guardado.get("nonce", ""), code_verifier=guardado.get("code_verifier", ""))
+    return (Desafio(nonce=guardado.get("nonce", ""), code_verifier=guardado.get("code_verifier", "")),
+            guardado.get("vinculo", ""))
+
+
+def _es_https(request: Request) -> bool:
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
 
 
 @router.get("/auth/login")
-def login(db: Session = Depends(get_db)):
+def login(request: Request, response: Response, db: Session = Depends(get_db)):
     """Devuelve la URL de autorización de Mi Catamarca (el SPA redirige ahí)."""
     prov = get_provider()
     nonce = uuid.uuid4().hex
     desafio = Desafio()
-    _reservar_nonce(db, nonce, desafio)
+    vinculo = uuid.uuid4().hex
+    _reservar_nonce(db, nonce, desafio, vinculo)
     state = create_state_token(nonce)
+    # Lax: viaja en la vuelta de Mi Catamarca (navegación GET de primer nivel) y en nada más.
+    response.set_cookie(COOKIE_LOGIN, vinculo, max_age=int(ESTADOS_VIGENTES.total_seconds()),
+                        httponly=True, samesite="lax", secure=_es_https(request),
+                        path="/api/creditos/portal/auth")
     return {"authorize_url": prov.authorize_url(state, desafio), "mock": prov.mock}
 
 
@@ -136,9 +164,14 @@ def callback(request: Request, db: Session = Depends(get_db), code: str = "", st
     if st.get("scope") != "oidc-state":
         raise HTTPException(400, "state inválido")
     # H-158: one-time. Consumir el nonce; si ya se usó (o es desconocido), es un replay → rechazar.
-    desafio = _consumir_nonce(db, st.get("nonce") or "")
-    if desafio is None:
+    consumido = _consumir_nonce(db, st.get("nonce") or "")
+    if consumido is None:
         raise HTTPException(400, "state ya utilizado o desconocido")
+    desafio, vinculo = consumido
+    cookie = request.cookies.get(COOKIE_LOGIN, "")
+    if vinculo and not (cookie and hmac.compare_digest(_huella(cookie), vinculo)):
+        log.warning("Callback de Mi Catamarca desde un navegador que no inició el ingreso")
+        return RedirectResponse(f"{s_cfg.portal_web_url}/ingreso#error=sso")
 
     try:
         ident = get_provider().identidad_desde_code(code, desafio)
@@ -159,7 +192,9 @@ def callback(request: Request, db: Session = Depends(get_db), code: str = "", st
                            detalle="Ingreso al portal vía Mi Catamarca")
     # Token en el fragmento (#): no viaja al servidor ni queda en logs de query.
     s = get_settings()
-    return RedirectResponse(f"{s.portal_web_url}/ingreso#token={token}")
+    resp = RedirectResponse(f"{s.portal_web_url}/ingreso#token={token}")
+    resp.delete_cookie(COOKIE_LOGIN, path="/api/creditos/portal/auth")
+    return resp
 
 
 def omitir_videos(db: Session) -> bool:
@@ -198,7 +233,7 @@ def requisitos_producto(producto_id: str, db: Session = Depends(get_db), c: Ciud
     a adjuntar. Las dos listas vacías = el portal saltea el paso."""
     prod = db.get(m.PPProducto, producto_id)
     v = _version_publicada_vigente(prod) if prod else None
-    if v is None:
+    if v is None or not _ofrecible_web(db, v):      # mismo criterio que el envío (H-185)
         raise HTTPException(404, "Producto no encontrado")
     return {"campos": requisitos.campos(v), "documentos": requisitos.documentos_de(db, v)}
 
@@ -269,6 +304,8 @@ def simular(req: schemas.PortalSimularIn, db: Session = Depends(get_db),
     v = _version_publicada_vigente(prod)
     if v is None:
         raise HTTPException(409, "El producto no está publicado ni vigente para simular.")
+    if not _ofrecible_web(db, v):
+        raise HTTPException(422, "El producto no está disponible por el canal web.")
     if not (float(v.monto_minimo) <= req.monto <= float(v.monto_maximo)):
         raise HTTPException(422, f"Monto fuera de rango ({float(v.monto_minimo):.0f}–{float(v.monto_maximo):.0f}).")
     if not (v.plazo_minimo <= req.plazo <= v.plazo_maximo):
@@ -447,8 +484,17 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
     if not valida_cuil(cuil):
         raise HTTPException(422, "El CUIL no es válido: revisá los números.")
     dni = str(int(cuil[2:10]))
-    # Después de un rechazo hay que esperar (parámetro PORTAL_ESPERA_RECHAZO_DIAS).
-    rechazo = espera_rechazo.bloqueo(db, _marca(c), cuil)
+    # Si Mi Catamarca informa el documento, el CUIL declarado tiene que ser de esa persona: si no,
+    # cualquiera podría pedir un crédito a nombre de otro (con su propio CBU) y vincularlo a su ficha.
+    doc_sso = "".join(ch for ch in (c.documento or "") if ch.isdigit())
+    if len(doc_sso) == 11:
+        doc_sso = doc_sso[2:10]
+    identidad_verificada = bool(doc_sso) and str(int(doc_sso)) == dni
+    if doc_sso and not identidad_verificada:
+        raise HTTPException(422, "El CUIL no corresponde al documento con el que ingresaste con Mi Catamarca.")
+    # Después de un rechazo hay que esperar (parámetro PORTAL_ESPERA_RECHAZO_DIAS). Por CUIL sólo si está
+    # verificado: si no, el aviso revelaría rechazos de otra persona.
+    rechazo = espera_rechazo.bloqueo(db, _marca(c), cuil if identidad_verificada else "")
     if rechazo:
         raise HTTPException(409, espera_rechazo.mensaje(rechazo))
     apellido_nombre = f"{apellido}, {nombre}"
@@ -498,6 +544,8 @@ def enviar_solicitud(req: schemas.PortalSolicitudIn, request: Request,
             antiguedad_meses=req.antiguedad_meses,
             origen="PORTAL", relacion="ESTANDAR",
             datos_adicionales={"portal_sub": c.sub, "portal_email": c.email,
+                               # False: Mi Catamarca no informó el documento y el CUIL es sólo declarado.
+                               "identidad_verificada": identidad_verificada,
                                "email": email, "telefono": telefono,
                                "cuota_estimada": cuota_est, "tna": tna_est,
                                "sueldo_declarado": req.sueldo, "haberes_fuente": req.haberes_fuente,
@@ -639,7 +687,7 @@ async def subir_documento(numero: str, request: Request, tipo: str = Form("OTRO"
         raise HTTPException(409, f"Ya adjuntaste «{pedidos[tipo]}» en esta solicitud.")
     contenido = await archivo.read()
     try:
-        documentos.validar(archivo.content_type, len(contenido))
+        documentos.validar(archivo.content_type, len(contenido), contenido)
     except ValueError as e:
         raise HTTPException(422, str(e))
     if reemplaza:

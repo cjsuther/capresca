@@ -2,6 +2,8 @@ from decimal import Decimal
 from collections import defaultdict
 
 import httpx
+
+from app import clave_interna
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -52,7 +54,7 @@ def send_to_conciliacion(db: Session, batch: LiquidacionBatch):
         "agencies": agencies,
     }
 
-    with httpx.Client() as client:
+    with httpx.Client(headers=clave_interna.headers()) as client:
         response = client.post(
             f"{settings.conciliacion_service_url}/internal/conciliacion/liquidaciones",
             json=payload,
