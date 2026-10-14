@@ -12,6 +12,8 @@ class ModeloIn(BaseModel):
     codigo: int | None = None           # se autoasigna (MAX+1) si no viene
     es_seguros: bool | None = False
     plantilla: str | None = ""
+    sector: str | None = None
+    actividad: str | None = None
     activo: bool | None = None
 
 
@@ -25,6 +27,8 @@ class ModeloOut(BaseModel):
     es_seguros: bool
     plantilla: str
     tiene_plantilla: bool
+    sector: str
+    actividad: str
     activo: bool
 
     model_config = {"from_attributes": True}
@@ -56,6 +60,8 @@ class ResolucionIn(BaseModel):
     origen: str | None = None
     nro_op: int | None = None
     texto: str | None = None
+    sector: str | None = None           # si no viene, el del modelo
+    actividad: str | None = None
     beneficiarios: list[BeneficiarioIn] | None = None
 
 
@@ -68,6 +74,8 @@ class ResolucionUpdate(BaseModel):
     origen: str | None = None
     nro_op: int | None = None
     texto: str | None = None
+    sector: str | None = None           # si no viene, el del modelo
+    actividad: str | None = None
     beneficiarios: list[BeneficiarioIn] | None = None
 
 
@@ -84,6 +92,11 @@ class OficialIn(BaseModel):
 
 class AnulacionIn(BaseModel):
     motivo: str
+
+
+class ActivacionIn(BaseModel):
+    """Activar o inactivar un modelo o un acto (inactivo: sale de los listados, no se borra)."""
+    activo: bool
 
 
 class ResolucionOut(BaseModel):
@@ -104,6 +117,9 @@ class ResolucionOut(BaseModel):
     modelo_id: int | None
     origen: str
     nro_op: int | None
+    sector: str
+    actividad: str
+    activa: bool
     estado: str
     anulada: bool
     motivo_anulacion: str

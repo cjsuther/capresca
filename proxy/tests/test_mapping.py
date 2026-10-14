@@ -239,3 +239,19 @@ def test_rutas_nuevas_de_contabilidad(metodo, ruta, permiso):
 def test_numeracion_de_despacho(metodo, ruta, permiso):
     assert get_service_url(metodo, ruta) == settings.despacho_service_url
     assert get_required_permission(metodo, ruta) == permiso
+
+
+@pytest.mark.parametrize("metodo,ruta,permiso", [
+    ("PUT", "/api/despacho/resoluciones/5/oficial", "despacho:resoluciones:firmar"),
+    ("POST", "/api/despacho/lotes/asignar", "despacho:resoluciones:write"),
+    ("POST", "/api/despacho/lotes/3/quitar-resolucion", "despacho:resoluciones:write"),
+    ("DELETE", "/api/despacho/resoluciones/5", "despacho:resoluciones:firmar"),
+    ("POST", "/api/despacho/resoluciones/5/activa", "despacho:resoluciones:write"),
+    ("DELETE", "/api/despacho/modelos/2", "despacho:modelos:write"),
+    ("POST", "/api/despacho/modelos/2/activo", "despacho:modelos:write"),
+    ("GET", "/api/despacho/clasificacion", "despacho:resoluciones:read"),
+])
+def test_rutas_de_escritura_de_despacho(metodo, ruta, permiso):
+    """Cada acción de la pantalla tiene su ruta en el gateway: sin ella, responde 404."""
+    assert get_service_url(metodo, ruta) == settings.despacho_service_url
+    assert get_required_permission(metodo, ruta) == permiso

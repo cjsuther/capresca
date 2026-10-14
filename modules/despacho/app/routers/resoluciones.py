@@ -36,13 +36,20 @@ def fijar_numeracion(anio: int, serie: int, datos: schemas.NumeracionIn, db: Ses
     return svc.fijar_numeracion(db, anio, serie, datos.desde_numero, datos.desde_oficial, u.username)
 
 
+@router.get("/clasificacion")
+def clasificacion(db: Session = Depends(get_db), _u: Usuario = Depends(usuario_actual)):
+    """Sectores y actividades ya cargados: sugerencias para el alta y opciones de los filtros."""
+    return svc.clasificacion(db)
+
+
 # --------------------------------------------------------------------------- modelos
 @router.get("/modelos", response_model=list[schemas.ModeloOut])
 def listar_modelos(tipo: str | None = None, buscar: str | None = None, serie: int | None = None,
+                   sector: str | None = None, actividad: str | None = None,
                    incluir_inactivos: bool = False, db: Session = Depends(get_db),
                    _u: Usuario = Depends(usuario_actual)):
-    return svc_modelos.listar(db, tipo=tipo, buscar=buscar, serie=serie,
-                              incluir_inactivos=incluir_inactivos)
+    return svc_modelos.listar(db, tipo=tipo, buscar=buscar, serie=serie, sector=sector,
+                              actividad=actividad, incluir_inactivos=incluir_inactivos)
 
 
 @router.get("/modelos/{modelo_id}", response_model=schemas.ModeloOut)
@@ -62,13 +69,28 @@ def editar_modelo(modelo_id: int, datos: schemas.ModeloIn, db: Session = Depends
     return svc_modelos.editar(db, modelo_id, datos)
 
 
+@router.post("/modelos/{modelo_id}/activo", response_model=schemas.ModeloOut)
+def activar_modelo(modelo_id: int, datos: schemas.ActivacionIn, db: Session = Depends(get_db),
+                   _u: Usuario = Depends(requiere("modelos:write"))):
+    return svc_modelos.activar(db, modelo_id, datos.activo)
+
+
+@router.delete("/modelos/{modelo_id}", status_code=204)
+def eliminar_modelo(modelo_id: int, db: Session = Depends(get_db),
+                    _u: Usuario = Depends(requiere("modelos:write"))):
+    svc_modelos.eliminar(db, modelo_id)
+    return Response(status_code=204)
+
+
 # --------------------------------------------------------------------------- resoluciones
 @router.get("/resoluciones", response_model=schemas.PaginaResoluciones)
 def listar(tipo: str | None = None, anio: int | None = None, estado: str | None = None,
-           buscar: str | None = None, serie: int | None = None, pagina: int = Query(1, ge=1),
+           buscar: str | None = None, serie: int | None = None, sector: str | None = None,
+           actividad: str | None = None, incluir_inactivas: bool = False, pagina: int = Query(1, ge=1),
            por_pagina: int = Query(20, ge=1, le=100),
            db: Session = Depends(get_db), _u: Usuario = Depends(usuario_actual)):
     items, total = svc.listar(db, tipo=tipo, anio=anio, estado=estado, buscar=buscar, serie=serie,
+                              sector=sector, actividad=actividad, incluir_inactivas=incluir_inactivas,
                               pagina=pagina, por_pagina=por_pagina)
     return {"items": items, "total": total, "pagina": pagina, "por_pagina": por_pagina}
 
@@ -114,6 +136,21 @@ def corregir_oficial(resolucion_id: int, datos: schemas.OficialIn, db: Session =
 def anular(resolucion_id: int, datos: schemas.AnulacionIn, db: Session = Depends(get_db),
            _u: Usuario = Depends(requiere("resoluciones:firmar"))):
     return svc.anular(db, resolucion_id, datos.motivo)
+
+
+@router.post("/resoluciones/{resolucion_id}/activa", response_model=schemas.ResolucionDetalle)
+def activar(resolucion_id: int, datos: schemas.ActivacionIn, db: Session = Depends(get_db),
+            _u: Usuario = Depends(requiere("resoluciones:write"))):
+    """Inactivar saca el acto de los listados sin borrarlo; reactivarlo lo vuelve a habilitar."""
+    return svc.activar(db, resolucion_id, datos.activo)
+
+
+@router.delete("/resoluciones/{resolucion_id}", status_code=204)
+def eliminar(resolucion_id: int, db: Session = Depends(get_db),
+             _u: Usuario = Depends(requiere("resoluciones:firmar"))):
+    """Borra el acto con sus beneficiarios (no si otorga lotes de créditos)."""
+    svc.eliminar(db, resolucion_id)
+    return Response(status_code=204)
 
 
 @router.get("/resoluciones/{resolucion_id}/word")

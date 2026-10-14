@@ -44,3 +44,44 @@ def test_editar_modelos_pide_su_permiso(client, solo_lectura, h, modelo):
     r = client.put(f"/api/despacho/modelos/{m['id']}", headers=solo_lectura,
                    json={"descripcion": "x", "tipo": "RES"})
     assert r.status_code == 403 and "modelos:write" in r.json()["detail"]
+
+
+# --------------------------------------------------------------------------- sector, actividad, baja
+def test_el_modelo_lleva_sector_y_actividad(client, h):
+    r = client.post("/api/despacho/modelos", headers=h,
+                    json={"descripcion": "OTORGAMIENTO", "tipo": "RES", "sector": "Créditos",
+                          "actividad": "Préstamos personales"})
+    assert r.status_code == 201
+    assert (r.json()["sector"], r.json()["actividad"]) == ("Créditos", "Préstamos personales")
+    e = client.put(f"/api/despacho/modelos/{r.json()['id']}", headers=h,
+                   json={"descripcion": "OTORGAMIENTO", "tipo": "RES", "sector": "Seguros"})
+    assert (e.json()["sector"], e.json()["actividad"]) == ("Seguros", "Préstamos personales")
+    assert len(client.get("/api/despacho/modelos?sector=Seguros", headers=h).json()) == 1
+    assert client.get("/api/despacho/modelos?sector=Créditos", headers=h).json() == []
+
+
+def test_el_modelo_se_inactiva_y_se_reactiva(client, h, modelo):
+    m = modelo()
+    r = client.post(f"/api/despacho/modelos/{m['id']}/activo", headers=h, json={"activo": False})
+    assert r.status_code == 200 and r.json()["activo"] is False
+    # Inactivo no se usa para redactar.
+    no = client.post("/api/despacho/resoluciones", headers=h, json={"tipo": "RES", "modelo_id": m["id"]})
+    assert no.status_code == 422 and "inactivo" in no.json()["detail"]
+    assert client.post(f"/api/despacho/modelos/{m['id']}/activo", headers=h,
+                       json={"activo": True}).json()["activo"] is True
+
+
+def test_eliminar_un_modelo_no_toca_los_actos_que_lo_usaron(client, h, modelo, resolucion):
+    m = modelo(descripcion="TRANSFERENCIA")
+    r = resolucion(modelo_id=m["id"])
+    assert client.delete(f"/api/despacho/modelos/{m['id']}", headers=h).status_code == 204
+    assert client.get(f"/api/despacho/modelos/{m['id']}", headers=h).status_code == 404
+    d = client.get(f"/api/despacho/resoluciones/{r['id']}", headers=h).json()
+    assert d["modelo_id"] is None and d["motivo"] == "TRANSFERENCIA"
+
+
+def test_eliminar_y_desactivar_modelos_pide_su_permiso(client, solo_lectura, modelo):
+    m = modelo()
+    assert client.delete(f"/api/despacho/modelos/{m['id']}", headers=solo_lectura).status_code == 403
+    assert client.post(f"/api/despacho/modelos/{m['id']}/activo", headers=solo_lectura,
+                       json={"activo": False}).status_code == 403

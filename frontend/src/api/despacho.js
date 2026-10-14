@@ -14,6 +14,16 @@ export const crearModelo = (data) =>
 export const editarModelo = (id, data) =>
   api.put(`/despacho/modelos/${id}`, data).then((r) => r.data);
 
+export const activarModelo = (id, activo) =>
+  api.post(`/despacho/modelos/${id}/activo`, { activo }).then((r) => r.data);
+
+export const eliminarModelo = (id) =>
+  api.delete(`/despacho/modelos/${id}`).then((r) => r.data);
+
+// Sectores y actividades ya cargados: sugerencias del alta y opciones de los filtros.
+export const getClasificacion = () =>
+  api.get("/despacho/clasificacion").then((r) => r.data);
+
 // ── Resoluciones y disposiciones ──
 export const getResoluciones = (params = {}) =>
   api.get("/despacho/resoluciones", { params }).then((r) => r.data);
@@ -40,6 +50,13 @@ export const corregirOficial = (id, data) =>
 
 export const anularResolucion = (id, motivo) =>
   api.post(`/despacho/resoluciones/${id}/anular`, { motivo }).then((r) => r.data);
+
+// Inactivar saca el acto de los listados sin borrarlo; reactivarlo lo vuelve a habilitar.
+export const activarResolucion = (id, activo) =>
+  api.post(`/despacho/resoluciones/${id}/activa`, { activo }).then((r) => r.data);
+
+export const eliminarResolucion = (id) =>
+  api.delete(`/despacho/resoluciones/${id}`).then((r) => r.data);
 
 export const descargarWord = (id) =>
   api.get(`/despacho/resoluciones/${id}/word`, { responseType: "blob" }).then((r) => r.data);

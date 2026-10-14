@@ -287,3 +287,67 @@ def test_leer_no_alcanza_para_escribir(client, solo_lectura):
 
 def test_sin_identidad_del_gateway_no_se_entra(client):
     assert client.get("/api/despacho/resoluciones").status_code == 401
+
+
+# --------------------------------------------------------------------------- sector, actividad, baja
+def test_el_acto_hereda_sector_y_actividad_del_modelo(client, h):
+    m = client.post("/api/despacho/modelos", headers=h,
+                    json={"descripcion": "OTORGAMIENTO", "tipo": "RES", "sector": "Créditos",
+                          "actividad": "Préstamos"}).json()
+    heredado = client.post("/api/despacho/resoluciones", headers=h,
+                           json={"tipo": "RES", "modelo_id": m["id"]}).json()
+    assert (heredado["sector"], heredado["actividad"]) == ("Créditos", "Préstamos")
+    propio = client.post("/api/despacho/resoluciones", headers=h,
+                         json={"tipo": "RES", "modelo_id": m["id"], "sector": "Seguros"}).json()
+    assert (propio["sector"], propio["actividad"]) == ("Seguros", "Préstamos")
+
+    e = client.put(f"/api/despacho/resoluciones/{propio['id']}", headers=h, json={"actividad": "Siniestros"})
+    assert e.json()["actividad"] == "Siniestros"
+    assert client.get("/api/despacho/resoluciones?sector=Seguros", headers=h).json()["total"] == 1
+    assert client.get("/api/despacho/clasificacion", headers=h).json() == {
+        "sectores": ["Créditos", "Seguros"], "actividades": ["Préstamos", "Siniestros"]}
+
+
+def test_inactivar_saca_el_acto_del_listado_y_lo_congela(client, h, resolucion):
+    r = resolucion()
+    i = client.post(f"/api/despacho/resoluciones/{r['id']}/activa", headers=h, json={"activo": False})
+    assert i.status_code == 200 and i.json()["activa"] is False
+
+    assert client.get("/api/despacho/resoluciones", headers=h).json()["total"] == 0
+    assert client.get("/api/despacho/resoluciones?incluir_inactivas=true", headers=h).json()["total"] == 1
+    for metodo, ruta, cuerpo in (("put", "", {"texto": "x"}), ("post", "/firmar", None),
+                                 ("post", "/numero-real", {}), ("post", "/anular", {"motivo": "x"}),
+                                 ("put", "/oficial", {"numero_real": 3})):
+        resp = getattr(client, metodo)(f"/api/despacho/resoluciones/{r['id']}{ruta}", headers=h, json=cuerpo)
+        assert resp.status_code == 422 and "inactiva" in resp.json()["detail"], ruta
+
+    a = client.post(f"/api/despacho/resoluciones/{r['id']}/activa", headers=h, json={"activo": True})
+    assert a.json()["activa"] is True
+    assert client.put(f"/api/despacho/resoluciones/{r['id']}", headers=h, json={"texto": "x"}).status_code == 200
+
+
+def test_eliminar_borra_el_acto_y_sus_beneficiarios(client, h, resolucion, db):
+    from app.models import ResolucionBeneficiario
+    r = resolucion(beneficiarios=[{"nro_doc": "20111222", "nombre": "PEREZ", "importe": 100}])
+    assert client.delete(f"/api/despacho/resoluciones/{r['id']}", headers=h).status_code == 204
+    assert client.get(f"/api/despacho/resoluciones/{r['id']}", headers=h).status_code == 404
+    assert db.query(ResolucionBeneficiario).count() == 0
+
+
+def test_no_se_elimina_un_acto_que_otorga_lotes(client, h, resolucion, creditos):
+    r = resolucion(importe=500000)
+    lote = creditos.alta((100000,))
+    client.post("/api/despacho/lotes/asignar", headers=h, json={"resolucion_id": r["id"], "lote_ids": [lote["id"]]})
+    no = client.delete(f"/api/despacho/resoluciones/{r['id']}", headers=h)
+    assert no.status_code == 409 and lote["codigo"] in no.json()["detail"]
+    client.post(f"/api/despacho/lotes/{lote['id']}/quitar-resolucion", headers=h)
+    assert client.delete(f"/api/despacho/resoluciones/{r['id']}", headers=h).status_code == 204
+
+
+def test_eliminar_pide_el_permiso_de_firmar(client, resolucion):
+    from tests.conftest import gateway
+    r = resolucion()
+    redactor = gateway("resoluciones:read", "resoluciones:write")
+    assert client.delete(f"/api/despacho/resoluciones/{r['id']}", headers=redactor).status_code == 403
+    assert client.post(f"/api/despacho/resoluciones/{r['id']}/activa", headers=redactor,
+                       json={"activo": False}).status_code == 200

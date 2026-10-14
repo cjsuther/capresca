@@ -84,6 +84,8 @@ def _resolucion_para_lotes(db: Session, resolucion_id: int) -> Resolucion:
     r = db.get(Resolucion, resolucion_id)
     if r is None:
         raise HTTPException(404, "Resolución no encontrada")
+    if not r.activa:
+        raise HTTPException(422, "La resolución está inactiva: reactivala para asignarle lotes.")
     if r.anulada:
         raise HTTPException(422, "La resolución está anulada.")
     if r.oficial:

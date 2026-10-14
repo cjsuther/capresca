@@ -8,7 +8,9 @@ import { useAuthStore } from "../../context/authStore";
 vi.mock("../../api/despacho", () => ({
   getSeries: vi.fn(async () => [{ serie: 1, nombre: "General (créditos y ayudas sociales)" }]),
   getModelos: vi.fn(async () => []),
-  crearModelo: vi.fn(), editarModelo: vi.fn(),
+  crearModelo: vi.fn(), editarModelo: vi.fn(), activarModelo: vi.fn(), eliminarModelo: vi.fn(),
+  getClasificacion: vi.fn(async () => ({ sectores: [], actividades: [] })),
+  activarResolucion: vi.fn(), eliminarResolucion: vi.fn(),
   getResoluciones: vi.fn(async () => ({ items: [], total: 0, pagina: 1, por_pagina: 20 })),
   getResolucion: vi.fn(), crearResolucion: vi.fn(), editarResolucion: vi.fn(),
   firmarResolucion: vi.fn(), cargarNumeroReal: vi.fn(), corregirOficial: vi.fn(), anularResolucion: vi.fn(),

@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { FileText, Pencil, Plus, Search, X } from "lucide-react";
+import { FileText, Pencil, Plus, Power, Search, Trash2, X } from "lucide-react";
 
-import { crearModelo, editarModelo, getModelos, getSeries } from "../../../api/despacho";
+import {
+  activarModelo, crearModelo, editarModelo, eliminarModelo, getClasificacion, getModelos, getSeries,
+} from "../../../api/despacho";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { useHasPermission } from "../../../context/usePermissions";
+import { CamposClasificacion, FiltrosClasificacion } from "../components/Clasificacion";
 import { EditorTexto } from "../components/EditorTexto";
 
 const TIPOS = [["RES", "Resolución"], ["DIS", "Disposición"]];
 const nombreTipo = (t) => TIPOS.find(([v]) => v === t)?.[1] || t;
 
 const VACIO = { descripcion: "", tipo: "RES", serie: 1, es_seguros: false, plantilla: "",
-                activo: true };
+                sector: "", actividad: "", activo: true };
 
 export default function ModelosPage() {
   const puedeEditar = useHasPermission("despacho", "modelos:write");
@@ -19,6 +22,8 @@ export default function ModelosPage() {
   const [serie, setSerie] = useState("");
   const [tipo, setTipo] = useState("");
   const [buscar, setBuscar] = useState("");
+  const [clasif, setClasif] = useState({ sector: "", actividad: "" });
+  const [opciones, setOpciones] = useState({ sectores: [], actividades: [] });
   const [incluirInactivos, setIncluirInactivos] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -29,14 +34,30 @@ export default function ModelosPage() {
   const cargar = useCallback(() => {
     setCargando(true);
     getModelos({ tipo: tipo || undefined, buscar: buscar || undefined,
-                 serie: serie || undefined, incluir_inactivos: incluirInactivos })
+                 serie: serie || undefined, sector: clasif.sector || undefined,
+                 actividad: clasif.actividad || undefined, incluir_inactivos: incluirInactivos })
       .then(setItems)
       .catch((e) => setError(e?.response?.data?.detail || "No se pudieron cargar los modelos"))
       .finally(() => setCargando(false));
-  }, [tipo, serie, incluirInactivos]);   // eslint-disable-line react-hooks/exhaustive-deps
+    getClasificacion().then(setOpciones).catch(() => {});
+  }, [tipo, serie, clasif, incluirInactivos]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(cargar, [cargar]);
   useEffect(() => { getSeries().then(setSeries).catch(() => {}); }, []);
+
+  const cambiarActivo = async (m) => {
+    setError("");
+    try { await activarModelo(m.id, !m.activo); cargar(); }
+    catch (e) { setError(e?.response?.data?.detail || "No se pudo cambiar el estado del modelo"); }
+  };
+
+  const eliminar = async (m) => {
+    if (!window.confirm(`¿Eliminar el modelo "${m.descripcion}"? No se puede deshacer. `
+                        + "Las resoluciones redactadas con él no cambian.")) return;
+    setError("");
+    try { await eliminarModelo(m.id); cargar(); }
+    catch (e) { setError(e?.response?.data?.detail || "No se pudo eliminar el modelo"); }
+  };
 
   const abrir = (m) => {
     setEditando(m || { nuevo: true });
@@ -48,7 +69,8 @@ export default function ModelosPage() {
     setError(""); setGuardando(true);
     try {
       const datos = { descripcion: form.descripcion, tipo: form.tipo, serie: Number(form.serie),
-                      es_seguros: form.es_seguros, plantilla: form.plantilla, activo: form.activo };
+                      es_seguros: form.es_seguros, plantilla: form.plantilla, activo: form.activo,
+                      sector: form.sector || "", actividad: form.actividad || "" };
       if (editando.nuevo) await crearModelo(datos);
       else await editarModelo(editando.id, datos);
       setEditando(null);
@@ -100,6 +122,8 @@ export default function ModelosPage() {
           <option value="">Todos los tipos</option>
           {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
+        <FiltrosClasificacion filtros={clasif} opciones={opciones}
+                              onChange={(c) => setClasif({ ...clasif, ...c })} />
         <label className="flex items-center gap-2 text-sm text-gray-600">
           <input type="checkbox" checked={incluirInactivos}
                  onChange={(e) => setIncluirInactivos(e.target.checked)} />
@@ -111,12 +135,13 @@ export default function ModelosPage() {
       </form>
 
       <div className="bg-surface border rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[560px]">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Código</th>
               <th className="text-left px-4 py-3 font-medium">Serie</th>
               <th className="text-left px-4 py-3 font-medium">Descripción (motivo)</th>
+              <th className="text-left px-4 py-3 font-medium">Sector / actividad</th>
               <th className="text-left px-4 py-3 font-medium">Tipo</th>
               <th className="text-left px-4 py-3 font-medium">Texto</th>
               <th className="text-left px-4 py-3 font-medium">Estado</th>
@@ -125,10 +150,10 @@ export default function ModelosPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cargando && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
             )}
             {!cargando && items.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                 No hay modelos cargados.
               </td></tr>
             )}
@@ -144,6 +169,10 @@ export default function ModelosPage() {
                     </span>
                   )}
                 </td>
+                <td className="px-4 py-3 text-gray-600">
+                  {m.sector || "—"}
+                  {m.actividad && <span className="block text-xs text-gray-400">{m.actividad}</span>}
+                </td>
                 <td className="px-4 py-3 text-gray-600">{nombreTipo(m.tipo)}</td>
                 <td className="px-4 py-3">
                   {m.tiene_plantilla
@@ -157,12 +186,25 @@ export default function ModelosPage() {
                     {m.activo ? "Activo" : "Inactivo"}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right whitespace-nowrap">
                   {puedeEditar && (
-                    <button type="button" aria-label={`Editar ${m.descripcion}`} onClick={() => abrir(m)}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                      <Pencil size={14} />
-                    </button>
+                    <>
+                      <button type="button" aria-label={`Editar ${m.descripcion}`} onClick={() => abrir(m)}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" onClick={() => cambiarActivo(m)}
+                              aria-label={`${m.activo ? "Inactivar" : "Activar"} ${m.descripcion}`}
+                              title={m.activo ? "Inactivar" : "Activar"}
+                              className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg">
+                        <Power size={14} />
+                      </button>
+                      <button type="button" aria-label={`Eliminar ${m.descripcion}`} title="Eliminar"
+                              onClick={() => eliminar(m)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>
@@ -208,6 +250,8 @@ export default function ModelosPage() {
                     {series.map((s) => <option key={s.serie} value={s.serie}>{s.nombre}</option>)}
                   </select>
                 </label>
+                <CamposClasificacion valor={form} opciones={opciones}
+                                     onChange={(c) => setForm({ ...form, ...c })} />
               </div>
 
               <div className="flex flex-wrap gap-5">

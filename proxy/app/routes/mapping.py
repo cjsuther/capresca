@@ -201,12 +201,19 @@ ROUTE_MAP = [
     # Las rutas específicas van antes del GET general, que es el de lectura.
     ("POST", r"^/api/despacho/modelos$",                                settings.despacho_service_url, "despacho:modelos:write"),
     ("PUT",  r"^/api/despacho/modelos/\d+$",                            settings.despacho_service_url, "despacho:modelos:write"),
+    ("POST", r"^/api/despacho/modelos/\d+/activo$",                     settings.despacho_service_url, "despacho:modelos:write"),
+    ("DELETE", r"^/api/despacho/modelos/\d+$",                          settings.despacho_service_url, "despacho:modelos:write"),
     ("POST", r"^/api/despacho/resoluciones/\d+/(firmar|numero-real|anular)$", settings.despacho_service_url, "despacho:resoluciones:firmar"),
+    # Eliminar un acto lo decide quien los emite; inactivarlo, quien los redacta.
+    ("DELETE", r"^/api/despacho/resoluciones/\d+$",                     settings.despacho_service_url, "despacho:resoluciones:firmar"),
+    ("POST", r"^/api/despacho/resoluciones/\d+/activa$",                settings.despacho_service_url, "despacho:resoluciones:write"),
     # Desde qué número sigue cada serie (continúa el sistema anterior): lo fija quien emite los actos.
     ("PUT",  r"^/api/despacho/numeracion/\d{4}/\d+$",                   settings.despacho_service_url, "despacho:resoluciones:firmar"),
     ("POST", r"^/api/despacho/resoluciones$",                           settings.despacho_service_url, "despacho:resoluciones:write"),
     ("PUT",  r"^/api/despacho/resoluciones/\d+$",                       settings.despacho_service_url, "despacho:resoluciones:write"),
-    ("POST", r"^/api/despacho/anexo/(asignar|quitar)$",                 settings.despacho_service_url, "despacho:resoluciones:write"),
+    ("PUT",  r"^/api/despacho/resoluciones/\d+/oficial$",               settings.despacho_service_url, "despacho:resoluciones:firmar"),
+    ("POST", r"^/api/despacho/lotes/asignar$",                          settings.despacho_service_url, "despacho:resoluciones:write"),
+    ("POST", r"^/api/despacho/lotes/\d+/quitar-resolucion$",            settings.despacho_service_url, "despacho:resoluciones:write"),
     ("POST", r"^/api/despacho/expedientes$",                            settings.despacho_service_url, "despacho:expedientes:write"),
     ("POST", r"^/api/despacho/expedientes/\d+/(pase|archivar)$",        settings.despacho_service_url, "despacho:expedientes:write"),
     ("POST", r"^/api/despacho/importaciones$",                          settings.despacho_service_url, "despacho:importar"),

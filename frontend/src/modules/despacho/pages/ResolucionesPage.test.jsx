@@ -38,6 +38,7 @@ beforeEach(() => {
   ]);
   api.getSeries.mockResolvedValue(SERIES);
   api.getLotesDeResolucion.mockResolvedValue({ lotes: [], total: "0", importe: "125000.50", disponible: "125000.50" });
+  api.getClasificacion.mockResolvedValue({ sectores: ["Créditos", "Seguros"], actividades: ["Préstamos"] });
   document.execCommand = vi.fn();
 });
 
@@ -180,5 +181,77 @@ describe("resoluciones y disposiciones", () => {
     await user.click(await screen.findByText("45/2026"));
     await user.click(await screen.findByRole("button", { name: /Firmar/ }));
     expect(await screen.findByText("La resolución está anulada.")).toBeInTheDocument();
+  });
+
+  it("inactiva y reactiva un acto desde el detalle", async () => {
+    const user = userEvent.setup();
+    api.getResolucion.mockResolvedValue(detalle());
+    api.activarResolucion.mockResolvedValue(detalle({ activa: false }));
+    render(<ResolucionesPage />);
+    await user.click(await screen.findByText("45/2026"));
+    await user.click(await screen.findByRole("button", { name: /Inactivar/ }));
+    expect(api.activarResolucion).toHaveBeenCalledWith(1, false);
+
+    // Inactiva: se avisa, no se edita ni se firma, y el botón pasa a reactivar.
+    expect(await screen.findByText(/no se puede modificar hasta reactivarla/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Firmar/ })).not.toBeInTheDocument();
+    api.activarResolucion.mockResolvedValue(detalle({ activa: true }));
+    await user.click(screen.getByRole("button", { name: /Reactivar/ }));
+    expect(api.activarResolucion).toHaveBeenLastCalledWith(1, true);
+  });
+
+  it("elimina un acto después de confirmar", async () => {
+    const user = userEvent.setup();
+    api.getResolucion.mockResolvedValue(detalle());
+    api.eliminarResolucion.mockResolvedValue();
+    const confirmar = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<ResolucionesPage />);
+    await user.click(await screen.findByText("45/2026"));
+    await user.click(await screen.findByRole("button", { name: /Eliminar/ }));
+    expect(confirmar).toHaveBeenCalled();
+    expect(api.eliminarResolucion).toHaveBeenCalledWith(1);
+    await waitFor(() => expect(screen.queryByText(/no se puede deshacer/)).not.toBeInTheDocument());
+    confirmar.mockRestore();
+  });
+
+  it("sin permiso de firmar no se ofrece eliminar", async () => {
+    const user = userEvent.setup();
+    sesion(["resoluciones:read", "resoluciones:write"]);
+    api.getResolucion.mockResolvedValue(detalle());
+    render(<ResolucionesPage />);
+    await user.click(await screen.findByText("45/2026"));
+    expect(await screen.findByRole("button", { name: /Inactivar/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Eliminar/ })).not.toBeInTheDocument();
+  });
+
+  it("las inactivas, el sector y la actividad se filtran en el servidor", async () => {
+    const user = userEvent.setup();
+    render(<ResolucionesPage />);
+    await screen.findByText("45/2026");
+    await user.click(screen.getByLabelText("Ver inactivas"));
+    await waitFor(() => expect(api.getResoluciones).toHaveBeenLastCalledWith(
+      expect.objectContaining({ incluir_inactivas: true })));
+    await user.selectOptions(screen.getByLabelText("Filtrar por actividad"), "Préstamos");
+    await waitFor(() => expect(api.getResoluciones).toHaveBeenLastCalledWith(
+      expect.objectContaining({ actividad: "Préstamos", incluir_inactivas: true })));
+  });
+
+  it("al crear, el modelo propone su sector y actividad", async () => {
+    const user = userEvent.setup();
+    api.getModelos.mockResolvedValue([
+      { id: 3, codigo: 103, serie: 1, descripcion: "TRANSFERENCIA", tipo: "RES", plantilla: "",
+        sector: "Créditos", actividad: "Préstamos" }]);
+    api.crearResolucion.mockResolvedValue(detalle());
+    render(<ResolucionesPage />);
+    await screen.findByText("45/2026");
+    await user.click(screen.getByRole("button", { name: /Nueva/ }));
+    await user.selectOptions(screen.getByLabelText("Modelo a utilizar"), "3");
+    expect(screen.getByLabelText("Sector")).toHaveValue("Créditos");
+    await user.clear(screen.getByLabelText("Actividad"));
+    await user.type(screen.getByLabelText("Actividad"), "Vivienda");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(api.crearResolucion).toHaveBeenCalledWith(expect.objectContaining({
+      sector: "Créditos", actividad: "Vivienda", modelo_id: 3 }));
   });
 });

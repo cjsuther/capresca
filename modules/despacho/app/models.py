@@ -61,6 +61,9 @@ class ModeloResolucion(Base):
     tipo: Mapped[str] = mapped_column(String(3), default="RES")             # RES | DIS (DISPOSICIO)
     es_seguros: Mapped[bool] = mapped_column(Boolean, default=False)        # SEGUROS
     plantilla: Mapped[str] = mapped_column(Text, default="")                # MODELO (HTML del cuerpo)
+    # A qué sector de la Caja pertenece y a qué actividad se refiere: los hereda el acto que se crea.
+    sector: Mapped[str] = mapped_column(String(80), default="", index=True)
+    actividad: Mapped[str] = mapped_column(String(80), default="", index=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -97,6 +100,10 @@ class Resolucion(Base):
     origen: Mapped[str] = mapped_column(String(40), default="")             # expediente / nota de origen
     nro_op: Mapped[int | None] = mapped_column(Integer, nullable=True)      # orden de pago asociada
     texto: Mapped[str] = mapped_column(Text, default="")                    # cuerpo del instrumento (HTML)
+    sector: Mapped[str] = mapped_column(String(80), default="", index=True)
+    actividad: Mapped[str] = mapped_column(String(80), default="", index=True)
+    # Inactiva: sale de los listados y no se trabaja sobre ella hasta reactivarla. No es anular.
+    activa: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     estado: Mapped[str] = mapped_column(String(1), default=BORRADOR, index=True)
     anulada: Mapped[bool] = mapped_column(Boolean, default=False)
     motivo_anulacion: Mapped[str] = mapped_column(String(200), default="")

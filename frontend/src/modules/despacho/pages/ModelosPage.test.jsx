@@ -26,6 +26,7 @@ beforeEach(() => {
   api.getModelos.mockResolvedValue([modelo()]);
   api.getSeries.mockResolvedValue([{ serie: 1, nombre: "General (créditos y ayudas sociales)" },
                                    { serie: 6, nombre: "Juegos" }]);
+  api.getClasificacion.mockResolvedValue({ sectores: ["Créditos", "Seguros"], actividades: ["Préstamos"] });
   document.execCommand = vi.fn();
 });
 
@@ -93,5 +94,50 @@ describe("modelos de resolución", () => {
     await user.click(screen.getByRole("button", { name: /Nuevo modelo/ }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(await screen.findByText("La descripción es obligatoria.")).toBeInTheDocument();
+  });
+
+  it("inactiva y elimina un modelo desde la lista", async () => {
+    const user = userEvent.setup();
+    api.activarModelo.mockResolvedValue(modelo({ activo: false }));
+    api.eliminarModelo.mockResolvedValue();
+    const confirmar = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<ModelosPage />);
+    await screen.findByText("TRANSFERENCIA");
+
+    await user.click(screen.getByLabelText("Inactivar TRANSFERENCIA"));
+    expect(api.activarModelo).toHaveBeenCalledWith(3, false);
+
+    await user.click(screen.getByLabelText("Eliminar TRANSFERENCIA"));
+    expect(confirmar).toHaveBeenCalled();
+    expect(api.eliminarModelo).toHaveBeenCalledWith(3);
+    confirmar.mockRestore();
+  });
+
+  it("no elimina si no se confirma", async () => {
+    const user = userEvent.setup();
+    const confirmar = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<ModelosPage />);
+    await screen.findByText("TRANSFERENCIA");
+    await user.click(screen.getByLabelText("Eliminar TRANSFERENCIA"));
+    expect(api.eliminarModelo).not.toHaveBeenCalled();
+    confirmar.mockRestore();
+  });
+
+  it("guarda el sector y la actividad del modelo, y filtra por ellos", async () => {
+    const user = userEvent.setup();
+    api.editarModelo.mockResolvedValue(modelo());
+    render(<ModelosPage />);
+    await screen.findByText("TRANSFERENCIA");
+
+    await user.selectOptions(screen.getByLabelText("Filtrar por sector"), "Seguros");
+    await waitFor(() => expect(api.getModelos).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sector: "Seguros" })));
+
+    await user.click(screen.getByLabelText("Editar TRANSFERENCIA"));
+    await user.type(screen.getByLabelText("Sector"), "Créditos");
+    await user.type(screen.getByLabelText("Actividad"), "Préstamos");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(api.editarModelo).toHaveBeenCalledWith(3, expect.objectContaining({
+      sector: "Créditos", actividad: "Préstamos" }));
   });
 });

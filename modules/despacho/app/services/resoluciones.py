@@ -13,6 +13,9 @@ Lo que hay que respetar del circuito administrativo:
 - Si la resolución otorga lotes de créditos, Créditos se entera de cada cambio (N° oficial, fecha,
   importe) y rechaza un importe que ya no alcance para esos lotes.
 - Anular no borra: deja el acto con su número y el motivo, como en el papel.
+- **Inactivar** tampoco borra: el acto sale de los listados y no se trabaja sobre él hasta
+  reactivarlo. **Eliminar** sí lo borra, salvo que otorgue lotes de créditos (primero se quitan).
+- Sector y actividad clasifican el acto; si no se indican, se heredan del modelo.
 """
 from __future__ import annotations
 
@@ -127,7 +130,14 @@ def _modelo(db: Session, modelo_id: int | None) -> ModeloResolucion | None:
     m = db.get(ModeloResolucion, modelo_id)
     if m is None:
         raise HTTPException(422, "El modelo de resolución no existe.")
+    if not m.activo:
+        raise HTTPException(422, "El modelo está inactivo: reactivalo o elegí otro.")
     return m
+
+
+def _activa(r: Resolucion) -> None:
+    if not r.activa:
+        raise HTTPException(422, "La resolución está inactiva: reactivala para trabajar sobre ella.")
 
 
 def _beneficiarios(db: Session, resolucion: Resolucion, filas) -> None:
@@ -162,6 +172,8 @@ def crear(db: Session, datos, usuario: str = "") -> Resolucion:
         motivo_codigo, motivo = modelo.codigo, modelo.descripcion
         texto = texto or (modelo.plantilla or "")
     asunto = (datos.asunto or "").strip() or motivo or f"{tipo} {fecha.year}"
+    sector = (datos.sector or "").strip() or (modelo.sector if modelo is not None else "")
+    actividad = (datos.actividad or "").strip() or (modelo.actividad if modelo is not None else "")
 
     for intento in range(REINTENTOS_NUMERO):
         r = Resolucion(
@@ -170,7 +182,8 @@ def crear(db: Session, datos, usuario: str = "") -> Resolucion:
             organo=(datos.organo or "")[:60], asunto=asunto[:200], motivo_codigo=motivo_codigo,
             motivo=(motivo or "")[:120], importe=Decimal(str(datos.importe or 0)),
             modelo_id=modelo.id if modelo else None, origen=(datos.origen or "")[:40],
-            nro_op=datos.nro_op, texto=texto, estado=BORRADOR, creado_por=usuario[:60])
+            nro_op=datos.nro_op, texto=texto, sector=sector[:80], actividad=actividad[:80],
+            estado=BORRADOR, creado_por=usuario[:60])
         db.add(r)
         try:
             # La unicidad (año, tipo, número) la garantiza la DB: si otro se adelantó, se reintenta.
@@ -188,6 +201,7 @@ def crear(db: Session, datos, usuario: str = "") -> Resolucion:
 
 
 def _editable(r: Resolucion) -> None:
+    _activa(r)
     if r.anulada:
         raise HTTPException(422, "La resolución está anulada: no se puede modificar.")
     if r.oficial:
@@ -204,7 +218,8 @@ def editar(db: Session, resolucion_id: int, datos) -> Resolucion:
         r.modelo_id = modelo.id
         r.motivo_codigo, r.motivo = modelo.codigo, modelo.descripcion[:120]
     for campo, valor, largo in (("asunto", datos.asunto, 200), ("organo", datos.organo, 60),
-                                ("origen", datos.origen, 40)):
+                                ("origen", datos.origen, 40), ("sector", datos.sector, 80),
+                                ("actividad", datos.actividad, 80)):
         if valor is not None:
             setattr(r, campo, valor[:largo])
     if datos.fecha is not None:
@@ -229,6 +244,7 @@ def editar(db: Session, resolucion_id: int, datos) -> Resolucion:
 
 def firmar(db: Session, resolucion_id: int) -> Resolucion:
     r = obtener(db, resolucion_id)
+    _activa(r)
     if r.anulada:
         raise HTTPException(422, "La resolución está anulada.")
     if r.estado == FIRMADA:
@@ -244,6 +260,7 @@ def asignar_numero_real(db: Session, resolucion_id: int, fecha_real: date | None
     """Carga el número OFICIAL, que llega después del correlativo: el que se escriba o, si no, el
     siguiente de la serie. Con esto el acto queda emitido."""
     r = obtener(db, resolucion_id)
+    _activa(r)
     if r.anulada:
         raise HTTPException(422, "La resolución está anulada.")
     if r.numero_real is not None:
@@ -275,6 +292,7 @@ def corregir_oficial(db: Session, resolucion_id: int, numero: int | None = None,
                      fecha: date | None = None) -> Resolucion:
     """Corrige el N° oficial y/o la fecha de la resolución, aun ya emitida. El año no cambia."""
     r = obtener(db, resolucion_id)
+    _activa(r)
     if r.anulada:
         raise HTTPException(422, "La resolución está anulada: no se puede modificar.")
     if numero is None and fecha is None:
@@ -298,6 +316,7 @@ def corregir_oficial(db: Session, resolucion_id: int, numero: int | None = None,
 def anular(db: Session, resolucion_id: int, motivo: str) -> Resolucion:
     """Anular NO borra: el acto queda con su número y el motivo, como en el papel."""
     r = obtener(db, resolucion_id)
+    _activa(r)
     if r.anulada:
         raise HTTPException(422, "La resolución ya está anulada.")
     if not (motivo or "").strip():
@@ -309,6 +328,38 @@ def anular(db: Session, resolucion_id: int, motivo: str) -> Resolucion:
     return r
 
 
+def activar(db: Session, resolucion_id: int, activa: bool) -> Resolucion:
+    r = obtener(db, resolucion_id)
+    r.activa = bool(activa)
+    db.commit()
+    db.refresh(r)
+    return r
+
+
+def eliminar(db: Session, resolucion_id: int) -> None:
+    """Borra el acto y sus beneficiarios. Si otorga lotes de créditos no se borra: Créditos quedaría
+    apuntando a una resolución que no existe. Primero se le quitan los lotes."""
+    from app.services import anexo, creditos_central        # lazy: anexo usa este módulo
+    r = obtener(db, resolucion_id)
+    if creditos_central.habilitado():
+        lotes = anexo.comprometido(r)["lotes"]
+        if lotes:
+            codigos = ", ".join(str(lt.get("codigo")) for lt in lotes)
+            raise HTTPException(409, f"La resolución otorga lotes de créditos ({codigos}): quitáselos "
+                                     "antes de eliminarla.")
+    db.delete(r)
+    db.commit()
+
+
+def clasificacion(db: Session) -> dict:
+    """Los sectores y actividades ya usados, para sugerirlos al cargar y para los filtros."""
+    def valores(columna_modelo, columna_acto) -> list[str]:
+        vistos = set(db.scalars(select(columna_modelo).distinct())) | set(db.scalars(select(columna_acto).distinct()))
+        return sorted(v for v in vistos if v)
+    return {"sectores": valores(ModeloResolucion.sector, Resolucion.sector),
+            "actividades": valores(ModeloResolucion.actividad, Resolucion.actividad)}
+
+
 def obtener(db: Session, resolucion_id: int) -> Resolucion:
     r = db.get(Resolucion, resolucion_id)
     if r is None:
@@ -318,8 +369,15 @@ def obtener(db: Session, resolucion_id: int) -> Resolucion:
 
 def listar(db: Session, *, tipo: str | None = None, anio: int | None = None,
            estado: str | None = None, buscar: str | None = None, serie: int | None = None,
+           sector: str | None = None, actividad: str | None = None, incluir_inactivas: bool = False,
            pagina: int = 1, por_pagina: int = 20) -> tuple[list[Resolucion], int]:
     q = select(Resolucion)
+    if not incluir_inactivas:
+        q = q.where(Resolucion.activa.is_(True))
+    if sector:
+        q = q.where(Resolucion.sector == sector)
+    if actividad:
+        q = q.where(Resolucion.actividad == actividad)
     if tipo:
         q = q.where(Resolucion.tipo == tipo.upper())
     if serie:

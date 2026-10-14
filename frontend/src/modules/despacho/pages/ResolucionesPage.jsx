@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, FileSignature, Plus, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileSignature, Plus, Power, Search, Trash2, X } from "lucide-react";
 
 import {
-  anularResolucion, cargarNumeroReal, corregirOficial, crearResolucion, descargarWord, editarResolucion,
-  firmarResolucion, getLotesDeResolucion, getModelos, getResolucion, getResoluciones, getSeries,
+  activarResolucion, anularResolucion, cargarNumeroReal, corregirOficial, crearResolucion, descargarWord,
+  editarResolucion, eliminarResolucion, firmarResolucion, getClasificacion, getLotesDeResolucion, getModelos,
+  getResolucion, getResoluciones, getSeries,
 } from "../../../api/despacho";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { useHasPermission } from "../../../context/usePermissions";
+import { CamposClasificacion, FiltrosClasificacion } from "../components/Clasificacion";
 import { EditorTexto } from "../components/EditorTexto";
 import { sanitizar } from "../sanitizar";
 
@@ -16,9 +18,10 @@ const money = (n) => `$ ${Number(n || 0).toLocaleString("es-AR", { minimumFracti
 const fecha = (f) => (f ? new Date(`${f}T00:00:00`).toLocaleDateString("es-AR") : "—");
 const num = (n) => Number(n || 0).toLocaleString("es-AR");
 
-/** Un acto puede estar en borrador, emitido (firmado o con N° real) o anulado. */
+/** Un acto puede estar en borrador, emitido (firmado o con N° real), anulado o inactivo. */
 function Estado({ r }) {
-  const [texto, clase] = r.anulada ? ["Anulada", "bg-red-100 text-red-700"]
+  const [texto, clase] = r.activa === false ? ["Inactiva", "bg-gray-200 text-gray-500"]
+    : r.anulada ? ["Anulada", "bg-red-100 text-red-700"]
     : r.numero_real ? ["Oficial", "bg-green-100 text-green-700"]
     : r.estado === "F" ? ["Firmada", "bg-blue-100 text-blue-700"]
     : ["Borrador", "bg-gray-100 text-gray-600"];
@@ -26,7 +29,7 @@ function Estado({ r }) {
 }
 
 const VACIO = { tipo: "RES", serie: 1, asunto: "", organo: "", modelo_id: "", importe: "",
-                origen: "", texto: "" };
+                origen: "", texto: "", sector: "", actividad: "" };
 
 export default function ResolucionesPage() {
   const puedeEscribir = useHasPermission("despacho", "resoluciones:write");
@@ -35,7 +38,9 @@ export default function ResolucionesPage() {
   const [datos, setDatos] = useState({ items: [], total: 0 });
   const [modelos, setModelos] = useState([]);
   const [series, setSeries] = useState([]);
-  const [filtros, setFiltros] = useState({ tipo: "", estado: "", anio: "", serie: "" });
+  const [filtros, setFiltros] = useState({ tipo: "", estado: "", anio: "", serie: "", sector: "",
+                                           actividad: "", inactivas: false });
+  const [opciones, setOpciones] = useState({ sectores: [], actividades: [] });
   const [buscar, setBuscar] = useState("");
   const [buscado, setBuscado] = useState(0);
   const [pagina, setPagina] = useState(1);
@@ -59,10 +64,13 @@ export default function ResolucionesPage() {
     setCargando(true);
     getResoluciones({ tipo: filtros.tipo || undefined, estado: filtros.estado || undefined,
                       anio: filtros.anio || undefined, serie: filtros.serie || undefined,
+                      sector: filtros.sector || undefined, actividad: filtros.actividad || undefined,
+                      incluir_inactivas: filtros.inactivas || undefined,
                       buscar: buscar || undefined, pagina, por_pagina: porPagina })
       .then(setDatos)
       .catch((e) => setError(e?.response?.data?.detail || "No se pudieron cargar las resoluciones"))
       .finally(() => setCargando(false));
+    getClasificacion().then(setOpciones).catch(() => {});
   }, [filtros, pagina, buscado]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(cargar, [cargar]);
@@ -97,6 +105,7 @@ export default function ResolucionesPage() {
         modelo_id: form.modelo_id ? Number(form.modelo_id) : null,
         importe: form.importe === "" ? null : Number(form.importe),
         origen: form.origen || null, texto: form.texto || null,
+        sector: form.sector ?? "", actividad: form.actividad ?? "",
       };
       const r = form.nueva ? await crearResolucion(datosEnvio)
                            : await editarResolucion(form.id, datosEnvio);
@@ -118,6 +127,19 @@ export default function ResolucionesPage() {
       cargar();
     } catch (e) {
       setError(e?.response?.data?.detail || "No se pudo completar la acción");
+    }
+  };
+
+  const eliminar = async (r) => {
+    if (!window.confirm(`¿Eliminar ${nombreTipo(r.tipo).toLowerCase()} N° ${r.numero}/${r.anio}? `
+                        + "Se borra con sus beneficiarios y no se puede deshacer.")) return;
+    setError("");
+    try {
+      await eliminarResolucion(r.id);
+      setDetalle(null);
+      cargar();
+    } catch (e) {
+      setError(e?.response?.data?.detail || "No se pudo eliminar");
     }
   };
 
@@ -182,13 +204,20 @@ export default function ResolucionesPage() {
         <input className="input w-full sm:w-28" placeholder="Año" value={filtros.anio}
                aria-label="Año"
                onChange={(e) => { setPagina(1); setFiltros({ ...filtros, anio: e.target.value.replace(/\D/g, "") }); }} />
+        <FiltrosClasificacion filtros={filtros} opciones={opciones}
+                              onChange={(c) => { setPagina(1); setFiltros({ ...filtros, ...c }); }} />
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input type="checkbox" checked={filtros.inactivas}
+                 onChange={(e) => { setPagina(1); setFiltros({ ...filtros, inactivas: e.target.checked }); }} />
+          Ver inactivas
+        </label>
         <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
           Buscar
         </button>
       </form>
 
       <div className="bg-surface border rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[720px]">
+        <table className="w-full text-sm min-w-[860px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left px-4 py-3 font-medium">N°</th>
@@ -197,16 +226,17 @@ export default function ResolucionesPage() {
               <th className="text-left px-4 py-3 font-medium">Serie</th>
               <th className="text-left px-4 py-3 font-medium">Fecha</th>
               <th className="text-left px-4 py-3 font-medium">Motivo / asunto</th>
+              <th className="text-left px-4 py-3 font-medium">Sector / actividad</th>
               <th className="text-right px-4 py-3 font-medium">Importe</th>
               <th className="text-left px-4 py-3 font-medium">Estado</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cargando && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Cargando…</td></tr>
             )}
             {!cargando && datos.items.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                 No hay resoluciones con este filtro.
               </td></tr>
             )}
@@ -221,6 +251,10 @@ export default function ResolucionesPage() {
                 <td className="px-4 py-3 text-gray-600">{r.serie_nombre}</td>
                 <td className="px-4 py-3 text-gray-600">{fecha(r.fecha)}</td>
                 <td className="px-4 py-3 text-gray-700">{r.motivo || r.asunto}</td>
+                <td className="px-4 py-3 text-gray-600">
+                  {r.sector || "—"}
+                  {r.actividad && <span className="block text-xs text-gray-400">{r.actividad}</span>}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">{money(r.importe)}</td>
                 <td className="px-4 py-3"><Estado r={r} /></td>
               </tr>
@@ -263,11 +297,19 @@ export default function ResolucionesPage() {
             <Dato label="Órgano">{detalle.organo || "—"}</Dato>
             <Dato label="Importe">{money(detalle.importe)}</Dato>
             <Dato label="Origen">{detalle.origen || "—"}</Dato>
+            <Dato label="Sector">{detalle.sector || "—"}</Dato>
+            <Dato label="Actividad">{detalle.actividad || "—"}</Dato>
             <Dato label="Creada por">{detalle.creado_por || "—"}</Dato>
             <Dato label="Creada el">{detalle.creado_en ? fecha(String(detalle.creado_en).slice(0, 10)) : "—"}</Dato>
           </dl>
 
-          {!detalle.anulada && puedeFirmar && (
+          {detalle.activa === false && (
+            <div className="rounded-lg bg-gray-100 text-gray-600 text-sm px-4 py-3 mb-3">
+              Inactiva: no aparece en los listados y no se puede modificar hasta reactivarla.
+            </div>
+          )}
+
+          {detalle.activa !== false && !detalle.anulada && puedeFirmar && (
             <div className="flex flex-wrap items-end gap-3 mb-4 border border-gray-200 rounded-lg p-3">
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-gray-500">N° oficial</span>
@@ -345,19 +387,19 @@ export default function ResolucionesPage() {
                     className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
               <Download size={15} /> Word
             </button>
-            {!detalle.anulada && detalle.estado === "B" && puedeEscribir && (
+            {detalle.activa !== false && !detalle.anulada && detalle.estado === "B" && puedeEscribir && (
               <button type="button" onClick={() => editar(detalle)}
                       className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                 Editar
               </button>
             )}
-            {!detalle.anulada && detalle.estado === "B" && puedeFirmar && (
+            {detalle.activa !== false && !detalle.anulada && detalle.estado === "B" && puedeFirmar && (
               <button type="button" onClick={() => accion(firmarResolucion, detalle.id)}
                       className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 <FileSignature size={15} /> Firmar
               </button>
             )}
-            {!detalle.anulada && puedeFirmar && (
+            {detalle.activa !== false && !detalle.anulada && puedeFirmar && (
               <button type="button"
                       onClick={() => {
                         const motivo = window.prompt("Motivo de la anulación:");
@@ -365,6 +407,18 @@ export default function ResolucionesPage() {
                       }}
                       className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50">
                 Anular
+              </button>
+            )}
+            {puedeEscribir && (
+              <button type="button" onClick={() => accion(activarResolucion, detalle.id, detalle.activa === false)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                <Power size={15} /> {detalle.activa === false ? "Reactivar" : "Inactivar"}
+              </button>
+            )}
+            {puedeFirmar && (
+              <button type="button" onClick={() => eliminar(detalle)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
+                <Trash2 size={15} /> Eliminar
               </button>
             )}
           </div>
@@ -405,7 +459,10 @@ export default function ResolucionesPage() {
                         const m = modelos.find((x) => String(x.id) === e.target.value);
                         setForm({ ...form, modelo_id: e.target.value,
                                   // Al elegir modelo se ofrece su plantilla, si todavía no se escribió nada.
-                                  texto: form.texto?.trim() ? form.texto : (m?.plantilla || "") });
+                                  texto: form.texto?.trim() ? form.texto : (m?.plantilla || ""),
+                                  // y su sector y actividad, si no se cargaron otros.
+                                  sector: form.sector || m?.sector || "",
+                                  actividad: form.actividad || m?.actividad || "" });
                       }}>
                 <option value="">(sin modelo)</option>
                 {modelos.filter((m) => m.tipo === form.tipo && m.serie === Number(form.serie)).map((m) => (
@@ -433,6 +490,8 @@ export default function ResolucionesPage() {
               <input className="input" value={form.origen || ""} maxLength={40} aria-label="Origen"
                      onChange={(e) => setForm({ ...form, origen: e.target.value })} />
             </label>
+            <CamposClasificacion valor={form} opciones={opciones}
+                                 onChange={(c) => setForm({ ...form, ...c })} />
           </div>
 
           <p className="text-sm text-gray-500 mb-1">Texto del instrumento</p>

@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import SERIE_POR_DEFECTO, SERIES, ModeloResolucion, TIPOS
+from app.models import SERIE_POR_DEFECTO, SERIES, ModeloResolucion, Resolucion, TIPOS
 
 
 def _validar(datos) -> tuple[str, int]:
@@ -24,8 +24,13 @@ def _validar(datos) -> tuple[str, int]:
 
 
 def listar(db: Session, *, tipo: str | None = None, buscar: str | None = None,
-           serie: int | None = None, incluir_inactivos: bool = False) -> list[ModeloResolucion]:
+           serie: int | None = None, sector: str | None = None, actividad: str | None = None,
+           incluir_inactivos: bool = False) -> list[ModeloResolucion]:
     q = select(ModeloResolucion)
+    if sector:
+        q = q.where(ModeloResolucion.sector == sector)
+    if actividad:
+        q = q.where(ModeloResolucion.actividad == actividad)
     if tipo:
         q = q.where(ModeloResolucion.tipo == tipo.upper())
     if serie:
@@ -51,7 +56,8 @@ def crear(db: Session, datos) -> ModeloResolucion:
                                          .where(ModeloResolucion.serie == serie)) or 0) + 1)
     m = ModeloResolucion(codigo=codigo, serie=serie, descripcion=datos.descripcion.strip()[:120],
                          tipo=tipo, es_seguros=bool(datos.es_seguros),
-                         plantilla=datos.plantilla or "")
+                         plantilla=datos.plantilla or "", sector=(datos.sector or "").strip()[:80],
+                         actividad=(datos.actividad or "").strip()[:80])
     db.add(m)
     db.commit()
     db.refresh(m)
@@ -66,8 +72,31 @@ def editar(db: Session, modelo_id: int, datos) -> ModeloResolucion:
         m.plantilla = datos.plantilla
     if datos.es_seguros is not None:
         m.es_seguros = bool(datos.es_seguros)
+    if datos.sector is not None:
+        m.sector = datos.sector.strip()[:80]
+    if datos.actividad is not None:
+        m.actividad = datos.actividad.strip()[:80]
     if datos.activo is not None:
         m.activo = bool(datos.activo)
     db.commit()
     db.refresh(m)
     return m
+
+
+def activar(db: Session, modelo_id: int, activo: bool) -> ModeloResolucion:
+    """Un modelo inactivo no se ofrece para redactar, pero sigue existiendo."""
+    m = obtener(db, modelo_id)
+    m.activo = bool(activo)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def eliminar(db: Session, modelo_id: int) -> None:
+    """Borra el modelo. Los actos que se redactaron con él no cambian: el motivo y el texto ya se
+    copiaron al acto; sólo pierden la referencia al modelo."""
+    m = obtener(db, modelo_id)
+    for r in db.scalars(select(Resolucion).where(Resolucion.modelo_id == m.id)):
+        r.modelo_id = None
+    db.delete(m)
+    db.commit()
