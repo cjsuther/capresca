@@ -12,7 +12,10 @@ const PASOS: Record<string, string> = {
 };
 
 const json = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v ?? {}, null, 2));
-const hora = (v: string | null) => (v ? new Date(v).toLocaleString("es-AR") : "");
+// Hora argentina y en 24 h explícitas: el formato por defecto de es-AR cambia según el navegador.
+const hora = (v: string | null) => (v ? new Date(v).toLocaleString("es-AR", {
+  timeZone: "America/Argentina/Catamarca", hourCycle: "h23", day: "2-digit", month: "2-digit", year: "numeric",
+  hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " (hora argentina)" : "");
 
 /** Texto plano con toda la evidencia, para copiar o descargar. */
 export function textoEvidencia(e: EvidenciaSso): string {

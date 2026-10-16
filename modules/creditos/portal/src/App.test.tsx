@@ -229,6 +229,7 @@ describe("arranque de sesión", () => {
     expect(api.evidenciaIngreso).toHaveBeenCalledWith("a".repeat(32));
     expect(await screen.findByText("POST https://api-mi.catamarca.gob.ar/openid/token/")).toBeInTheDocument();
     expect(screen.getByText("403")).toBeInTheDocument();
+    expect(screen.getByText(/16\/10\/2026, 12:38:01 \(hora argentina\)/)).toBeInTheDocument();
     expect(screen.getByLabelText("Enviado en el paso 1")).toHaveTextContent('"client_id": "023709"');
     expect(screen.getByLabelText("Enviado en el paso 1")).toHaveTextContent("[oculto, 40 caracteres]");
     expect(screen.getByLabelText("Recibido en el paso 1")).toHaveTextContent('"cf-mitigated": "challenge"');
