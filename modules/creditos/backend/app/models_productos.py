@@ -443,6 +443,24 @@ class PPIdempotencia(Base):
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class PortalSsoIntercambio(Base):
+    """Evidencia del ingreso con Mi Catamarca: cada llamada del backend al proveedor (token, userinfo,
+    jwks) con lo que se mandó y lo que respondió, y una fila `resultado` con lo que contestó el portal.
+    Los secretos y tokens se guardan tapados (ver services/mi_catamarca)."""
+    __tablename__ = "portal_sso_intercambios"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    intento: Mapped[str] = mapped_column(String(32), index=True)   # agrupa las llamadas de un mismo ingreso
+    creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    paso: Mapped[str] = mapped_column(String(20))                  # token | userinfo | jwks | resultado
+    metodo: Mapped[str] = mapped_column(String(8), default="")
+    url: Mapped[str] = mapped_column(String(400), default="")
+    solicitud: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    estado_http: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    respuesta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    duracion_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+
+
 class PPWorkflowAprobacion(Base):
     """Aprobación registrada de un objeto concreto en un nivel de su regla (para ejecutar la cadena
     de N niveles en serie). objeto_id = id de la versión (LINEA), solicitud, o contrato.

@@ -7,7 +7,7 @@ import { token } from "./api";
 // probar la pantalla del ciudadano sin red. `token` sí es el real (localStorage).
 const h = vi.hoisted(() => ({
   api: {
-    loginUrl: vi.fn(), me: vi.fn(), haberes: vi.fn(), productos: vi.fn(), simular: vi.fn(),
+    loginUrl: vi.fn(), evidenciaIngreso: vi.fn(), me: vi.fn(), haberes: vi.fn(), productos: vi.fn(), simular: vi.fn(),
     preAprobado: vi.fn(), enviarSolicitud: vi.fn(), misSolicitudes: vi.fn(), solicitudDetalle: vi.fn(),
     docsListar: vi.fn(), docSubir: vi.fn(), docAbrir: vi.fn(), docBorrar: vi.fn(),
     misCreditos: vi.fn(), creditoDetalle: vi.fn(), notificaciones: vi.fn(), videos: vi.fn(),
@@ -209,6 +209,38 @@ describe("arranque de sesión", () => {
     expect(await screen.findByText("Ana Prueba")).toBeInTheDocument();
     expect(token.get()).toBe("tok-callback");
     expect(window.history.replaceState).toHaveBeenCalledWith({}, "", "/");
+  });
+
+  it("si el ingreso falla muestra lo que se le mandó a Mi Catamarca y lo que respondió", async () => {
+    api.evidenciaIngreso.mockResolvedValue({
+      intento: "a".repeat(32), fecha: "2026-10-16T15:38:01Z", resultado: "ERROR",
+      error: "HTTPStatusError: Client error '403 Forbidden'",
+      llamadas: [{
+        paso: "token", metodo: "POST", url: "https://api-mi.catamarca.gob.ar/openid/token/",
+        estado_http: 403, duracion_ms: 85, error: "", fecha: "2026-10-16T15:38:01Z",
+        solicitud: { headers: { accept: "application/json" },
+                     datos: { grant_type: "authorization_code", client_id: "023709", client_secret: "[oculto, 40 caracteres]" } },
+        respuesta: { headers: { "cf-mitigated": "challenge" }, cuerpo: "<title>Just a moment...</title>" },
+      }],
+    });
+    stubLocation("/ingreso", "#error=sso&evidencia=" + "a".repeat(32));
+    render(<App />);
+    expect(await screen.findByText(/No se pudo completar el ingreso/)).toBeInTheDocument();
+    expect(api.evidenciaIngreso).toHaveBeenCalledWith("a".repeat(32));
+    expect(await screen.findByText("POST https://api-mi.catamarca.gob.ar/openid/token/")).toBeInTheDocument();
+    expect(screen.getByText("403")).toBeInTheDocument();
+    expect(screen.getByLabelText("Enviado en el paso 1")).toHaveTextContent('"client_id": "023709"');
+    expect(screen.getByLabelText("Enviado en el paso 1")).toHaveTextContent("[oculto, 40 caracteres]");
+    expect(screen.getByLabelText("Recibido en el paso 1")).toHaveTextContent('"cf-mitigated": "challenge"');
+    expect(screen.getByLabelText("Recibido en el paso 1")).toHaveTextContent("Just a moment...");
+  });
+
+  it("un error sin evidencia sólo muestra el aviso", async () => {
+    stubLocation("/ingreso", "#error=sso");
+    render(<App />);
+    expect(await screen.findByText(/No se pudo completar el ingreso/)).toBeInTheDocument();
+    expect(api.evidenciaIngreso).not.toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: "Detalle técnico del ingreso" })).toBeNull();
   });
 
   it("H-159: un 401 a mitad de sesión devuelve al login sin recargar", async () => {

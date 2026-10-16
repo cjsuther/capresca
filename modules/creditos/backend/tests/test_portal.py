@@ -121,6 +121,68 @@ def test_callback_con_error_vuelve_al_portal_con_aviso(client):
     assert r.status_code in (302, 307) and "#error=sso" in r.headers["location"]
 
 
+def _proveedor_bloqueado(monkeypatch):
+    """Proveedor real cuyo /token lo rechaza Cloudflare (como pasa en producción)."""
+    from app.api import portal as portal_api
+    from app.services import mi_catamarca as mc
+
+    class Bloqueado(mc.MiCatamarcaProvider):
+        def __init__(self):
+            self.intercambios = []
+
+        def identidad_desde_code(self, code, desafio):
+            self.intercambios.append({
+                "paso": "token", "metodo": "POST", "url": "https://api-mi.catamarca.gob.ar/openid/token/",
+                "solicitud": {"headers": {"Accept": "application/json"},
+                              "datos": {"grant_type": "authorization_code", "client_secret": "[oculto, 40 caracteres]"}},
+                "estado_http": 403, "respuesta": {"headers": {"cf-mitigated": "challenge"}, "cuerpo": "Just a moment..."},
+                "duracion_ms": 120, "error": ""})
+            raise RuntimeError("Client error '403 Forbidden'")
+
+    monkeypatch.setattr(portal_api, "get_provider", lambda: Bloqueado())
+
+
+def test_si_falla_el_canje_vuelve_al_portal_con_la_evidencia(client, monkeypatch):
+    """El ciudadano ve en la pantalla de ingreso qué se le mandó a Mi Catamarca y qué respondió."""
+    state = client.get("/api/creditos/portal/auth/login").json()["authorize_url"].split("state=")[1]
+    _proveedor_bloqueado(monkeypatch)
+    r = client.get("/api/creditos/portal/auth/callback", params={"code": "c", "state": state}, follow_redirects=False)
+    assert r.status_code in (302, 307)
+    loc = r.headers["location"]
+    assert "/ingreso#error=sso&evidencia=" in loc and "403" not in loc
+    intento = loc.split("evidencia=")[1]
+
+    ev = client.get(f"/api/creditos/portal/auth/evidencia/{intento}")
+    assert ev.status_code == 200
+    e = ev.json()
+    assert e["resultado"] == "ERROR" and "403 Forbidden" in e["error"]
+    (llamada,) = e["llamadas"]
+    assert llamada["url"].endswith("/openid/token/") and llamada["estado_http"] == 403
+    assert llamada["respuesta"]["headers"]["cf-mitigated"] == "challenge"
+    assert "vinculo" not in str(e)
+
+
+def test_la_evidencia_solo_la_ve_el_navegador_que_ingreso(client, monkeypatch):
+    state = client.get("/api/creditos/portal/auth/login").json()["authorize_url"].split("state=")[1]
+    _proveedor_bloqueado(monkeypatch)
+    loc = client.get("/api/creditos/portal/auth/callback", params={"code": "c", "state": state},
+                     follow_redirects=False).headers["location"]
+    intento = loc.split("evidencia=")[1]
+    client.cookies.clear()
+    assert client.get(f"/api/creditos/portal/auth/evidencia/{intento}").status_code == 404
+    assert client.get("/api/creditos/portal/auth/evidencia/" + "0" * 32).status_code == 404
+
+
+def test_con_el_mock_no_se_guarda_evidencia(client):
+    from app import models_productos as mp
+    from app.core.database import SessionLocal
+    with SessionLocal() as db:
+        antes = db.query(mp.PortalSsoIntercambio).count()
+    _ingresar(client)
+    with SessionLocal() as db:
+        assert db.query(mp.PortalSsoIntercambio).count() == antes
+
+
 def test_callback_sin_parametros_es_400(client):
     assert client.get("/api/creditos/portal/auth/callback", follow_redirects=False).status_code == 400
 

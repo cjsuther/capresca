@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTema, Tema } from "./tema";
 import { PasoVideos, guardarVistos, leerVistos, olvidarVistos } from "./videos";
 import { Correccion } from "./Correccion";
+import { EvidenciaIngreso } from "./Evidencia";
 import { api, nuevoId, token, Video, DocPedido, CampoPedido, Ciudadano, Cobro, Producto, Simulacion, Solicitud, SolicitudDetalle, Credito, CreditoDetalle, Notificacion, PreAprobado } from "./api";
 
 const money = (v: string | number) =>
@@ -72,23 +73,24 @@ const SISTEMA: Record<string, string> = { FRANCES: "Francés", ALEMAN: "Alemán"
 
 // Captura el token del fragmento tras el callback OIDC (<base>/ingreso#token=...) y limpia la URL.
 // La base la fija la compilación (vite.config.ts): /portal-creditos/ en dev, / en su dominio propio.
-/** Vuelta de Mi Catamarca: con el token entra; con error, se avisa en el login. */
-function capturarTokenDeCallback(): string {
+/** Vuelta de Mi Catamarca: con el token entra; con error, se avisa en el login junto con el id de la
+ *  evidencia (qué se le mandó a Mi Catamarca y qué respondió) para mostrarla en la misma pantalla. */
+function capturarTokenDeCallback(): { aviso: string; evidencia: string } {
   const base = import.meta.env.BASE_URL;
-  if (window.location.pathname !== `${base}ingreso`) return "";
+  if (window.location.pathname !== `${base}ingreso`) return { aviso: "", evidencia: "" };
   const h = new URLSearchParams(window.location.hash.slice(1));
   const t = h.get("token");
   if (t) token.set(t);
   window.history.replaceState({}, "", base);
-  return !t && h.get("error")
-    ? "No se pudo completar el ingreso con Mi Catamarca. Probá de nuevo."
-    : "";
+  if (t || !h.get("error")) return { aviso: "", evidencia: "" };
+  return { aviso: "No se pudo completar el ingreso con Mi Catamarca. Probá de nuevo.",
+           evidencia: h.get("evidencia") || "" };
 }
 
 export default function App() {
   const [sesion, setSesion] = useState<Ciudadano | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [errSso, setErrSso] = useState("");
+  const [errSso, setErrSso] = useState({ aviso: "", evidencia: "" });
 
   useEffect(() => {
     setErrSso(capturarTokenDeCallback());
@@ -104,7 +106,7 @@ export default function App() {
   }, []);
 
   if (cargando) return <Marco><p className="p-muted">Cargando…</p></Marco>;
-  if (!sesion) return <Login aviso={errSso} />;
+  if (!sesion) return <Login aviso={errSso.aviso} evidencia={errSso.evidencia} />;
   return <Simulador sesion={sesion} onSalir={() => { token.clear(); setSesion(null); }} />;
 }
 
@@ -117,7 +119,7 @@ function Marco({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Login({ aviso = "" }: { aviso?: string }) {
+function Login({ aviso = "", evidencia = "" }: { aviso?: string; evidencia?: string }) {
   const [err, setErr] = useState(aviso);
   const [yendo, setYendo] = useState(false);
   async function ingresar() {
@@ -140,6 +142,7 @@ function Login({ aviso = "" }: { aviso?: string }) {
         {err && <div className="p-alert">{err}</div>}
         <p className="p-fine">Tu identidad la valida el gobierno provincial. No guardamos tu contraseña de Mi Catamarca.</p>
       </div>
+      {evidencia && <EvidenciaIngreso intento={evidencia} />}
     </Marco>
   );
 }
@@ -1005,7 +1008,7 @@ function Estilos() {
     html, body { margin:0; overflow-x:hidden; max-width:100%; }
     .p-app { min-height:100vh; width:100%; background:var(--p-bg); color:var(--p-ink);
       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-    .p-center { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .p-center { min-height:100vh; display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; padding:24px; }
     .p-card { background:var(--p-surface); border:1px solid var(--p-border); border-radius:16px;
       box-shadow:0 10px 30px rgba(15,23,42,.06); }
     .p-brand { display:flex; align-items:center; gap:10px; }

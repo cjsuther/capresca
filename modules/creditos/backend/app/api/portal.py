@@ -120,6 +120,80 @@ def _es_https(request: Request) -> bool:
     return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
 
 
+EVIDENCIA_VIGENTE = timedelta(hours=24)
+
+
+def _guardar_evidencia(db: Session, prov, request: Request, vinculo: str, error: str) -> str:
+    """Guarda qué se le mandó a Mi Catamarca y qué respondió en cada paso del canje del code, más una
+    fila `resultado` con cómo terminó el ingreso. Devuelve el id del intento ('' si no se guardó).
+
+    Sólo con el proveedor real. La evidencia queda atada al navegador que inició el ingreso (huella de
+    la cookie de login): sólo ese navegador la puede ver en el portal. Si no se puede guardar, el
+    ingreso sigue: la evidencia no puede tumbar el login."""
+    if getattr(prov, "mock", True):
+        return ""
+    from app import models_productos as mp
+    intento = uuid.uuid4().hex
+    try:
+        for reg in getattr(prov, "intercambios", []):
+            db.add(mp.PortalSsoIntercambio(intento=intento, paso=reg["paso"], metodo=reg["metodo"],
+                                           url=reg["url"][:400], solicitud=reg.get("solicitud"),
+                                           estado_http=reg.get("estado_http"), respuesta=reg.get("respuesta"),
+                                           duracion_ms=reg.get("duracion_ms"), error=reg.get("error") or ""))
+        db.add(mp.PortalSsoIntercambio(
+            intento=intento, paso="resultado", metodo=request.method, url=request.url.path,
+            solicitud={"ip": audit.ip_de(request), "user_agent": request.headers.get("user-agent", ""),
+                       "vinculo": vinculo},
+            respuesta={"ingreso": "ERROR" if error else "OK"}, error=error))
+        db.commit()
+        return intento
+    except Exception:
+        db.rollback()
+        log.exception("No se pudo guardar la evidencia del ingreso con Mi Catamarca")
+        return ""
+
+
+def _volver_con_error(db: Session, prov, request: Request, vinculo: str, error: str) -> RedirectResponse:
+    """Vuelve al portal con el aviso y el id de la evidencia, para que la pantalla de ingreso muestre
+    qué se le mandó a Mi Catamarca y qué respondió. El detalle no viaja en la URL."""
+    intento = _guardar_evidencia(db, prov, request, vinculo, error)
+    destino = f"{get_settings().portal_web_url}/ingreso#error=sso"
+    resp = RedirectResponse(destino + (f"&evidencia={intento}" if intento else ""))
+    cookie = request.cookies.get(COOKIE_LOGIN, "")
+    if intento and cookie:
+        # La cookie de login vence a los 30 minutos: se estira para poder volver a ver la evidencia.
+        resp.set_cookie(COOKIE_LOGIN, cookie, max_age=int(EVIDENCIA_VIGENTE.total_seconds()),
+                        httponly=True, samesite="lax", secure=_es_https(request),
+                        path="/api/creditos/portal/auth")
+    return resp
+
+
+@router.get("/auth/evidencia/{intento}")
+def evidencia(intento: str, request: Request, db: Session = Depends(get_db)):
+    """Lo que el backend le mandó a Mi Catamarca al canjear el code y lo que respondió (secretos y
+    tokens tapados). Sólo para el navegador que hizo ese ingreso y durante 24 horas."""
+    from app import models_productos as mp
+    T = mp.PortalSsoIntercambio
+    filas = db.query(T).filter(T.intento == intento).order_by(T.id).all() if len(intento) == 32 else []
+    res = next((f for f in filas if f.paso == "resultado"), None)
+    cookie = request.cookies.get(COOKIE_LOGIN, "")
+    vinculo = (res.solicitud or {}).get("vinculo", "") if res else ""
+    vigente = res is not None and res.creado_en is not None and \
+        res.creado_en >= datetime.now(timezone.utc).replace(tzinfo=None) - EVIDENCIA_VIGENTE
+    if not (res and vigente and vinculo and cookie and hmac.compare_digest(_huella(cookie), vinculo)):
+        raise HTTPException(404, "Evidencia no encontrada o vencida")
+    return {
+        "intento": intento,
+        "fecha": res.creado_en.isoformat() + "Z",
+        "resultado": "ERROR" if res.error else "OK",
+        "error": res.error,
+        "llamadas": [{"paso": f.paso, "metodo": f.metodo, "url": f.url, "solicitud": f.solicitud,
+                      "estado_http": f.estado_http, "respuesta": f.respuesta, "duracion_ms": f.duracion_ms,
+                      "error": f.error, "fecha": f.creado_en.isoformat() + "Z" if f.creado_en else None}
+                     for f in filas if f.paso != "resultado"],
+    }
+
+
 @router.get("/auth/login")
 def login(request: Request, response: Response, db: Session = Depends(get_db)):
     """Devuelve la URL de autorización de Mi Catamarca (el SPA redirige ahí)."""
@@ -173,18 +247,19 @@ def callback(request: Request, db: Session = Depends(get_db), code: str = "", st
         log.warning("Callback de Mi Catamarca desde un navegador que no inició el ingreso")
         return RedirectResponse(f"{s_cfg.portal_web_url}/ingreso#error=sso")
 
+    prov = get_provider()
     try:
-        ident = get_provider().identidad_desde_code(code, desafio)
+        ident = prov.identidad_desde_code(code, desafio)
     except Exception as e:
         log.warning("Mi Catamarca: falló el intercambio del code: %s", e)
-        # No filtramos el detalle del proveedor al navegador.
         audit.registrar_cambio(db, usuario="ciudadano", ip=audit.ip_de(request),
                                entidad="Ciudadano", operacion="LOGIN", resultado="ERROR",
                                detalle="Fallo el intercambio de code con Mi Catamarca")
-        raise HTTPException(502, "No se pudo completar el ingreso con Mi Catamarca")
+        return _volver_con_error(db, prov, request, vinculo, f"{type(e).__name__}: {e}")
 
     if not ident.sub:
-        raise HTTPException(502, "Mi Catamarca no devolvió la identidad del ciudadano")
+        return _volver_con_error(db, prov, request, vinculo, "Mi Catamarca no devolvió el sub del ciudadano")
+    _guardar_evidencia(db, prov, request, vinculo, "")
     token = create_portal_token(ident.sub, ident.email, ident.nombre, ident.documento)
     audit.registrar_cambio(db, usuario=ident.email or ident.sub, ip=audit.ip_de(request),
                            entidad="Ciudadano", entidad_id=ident.sub, operacion="LOGIN", resultado="OK",

@@ -115,8 +115,19 @@ export type Solicitud = {
   cuota_estimada: number; tna: number; fecha: string; motivo_rechazo: string;
 };
 
+/** Una llamada del backend a Mi Catamarca durante el ingreso: lo enviado y lo recibido (secretos tapados). */
+export type LlamadaSso = {
+  paso: string; metodo: string; url: string; estado_http: number | null; duracion_ms: number | null;
+  error: string; fecha: string | null;
+  solicitud: { headers?: Record<string, string>; datos?: Record<string, unknown> | null } | null;
+  respuesta: { headers?: Record<string, string>; cuerpo?: unknown } | null;
+};
+export type EvidenciaSso = { intento: string; fecha: string; resultado: string; error: string; llamadas: LlamadaSso[] };
+
 export const api = {
   loginUrl: () => req("/portal/auth/login"),
+  evidenciaIngreso: (intento: string): Promise<EvidenciaSso> =>
+    req(`/portal/auth/evidencia/${encodeURIComponent(intento)}`),
   me: (): Promise<Ciudadano> => req("/portal/me"),
   haberes: (): Promise<Haberes> => req("/portal/haberes"),
   productos: (): Promise<Producto[]> => req("/portal/productos"),

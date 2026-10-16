@@ -300,3 +300,61 @@ def test_en_produccion_nunca_el_mock(monkeypatch):
     from fastapi import HTTPException
     with pytest.raises(HTTPException):
         mc.get_provider()
+
+
+# --------------------------------------------------------------------------- evidencia del canje
+def test_cada_llamada_queda_registrada_sin_secretos(monkeypatch):
+    s = _settings()
+    d = mc.Desafio()
+    prov, _, _ = _correr(monkeypatch, s, {
+        f"{ISSUER}/token": lambda: {"access_token": "at-1234567890123", "id_token": _id_token(nonce=d.nonce)},
+        f"{ISSUER}/userinfo": USERINFO,
+    }, d)
+    prov.identidad_desde_code("el-code-de-mi-catamarca", d)
+
+    token, userinfo = prov.intercambios
+    assert (token["paso"], token["metodo"], token["url"], token["estado_http"]) == ("token", "POST", f"{ISSUER}/token", 200)
+    datos = token["solicitud"]["datos"]
+    assert datos["client_id"] == CLIENT_ID and datos["redirect_uri"] == REDIRECT
+    assert datos["grant_type"] == "authorization_code"
+    assert datos["client_secret"] == f"[oculto, {len(SECRET)} caracteres]"
+    assert datos["code"].startswith("el-cod") and "mi-catamarca" not in datos["code"]
+    assert d.code_verifier not in datos["code_verifier"]
+    cuerpo = token["respuesta"]["cuerpo"]
+    assert "1234567890123" not in cuerpo["access_token"] and "oculto" in cuerpo["id_token"]
+
+    assert (userinfo["paso"], userinfo["metodo"], userinfo["estado_http"]) == ("userinfo", "GET", 200)
+    assert userinfo["solicitud"]["headers"]["authorization"] == "Bearer [oculto, 16 caracteres]"
+    assert userinfo["respuesta"]["cuerpo"]["sub"] == "ciudadano-1"
+    assert SECRET not in str(prov.intercambios)
+
+
+class _Bloqueado(httpx.Response):
+    """Lo que contesta Cloudflare cuando desafía al servidor."""
+    def __init__(self, url):
+        super().__init__(403, text="<!DOCTYPE html><title>Just a moment...</title>" + "x" * 5000,
+                         headers={"cf-mitigated": "challenge", "server": "cloudflare", "set-cookie": "__cf_bm=abc"},
+                         request=httpx.Request("POST", url))
+
+
+def test_un_rechazo_del_proveedor_queda_con_su_respuesta(monkeypatch):
+    s = _settings()
+    prov, cli, d = _correr(monkeypatch, s, {})
+    cli._responder = lambda url: _Bloqueado(url)
+    with pytest.raises(httpx.HTTPStatusError):
+        prov.identidad_desde_code("el-code", d)
+
+    (token,) = prov.intercambios
+    assert token["estado_http"] == 403
+    assert token["respuesta"]["headers"]["cf-mitigated"] == "challenge"
+    assert token["respuesta"]["headers"]["set-cookie"] == "[oculto, 11 caracteres]"
+    assert token["respuesta"]["cuerpo"].startswith("<!DOCTYPE html><title>Just a moment...")
+    assert len(token["respuesta"]["cuerpo"]) < mc.CUERPO_MAX + 60 and "recortado" in token["respuesta"]["cuerpo"]
+
+
+def test_sin_respuesta_queda_el_error_de_red(monkeypatch):
+    prov, _, d = _correr(monkeypatch, _settings(), {f"{ISSUER}/token": httpx.ConnectError("sin red")})
+    with pytest.raises(httpx.ConnectError):
+        prov.identidad_desde_code("el-code", d)
+    (token,) = prov.intercambios
+    assert token["estado_http"] is None and token["error"] == "ConnectError: sin red"

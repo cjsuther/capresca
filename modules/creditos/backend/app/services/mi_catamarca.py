@@ -34,6 +34,13 @@ log = logging.getLogger("creditos.micatamarca")
 
 TIMEOUT = 15
 JWKS_TTL = 3600          # segundos que se cachean las claves públicas del proveedor
+CUERPO_MAX = 4000        # caracteres de la respuesta que se guardan como evidencia
+
+# Lo que no puede quedar en la evidencia: se guarda sólo el largo (o el principio, si sirve para
+# reconocerlo) para poder mostrar QUÉ se mandó sin exponer el secreto ni los tokens.
+_SECRETOS = {"client_secret"}
+_PARCIALES = {"code", "code_verifier", "access_token", "id_token", "refresh_token"}
+_HEADERS_SECRETOS = {"authorization", "cookie", "set-cookie"}
 
 
 @dataclass
@@ -67,6 +74,9 @@ class MiCatamarcaProvider:
 
     def __init__(self, s):
         self.s = s
+        # Evidencia de cada llamada a Mi Catamarca de este ingreso: qué se mandó y qué respondió,
+        # con los secretos ocultos. El callback la guarda en la base (portal_sso_intercambios).
+        self.intercambios: list[dict] = []
 
     def authorize_url(self, state: str, desafio: Desafio) -> str:
         q = {"client_id": self.s.micatamarca_client_id, "response_type": "code",
@@ -87,12 +97,14 @@ class MiCatamarcaProvider:
             datos["code_verifier"] = desafio.code_verifier
         # Sin seguir redirecciones: un 307/308 reenviaría el client_secret a otro host.
         with httpx.Client(timeout=TIMEOUT, follow_redirects=False) as c:
-            tok = c.post(self.s.mc_token_url, data=datos, headers={"Accept": "application/json"})
+            tok = self._llamar(c, "token", "POST", self.s.mc_token_url, data=datos,
+                               headers={"Accept": "application/json"})
             tok.raise_for_status()
             cuerpo = tok.json()
             access = cuerpo.get("access_token", "")
             claims_id = self._validar_id_token(cuerpo.get("id_token", ""), desafio.nonce)
-            ui = c.get(self.s.mc_userinfo_url, headers={"Authorization": f"Bearer {access}"})
+            ui = self._llamar(c, "userinfo", "GET", self.s.mc_userinfo_url,
+                              headers={"Authorization": f"Bearer {access}"})
             ui.raise_for_status()
             claims = ui.json()
         # El sub del userinfo tiene que ser el mismo del ID Token: si no, la respuesta no corresponde
@@ -100,6 +112,39 @@ class MiCatamarcaProvider:
         if claims_id and claims.get("sub") and claims_id.get("sub") != claims.get("sub"):
             raise ValueError("El userinfo no corresponde al ID Token (sub distinto)")
         return _normalizar({**claims_id, **claims})
+
+    def _llamar(self, c, paso: str, metodo: str, url: str, *, data: dict | None = None,
+                headers: dict | None = None):
+        """Hace la llamada y deja registro de lo enviado y lo recibido (también si no hubo respuesta)."""
+        reg = {"paso": paso, "metodo": metodo, "url": url,
+               "solicitud": {"headers": _ocultar_headers({k.lower(): v for k, v in (headers or {}).items()}),
+                             "datos": _ocultar_datos(data)}}
+        t0 = time.monotonic()
+        try:
+            r = c.post(url, data=data, headers=headers) if metodo == "POST" else c.get(url, headers=headers)
+        except Exception as e:
+            reg.update(duracion_ms=int((time.monotonic() - t0) * 1000), estado_http=None,
+                       respuesta=None, error=f"{type(e).__name__}: {e}")
+            self._registrar(reg)
+            raise
+        reg["duracion_ms"] = int((time.monotonic() - t0) * 1000)
+        # Los headers que efectivamente salieron (httpx agrega User-Agent, Content-Type, etc.).
+        enviados = {k.lower(): v for k, v in (headers or {}).items()}
+        try:
+            enviados.update({k.lower(): v for k, v in r.request.headers.items()})
+        except Exception:
+            pass
+        reg["solicitud"]["headers"] = _ocultar_headers(enviados)
+        reg.update(estado_http=r.status_code, error="",
+                   respuesta={"headers": _ocultar_headers(dict(r.headers)), "cuerpo": _cuerpo(r)})
+        self._registrar(reg)
+        return r
+
+    def _registrar(self, reg: dict) -> None:
+        self.intercambios.append(reg)
+        log.info("Mi Catamarca %s %s %s -> %s (%s ms)%s", reg["paso"], reg["metodo"], reg["url"],
+                 reg.get("estado_http"), reg.get("duracion_ms"),
+                 f" error={reg['error']}" if reg.get("error") else "")
 
     def _validar_id_token(self, id_token: str, nonce: str) -> dict:
         """Verifica firma y claims del ID Token (paso 6 del documento de integración).
@@ -158,13 +203,59 @@ class MiCatamarcaProvider:
             return cache[1]
         try:
             with httpx.Client(timeout=TIMEOUT) as c:
-                r = c.get(self.s.mc_jwks_url, headers={"Accept": "application/json"})
+                r = self._llamar(c, "jwks", "GET", self.s.mc_jwks_url, headers={"Accept": "application/json"})
                 r.raise_for_status()
                 doc = r.json()
         except Exception as e:                       # WAF, red caída, respuesta que no es JSON…
             raise _SinJwks(str(e))
         MiCatamarcaProvider._jwks = (time.time() + JWKS_TTL, doc)
         return doc
+
+
+def _ocultar(valor, parcial: bool) -> str:
+    v = str(valor or "")
+    if not v:
+        return ""
+    if parcial and len(v) > 12:
+        return f"{v[:6]}…[oculto, {len(v)} caracteres]"
+    return f"[oculto, {len(v)} caracteres]"
+
+
+def _ocultar_datos(datos):
+    """Copia de un formulario o JSON con los secretos tapados (recursivo)."""
+    if isinstance(datos, dict):
+        return {k: (_ocultar(v, False) if k in _SECRETOS else
+                    _ocultar(v, True) if k in _PARCIALES else _ocultar_datos(v))
+                for k, v in datos.items()}
+    if isinstance(datos, list):
+        return [_ocultar_datos(v) for v in datos]
+    return datos
+
+
+def _ocultar_headers(headers: dict) -> dict:
+    out = {}
+    for k, v in headers.items():
+        if k.lower() == "authorization" and " " in str(v):
+            tipo, valor = str(v).split(" ", 1)
+            out[k] = f"{tipo} {_ocultar(valor, False)}"
+        elif k.lower() in _HEADERS_SECRETOS:
+            out[k] = _ocultar(v, False)
+        else:
+            out[k] = v
+    return out
+
+
+def _cuerpo(r):
+    """El cuerpo de la respuesta: JSON con los tokens tapados, o el texto (recortado)."""
+    try:
+        return _ocultar_datos(r.json())
+    except Exception:
+        pass
+    try:
+        texto = r.text
+    except Exception:
+        return ""
+    return texto if len(texto) <= CUERPO_MAX else texto[:CUERPO_MAX] + f"… [recortado, {len(texto)} caracteres]"
 
 
 class _SinJwks(Exception):
