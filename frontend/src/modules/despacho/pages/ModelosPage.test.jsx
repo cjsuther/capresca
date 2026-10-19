@@ -9,7 +9,7 @@ import { useAuthStore } from "../../../context/authStore";
 vi.mock("../../../api/despacho");
 
 const modelo = (extra = {}) => ({
-  id: 3, codigo: 103, serie: 1, serie_nombre: "General (créditos y ayudas sociales)",
+  id: 3, codigo: 103, serie: 1, serie_nombre: "GENERAL",
   descripcion: "TRANSFERENCIA", tipo: "RES", es_seguros: false,
   plantilla: "<p>VISTO…</p>", tiene_plantilla: true, activo: true, ...extra,
 });
@@ -24,8 +24,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   sesion(["resoluciones:read", "modelos:write"]);
   api.getModelos.mockResolvedValue([modelo()]);
-  api.getSeries.mockResolvedValue([{ serie: 1, nombre: "General (créditos y ayudas sociales)" },
-                                   { serie: 6, nombre: "Juegos" }]);
+  api.getSeries.mockResolvedValue([{ serie: 1, nombre: "GENERAL" },
+                                   { serie: 6, nombre: "JUEGOS" }]);
   api.getClasificacion.mockResolvedValue({ sectores: ["Créditos", "Seguros"], actividades: ["Préstamos"] });
   document.execCommand = vi.fn();
 });

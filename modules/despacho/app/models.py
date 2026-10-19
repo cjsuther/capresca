@@ -27,14 +27,15 @@ from app.db.base import Base
 
 TIPOS = ("RES", "DIS")                 # Resolución / Disposición
 
-# Series de numeración del despacho (VFP: TIPO_RES). Los nombres salen de los modelos que usa cada
-# una en el sistema anterior; el número es el que manda, el nombre es sólo la etiqueta en pantalla.
+# Series de numeración del despacho (VFP: TIPO_RES). El número es el del sistema anterior y es el que
+# manda; el nombre es sólo la etiqueta en pantalla y el orden es el de las listas. La 3 era
+# "Préstamos y garantías" en el sistema anterior.
 SERIES = {
-    1: "General (créditos y ayudas sociales)",
-    3: "Préstamos y garantías",
-    4: "Seguros",
-    5: "Proveedores y obras",
-    6: "Juegos",
+    1: "GENERAL",
+    3: "CRÉDITOS",
+    6: "JUEGOS",
+    4: "SEGUROS",
+    5: "PROVEEDORES Y OBRAS",
 }
 SERIE_POR_DEFECTO = 1
 

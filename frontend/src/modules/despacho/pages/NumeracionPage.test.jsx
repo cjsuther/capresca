@@ -10,7 +10,7 @@ vi.mock("../../../api/despacho");
 
 const ANIO = new Date().getFullYear();
 const fila = (extra = {}) => ({
-  anio: ANIO, serie: 1, nombre: "General (créditos y ayudas sociales)", ultimoNumero: 6, ultimoOficial: 6,
+  anio: ANIO, serie: 1, nombre: "GENERAL", ultimoNumero: 6, ultimoOficial: 6,
   desdeNumero: null, desdeOficial: null, proximoNumero: 7, proximoOficial: 7, actualizadoPor: null, actualizadoEn: null,
   ...extra,
 });
@@ -24,14 +24,14 @@ const sesion = (acciones) =>
 beforeEach(() => {
   vi.clearAllMocks();
   sesion(["resoluciones:read", "resoluciones:firmar"]);
-  api.getNumeracion.mockResolvedValue([fila(), fila({ serie: 4, nombre: "Seguros", ultimoNumero: null, ultimoOficial: null,
+  api.getNumeracion.mockResolvedValue([fila(), fila({ serie: 4, nombre: "SEGUROS", ultimoNumero: null, ultimoOficial: null,
                                                        proximoNumero: 1, proximoOficial: 1 })]);
 });
 
 describe("numeración de resoluciones", () => {
   it("muestra por serie el último número y el próximo", async () => {
     render(<NumeracionPage />);
-    const general = (await screen.findByText(/1 · General/)).closest("tr");
+    const general = (await screen.findByText(/1 · GENERAL/)).closest("tr");
     expect(api.getNumeracion).toHaveBeenCalledWith(ANIO);
     expect(general).toHaveTextContent("Va a ser el 7");
   });
@@ -41,7 +41,7 @@ describe("numeración de resoluciones", () => {
                                                  actualizadoPor: "ana", actualizadoEn: "2026-10-08T15:30:00" }));
     const u = userEvent.setup();
     render(<NumeracionPage />);
-    const general = (await screen.findByText(/1 · General/)).closest("tr");
+    const general = (await screen.findByText(/1 · GENERAL/)).closest("tr");
     await u.type(within(general).getByLabelText("Próximo correlativo serie 1"), "1500");
     await u.type(within(general).getByLabelText("Próximo N° oficial serie 1"), "870");
     await u.click(within(general).getByRole("button", { name: "Guardar" }));
@@ -54,7 +54,7 @@ describe("numeración de resoluciones", () => {
     api.fijarNumeracion.mockRejectedValue({ response: { data: { detail: "Ya se usó el correlativo 6 en 2026 para esta serie: el próximo tiene que ser mayor que 6." } } });
     const u = userEvent.setup();
     render(<NumeracionPage />);
-    const general = (await screen.findByText(/1 · General/)).closest("tr");
+    const general = (await screen.findByText(/1 · GENERAL/)).closest("tr");
     await u.type(within(general).getByLabelText("Próximo correlativo serie 1"), "3");
     await u.click(within(general).getByRole("button", { name: "Guardar" }));
     expect(await within(general).findByText(/tiene que ser mayor que 6/)).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe("numeración de resoluciones", () => {
   it("sin el permiso de firmar no se puede cambiar", async () => {
     sesion(["resoluciones:read"]);
     render(<NumeracionPage />);
-    const general = (await screen.findByText(/1 · General/)).closest("tr");
+    const general = (await screen.findByText(/1 · GENERAL/)).closest("tr");
     expect(within(general).getByLabelText("Próximo correlativo serie 1")).toBeDisabled();
     expect(within(general).queryByRole("button", { name: "Guardar" })).toBeNull();
     expect(screen.getByText(/Sólo quien firma/)).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe("numeración de resoluciones", () => {
   it("cambiar el año recarga la numeración de ese año", async () => {
     const u = userEvent.setup();
     render(<NumeracionPage />);
-    await screen.findByText(/1 · General/);
+    await screen.findByText(/1 · GENERAL/);
     await u.selectOptions(screen.getByLabelText("Año"), String(ANIO - 1));
     await waitFor(() => expect(api.getNumeracion).toHaveBeenLastCalledWith(ANIO - 1));
   });

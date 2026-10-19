@@ -8,12 +8,12 @@ import { useAuthStore } from "../../../context/authStore";
 
 vi.mock("../../../api/despacho");
 
-const SERIES = [{ serie: 1, nombre: "General (créditos y ayudas sociales)" },
-                { serie: 4, nombre: "Seguros" }];
+const SERIES = [{ serie: 1, nombre: "GENERAL" },
+                { serie: 4, nombre: "SEGUROS" }];
 
 const res = (extra = {}) => ({
   id: 1, numero: 45, anio: 2026, tipo: "RES", serie: 1,
-  serie_nombre: "General (créditos y ayudas sociales)",
+  serie_nombre: "GENERAL",
   fecha: "2026-06-10", numero_real: null,
   fecha_real: null, organo: "DIRECTORIO", asunto: "Transferencia", motivo: "TRANSFERENCIA",
   motivo_codigo: 103, importe: "125000.50", modelo_id: 3, origen: "EXP C 1234 2026", nro_op: null,

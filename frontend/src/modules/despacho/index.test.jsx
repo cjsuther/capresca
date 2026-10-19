@@ -6,7 +6,7 @@ import DespachoModule, { despachoMenu } from "./index";
 import { useAuthStore } from "../../context/authStore";
 
 vi.mock("../../api/despacho", () => ({
-  getSeries: vi.fn(async () => [{ serie: 1, nombre: "General (créditos y ayudas sociales)" }]),
+  getSeries: vi.fn(async () => [{ serie: 1, nombre: "GENERAL" }]),
   getModelos: vi.fn(async () => []),
   crearModelo: vi.fn(), editarModelo: vi.fn(), activarModelo: vi.fn(), eliminarModelo: vi.fn(),
   getClasificacion: vi.fn(async () => ({ sectores: [], actividades: [] })),

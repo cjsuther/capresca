@@ -18,7 +18,7 @@ def test_el_correlativo_es_por_ano_y_serie(client, h, resolucion):
     assert (d1["numero"], d1["tipo"]) == (3, "DIS")
 
     seguros = resolucion(serie=4)
-    assert (seguros["numero"], seguros["serie_nombre"]) == (1, "Seguros")
+    assert (seguros["numero"], seguros["serie_nombre"]) == (1, "SEGUROS")
 
     vieja = resolucion(fecha="2024-05-10")
     assert (vieja["numero"], vieja["anio"]) == (1, 2024)  # otro año, otra numeración
@@ -76,8 +76,9 @@ def test_la_serie_tiene_que_existir(client, h):
 def test_las_series_se_publican_para_los_combos(client, h):
     r = client.get("/api/despacho/series", headers=h)
     assert r.status_code == 200
-    series = {x["serie"]: x["nombre"] for x in r.json()}
-    assert series[1].startswith("General") and series[4] == "Seguros"
+    assert [x["nombre"] for x in r.json()] == ["GENERAL", "CRÉDITOS", "JUEGOS", "SEGUROS", "PROVEEDORES Y OBRAS"]
+    # Los números son los del sistema anterior (VFP: TIPO_RES): con ellos se importan los actos.
+    assert {x["serie"]: x["nombre"] for x in r.json()}[3] == "CRÉDITOS"
 
 
 def test_no_se_puede_crear_un_tipo_que_no_existe(client, h):
