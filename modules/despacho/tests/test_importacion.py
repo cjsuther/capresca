@@ -158,6 +158,19 @@ def test_cada_serie_lleva_su_propia_numeracion(db, backup, correr):
     assert por_serie[6].motivo == "TRANSFERENCIA LOTO"
 
 
+def test_un_codigo_de_modelo_repetido_entre_series_toma_el_siguiente_libre(db, backup, correr):
+    """El código del modelo no se repite en todo el catálogo; volver a importar no duplica."""
+    modelos = [{"COD_MOD": 3, "TIPO_RES": 1, "DES_MOD": "AYUDAS SOCIALES"},
+               {"COD_MOD": 5, "TIPO_RES": 1, "DES_MOD": "BAJA"},
+               {"COD_MOD": 3, "TIPO_RES": 6, "DES_MOD": "TRANSFERENCIA LOTO"}]
+    correr(backup(modelos=modelos))
+    codigos = {m.descripcion: m.codigo for m in db.query(ModeloResolucion).all()}
+    assert codigos == {"AYUDAS SOCIALES": 3, "BAJA": 5, "TRANSFERENCIA LOTO": 6}
+
+    imp = correr(backup(modelos=modelos), archivo="otra-vez.zip")
+    assert imp.modelos == 0 and db.query(ModeloResolucion).count() == 3
+
+
 def test_un_backup_sin_tipo_res_entra_en_la_serie_general(db, tmp_path, correr):
     """Los backups viejos podían no traer la serie: entran como generales, no se pierden."""
     carpeta = tmp_path / "vieja"

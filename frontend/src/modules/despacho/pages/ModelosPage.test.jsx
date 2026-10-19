@@ -67,13 +67,43 @@ describe("modelos de resolución", () => {
     await screen.findByText("TRANSFERENCIA");
 
     await user.click(screen.getByRole("button", { name: /Nuevo modelo/ }));
+    await user.type(screen.getByLabelText("Código"), "250");
     await user.type(screen.getByLabelText("Descripción"), "BAJA DE CREDITO");
     await user.selectOptions(screen.getByLabelText("Tipo del modelo"), "DIS");
     await user.selectOptions(await screen.findByLabelText("Serie del modelo"), "6");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => expect(api.crearModelo).toHaveBeenCalledWith(
-      expect.objectContaining({ descripcion: "BAJA DE CREDITO", tipo: "DIS", serie: 6 })));
+      expect.objectContaining({ codigo: 250, descripcion: "BAJA DE CREDITO", tipo: "DIS", serie: 6 })));
+  });
+
+  it("el código es obligatorio y numérico", async () => {
+    const user = userEvent.setup();
+    render(<ModelosPage />);
+    await screen.findByText("TRANSFERENCIA");
+
+    await user.click(screen.getByRole("button", { name: /Nuevo modelo/ }));
+    await user.type(screen.getByLabelText("Descripción"), "BAJA");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText(/código del modelo es obligatorio/)).toBeInTheDocument();
+    expect(api.crearModelo).not.toHaveBeenCalled();
+  });
+
+  it("el código se puede cambiar y avisa si ya lo usa otro modelo", async () => {
+    const user = userEvent.setup();
+    api.editarModelo.mockRejectedValue(
+      { response: { data: { detail: 'El código 7 ya lo usa el modelo "BAJA".' } } });
+    render(<ModelosPage />);
+    await screen.findByText("TRANSFERENCIA");
+
+    await user.click(screen.getByLabelText("Editar TRANSFERENCIA"));
+    const codigo = screen.getByLabelText("Código");
+    expect(codigo).toHaveValue(103);
+    await user.clear(codigo);
+    await user.type(codigo, "7");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(api.editarModelo).toHaveBeenCalledWith(3, expect.objectContaining({ codigo: 7 }));
+    expect(await screen.findByText('El código 7 ya lo usa el modelo "BAJA".')).toBeInTheDocument();
   });
 
   it("sin permiso de escritura no se puede editar ni crear", async () => {
@@ -92,6 +122,7 @@ describe("modelos de resolución", () => {
     await screen.findByText("TRANSFERENCIA");
 
     await user.click(screen.getByRole("button", { name: /Nuevo modelo/ }));
+    await user.type(screen.getByLabelText("Código"), "5");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(await screen.findByText("La descripción es obligatoria.")).toBeInTheDocument();
   });

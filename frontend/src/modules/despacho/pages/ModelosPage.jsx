@@ -12,7 +12,7 @@ import { EditorTexto } from "../components/EditorTexto";
 const TIPOS = [["RES", "Resolución"], ["DIS", "Disposición"]];
 const nombreTipo = (t) => TIPOS.find(([v]) => v === t)?.[1] || t;
 
-const VACIO = { descripcion: "", tipo: "RES", serie: 1, es_seguros: false, plantilla: "",
+const VACIO = { codigo: "", descripcion: "", tipo: "RES", serie: 1, es_seguros: false, plantilla: "",
                 sector: "", actividad: "", activo: true };
 
 export default function ModelosPage() {
@@ -66,9 +66,16 @@ export default function ModelosPage() {
   };
 
   const guardar = async () => {
-    setError(""); setGuardando(true);
+    setError("");
+    // El código lo carga el usuario: numérico y sin repetirse (eso lo controla el backend).
+    const codigo = Number(form.codigo);
+    if (!/^\d+$/.test(String(form.codigo ?? "").trim()) || codigo < 1) {
+      setError("El código del modelo es obligatorio y tiene que ser un número mayor que cero.");
+      return;
+    }
+    setGuardando(true);
     try {
-      const datos = { descripcion: form.descripcion, tipo: form.tipo, serie: Number(form.serie),
+      const datos = { codigo, descripcion: form.descripcion, tipo: form.tipo, serie: Number(form.serie),
                       es_seguros: form.es_seguros, plantilla: form.plantilla, activo: form.activo,
                       sector: form.sector || "", actividad: form.actividad || "" };
       if (editando.nuevo) await crearModelo(datos);
@@ -90,8 +97,8 @@ export default function ModelosPage() {
           <p className="text-sm text-gray-500 mt-1 max-w-3xl">
             Las plantillas con las que se redactan las resoluciones y disposiciones. Al elegir un
             modelo, su descripción pasa a ser el <strong>motivo</strong> del acto y su texto, el
-            cuerpo inicial que después se edita. Cada <strong>serie</strong> tiene su propio juego
-            de modelos: el mismo código significa una cosa distinta en cada una.
+            cuerpo inicial que después se edita. Cada modelo tiene un <strong>código</strong> numérico
+            que se carga al crearlo, no se repite y se puede cambiar.
           </p>
         </div>
         <PermissionGate moduleCode="despacho" action="modelos:write">
@@ -230,6 +237,13 @@ export default function ModelosPage() {
               {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3">{error}</div>}
 
               <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-gray-500">Código <span className="text-red-500">*</span></span>
+                  <input className="input tabular-nums" type="number" min={1} step={1} inputMode="numeric"
+                         value={form.codigo} aria-label="Código"
+                         onChange={(e) => setForm({ ...form, codigo: e.target.value })} />
+                  <span className="text-xs text-gray-400">Numérico y único: no puede repetirse en otro modelo.</span>
+                </label>
                 <label className="flex flex-col gap-1 text-sm">
                   <span className="text-gray-500">Descripción (será el motivo) <span className="text-red-500">*</span></span>
                   <input className="input" value={form.descripcion} maxLength={120}

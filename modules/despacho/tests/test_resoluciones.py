@@ -293,7 +293,7 @@ def test_sin_identidad_del_gateway_no_se_entra(client):
 # --------------------------------------------------------------------------- sector, actividad, baja
 def test_el_acto_hereda_sector_y_actividad_del_modelo(client, h):
     m = client.post("/api/despacho/modelos", headers=h,
-                    json={"descripcion": "OTORGAMIENTO", "tipo": "RES", "sector": "Créditos",
+                    json={"descripcion": "OTORGAMIENTO", "tipo": "RES", "codigo": 900, "sector": "Créditos",
                           "actividad": "Préstamos"}).json()
     heredado = client.post("/api/despacho/resoluciones", headers=h,
                            json={"tipo": "RES", "modelo_id": m["id"]}).json()

@@ -51,12 +51,12 @@ class ModeloResolucion(Base):
     """Plantilla de resolución o disposición (VFP: rtf.dbf). Es el catálogo que alimenta el combo
     "Modelo a utilizar": su descripción pasa a ser el MOTIVO del acto y su cuerpo, el texto inicial."""
     __tablename__ = "modelos_resolucion"
-    # El mismo código existe en varias series (el 3 es "ayudas sociales" en la 1 y "transf. lotimax"
-    # en la 6): resolver el motivo sólo por código cruzaba los datos.
-    __table_args__ = (UniqueConstraint("serie", "codigo", name="uq_modelos_serie_codigo"),)
+    # El código lo carga el usuario y no se repite en todo el catálogo (en el sistema anterior corría
+    # por serie; la migración 0007 renumeró los repetidos). La DB es el árbitro.
+    __table_args__ = (UniqueConstraint("codigo", name="uq_modelos_codigo"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[int] = mapped_column(Integer, index=True, default=0)     # COD_MOD (se repite entre series)
+    codigo: Mapped[int] = mapped_column(Integer, index=True, default=0)     # COD_MOD, único
     serie: Mapped[int] = mapped_column(Integer, index=True, default=SERIE_POR_DEFECTO)   # TIPO_RES
     descripcion: Mapped[str] = mapped_column(String(120), default="")       # DES_MOD → motivo del acto
     tipo: Mapped[str] = mapped_column(String(3), default="RES")             # RES | DIS (DISPOSICIO)

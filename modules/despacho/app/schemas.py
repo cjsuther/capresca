@@ -9,7 +9,7 @@ class ModeloIn(BaseModel):
     descripcion: str
     tipo: str = "RES"
     serie: int | None = None            # área que emite (VFP: TIPO_RES); 1 si no se indica
-    codigo: int | None = None           # se autoasigna (MAX+1) si no viene
+    codigo: int | None = None           # lo carga el usuario: obligatorio al crear, único
     es_seguros: bool | None = False
     plantilla: str | None = ""
     sector: str | None = None

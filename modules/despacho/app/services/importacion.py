@@ -167,7 +167,11 @@ def _importar(db: Session, imp: ImportacionDespacho, carpeta: str) -> None:
 
 def _importar_modelos(db: Session, imp: ImportacionDespacho,
                       carpeta: str) -> dict[tuple[int, int], ModeloResolucion]:
-    existentes = {(m.serie, m.codigo): m for m in db.scalars(select(ModeloResolucion)).all()}
+    todos = db.scalars(select(ModeloResolucion)).all()
+    existentes = {(m.serie, m.codigo): m for m in todos}
+    # Un modelo renumerado (su código lo tenía otra serie) se reconoce por serie y descripción.
+    por_descripcion = {(m.serie, m.descripcion): m for m in todos}
+    usados = {m.codigo for m in todos}
     ruta = _buscar_dbf(carpeta, "rtf.dbf")
     nuevos = 0
     if ruta:
@@ -179,10 +183,14 @@ def _importar_modelos(db: Session, imp: ImportacionDespacho,
                     continue
                 serie = _serie(x)
                 tipo = "DIS" if x.get("disposicio") else "RES"
-                if (serie, codigo) in existentes:
+                descripcion = _s(x.get("des_mod"))[:120]
+                viejo = existentes.get((serie, codigo))
+                if viejo is None and codigo in usados:
+                    viejo = por_descripcion.get((serie, descripcion))
+                if viejo is not None:
+                    existentes[(serie, codigo)] = viejo
                     # Ya estaba: sólo se completa la plantilla si quedó vacía (importación anterior
                     # sin el archivo de memo). Lo que tenga texto no se toca.
-                    viejo = existentes[(serie, codigo)]
                     plantilla = rtf_a_html(x.get("modelo") or "")[:20000]
                     if plantilla and not (viejo.plantilla or "").strip():
                         viejo.plantilla = plantilla
@@ -190,12 +198,16 @@ def _importar_modelos(db: Session, imp: ImportacionDespacho,
                     else:
                         imp.omitidas += 1
                     continue
+                # El código no se repite en todo el catálogo: si ya lo usa otra serie, el siguiente libre.
+                nuevo_codigo = codigo if codigo not in usados else max(usados) + 1
+                usados.add(nuevo_codigo)
                 m = ModeloResolucion(
-                    codigo=codigo, serie=serie, descripcion=_s(x.get("des_mod"))[:120], tipo=tipo,
+                    codigo=nuevo_codigo, serie=serie, descripcion=descripcion, tipo=tipo,
                     es_seguros=bool(x.get("seguros")),
                     plantilla=rtf_a_html(x.get("modelo") or "")[:20000])
                 db.add(m)
                 existentes[(serie, codigo)] = m
+                por_descripcion[(serie, descripcion)] = m
                 nuevos += 1
         db.commit()
     imp.modelos = nuevos

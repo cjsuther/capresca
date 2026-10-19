@@ -77,9 +77,12 @@ def solo_lectura():
 @pytest.fixture
 def modelo(client, h):
     """Un modelo de resolución, que es lo que alimenta el combo 'Modelo a utilizar'."""
-    def _crear(descripcion="TRANSFERENCIA", tipo="RES", plantilla="<p>VISTO: …</p>"):
+    codigos = iter(range(101, 10_000))
+
+    def _crear(descripcion="TRANSFERENCIA", tipo="RES", plantilla="<p>VISTO: …</p>", codigo=None):
         r = client.post("/api/despacho/modelos", headers=h,
-                        json={"descripcion": descripcion, "tipo": tipo, "plantilla": plantilla})
+                        json={"descripcion": descripcion, "tipo": tipo, "plantilla": plantilla,
+                              "codigo": codigo or next(codigos)})
         assert r.status_code == 201, r.text
         return r.json()
     return _crear

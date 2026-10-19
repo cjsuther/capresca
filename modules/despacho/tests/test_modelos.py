@@ -1,10 +1,36 @@
 """Catálogo de modelos (plantillas) de resoluciones y disposiciones."""
 
 
-def test_el_codigo_se_autoasigna(client, h, modelo):
-    a = modelo(descripcion="TRANSFERENCIA")
-    b = modelo(descripcion="BAJA")
-    assert b["codigo"] == a["codigo"] + 1
+def test_el_codigo_lo_carga_el_usuario(client, h, modelo):
+    assert modelo(descripcion="TRANSFERENCIA", codigo=42)["codigo"] == 42
+
+
+def test_el_codigo_es_obligatorio_y_numerico(client, h):
+    r = client.post("/api/despacho/modelos", headers=h, json={"descripcion": "BAJA", "tipo": "RES"})
+    assert r.status_code == 422 and "código" in r.json()["detail"]
+    r = client.post("/api/despacho/modelos", headers=h, json={"descripcion": "BAJA", "codigo": 0})
+    assert r.status_code == 422
+    r = client.post("/api/despacho/modelos", headers=h, json={"descripcion": "BAJA", "codigo": "abc"})
+    assert r.status_code == 422
+
+
+def test_el_codigo_no_se_repite_ni_entre_series(client, h, modelo):
+    modelo(descripcion="TRANSFERENCIA", codigo=42)
+    r = client.post("/api/despacho/modelos", headers=h,
+                    json={"descripcion": "BAJA", "codigo": 42, "serie": 6})
+    assert r.status_code == 409 and "TRANSFERENCIA" in r.json()["detail"]
+
+
+def test_el_codigo_se_puede_cambiar(client, h, modelo):
+    a = modelo(descripcion="TRANSFERENCIA", codigo=42)
+    b = modelo(descripcion="BAJA", codigo=43)
+    datos = {"descripcion": "TRANSFERENCIA", "tipo": "RES"}
+    r = client.put(f"/api/despacho/modelos/{a['id']}", headers=h, json={**datos, "codigo": 50})
+    assert r.status_code == 200 and r.json()["codigo"] == 50
+    # Guardar sin cambiarlo (o con el propio) no choca consigo mismo.
+    assert client.put(f"/api/despacho/modelos/{a['id']}", headers=h, json={**datos, "codigo": 50}).status_code == 200
+    r = client.put(f"/api/despacho/modelos/{a['id']}", headers=h, json={**datos, "codigo": b["codigo"]})
+    assert r.status_code == 409 and "BAJA" in r.json()["detail"]
 
 
 def test_la_descripcion_es_obligatoria(client, h):
@@ -49,7 +75,7 @@ def test_editar_modelos_pide_su_permiso(client, solo_lectura, h, modelo):
 # --------------------------------------------------------------------------- sector, actividad, baja
 def test_el_modelo_lleva_sector_y_actividad(client, h):
     r = client.post("/api/despacho/modelos", headers=h,
-                    json={"descripcion": "OTORGAMIENTO", "tipo": "RES", "sector": "Créditos",
+                    json={"descripcion": "OTORGAMIENTO", "tipo": "RES", "codigo": 77, "sector": "Créditos",
                           "actividad": "Préstamos personales"})
     assert r.status_code == 201
     assert (r.json()["sector"], r.json()["actividad"]) == ("Créditos", "Préstamos personales")
