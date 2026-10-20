@@ -1,15 +1,75 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, RefreshCw, Send, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, RefreshCw, RotateCcw, Send, XCircle } from "lucide-react";
 import {
   actualizarLote, aprobarLote, cuentasOrigen, enviarLote, excluirPago, incluirPago, mensajeDeError, rechazarLote,
-  reintentarPago, resolverPago, verLote,
+  reintentarFallidos, reintentarPago, resolverPago, verLote,
 } from "../../../api/tesoreria";
 import { Alerta, Boton, Card, Field, Kpis, Modal, PageHeader } from "../../../components/ui";
 import { Confirmacion } from "../../../components/ui/Confirmacion";
 import { DataTable } from "../../../components/ui/DataTable";
 import { Pill } from "../../../components/ui/Pill";
 import { ESTADO_LOTE, ESTADO_PAGO, ORIGENES, cbuLegible, cuentaLegible, fechaHora, money } from "../estados";
+import { descargarReporte, reporteEnvio } from "../reporteEnvio";
+
+/** Resultado del envío: qué salió, qué no y qué cuentas hay que habilitar en Interbanking. */
+function ReporteEnvio({ lote, puedeReintentar, ocupado, onReintentar }) {
+  const r = reporteEnvio(lote);
+  const [operador, setOperador] = useState("");
+  const faltaHabilitar = r.cuentasAHabilitar.length > 0 || r.origenSinHabilitar;
+  // El nombre del operador de API sale de la credencial de Interbanking; sólo hace falta si hay algo que habilitar.
+  useEffect(() => {
+    if (!faltaHabilitar) return;
+    cuentasOrigen().then((c) => setOperador(c?.operador || "")).catch(() => {});
+  }, [faltaHabilitar]);
+  const quien = operador ? <>al operador <b>{operador}</b></> : "al operador de API";
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="mr-auto">
+          <h2 className="text-sm font-semibold text-gray-700">Reporte de envío</h2>
+          <p className="text-sm text-gray-600">
+            {r.realizadas.length} realizada(s) por {money(r.totalRealizadas)} · {" "}
+            <span className={r.noRealizadas.length ? "text-red-600 font-medium" : ""}>
+              {r.noRealizadas.length} no realizada(s) por {money(r.totalNoRealizadas)}
+            </span>
+          </p>
+        </div>
+        <Boton variante="secundario" className="flex items-center gap-1" onClick={() => descargarReporte(lote, operador)}>
+          <Download size={15} /> Descargar reporte
+        </Boton>
+        {puedeReintentar && r.fallidos > 0 && (
+          <Boton disabled={ocupado} className="flex items-center gap-1" onClick={onReintentar}>
+            <RotateCcw size={15} /> Reintentar fallidos ({r.fallidos})
+          </Boton>
+        )}
+      </div>
+      {r.cuentasAHabilitar.length > 0 && (
+        <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+          <p>
+            Interbanking rechazó {r.cuentasAHabilitar.length === 1 ? "una cuenta destino que no está habilitada"
+              : `${r.cuentasAHabilitar.length} cuentas destino que no están habilitadas`}. Un administrador de
+            Interbanking tiene que darlas de alta como cuentas de terceros y habilitárselas {quien} (Administración →
+            Colaboradores → Habilitaciones de Cuentas). Después, reintentá los fallidos.
+          </p>
+          <ul className="mt-2 space-y-0.5">
+            {r.cuentasAHabilitar.map((c) => (
+              <li key={c.cbu} className="tabular-nums">
+                {cbuLegible(c.cbu)} · {c.beneficiario}{c.documento ? ` (${c.documento})` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {r.origenSinHabilitar && (
+        <p className="mt-2 text-sm text-red-600">
+          La cuenta de origen tampoco está habilitada: hay que habilitársela {quien} en Interbanking.
+        </p>
+      )}
+    </Card>
+  );
+}
 
 /** Pide un texto obligatorio (motivo de exclusión/rechazo, observación de lo verificado en el banco). */
 function PedirTexto({ titulo, ayuda, etiqueta, confirmar, danger, opciones, onConfirmar, onCancelar, ocupado }) {
@@ -108,6 +168,7 @@ export default function LotePage() {
           <Pill tono={tono}>{txt}</Pill>
           {p.motivo && <p className="text-xs text-gray-500 mt-1 max-w-xs">{p.motivo}</p>}
           {p.id_operacion_ib && <p className="text-xs text-gray-400 mt-0.5">Op. {p.id_operacion_ib}</p>}
+          {p.enviado_por && <p className="text-xs text-gray-400 mt-0.5">Enviado por {p.enviado_por}</p>}
         </div>
       );
     } },
@@ -250,6 +311,11 @@ export default function LotePage() {
         </Card>
       )}
 
+      {(enCurso || lote.estado === "CONFIRMADO") && (
+        <ReporteEnvio lote={lote} puedeReintentar={enCurso && lote.puede_enviar} ocupado={ocupado}
+                      onReintentar={() => setDialogo({ tipo: "reintentarFallidos" })} />
+      )}
+
       {lote.cuenta_origen && !enCurso && lote.estado !== "APROBADO" && (
         <p className="text-sm text-gray-500">Pagado desde {cuentaLegible(lote.cuenta_origen)}</p>
       )}
@@ -304,6 +370,13 @@ export default function LotePage() {
                         cuentaLegible(cuentas?.items.find((c) => c.account_number === cuentaElegida)) }.${
                         lote.envio_simulado ? "\n(Modo simulación: no se mueve dinero.)" : "\nEsta acción mueve dinero y no se puede deshacer."}`}
                       onConfirmar={() => correr(() => enviarLote(lote.id, cuentaElegida), "Lote enviado.")} onCancelar={() => setDialogo(null)} />
+      )}
+      {dialogo?.tipo === "reintentarFallidos" && (
+        <Confirmacion titulo="Reintentar los pagos fallidos" confirmar="Reintentar" ocupado={ocupado}
+                      mensaje={`Se vuelven a enviar los ${reporteEnvio(lote).fallidos} pago(s) fallido(s) del lote. Si rechazó cuentas sin habilitar, confirmá antes que ya estén habilitadas en Interbanking.`}
+                      onConfirmar={() => correr(() => reintentarFallidos(lote.id), (r) =>
+                        `${r.reenviados} pago(s) reenviado(s)${r.salteados ? `; ${r.salteados} salteado(s) porque ya se cargaron en otro lote` : ""}.`)}
+                      onCancelar={() => setDialogo(null)} />
       )}
       {dialogo?.tipo === "reintentar" && (
         <Confirmacion titulo={`Reintentar el pago a ${dialogo.pago.beneficiario}`} confirmar="Reintentar" ocupado={ocupado}

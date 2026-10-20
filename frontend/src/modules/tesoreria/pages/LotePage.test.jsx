@@ -8,6 +8,7 @@ vi.mock("../../../api/tesoreria", async (orig) => ({
   verLote: vi.fn(), aprobarLote: vi.fn(), rechazarLote: vi.fn(), excluirPago: vi.fn(), incluirPago: vi.fn(),
   cuentasOrigen: vi.fn(),
   enviarLote: vi.fn(), actualizarLote: vi.fn(), reintentarPago: vi.fn(), resolverPago: vi.fn(),
+  reintentarFallidos: vi.fn(),
 }));
 
 import * as api from "../../../api/tesoreria";
@@ -143,6 +144,39 @@ describe("LotePage", () => {
     await userEvent.type(within(d).getByRole("textbox"), "No figura en el extracto");
     await userEvent.click(within(d).getByRole("button", { name: "Registrar" }));
     expect(api.resolverPago).toHaveBeenCalledWith(3, 11, "FALLIDO", "No figura en el extracto");
+  });
+
+  it("el reporte de envío lista las cuentas a habilitar y reintenta los fallidos", async () => {
+    const NO_HAB = "Interbanking rechazó la transferencia: 1078 - El operador no tiene acceso o no existe la cuenta crédito";
+    const lote = { ...BASE, estado: "CON_ERRORES", por_estado: { FALLIDO: 1, ENVIADO: 1 },
+                   pagos: [{ ...P1, estado: "FALLIDO", motivo: NO_HAB, cuenta_sin_habilitar: "DESTINO", enviado_por: "teso" },
+                           { ...P2, cbu: "0070023830004026519507", estado: "ENVIADO", id_operacion_ib: "OP-9", enviado_por: "teso" }] };
+    api.reintentarFallidos.mockResolvedValue({ ...lote, estado: "ENVIADO", reenviados: 1, salteados: 0,
+                                               pagos: [{ ...lote.pagos[0], estado: "ENVIADO" }, lote.pagos[1]] });
+    montar(lote, { ...CUENTAS, operador: "portezuelo" });
+
+    expect(await screen.findByText("Reporte de envío")).toBeInTheDocument();
+    expect(screen.getByText(/1 realizada\(s\) por/)).toBeInTheDocument();
+    expect(screen.getByText(/1 no realizada\(s\) por/)).toBeInTheDocument();
+    expect(await screen.findByText("portezuelo")).toBeInTheDocument();          // a quién habilitarle la cuenta
+    expect(screen.getByText(/una cuenta destino que no está habilitada/)).toBeInTheDocument();
+    expect(screen.getByText(/28505909 40090418135201 · PEREZ JUAN \(20301234569\)/)).toBeInTheDocument();
+    expect(screen.getAllByText("Enviado por teso")).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole("button", { name: /Reintentar fallidos \(1\)/ }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: /Reintentar los pagos fallidos/ }))
+      .getByRole("button", { name: "Reintentar" }));
+    expect(api.reintentarFallidos).toHaveBeenCalledWith(3);
+    expect(await screen.findByText("1 pago(s) reenviado(s).")).toBeInTheDocument();
+  });
+
+  it("sin cuentas por habilitar no consulta el operador ni ofrece reintentar", async () => {
+    montar({ ...BASE, estado: "CONFIRMADO", por_estado: { CONFIRMADO: 2 },
+             pagos: [{ ...P1, estado: "CONFIRMADO" }, { ...P2, estado: "CONFIRMADO" }] });
+    expect(await screen.findByText(/2 realizada\(s\) por/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Descargar reporte/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Reintentar fallidos/ })).toBeNull();
+    expect(api.cuentasOrigen).not.toHaveBeenCalled();
   });
 
   it("muestra el error del servidor", async () => {

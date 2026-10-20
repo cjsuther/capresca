@@ -74,6 +74,52 @@ def test_fallido_que_el_origen_ya_reenvio_no_se_reintenta(client, lote_creditos,
     assert len(banco.enviados) == 2
 
 
+NO_HABILITADA = ("Error de Interbanking: Se encontraron los siguientes errores en el body: 1078 - El operador "
+                 "no tiene acceso o no existe la cuenta crédito (confection_id 3)")
+
+
+def test_cuenta_destino_sin_habilitar_se_marca_y_se_reintentan_todos(client, lote_creditos, teso, banco):
+    """Interbanking rechaza (1078) los destinos que el operador de API no tiene habilitados: el pago queda
+    marcado para el reporte y, una vez habilitados, se reenvían todos los fallidos juntos."""
+    banco.respuestas = [interbanking.EnvioRechazado(NO_HABILITADA), interbanking.EnvioRechazado("CBU inexistente")]
+    lid = _aprobado(client, lote_creditos, teso)
+    d = client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso).json()
+    assert [p["cuenta_sin_habilitar"] for p in d["pagos"]] == ["DESTINO", None]
+    assert {p["enviado_por"] for p in d["pagos"]} == {"teso"} and banco.usuarios == ["teso", "teso"]
+
+    d = client.post(f"/api/tesoreria/lotes/{lid}/reintentar-fallidos", headers=gateway("lotes:read", "lotes:enviar",
+                                                                                       username="otro")).json()
+    assert d["reenviados"] == 2 and d["salteados"] == 0 and len(banco.enviados) == 4
+    assert [p["estado"] for p in d["pagos"]] == ["ENVIADO", "ENVIADO"] and d["estado"] == "ENVIADO"
+    assert {p["enviado_por"] for p in d["pagos"]} == {"otro"} and banco.usuarios[2:] == ["otro", "otro"]
+    assert client.post(f"/api/tesoreria/lotes/{lid}/reintentar-fallidos", headers=teso).status_code == 409
+
+
+def test_reintentar_fallidos_saltea_los_que_el_origen_ya_reenvio(client, lote_creditos, teso, banco):
+    banco.respuestas = [interbanking.EnvioRechazado(NO_HABILITADA), interbanking.EnvioRechazado(NO_HABILITADA)]
+    lid = _aprobado(client, lote_creditos, teso)
+    client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso)
+    lote_creditos("reintento cto-2", pagos=[pago("cto-2", 300000)])
+    d = client.post(f"/api/tesoreria/lotes/{lid}/reintentar-fallidos", headers=teso).json()
+    assert d["reenviados"] == 1 and d["salteados"] == 1 and len(banco.enviados) == 3
+    assert [p["estado"] for p in d["pagos"]] == ["ENVIADO", "FALLIDO"]
+
+
+def test_reintentar_fallidos_exige_permiso(client, lote_creditos, teso, banco):
+    banco.respuestas = [interbanking.EnvioRechazado("x"), interbanking.EnvioRechazado("x")]
+    lid = _aprobado(client, lote_creditos, teso)
+    client.post(f"/api/tesoreria/lotes/{lid}/enviar", headers=teso)
+    r = client.post(f"/api/tesoreria/lotes/{lid}/reintentar-fallidos", headers=gateway("lotes:read"))
+    assert r.status_code == 403 and len(banco.enviados) == 2
+
+
+def test_cuenta_sin_habilitar():
+    assert interbanking.cuenta_sin_habilitar(NO_HABILITADA) == "DESTINO"
+    assert interbanking.cuenta_sin_habilitar("1078 - El operador no tiene acceso o no existe la cuenta débito") == "ORIGEN"
+    assert interbanking.cuenta_sin_habilitar("CBU inexistente") is None
+    assert interbanking.cuenta_sin_habilitar("") is None
+
+
 def test_incierto_no_se_reintenta_y_se_resuelve_a_mano(client, lote_creditos, teso, banco):
     banco.respuestas = [interbanking.EnvioIncierto("timeout"), {"status": "ACREDITADA"}]
     lid = _aprobado(client, lote_creditos, teso)

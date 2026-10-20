@@ -71,6 +71,7 @@ class Pago(Base):
     id_operacion_ib: Mapped[str] = mapped_column(String(80), default="")
     estado_banco: Mapped[str] = mapped_column(String(40), default="")
     enviado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    enviado_por: Mapped[str] = mapped_column(String(60), default="")         # quién lo mandó (o reintentó)
     confirmado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     notificado: Mapped[str] = mapped_column(String(15), default="")         # último estado avisado al origen
     lote: Mapped[Lote] = relationship(back_populates="pagos")

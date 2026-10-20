@@ -41,8 +41,10 @@ class TransferResponse(BaseModel):
     id_operacion_ib: Optional[str]
     status: Optional[str]
     initiated_by: Optional[int]
+    cargado_por: Optional[str] = None
     initiated_at: Optional[datetime]
     last_status_check: Optional[datetime]
     last_status_payload: Optional[Any]
+    motivo: Optional[str] = None
 
     model_config = {"from_attributes": True}

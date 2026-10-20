@@ -139,6 +139,13 @@ def reintentar(lote_id: int, pago_id: int, db: Session = Depends(get_db), user: 
     return svc.detalle(db, lote, user)
 
 
+@router.post("/{lote_id}/reintentar-fallidos")
+def reintentar_fallidos(lote_id: int, db: Session = Depends(get_db), user: Usuario = Depends(usuario_actual)):
+    lote = _lote(db, lote_id)
+    r = svc.reintentar_fallidos(db, lote, user)
+    return {**svc.detalle(db, lote, user), **r}
+
+
 @router.post("/{lote_id}/pagos/{pago_id}/resolver")
 def resolver(lote_id: int, pago_id: int, data: ResolverIn, db: Session = Depends(get_db),
              user: Usuario = Depends(usuario_actual)):

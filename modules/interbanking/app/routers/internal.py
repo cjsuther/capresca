@@ -28,6 +28,8 @@ class PaymentRequest(BaseModel):
     cuenta_origen: Optional[str] = None
     cuenta_origen_tipo: Optional[str] = None
     cuenta_origen_banco: Optional[str] = None
+    # Usuario de la plataforma que envió el pago (va a las observaciones y queda en el registro local).
+    usuario: Optional[str] = None
 
 
 @router.post("/internal/interbanking/payments")
@@ -55,7 +57,8 @@ def create_payment(req: PaymentRequest, db: Session = Depends(get_db)):
         monto=Decimal(str(req.monto)),
         moneda=req.moneda,
         comentario=req.concepto,
-        username="auto-pagos",
+        username=req.usuario or "auto-pagos",
+        cargado_por=req.usuario or None,
     )
     return {"id": transfer.id, "status": transfer.status, "id_operacion_ib": transfer.id_operacion_ib}
 
@@ -205,7 +208,9 @@ def list_payment_accounts(db: Session = Depends(get_db)):
     if cred.payment_account_number and not any(i["predeterminada"] for i in items):
         items.insert(0, _ficha(cred.payment_account_number, cred.payment_account_type,
                                cred.payment_bank_number, cred.payment_currency, "Cuenta de pagos configurada"))
-    return {"items": items, "error": error}
+    # Operador de API (`-3|<número>|<usuario>`): es a quien hay que habilitarle las cuentas destino.
+    operador = (cred.username or "").split("|")[-1]
+    return {"items": items, "error": error, "operador": operador}
 
 
 @router.get("/internal/interbanking/movements")

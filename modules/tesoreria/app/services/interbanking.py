@@ -40,9 +40,12 @@ def cuentas() -> dict:
     return r.json()
 
 
-def enviar(cbu: str, monto: float, concepto: str, cuenta: dict | None = None) -> dict:
-    """Crea la transferencia desde `cuenta` (o la configurada). Devuelve {id, status, id_operacion_ib}."""
-    cuerpo = {"cbu_destino": cbu, "monto": monto, "moneda": "ARS", "concepto": concepto}
+def enviar(cbu: str, monto: float, concepto: str, cuenta: dict | None = None, usuario: str = "") -> dict:
+    """Crea la transferencia desde `cuenta` (o la configurada). Devuelve {id, status, id_operacion_ib}.
+
+    `usuario` es quien la envía desde la plataforma: Interbanking sólo ve al operador de API, así que
+    viaja en las observaciones de la transferencia."""
+    cuerpo = {"cbu_destino": cbu, "monto": monto, "moneda": "ARS", "concepto": concepto, "usuario": usuario or None}
     if cuenta and cuenta.get("account_number"):
         cuerpo |= {"cuenta_origen": cuenta["account_number"], "cuenta_origen_tipo": cuenta.get("account_type") or "CC",
                    "cuenta_origen_banco": cuenta.get("bank_number") or "011"}
@@ -64,6 +67,20 @@ def estado(transfer_id: int) -> str:
     r = httpx.get(_url(f"/internal/interbanking/payments/{transfer_id}"), headers=clave_interna.headers(), timeout=TIMEOUT)
     r.raise_for_status()
     return str(r.json().get("status") or "").upper()
+
+
+# 1078 - El operador no tiene acceso o no existe la cuenta crédito | débito
+def cuenta_sin_habilitar(motivo: str) -> str | None:
+    """DESTINO | ORIGEN si Interbanking rechazó el pago porque el operador de API no tiene habilitada la
+    cuenta; None si fue por otra cosa. Se arregla en Interbanking, no reintentando."""
+    m = (motivo or "").lower()
+    if "1078" not in m:
+        return None
+    if "crédito" in m or "credito" in m:
+        return "DESTINO"
+    if "débito" in m or "debito" in m:
+        return "ORIGEN"
+    return None
 
 
 def clasificar(estado_banco: str) -> str:

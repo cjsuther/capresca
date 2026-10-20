@@ -15,6 +15,7 @@ export const cuentasOrigen = () => data(api.get(`${B}/cuentas-origen`));
 export const enviarLote = (id, cuentaOrigen) => data(api.post(`${B}/${id}/enviar`, { cuenta_origen: cuentaOrigen || null }));
 export const actualizarLote = (id) => data(api.post(`${B}/${id}/actualizar`));
 export const reintentarPago = (id, pid) => data(api.post(`${B}/${id}/pagos/${pid}/reintentar`));
+export const reintentarFallidos = (id) => data(api.post(`${B}/${id}/reintentar-fallidos`));
 export const resolverPago = (id, pid, resultado, observacion) =>
   data(api.post(`${B}/${id}/pagos/${pid}/resolver`, { resultado, observacion }));
 

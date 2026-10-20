@@ -81,6 +81,13 @@ def test_pago_saliente_crea_la_transferencia_desde_la_cuenta_de_pagos(client, db
     assert red.llamadas == []                  # modo mock: no sale a la red
 
 
+def test_pago_saliente_registra_quien_lo_envio(client, db, cred):
+    """Tesorería manda el usuario que envió el lote: queda en el registro y en las observaciones."""
+    client.post(f"{BASE}/payments", json={"cbu_destino": "0" * 22, "monto": 10, "usuario": "jperez"})
+    client.post(f"{BASE}/payments", json={"cbu_destino": "0" * 22, "monto": 10})
+    assert [t.cargado_por for t in db.query(Transfer).order_by(Transfer.id)] == ["jperez", None]
+
+
 def test_pago_saliente_usa_el_concepto_por_defecto(client, db, cred):
     client.post(f"{BASE}/payments", json={"cbu_destino": "0" * 22, "monto": 10})
     assert db.query(Transfer).one().concepto == "Pago Capresca"
@@ -237,6 +244,13 @@ def test_cuentas_para_pagar_marca_la_configurada(client, cred, red):
     r = client.get(f"{BASE}/payment-accounts").json()
     assert r["items"] == [{"account_number": "99900011122", "account_type": "CC", "bank_number": "011",
                            "currency": "ARS", "nombre": "Cuenta de pagos configurada", "predeterminada": True}]
+    assert r["operador"] == "usuario.ib"
+
+
+def test_el_operador_de_api_se_informa_sin_el_prefijo(client, cred, red):
+    """El usuario del operador es `-3|<número>|<usuario>`: Tesorería muestra sólo el usuario."""
+    cred.customer_id, cred.username = None, "-3|1791557092844|portezuelo"
+    assert client.get(f"{BASE}/payment-accounts").json()["operador"] == "portezuelo"
 
 
 def test_cuentas_para_pagar_lista_las_del_banco(client, cred, red):

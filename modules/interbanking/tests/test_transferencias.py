@@ -97,7 +97,8 @@ def test_el_listado_incluye_la_transferencia_recien_creada(client, h):
     r = client.get(BASE, headers=h).json()
 
     assert r["general_data"]["total_rows"] == 4
-    assert r["transfers"][0]["transfer_comments"] == "Pago agencia A001"   # orden desc por alta
+    # orden desc por alta; las observaciones llevan quién la cargó (Interbanking sólo ve al operador de API)
+    assert r["transfers"][0]["transfer_comments"] == "Pago agencia A001 - Cargo: cris"
 
 
 def test_el_listado_pagina(client, h):
@@ -181,6 +182,10 @@ def test_alta_real_resuelve_el_cbu_debito_y_confecciona(client, db, cred, red, h
         "bank_number": 7, "currency": "ARS", "account_cbu": "0070068930004021957614",
     }
     assert transferencia["amount"] == 1500.50
+    # El usuario de la plataforma va en las observaciones y queda en el registro local.
+    assert transferencia["comments"] == f"{NUEVA['comentario']} - Cargo: cris"
+    assert envio["json"]["description"] == NUEVA["comentario"]
+    assert db.query(Transfer).one().cargado_por == "cris" and r.json()["cargado_por"] == "cris"
     assert transferencia["request_date"] == datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
     assert envio["json"]["unified_send"] is True
     # Producción exige confection_id (error 1005 si falta) de hasta 7 dígitos (1007): es el id local.
@@ -376,6 +381,41 @@ def test_listado_local_pagina_y_ordena_por_fecha_desc(client, db, h):
     assert [t["concepto"] for t in r["data"]] == ["t1"]
 
 
+def test_listado_local_filtra_los_rechazados_por_dia_y_da_el_motivo(client, db, h):
+    error = ("Error de Interbanking: Se encontraron los siguientes errores en el body: 1078 - El operador no "
+             "tiene acceso o no existe la cuenta crédito (confection_id 10) "
+             "[url=https://api-gw.interbanking.com.ar/api/prod/v1/transfers/confection/third-party]")
+    db.add_all([
+        # 19/10 22:30 en Argentina: el día en UTC ya es 20/10, pero cuenta como 19.
+        Transfer(cbu_destino="1" * 22, monto=10, status="ERROR", concepto="ayer",
+                 initiated_at=datetime(2026, 10, 20, 1, 30, tzinfo=timezone.utc),
+                 last_status_payload={"confection_id": 9, "error": error}),
+        Transfer(cbu_destino="2" * 22, monto=10, status="ERROR", concepto="hoy",
+                 initiated_at=datetime(2026, 10, 20, 13, 27, tzinfo=timezone.utc),
+                 last_status_payload={"confection_id": 10, "error": error}),
+        Transfer(cbu_destino="3" * 22, monto=10, status="INICIADA", concepto="salió",
+                 initiated_at=datetime(2026, 10, 20, 14, 0, tzinfo=timezone.utc)),
+    ])
+    db.commit()
+
+    r = client.get(f"{BASE}/local", params={"status": "ERROR", "date_since": "2026-10-20",
+                                            "date_until": "2026-10-20"}, headers=h).json()
+    assert [t["concepto"] for t in r["data"]] == ["hoy"]
+    assert r["data"][0]["motivo"] == ("1078 - El operador no tiene acceso o no existe la cuenta crédito "
+                                      "(confection_id 10)")
+
+    r = client.get(f"{BASE}/local", params={"status": "ERROR", "date_since": "2026-10-19",
+                                            "date_until": "2026-10-19"}, headers=h).json()
+    assert [t["concepto"] for t in r["data"]] == ["ayer"]
+
+    sin_error = client.get(f"{BASE}/local", params={"status": "INICIADA"}, headers=h).json()["data"]
+    assert sin_error[0]["motivo"] is None
+
+
+def test_listado_local_con_fecha_invalida_es_422(client, h):
+    assert client.get(f"{BASE}/local", params={"date_since": "20/10/2026"}, headers=h).status_code == 422
+
+
 def test_alta_real_informa_el_numero_de_operador(client, db, cred, red, h, sin_mock):
     cred.username = "-3|1791557092844|portezuelo"
     db.commit()
@@ -420,3 +460,11 @@ def test_los_envios_rechazados_no_van_a_conciliacion(client, db):
                    headers={"X-Internal-API-Key": os.environ.get("INTERNAL_API_KEY", "")})
     assert r.status_code == 200, r.text
     assert [t["status_ib"] for t in r.json()] == ["PENDING_AUTHORIZATION"]
+
+
+def test_observaciones_con_el_usuario_que_cargo():
+    from app.services.transfer_service import _comentario_con_usuario
+    assert _comentario_con_usuario("Pago", "jperez") == "Pago - Cargo: jperez"
+    assert _comentario_con_usuario("Pago", None) == "Pago" and _comentario_con_usuario("Pago", " ") == "Pago"
+    largo = _comentario_con_usuario("x" * 300, "jperez")
+    assert len(largo) == 120 and largo.endswith(" - Cargo: jperez")

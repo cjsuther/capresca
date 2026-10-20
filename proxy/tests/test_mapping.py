@@ -136,6 +136,7 @@ def test_la_copia_interna_de_documentos_no_se_publica():
     ("POST", "/api/tesoreria/lotes/12/pagos/3/excluir", "tesoreria:lotes:write"),
     ("POST", "/api/tesoreria/lotes/12/aprobar", "tesoreria:*"),
     ("POST", "/api/tesoreria/lotes/12/enviar", "tesoreria:*"),
+    ("POST", "/api/tesoreria/lotes/12/reintentar-fallidos", "tesoreria:*"),
     ("POST", "/api/tesoreria/lotes/12/pagos/3/resolver", "tesoreria:*"),
     ("GET", "/api/tesoreria/ordenes-pago", "tesoreria:lotes:read"),
     ("GET", "/api/tesoreria/ordenes-pago/disponibles", "tesoreria:lotes:read"),

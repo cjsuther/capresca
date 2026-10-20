@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -47,6 +47,7 @@ def crear(
     request: Request,
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
+    x_username: Optional[str] = Header(None),
 ):
     return transfer_service.crear_transferencia(
         db=db, user_id=user_id,
@@ -58,6 +59,8 @@ def crear(
         moneda=data.moneda,
         comentario=data.comentario,
         ip=get_client_ip(request),
+        username=x_username,
+        cargado_por=x_username,
     )
 
 
@@ -68,9 +71,12 @@ def crear(
 def list_local(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None, description="p. ej. ERROR: los envíos que Interbanking rechazó"),
+    date_since: Optional[str] = Query(None, description="yyyy-mm-dd, día de Argentina"),
+    date_until: Optional[str] = Query(None, description="yyyy-mm-dd, día de Argentina"),
     db: Session = Depends(get_db),
 ):
-    data, total = transfer_service.list_local_transfers(db, page, per_page)
+    data, total = transfer_service.list_local_transfers(db, page, per_page, status, date_since, date_until)
     return {
         "data": [TransferResponse.model_validate(t).model_dump() for t in data],
         "total": total, "page": page, "per_page": per_page,

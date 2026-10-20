@@ -90,10 +90,11 @@ CUENTAS = [
 class Banco:
     """Interbanking simulado para el modo real: se programa qué responde cada envío."""
     def __init__(self):
-        self.enviados, self.respuestas, self.estados = [], [], {}
+        self.enviados, self.respuestas, self.estados, self.usuarios = [], [], {}, []
 
-    def enviar(self, cbu, monto, concepto, cuenta=None):
+    def enviar(self, cbu, monto, concepto, cuenta=None, usuario=""):
         self.enviados.append((cbu, monto, concepto, cuenta))
+        self.usuarios.append(usuario)
         r = self.respuestas.pop(0) if self.respuestas else {"status": "INICIADA"}
         if isinstance(r, Exception):
             raise r

@@ -4,13 +4,32 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import TransferenciasPage from "./TransferenciasPage";
 import { useAuthStore } from "../../../context/authStore";
-import { listarTransferencias, crearTransferencia, getCuentas } from "../../../api/interbanking";
+import { listarTransferencias, crearTransferencia, getCuentas, getTransferenciasLocal } from "../../../api/interbanking";
 
 vi.mock("../../../api/interbanking", () => ({
   listarTransferencias: vi.fn(),
   crearTransferencia: vi.fn(),
   getCuentas: vi.fn(),
+  getTransferenciasLocal: vi.fn(),
 }));
+
+// Por defecto no hay envíos rechazados en el registro propio.
+beforeEach(() => {
+  getTransferenciasLocal.mockReset().mockResolvedValue({ data: [], total: 0 });
+});
+
+const RECHAZADA = {
+  id: 10,
+  cuenta_origen: "11/31554660051353/CC",
+  cbu_destino: "0000003100039625101366",
+  monto: "100.00",
+  moneda: "ARS",
+  concepto: "Prueba desde el sistema",
+  status: "ERROR",
+  cargado_por: "csuther",
+  initiated_at: "2026-10-20T13:27:11.626274+00:00",
+  motivo: "1078 - El operador no tiene acceso o no existe la cuenta crédito (confection_id 10)",
+};
 
 const CUENTA = {
   bank_id: "011",
@@ -289,6 +308,68 @@ describe("TransferenciasPage — listado", () => {
     listarTransferencias.mockRejectedValue(new Error("sin red"));
     render(<TransferenciasPage />);
     expect(await screen.findByText("Error al listar transferencias")).toBeInTheDocument();
+  });
+});
+
+describe("TransferenciasPage — transferencias que dieron error", () => {
+  beforeEach(() => {
+    conPermiso();
+    listarTransferencias.mockResolvedValue({ transfers: [TRANSFERENCIA], general_data: { total_rows: 1 } });
+    getCuentas.mockResolvedValue({ accounts: [] });
+    getTransferenciasLocal.mockResolvedValue({ data: [RECHAZADA], total: 1 });
+  });
+
+  it("las trae del registro propio para el mismo rango y muestra el motivo", async () => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    render(<TransferenciasPage />);
+    const fila = (await screen.findByText("Intento 10")).closest("tr");
+
+    expect(getTransferenciasLocal).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "ERROR", date_since: hoy, date_until: hoy }));
+    expect(within(fila).getByText("ERROR")).toBeInTheDocument();
+    expect(within(fila).getByText(/1078 - El operador no tiene acceso/)).toBeInTheDocument();
+    expect(fila).toHaveTextContent("2026-10-20");
+    expect(fila).toHaveTextContent("Banco 11 · CC 31554660051353");
+    expect(fila).toHaveTextContent("CBU 0000003100039625101366");
+    expect(fila).toHaveTextContent("ARS 100,00");
+    expect(fila).toHaveTextContent("Cargó: csuther");
+    expect(screen.getByText("TR-1")).toBeInTheDocument();
+    expect(screen.getByText("2 resultados")).toBeInTheDocument();
+  });
+
+  it("el filtro de estado deja ver sólo las que dieron error", async () => {
+    const user = userEvent.setup();
+    render(<TransferenciasPage />);
+    await screen.findByText("Intento 10");
+
+    await user.selectOptions(screen.getByLabelText("Filtrar Estado"), "ERROR");
+    expect(screen.queryByText("TR-1")).not.toBeInTheDocument();
+    expect(screen.getByText("Intento 10")).toBeInTheDocument();
+  });
+
+  it("filtra por el motivo del error", async () => {
+    const user = userEvent.setup();
+    render(<TransferenciasPage />);
+    await screen.findByText("Intento 10");
+
+    await user.type(screen.getByLabelText("Filtrar Motivo del error"), "1078");
+    expect(screen.getByText("Intento 10")).toBeInTheDocument();
+    expect(screen.queryByText("TR-1")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Filtrar Motivo del error"));
+    await user.type(screen.getByLabelText("Filtrar Motivo del error"), "1005");
+    expect(screen.queryByText("Intento 10")).not.toBeInTheDocument();
+  });
+
+  it("se pueden ocultar", async () => {
+    const user = userEvent.setup();
+    render(<TransferenciasPage />);
+    await screen.findByText("Intento 10");
+
+    await user.click(screen.getByLabelText("Incluir las que dieron error"));
+    await waitFor(() => expect(screen.queryByText("Intento 10")).not.toBeInTheDocument());
+    expect(screen.getByText("TR-1")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Filtrar Motivo del error")).not.toBeInTheDocument();
   });
 });
 

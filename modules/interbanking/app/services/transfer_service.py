@@ -15,11 +15,31 @@ from app.services.notifications_client import notifications_client
 # ─────────────────────────────────────────────────────────────────────────────
 # Listado local (registro propio)
 # ─────────────────────────────────────────────────────────────────────────────
-def list_local_transfers(db: Session, page: int = 1, per_page: int = 20):
-    q = db.query(Transfer).order_by(Transfer.initiated_at.desc())
+def list_local_transfers(db: Session, page: int = 1, per_page: int = 20, status: Optional[str] = None,
+                         date_since: Optional[str] = None, date_until: Optional[str] = None):
+    """Registro propio: incluye los envíos que Interbanking rechazó y por eso no figuran en su listado.
+
+    Las fechas son días de Argentina, como las del listado de Interbanking.
+    """
+    q = db.query(Transfer)
+    if status:
+        q = q.filter(Transfer.status == status)
+    if date_since:
+        q = q.filter(Transfer.initiated_at >= _inicio_del_dia(date_since))
+    if date_until:
+        q = q.filter(Transfer.initiated_at < _inicio_del_dia(date_until) + timedelta(days=1))
+    q = q.order_by(Transfer.initiated_at.desc())
     total = q.count()
     data = q.offset((page - 1) * per_page).limit(per_page).all()
     return data, total
+
+
+def _inicio_del_dia(dia: str) -> datetime:
+    try:
+        # En UTC: así compara igual en Postgres (timestamptz) y en SQLite (que guarda sin huso).
+        return datetime.combine(date.fromisoformat(dia), datetime.min.time(), _ARGENTINA).astimezone(timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Fecha inválida: {dia} (se espera yyyy-mm-dd).")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -73,6 +93,19 @@ def _num(v: str):
 # el contenedor corre en UTC y desde las 21 h ya sería "mañana".
 _ARGENTINA = timezone(timedelta(hours=-3))
 
+# Interbanking sólo registra al operador de API (el mismo para todos): el usuario de la plataforma que
+# cargó la transferencia viaja en las observaciones, que es lo que ve el firmante al autorizarla.
+_MAX_COMENTARIO = 120
+
+
+def _comentario_con_usuario(comentario: str, usuario: Optional[str]) -> str:
+    usuario = (usuario or "").strip()
+    if not usuario:
+        return comentario[:_MAX_COMENTARIO]
+    sufijo = f" - Cargo: {usuario}"[:40]
+    return f"{comentario[:_MAX_COMENTARIO - len(sufijo)]}{sufijo}"
+
+
 # `confection_id`: hasta 7 dígitos (400 "1007 - La longitud del campo confection_id debe ser de un
 # máximo de 7"). Se usa el id del registro local de la transferencia, que es único y creciente.
 _MAX_CONFECTION_ID = 10_000_000
@@ -90,6 +123,7 @@ def crear_transferencia(
     comentario: str,
     username: Optional[str] = None,
     ip: Optional[str] = None,
+    cargado_por: Optional[str] = None,
 ) -> Transfer:
     request_date = datetime.now(_ARGENTINA).date().isoformat()
     amount_str = f"{monto:.2f}"
@@ -101,7 +135,7 @@ def crear_transferencia(
         result = mock_transfers.crear_transferencia(
             amount=amount_str,
             currency=moneda,
-            comments=comentario,
+            comments=_comentario_con_usuario(comentario, cargado_por),
             credit_cbu=cbu_destino,
             debit_account_number=cuenta_debito_account_number,
             debit_account_type=cuenta_debito_account_type,
@@ -132,7 +166,7 @@ def crear_transferencia(
         # rechaza el pedido, queda asentado como ERROR.
         transfer = Transfer(
             cuenta_origen=cuenta_origen_label, cbu_destino=cbu_destino, monto=monto, moneda=moneda,
-            concepto=comentario, status="ENVIANDO", initiated_by=user_id,
+            concepto=comentario, status="ENVIANDO", initiated_by=user_id, cargado_por=cargado_por,
         )
         db.add(transfer)
         db.flush()
@@ -148,7 +182,7 @@ def crear_transferencia(
                     # Sólo la fecha: con hora ("...T00:00:00.000Z") responde 1004 "no es una fecha válida".
                     "request_date": request_date,
                     "amount": float(amount_str),
-                    "comments": comentario,
+                    "comments": _comentario_con_usuario(comentario, cargado_por),
                     "debit_account": {
                         "bank_number": int(cuenta_debito_bank_id or debit_cbu[:3]),
                         "account_type": cuenta_debito_account_type,
@@ -199,7 +233,7 @@ def crear_transferencia(
     if settings.interbanking_mock_transfers:
         transfer = Transfer(
             cuenta_origen=cuenta_origen_label, cbu_destino=cbu_destino, monto=monto, moneda=moneda,
-            concepto=comentario, initiated_by=user_id,
+            concepto=comentario, initiated_by=user_id, cargado_por=cargado_por,
         )
         db.add(transfer)
     transfer.id_operacion_ib = str(id_op) if id_op else None

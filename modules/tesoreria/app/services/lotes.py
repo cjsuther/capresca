@@ -50,7 +50,8 @@ def _pago(p: models.Pago) -> dict:
     return {"id": p.id, "referencia_externa": p.referencia_externa, "beneficiario": p.beneficiario,
             "documento": p.documento, "cbu": p.cbu, "monto": float(p.monto), "concepto": p.concepto,
             "estado": p.estado, "motivo": p.motivo, "id_operacion_ib": p.id_operacion_ib,
-            "estado_banco": p.estado_banco,
+            "estado_banco": p.estado_banco, "enviado_por": p.enviado_por,
+            "cuenta_sin_habilitar": interbanking.cuenta_sin_habilitar(p.motivo) if p.estado == "FALLIDO" else None,
             "enviado_en": p.enviado_en.isoformat() if p.enviado_en else None,
             "confirmado_en": p.confirmado_en.isoformat() if p.confirmado_en else None}
 
@@ -303,7 +304,7 @@ def rechazar(db: Session, lote: models.Lote, motivo: str, user: Usuario) -> None
 
 
 # ── Envío por Interbanking ───────────────────────────────────────────────────────────────────────
-def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str) -> None:
+def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str, usuario: str) -> None:
     """Toma el pago (transición atómica desde `desde`), lo guarda ENVIANDO y recién ahí llama al banco."""
     tomado = (db.query(models.Pago).filter(models.Pago.id == p.id, models.Pago.estado == desde)
               .update({"estado": "ENVIANDO", "motivo": ""}, synchronize_session=False))
@@ -311,7 +312,7 @@ def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str) -> 
     if not tomado:
         return
     db.refresh(p)
-    p.enviado_en = _ahora()
+    p.enviado_en, p.enviado_por = _ahora(), (usuario or "")[:60]
     if settings.envio_simulado:
         p.estado, p.id_operacion_ib, p.estado_banco = "ENVIADO", f"SIM-{p.id}", "SIMULADO"
         db.commit()
@@ -320,7 +321,7 @@ def _enviar_pago(db: Session, lote: models.Lote, p: models.Pago, desde: str) -> 
     try:
         cuenta = {"account_number": lote.cuenta_origen, "account_type": lote.cuenta_origen_tipo,
                   "bank_number": lote.cuenta_origen_banco} if lote.cuenta_origen else None
-        r = interbanking.enviar(p.cbu, float(p.monto), concepto, cuenta)
+        r = interbanking.enviar(p.cbu, float(p.monto), concepto, cuenta, usuario=p.enviado_por)
         p.transfer_id, p.id_operacion_ib = r.get("id"), str(r.get("id_operacion_ib") or "")
         p.estado_banco = str(r.get("status") or "")
         p.estado = interbanking.clasificar(p.estado_banco)
@@ -414,7 +415,7 @@ def enviar(db: Session, lote: models.Lote, user: Usuario, cuenta_origen: str | N
     db.commit()
     for p in list(lote.pagos):
         if p.estado == "PENDIENTE":
-            _enviar_pago(db, lote, p, desde="PENDIENTE")
+            _enviar_pago(db, lote, p, desde="PENDIENTE", usuario=user.username)
     db.refresh(lote)
     recalcular(lote)
     db.commit()
@@ -456,28 +457,58 @@ def actualizar(db: Session, lote: models.Lote, usuario: str = "sistema") -> int:
     return cambios
 
 
-def reintentar(db: Session, lote: models.Lote, pago_id: int, user: Usuario) -> None:
+def _otro_vivo(db: Session, lote: models.Lote, p: models.Pago) -> models.Pago | None:
+    """Un pago vivo por referencia: si el origen ya lo volvió a mandar en otro lote, reintentarlo acá lo
+    pagaría dos veces."""
+    return (db.query(models.Pago).join(models.Lote)
+            .filter(models.Lote.origen == lote.origen, models.Pago.referencia_externa == p.referencia_externa,
+                    models.Pago.id != p.id, models.Pago.estado.in_(VIVOS)).first())
+
+
+def _puede_reintentar(lote: models.Lote, user: Usuario) -> None:
     if not user.puede("lotes:enviar"):
         raise HTTPException(403, "Falta el permiso tesoreria:lotes:enviar (Seguridad).")
+    if lote.estado not in ("ENVIADO", "CON_ERRORES"):
+        raise HTTPException(409, "El lote no está en envío.")
+
+
+def reintentar(db: Session, lote: models.Lote, pago_id: int, user: Usuario) -> None:
+    _puede_reintentar(lote, user)
     p = _pago_del_lote(lote, pago_id)
     if p.estado != "FALLIDO":
         raise HTTPException(409, "Sólo se reintentan pagos fallidos (un pago incierto se resuelve a mano).")
-    if lote.estado not in ("ENVIADO", "CON_ERRORES"):
-        raise HTTPException(409, "El lote no está en envío.")
-    # Un pago vivo por referencia: si el origen ya lo volvió a mandar en otro lote, reintentarlo acá lo
-    # pagaría dos veces.
-    otro = (db.query(models.Pago).join(models.Lote)
-            .filter(models.Lote.origen == lote.origen, models.Pago.referencia_externa == p.referencia_externa,
-                    models.Pago.id != p.id, models.Pago.estado.in_(VIVOS)).first())
+    otro = _otro_vivo(db, lote, p)
     if otro:
         raise HTTPException(409, f"Ese pago ya se volvió a cargar en el lote {otro.lote.codigo} ({otro.estado}).")
     evento(db, lote, user.username, "REINTENTO", f"{p.beneficiario} (${p.monto:,.2f})")
     db.commit()
-    _enviar_pago(db, lote, p, desde="FALLIDO")
+    _enviar_pago(db, lote, p, desde="FALLIDO", usuario=user.username)
     db.refresh(lote)
     recalcular(lote)
     db.commit()
     avisos.avisar(db, lote)
+
+
+def reintentar_fallidos(db: Session, lote: models.Lote, user: Usuario) -> dict:
+    """Reenvía todos los pagos fallidos del lote (p.ej. después de habilitar las cuentas en Interbanking).
+    Saltea los que el origen ya volvió a cargar en otro lote. Devuelve {reenviados, salteados}."""
+    _puede_reintentar(lote, user)
+    fallidos = [p for p in lote.pagos if p.estado == "FALLIDO"]
+    if not fallidos:
+        raise HTTPException(409, "El lote no tiene pagos fallidos.")
+    reenviar, salteados = [], []
+    for p in fallidos:
+        (salteados if _otro_vivo(db, lote, p) else reenviar).append(p)
+    evento(db, lote, user.username, "REINTENTO", f"Reintento de {len(reenviar)} pago(s) fallido(s)"
+           + (f"; {len(salteados)} salteado(s) porque ya se cargaron en otro lote" if salteados else ""))
+    db.commit()
+    for p in reenviar:
+        _enviar_pago(db, lote, p, desde="FALLIDO", usuario=user.username)
+    db.refresh(lote)
+    recalcular(lote)
+    db.commit()
+    avisos.avisar(db, lote)
+    return {"reenviados": len(reenviar), "salteados": len(salteados)}
 
 
 def resolver_incierto(db: Session, lote: models.Lote, pago_id: int, resultado: str, observacion: str,

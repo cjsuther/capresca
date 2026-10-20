@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   listarTransferencias,
   crearTransferencia,
+  getTransferenciasLocal,
   getCuentas,
 } from "../../../api/interbanking";
 import { PermissionGate } from "../../../components/PrivateRoute";
@@ -28,7 +29,33 @@ const MAX_PAGINAS = 20;
 
 const TAMANIOS = [25, 50, 100];
 
-const SIN_FILTROS = { fecha: "", id: "", origen: "", destino: "", montoMin: "", montoMax: "", comentario: "", estado: "" };
+// Las que Interbanking rechazó no figuran en su listado: salen del registro propio del módulo.
+const POR_PAGINA_LOCAL = 100;
+
+const diaArgentina = (iso) =>
+  iso ? new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }) : "";
+
+// Una transferencia rechazada con la forma de las del listado de Interbanking.
+// `cuenta_origen` se guarda como "banco/número/tipo".
+function filaRechazada(t) {
+  const [banco, numero, tipo] = (t.cuenta_origen || "").split("/");
+  return {
+    _local: true,
+    _status: t.status,
+    _motivo: t.motivo,
+    _id: t.id,
+    transfer_id: `Intento ${t.id}`,
+    request_date: diaArgentina(t.initiated_at),
+    debit_account: t.cuenta_origen ? { bank_number: banco, account_number: numero, account_type: tipo } : null,
+    credit_account: { account_cbu: t.cbu_destino },
+    amount: t.monto,
+    currency: t.moneda,
+    comments: t.concepto,
+    cargado_por: t.cargado_por,
+  };
+}
+
+const SIN_FILTROS = { fecha: "", id: "", origen: "", destino: "", montoMin: "", montoMax: "", comentario: "", estado: "", motivo: "" };
 
 const norm = (v) => String(v ?? "").toLowerCase();
 const textoCuenta = (c) =>
@@ -54,7 +81,8 @@ function pasaFiltros(t, f) {
     (min == null || Number(t.amount) >= min) &&
     (max == null || Number(t.amount) <= max) &&
     contiene(`${t.transfer_comments ?? t.comments ?? ""} ${t.transfer_type_description ?? ""}`, f.comentario) &&
-    (!f.estado || estadoDe(t) === f.estado)
+    (!f.estado || estadoDe(t) === f.estado) &&
+    contiene(t._motivo, f.motivo)
   );
 }
 
@@ -69,7 +97,8 @@ const errMsg = (err, fallback) => {
 
 export default function TransferenciasPage() {
   const [filtros, setFiltros] = useState({ date_since: todayISO(), date_until: todayISO() });
-  const [data, setData] = useState({ transfers: [], general_data: {} });
+  const [data, setData] = useState({ transfers: [], general_data: {}, remotas: 0 });
+  const [conError, setConError] = useState(true);
   const [col, setColRaw] = useState(SIN_FILTROS);
   const [pagina, setPagina] = useState(0);
   const [porPagina, setPorPagina] = useState(50);
@@ -94,7 +123,20 @@ export default function TransferenciasPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
 
-  const cargar = async () => {
+  const rechazadas = async () => {
+    const filas = [];
+    for (let page = 1; page <= MAX_PAGINAS; page++) {
+      const r = await getTransferenciasLocal({
+        status: "ERROR", date_since: filtros.date_since, date_until: filtros.date_until,
+        page, per_page: POR_PAGINA_LOCAL,
+      });
+      filas.push(...(r.data || []));
+      if (filas.length >= (r.total ?? 0) || !r.data?.length) break;
+    }
+    return filas.map(filaRechazada);
+  };
+
+  const cargar = async (incluirError = conError) => {
     setLoading(true);
     setError("");
     try {
@@ -106,7 +148,13 @@ export default function TransferenciasPage() {
         if (!sig.transfers?.length) break;
         transfers.push(...sig.transfers);
       }
-      setData({ transfers, general_data: result.general_data || {} });
+      const remotas = transfers.length;
+      if (incluirError) {
+        transfers.push(...await rechazadas());
+        // Por fecha, las más nuevas primero (el orden es estable: no altera el de Interbanking).
+        transfers.sort((a, b) => String(b.request_date ?? "").localeCompare(String(a.request_date ?? "")));
+      }
+      setData({ transfers, general_data: result.general_data || {}, remotas });
       setPagina(0);
       setIsMock(!!result.mock);
     } catch (err) {
@@ -176,8 +224,10 @@ export default function TransferenciasPage() {
   const desde = visibles.length ? paginaActual * porPagina + 1 : 0;
   const hasta = Math.min((paginaActual + 1) * porPagina, visibles.length);
   const hayFiltros = Object.values(col).some(Boolean);
-  const total = data.general_data?.total_rows;
-  const incompleto = total != null && data.transfers.length < total;
+  const totalRemoto = data.general_data?.total_rows;
+  const errores = data.transfers.length - data.remotas;
+  const total = totalRemoto != null ? totalRemoto + errores : null;
+  const incompleto = totalRemoto != null && data.remotas < totalRemoto;
 
   return (
     <div>
@@ -220,8 +270,16 @@ export default function TransferenciasPage() {
             onChange={(e) => setFiltros({ ...filtros, date_until: e.target.value })}
           />
         </div>
+        <label className="flex items-center gap-2 text-sm text-gray-700 py-2">
+          <input
+            type="checkbox"
+            checked={conError}
+            onChange={(e) => { setConError(e.target.checked); cargar(e.target.checked); }}
+          />
+          Incluir las que dieron error
+        </label>
         <button
-          onClick={cargar}
+          onClick={() => cargar()}
           disabled={loading}
           className="flex items-center gap-2 bg-surface border text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
         >
@@ -244,7 +302,7 @@ export default function TransferenciasPage() {
 
       {incompleto && !loading && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2 text-sm mb-4">
-          Se cargaron {data.transfers.length} de {total} transferencias: los filtros sólo miran esas.
+          Se cargaron {data.remotas} de {totalRemoto} transferencias: los filtros sólo miran esas.
           Achicá el rango de fechas para verlas todas.
         </div>
       )}
@@ -297,6 +355,12 @@ export default function TransferenciasPage() {
                   <option value="">Todos</option>
                   {estados.map((e) => <option key={e} value={e}>{e}</option>)}
                 </select>
+                {conError && (
+                  <div className="mt-1">
+                    <FiltroTexto etiqueta="Motivo del error" placeholder="Motivo del error" valor={col.motivo}
+                      onChange={(v) => setCol({ ...col, motivo: v })} />
+                  </div>
+                )}
               </th>
             </tr>
           </thead>
@@ -310,7 +374,7 @@ export default function TransferenciasPage() {
             ) : enPagina.map((t) => {
               const status = estadoDe(t);
               return (
-                <tr key={t.transfer_id} className="hover:bg-gray-50">
+                <tr key={t._local ? `local-${t._id}` : t.transfer_id} className={t._local ? "bg-red-50/40" : "hover:bg-gray-50"}>
                   <td className="px-4 py-3 text-gray-500 text-xs">{t.request_date}</td>
                   <td className="px-4 py-3 font-mono text-xs">{t.transfer_id}</td>
                   <td className="px-4 py-3"><Cuenta c={t.debit_account} /></td>
@@ -321,11 +385,18 @@ export default function TransferenciasPage() {
                     {t.transfer_type_description && (
                       <div className="text-xs text-gray-400">{t.transfer_type_description}</div>
                     )}
+                    {t.cargado_por && <div className="text-xs text-gray-400">Cargó: {t.cargado_por}</div>}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[status] || "bg-gray-100 text-gray-600"}`}>
+                  <td className="px-4 py-3 max-w-xs">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${t._local ? "bg-red-100 text-red-700" : STATUS_COLORS[status] || "bg-gray-100 text-gray-600"}`}>
                       {status}
                     </span>
+                    {t._local && (
+                      <div className="text-xs text-red-700 mt-1">
+                        {t._motivo || "Interbanking rechazó el envío"}
+                        <div className="text-gray-400">No llegó a Interbanking: no figura en su listado.</div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
@@ -507,7 +578,8 @@ function Cuenta({ c }) {
   return (
     <div className="text-xs leading-5">
       <div className="text-gray-800 font-medium">
-        {c.bank_name || "—"}{cuenta && <span className="text-gray-500 font-normal"> · {cuenta}</span>}
+        {c.bank_name || (c.bank_number ? `Banco ${c.bank_number}` : "—")}
+        {cuenta && <span className="text-gray-500 font-normal"> · {cuenta}</span>}
       </div>
       {cbu && <div className="font-mono text-gray-500">CBU {cbu}</div>}
       {cuit && <div className="text-gray-400">CUIT {cuit}</div>}
