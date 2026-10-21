@@ -26,6 +26,19 @@ const LOTES = {
   cantidad: 3, total: 540000,
 };
 
+const LOTE_COMPLETO = {
+  id: 1, codigo: "2026-0001", producto: "Préstamo personal", fecha: "2026-10-01", estado: "CERRADO",
+  cantidad: 2, montoTotal: 300000, cerradoPor: "ana", cerradoEn: "2026-10-01T15:20:00",
+  resolucion: null, resolucion_despacho: null, ordenPago: null,
+  contratos: [
+    { id: "s1", tipo: "solicitud", solicitud: "SOL-0001", cliente: "PEREZ JUAN", cuil: "20123456786", dni: "12345678",
+      monto: 100000, plazo: 12, estadoSolicitud: "APROBADA", estadoContrato: null, numero: null, desembolso: {} },
+    { id: "s2", tipo: "solicitud", solicitud: "SOL-0002", cliente: "GOMEZ ANA", cuil: "27111111112", dni: "11111111",
+      monto: 200000, plazo: 24, estadoSolicitud: "APROBADA", estadoContrato: "A_LIQUIDAR", numero: "C-77",
+      desembolso: { estado: "OBSERVADO", motivo: "CBU inválido" } },
+  ],
+};
+
 const sesion = (acciones) =>
   useAuthStore.setState({ token: "tok", user: { username: "ana" },
     permissions: { modules: ["despacho"], actions: { despacho: acciones } } });
@@ -39,10 +52,51 @@ beforeEach(() => {
     { id: 5, numero: 45, anio: 2026, importe: "400000.00", motivo: "OTORGAMIENTO", anulada: false }] });
   api.getLotesDeResolucion.mockResolvedValue({ lotes: [], total: "0", importe: "400000.00", disponible: "400000.00" });
   api.asignarLotes.mockResolvedValue({ numero: 45, anio: 2026, asignados: ["2026-0001"], disponible: "100000.00" });
+  api.getLote.mockResolvedValue(LOTE_COMPLETO);
   api.quitarResolucionLote.mockResolvedValue({ lote: "2026-0003", estado: "ABIERTO" });
 });
 
 describe("Lotes de créditos (Despacho)", () => {
+  it("abre el detalle completo del lote con cada solicitud", async () => {
+    const user = userEvent.setup();
+    render(<LotesPage />);
+    await user.click(await screen.findByRole("button", { name: "Ver detalle de 2026-0001" }));
+
+    const dialogo = await screen.findByRole("dialog", { name: "Detalle del lote" });
+    expect(api.getLote).toHaveBeenCalledWith(1);
+    expect(await within(dialogo).findByText("PEREZ JUAN")).toBeInTheDocument();
+    expect(within(dialogo).getByRole("heading", { name: "Lote 2026-0001" })).toBeInTheDocument();
+    const fila = within(dialogo).getByText("GOMEZ ANA").closest("tr");
+    expect(fila).toHaveTextContent("SOL-0002");
+    expect(fila).toHaveTextContent("27111111112");
+    expect(fila).toHaveTextContent("DNI 11111111");
+    expect(fila).toHaveTextContent("C-77");
+    expect(fila).toHaveTextContent("Desembolso: OBSERVADO · CBU inválido");
+    expect(within(dialogo).getByText("2 solicitud(es)")).toBeInTheDocument();
+    expect(dialogo).toHaveTextContent("ana");
+
+    await user.click(within(dialogo).getByRole("button", { name: "Cerrar detalle del lote" }));
+    expect(screen.queryByRole("dialog", { name: "Detalle del lote" })).not.toBeInTheDocument();
+  });
+
+  it("el detalle se abre también tocando el código, sin perder lo elegido para asignar", async () => {
+    const user = userEvent.setup();
+    render(<LotesPage />);
+    await user.click(await screen.findByLabelText("Elegir 2026-0002"));
+    await user.click(screen.getByRole("button", { name: "2026-0001" }));
+    expect(await screen.findByRole("dialog", { name: "Detalle del lote" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cerrar detalle del lote" }));
+    expect(screen.getByLabelText("Elegir 2026-0002")).toBeChecked();
+  });
+
+  it("avisa si Créditos no devuelve el lote", async () => {
+    const user = userEvent.setup();
+    api.getLote.mockRejectedValue({ response: { data: { detail: "Créditos no responde; probá de nuevo en un momento." } } });
+    render(<LotesPage />);
+    await user.click(await screen.findByRole("button", { name: "Ver detalle de 2026-0001" }));
+    expect(await screen.findByText(/Créditos no responde/)).toBeInTheDocument();
+  });
+
   it("lista los lotes con tipo, fecha, importe, resolución y estado", async () => {
     render(<LotesPage />);
     const fila = (await screen.findByText("2026-0003")).closest("tr");

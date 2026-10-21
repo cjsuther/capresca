@@ -116,7 +116,13 @@ def ver(lote_id: int, db: Session = Depends(get_db)):
     lt = db.get(m.PPLoteLiquidacion, lote_id)
     if lt is None:
         raise HTTPException(404, "Lote no encontrado.")
-    return serial_lote(db, lt)
+    out = serial_lote(db, lt)
+    # El detalle que ve Despacho al otorgar: quién es cada solicitante, como en el anexo.
+    for f in out.get("contratos", []):
+        s = db.get(m.PPSolicitud, f["solicitudId"]) if f.get("solicitudId") else None
+        f["cuil"] = _documento(db, s, "cuil") if s else ""
+        f["dni"] = _documento(db, s, "dni") if s else ""
+    return out
 
 
 @router.post("/asignar-resolucion", dependencies=[Depends(api_despacho)])

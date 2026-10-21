@@ -382,6 +382,19 @@ def test_despacho_lista_los_lotes_y_las_solicitudes_de_una_resolucion(client):
     assert anexo["items"][0]["cuil"] == "20123456786"
 
 
+def test_despacho_ve_el_detalle_del_lote_con_cada_solicitante(client):
+    pid = _producto()
+    a, b = _aprobada(pid, 100_000), _aprobada(pid, 200_000)
+    lid = _sol(a).lote_liquidacion_id
+    d = client.get(f"/internal/creditos/lotes/{lid}", headers=HD).json()
+    assert d["codigo"] and d["cantidad"] == 2 and d["montoTotal"] == 300_000
+    filas = {f["solicitudId"]: f for f in d["contratos"]}
+    assert set(filas) == {a, b}
+    assert filas[a]["monto"] == 100_000 and filas[a]["cuil"] == "20123456786" and filas[a]["dni"]
+    assert filas[a]["cliente"] and filas[a]["estadoSolicitud"] == "APROBADA"
+    assert client.get("/internal/creditos/lotes/999999", headers=HD).status_code == 404
+
+
 # ---------------------------------------------------------------------------------- mover
 def test_mover_a_un_lote_del_mismo_tipo_y_fecha_o_a_uno_nuevo(client):
     h = _auth(client)

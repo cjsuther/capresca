@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -146,12 +146,25 @@ describe("resoluciones y disposiciones", () => {
   it("muestra los lotes de créditos que otorga y lo disponible", async () => {
     const user = userEvent.setup();
     api.getResolucion.mockResolvedValue(detalle());
-    api.getLotesDeResolucion.mockResolvedValue({ lotes: [{ codigo: "2026-0001" }, { codigo: "2026-0002" }],
-                                                 total: "100000", importe: "125000.50", disponible: "25000.50" });
+    api.getLotesDeResolucion.mockResolvedValue({
+      lotes: [{ id: 1, codigo: "2026-0001", producto: "Préstamo personal", cantidad: 2, montoTotal: 60000 },
+              { id: 2, codigo: "2026-0002", producto: "Vivienda", cantidad: 1, montoTotal: 40000 }],
+      total: "100000", importe: "125000.50", disponible: "25000.50" });
+    api.getLote.mockResolvedValue({ id: 2, codigo: "2026-0002", producto: "Vivienda", estado: "CON_RESOLUCION",
+      cantidad: 1, montoTotal: 40000, resolucion: { id: 1, numero: 45, anio: 2026 },
+      contratos: [{ id: "s9", tipo: "solicitud", solicitud: "SOL-0009", cliente: "DIAZ LUIS", cuil: "20222222223",
+                    monto: 40000, plazo: 36, estadoSolicitud: "APROBADA" }] });
     render(<ResolucionesPage />);
     await user.click(await screen.findByText("45/2026"));
     expect(await screen.findByText(/Lotes de créditos que otorga \(2\)/)).toBeInTheDocument();
-    expect(screen.getByText(/2026-0001, 2026-0002/)).toBeInTheDocument();
+    expect(screen.getByText("2026-0001")).toBeInTheDocument();
+    expect(screen.getByText(/Disponible|disponible/)).toHaveTextContent("25.000,50");
+
+    await user.click(screen.getByRole("button", { name: "Ver detalle de 2026-0002" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Detalle del lote" });
+    expect(api.getLote).toHaveBeenCalledWith(2);
+    expect(await within(dialogo).findByText("DIAZ LUIS")).toBeInTheDocument();
+    expect(dialogo).toHaveTextContent("Correlativo 45/2026");
   });
 
   it("un instrumento ya emitido no ofrece editarse", async () => {

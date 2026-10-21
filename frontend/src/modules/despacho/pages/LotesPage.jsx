@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, FileCheck2 } from "lucide-react";
+import { Download, Eye, FileCheck2 } from "lucide-react";
 
 import {
   asignarLotes, descargarAnexoWord, getLotes, getLotesDeResolucion, getResoluciones, getTiposLotes,
   quitarResolucionLote,
 } from "../../../api/despacho";
 import { useHasPermission } from "../../../context/usePermissions";
+import DetalleLote from "../components/DetalleLote";
 
 const money = (n) => `$ ${Number(n || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
 const fecha = (f) => (f ? new Date(`${String(f).slice(0, 10)}T00:00:00`).toLocaleDateString("es-AR") : "—");
@@ -47,6 +48,7 @@ export default function LotesPage() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
+  const [verLote, setVerLote] = useState(null);        // id del lote abierto en detalle
 
   useEffect(() => { getTiposLotes().then(setTipos).catch(() => {}); }, []);
 
@@ -184,7 +186,10 @@ export default function LotesPage() {
                              checked={elegidos.has(l.id)} onChange={() => marcar(l.id)} />
                     )}
                   </td>
-                  <td className="px-4 py-3 font-medium tabular-nums">{l.codigo}</td>
+                  <td className="px-4 py-3 font-medium tabular-nums">
+                    <button type="button" onClick={() => setVerLote(l.id)} title="Ver el detalle del lote"
+                            className="text-blue-600 hover:underline">{l.codigo}</button>
+                  </td>
                   <td className="px-4 py-3 text-gray-700">{l.producto}</td>
                   <td className="px-4 py-3 text-gray-600">{fecha(l.fecha)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{l.cantidad}</td>
@@ -198,6 +203,10 @@ export default function LotesPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button type="button" onClick={() => setVerLote(l.id)} aria-label={`Ver detalle de ${l.codigo}`}
+                            className="mr-2 inline-flex items-center gap-1 px-2 py-1 text-xs border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                      <Eye size={13} /> Detalle
+                    </button>
                     {r && (
                       <button type="button" onClick={() => bajarAnexo(r)} title="Anexo de la resolución en Word"
                               className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -228,6 +237,8 @@ export default function LotesPage() {
           )}
         </table>
       </div>
+
+      {verLote && <DetalleLote loteId={verLote} onCerrar={() => setVerLote(null)} />}
 
       {puedeEscribir && elegidos.size > 0 && (
         <div className="flex flex-wrap items-end justify-end gap-3">

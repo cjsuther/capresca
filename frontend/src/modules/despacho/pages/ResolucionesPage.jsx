@@ -11,6 +11,7 @@ import { useHasPermission } from "../../../context/usePermissions";
 import { CamposClasificacion, FiltrosClasificacion } from "../components/Clasificacion";
 import { EditorTexto } from "../components/EditorTexto";
 import { sanitizar } from "../sanitizar";
+import DetalleLote from "../components/DetalleLote";
 
 const TIPOS = [["RES", "Resolución"], ["DIS", "Disposición"]];
 const nombreTipo = (t) => TIPOS.find(([v]) => v === t)?.[1] || t;
@@ -52,6 +53,7 @@ export default function ResolucionesPage() {
   const [guardando, setGuardando] = useState(false);
   const [oficial, setOficial] = useState({ numero: "", fecha: "" });   // corrección del N° oficial y la fecha
   const [lotesRes, setLotesRes] = useState(null);                     // lotes de créditos que otorga
+  const [verLote, setVerLote] = useState(null);                       // id del lote abierto en detalle
 
   useEffect(() => {
     setOficial({ numero: detalle?.numero_real ? String(detalle.numero_real) : "", fecha: detalle?.fecha || "" });
@@ -280,6 +282,8 @@ export default function ResolucionesPage() {
         </div>
       </div>
 
+      {verLote && <DetalleLote loteId={verLote} onCerrar={() => setVerLote(null)} />}
+
       {/* ── Detalle ── */}
       {detalle && (
         <Modal titulo={`${nombreTipo(detalle.tipo)} N° ${detalle.numero}/${detalle.anio}`}
@@ -349,9 +353,25 @@ export default function ResolucionesPage() {
               <p className="font-medium text-gray-700 mb-1">
                 Lotes de créditos que otorga ({lotesRes.lotes.length})
               </p>
+              <ul className="text-gray-600 divide-y divide-gray-100 border border-gray-200 rounded-lg mb-1">
+                {lotesRes.lotes.map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5">
+                    <span>
+                      <b className="tabular-nums text-gray-800">{l.codigo}</b> · {l.producto} ·{" "}
+                      <span className="tabular-nums">{l.cantidad}</span> solicitud(es)
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <span className="tabular-nums">{money(l.montoTotal)}</span>
+                      <button type="button" onClick={() => setVerLote(l.id)} aria-label={`Ver detalle de ${l.codigo}`}
+                              className="px-2 py-0.5 text-xs border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Ver detalle
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
               <p className="text-gray-600">
-                {lotesRes.lotes.map((l) => l.codigo).join(", ")} · comprometido{" "}
-                <b className="tabular-nums">{money(lotesRes.total)}</b> de {money(lotesRes.importe)} ·
+                Comprometido <b className="tabular-nums">{money(lotesRes.total)}</b> de {money(lotesRes.importe)} ·
                 disponible <b className="tabular-nums">{money(lotesRes.disponible)}</b>
               </p>
             </div>
