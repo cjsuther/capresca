@@ -3,7 +3,7 @@ Cliente HTTP hacia la API de Interbanking.
 Gestiona el token automáticamente y registra cada llamada en audit_log.
 """
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import httpx
 from fastapi import HTTPException
@@ -23,6 +23,7 @@ def call(
     params: Optional[dict] = None,
     username: Optional[str] = None,
     ip_address: Optional[str] = None,
+    al_auditar: Optional[Callable[[Any], None]] = None,
 ) -> Any:
     access_token, credential_id = token_manager.get_valid_token(db, scope, user_id)
     cred = token_manager.get_active_credential(db)
@@ -69,7 +70,7 @@ def call(
         error_msg = str(e)
     finally:
         duration_ms = int((time.time() - start) * 1000)
-        audit_service.log(
+        entrada = audit_service.log(
             db=db,
             user_id=user_id,
             username=username,
@@ -85,6 +86,8 @@ def call(
             error_message=error_msg,
             ip_address=ip_address,
         )
+        if al_auditar:
+            al_auditar(entrada)
 
     if not success:
         raise HTTPException(

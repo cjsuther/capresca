@@ -3,10 +3,11 @@ import {
   listarTransferencias,
   crearTransferencia,
   getTransferenciasLocal,
+  getEnvioTransferencia,
   getCuentas,
 } from "../../../api/interbanking";
 import { PermissionGate } from "../../../components/PrivateRoute";
-import { CheckCircle, Plus, RefreshCw, X } from "lucide-react";
+import { CheckCircle, Copy, Download, FileSearch, Plus, RefreshCw, X } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -86,6 +87,14 @@ function pasaFiltros(t, f) {
   );
 }
 
+// Interbanking rechaza el envío si el comentario trae caracteres especiales (error 1047). Se admiten
+// letras, números y espacios; los acentos y la ñ los convierte el backend a su letra base.
+function caracteresNoPermitidos(texto) {
+  const base = String(texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return [...new Set([...base].filter((c) => !/[A-Za-z0-9 ]/.test(c)))];
+}
+const mostrarCaracter = (c) => (c === "\n" ? "salto de línea" : c === "\t" ? "tabulación" : `"${c}"`);
+
 // FastAPI devuelve `detail` como string en 4xx normales y como array de
 // {loc, msg, type, ...} en 422. Convertir a string siempre.
 const errMsg = (err, fallback) => {
@@ -122,6 +131,8 @@ export default function TransferenciasPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [envio, setEnvio] = useState(null);       // id de la transferencia cuyo envío se está viendo
+  const malos = caracteresNoPermitidos(form.comentario);
 
   const rechazadas = async () => {
     const filas = [];
@@ -395,6 +406,10 @@ export default function TransferenciasPage() {
                       <div className="text-xs text-red-700 mt-1">
                         {t._motivo || "Interbanking rechazó el envío"}
                         <div className="text-gray-400">No llegó a Interbanking: no figura en su listado.</div>
+                        <button type="button" onClick={() => setEnvio(t._id)}
+                                className="mt-1 inline-flex items-center gap-1 text-blue-600 hover:underline">
+                          <FileSearch size={12} /> Ver lo enviado y la respuesta
+                        </button>
                       </div>
                     )}
                   </td>
@@ -432,6 +447,8 @@ export default function TransferenciasPage() {
           </div>
         </div>
       )}
+
+      {envio && <EnvioInterbanking id={envio} onCerrar={() => setEnvio(null)} />}
 
       {/* Modal Nueva Transferencia */}
       {showForm && (
@@ -534,7 +551,16 @@ export default function TransferenciasPage() {
                   onChange={(e) => setForm({ ...form, comentario: e.target.value })}
                   maxLength={255}
                   required
+                  aria-invalid={malos.length > 0}
                 />
+                {malos.length > 0 ? (
+                  <p className="text-xs text-red-600 mt-1" role="alert">
+                    Interbanking no acepta caracteres especiales: sacá {malos.map(mostrarCaracter).join(", ")}.
+                    Sólo letras, números y espacios.
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1">Sólo letras, números y espacios (los acentos se envían sin tilde).</p>
+                )}
               </div>
 
               <div className="text-xs text-gray-400">
@@ -554,6 +580,7 @@ export default function TransferenciasPage() {
                     || form.cbu_destino.length !== 22
                     || !form.monto
                     || !form.comentario
+                    || malos.length > 0
                   }
                   className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
@@ -596,5 +623,89 @@ function FiltroTexto({ etiqueta, valor, onChange, placeholder = "Buscar" }) {
       value={valor}
       onChange={(e) => onChange(e.target.value)}
     />
+  );
+}
+
+const horaArgentina = (v) =>
+  new Date(v).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hourCycle: "h23" });
+
+// Evidencia del envío: el cuerpo que se le mandó a Interbanking y lo que contestó, tal cual.
+function EnvioInterbanking({ id, onCerrar }) {
+  const [d, setD] = useState(null);
+  const [error, setError] = useState("");
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    getEnvioTransferencia(id).then(setD)
+      .catch((err) => setError(errMsg(err, "No se pudo traer lo enviado a Interbanking")));
+  }, [id]);
+
+  const texto = d ? [
+    `Transferencia (intento) ${d.transferencia}`,
+    `Fecha: ${horaArgentina(d.fecha)} (hora argentina)`,
+    `${d.metodo} ${d.endpoint}`,
+    `Respuesta HTTP: ${d.estado_http ?? "sin respuesta"}${d.duracion_ms != null ? ` (${d.duracion_ms} ms)` : ""}`,
+    "",
+    "Enviado:",
+    JSON.stringify(d.enviado, null, 2),
+    "",
+    "Respuesta:",
+    JSON.stringify(d.respuesta, null, 2),
+  ].join("\n") : "";
+
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(texto); setCopiado(true); } catch { /* sin portapapeles */ }
+  };
+  const descargar = () => {
+    const url = window.URL.createObjectURL(new Blob([texto], { type: "text/plain;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `envio-interbanking-intento-${id}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+         role="dialog" aria-modal="true" aria-label="Envío a Interbanking">
+      <div className="bg-surface rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-auto shadow-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-surface">
+          <h3 className="font-semibold text-gray-800">Intento {id}: lo enviado a Interbanking y su respuesta</h3>
+          <button onClick={onCerrar} aria-label="Cerrar envío" className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <div className="p-6 space-y-4 text-sm">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2">{error}</div>}
+          {!d && !error && <p className="text-gray-400 text-center py-6">Cargando…</p>}
+          {d && (
+            <>
+              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div><dt className="text-xs text-gray-500">Fecha (hora argentina)</dt><dd>{horaArgentina(d.fecha)}</dd></div>
+                <div className="sm:col-span-2"><dt className="text-xs text-gray-500">Llamada</dt>
+                  <dd className="font-mono text-xs break-all">{d.metodo} {d.endpoint}</dd></div>
+                <div><dt className="text-xs text-gray-500">Respuesta HTTP</dt>
+                  <dd className={d.exito ? "text-green-700" : "text-red-700"}>{d.estado_http ?? "sin respuesta"}</dd></div>
+              </dl>
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-1">Enviado</p>
+                <pre aria-label="Enviado" className="bg-gray-50 border rounded-lg p-3 text-xs overflow-auto max-h-72">{JSON.stringify(d.enviado, null, 2)}</pre>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-1">Respuesta de Interbanking</p>
+                <pre aria-label="Respuesta" className="bg-gray-50 border rounded-lg p-3 text-xs overflow-auto max-h-72">{JSON.stringify(d.respuesta, null, 2)}</pre>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={copiar}
+                        className="inline-flex items-center gap-1 px-3 py-2 text-sm border rounded-lg text-gray-700 hover:bg-gray-50">
+                  <Copy size={14} /> {copiado ? "Copiado" : "Copiar"}
+                </button>
+                <button type="button" onClick={descargar}
+                        className="inline-flex items-center gap-1 px-3 py-2 text-sm border rounded-lg text-gray-700 hover:bg-gray-50">
+                  <Download size={14} /> Descargar
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

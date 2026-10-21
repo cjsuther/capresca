@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Optional
@@ -29,6 +29,18 @@ class TransferCreateRequest(BaseModel):
     monto: Decimal = Field(..., gt=0)
     moneda: str = Field("ARS", pattern="^(ARS|USD)$")
     comentario: str = Field(..., min_length=1, max_length=255)
+
+    @field_validator("comentario")
+    @classmethod
+    def _sin_caracteres_especiales(cls, v: str) -> str:
+        from app.services import texto_ib
+        malos = texto_ib.no_permitidos(v)
+        if malos:
+            raise ValueError("Interbanking no acepta caracteres especiales en el comentario; sacá estos: "
+                             + " ".join(malos) + " (sólo letras, números y espacios)")
+        if not texto_ib.limpiar(v):
+            raise ValueError("El comentario no puede quedar vacío")
+        return v.strip()
 
 
 class TransferResponse(BaseModel):

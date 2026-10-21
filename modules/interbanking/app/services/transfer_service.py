@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.transfers import Transfer
 from app.scopes import TRANSFERENCIAS_CONFECCION, INFO_FINANCIERA
-from app.services import interbanking_client, mock_transfers, token_manager
+from app.services import interbanking_client, mock_transfers, texto_ib, token_manager
 from app.services.notifications_client import notifications_client
 
 
@@ -32,6 +32,40 @@ def list_local_transfers(db: Session, page: int = 1, per_page: int = 20, status:
     total = q.count()
     data = q.offset((page - 1) * per_page).limit(per_page).all()
     return data, total
+
+
+def envio(db: Session, transfer_id: int) -> dict:
+    """Lo que se le mandó a Interbanking al confeccionar la transferencia y lo que contestó.
+
+    Las nuevas quedan ligadas a su registro de auditoría; las anteriores se encuentran por su
+    confection_id entre las llamadas de los minutos siguientes a la carga.
+    """
+    from app.models.audit_log import ApiAuditLog
+
+    t = db.get(Transfer, transfer_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Transferencia no encontrada.")
+    a = db.get(ApiAuditLog, t.audit_log_id) if t.audit_log_id else None
+    if a is None and t.initiated_at is not None:
+        desde = t.initiated_at - timedelta(minutes=1)
+        candidatas = (db.query(ApiAuditLog)
+                      .filter(ApiAuditLog.operation == "CREAR_TRANSFERENCIA",
+                              ApiAuditLog.created_at >= desde,
+                              ApiAuditLog.created_at <= t.initiated_at + timedelta(minutes=5))
+                      .order_by(ApiAuditLog.id).all())
+        cid = t.id % _MAX_CONFECTION_ID
+        for c in candidatas:
+            enviadas = (c.request_payload or {}).get("found_transfers") or [{}]
+            if enviadas[0].get("confection_id") == cid:
+                a = c
+                break
+    if a is None:
+        raise HTTPException(status_code=404, detail="No hay registro de lo que se envió a Interbanking "
+                                                    "para esta transferencia.")
+    return {"transferencia": t.id, "fecha": a.created_at, "metodo": a.http_method, "endpoint": a.endpoint,
+            "usuario": a.username, "estado_http": a.response_status, "exito": a.success,
+            "duracion_ms": a.duration_ms, "enviado": a.request_payload, "respuesta": a.response_payload,
+            "error": a.error_message}
 
 
 def _inicio_del_dia(dia: str) -> datetime:
@@ -99,10 +133,12 @@ _MAX_COMENTARIO = 120
 
 
 def _comentario_con_usuario(comentario: str, usuario: Optional[str]) -> str:
-    usuario = (usuario or "").strip()
+    # Sin guiones ni dos puntos: Interbanking rechaza los caracteres especiales (1047).
+    comentario = texto_ib.limpiar(comentario)
+    usuario = texto_ib.limpiar(usuario or "")
     if not usuario:
         return comentario[:_MAX_COMENTARIO]
-    sufijo = f" - Cargo: {usuario}"[:40]
+    sufijo = f" Cargo {usuario}"[:40]
     return f"{comentario[:_MAX_COMENTARIO - len(sufijo)]}{sufijo}"
 
 
@@ -173,7 +209,7 @@ def crear_transferencia(
         confection_id = transfer.id % _MAX_CONFECTION_ID
         payload = {
             "consolidated_check": False,
-            "description": comentario,
+            "description": texto_ib.limpiar(comentario),
             "payment_number": confection_id,
             "unified_send": True,
             "found_transfers": [
@@ -197,7 +233,7 @@ def crear_transferencia(
                     },
                     "concept": "VAR",
                     "disclaimer_accepted": True,
-                    "reason": comentario,
+                    "reason": texto_ib.limpiar(comentario),
                 }
             ],
         }
@@ -216,6 +252,8 @@ def crear_transferencia(
                 payload=payload,
                 username=username,
                 ip_address=ip,
+                # Lo que se envió y lo que contestó queda ligado a la transferencia (evidencia).
+                al_auditar=lambda entrada: setattr(transfer, "audit_log_id", entrada.id),
             )
         except HTTPException as e:
             transfer.status = "ERROR"

@@ -26,6 +26,9 @@ export const getEstadoTransferencia = (id) =>
   api.get(`/interbanking/transferencias/${id}/estado`).then((r) => r.data);
 export const getTransferenciasLocal = (params = {}) =>
   api.get("/interbanking/transferencias/local", { params }).then((r) => r.data);
+// Lo que se le envió a Interbanking al confeccionar la transferencia y lo que contestó.
+export const getEnvioTransferencia = (id) =>
+  api.get(`/interbanking/transferencias/local/${id}/envio`).then((r) => r.data);
 
 // Auditoría
 export const getAuditoria = (params = {}) =>

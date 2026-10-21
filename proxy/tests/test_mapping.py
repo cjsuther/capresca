@@ -22,6 +22,7 @@ from app.routes.mapping import get_required_permission, get_service_url
     ("GET", "/api/conciliacion/summary", settings.conciliacion_service_url, "conciliacion:read"),
     ("POST", "/api/liquidaciones/upload", settings.liquidaciones_service_url, "liquidaciones:liq:write"),
     ("GET", "/api/interbanking/cuentas/saldos", settings.interbanking_service_url, "interbanking:cuentas:read"),
+    ("GET", "/api/interbanking/transferencias/local/11/envio", settings.interbanking_service_url, "interbanking:transferencias:read"),
     ("POST", "/api/legacy/outbox/drain", settings.legacy_service_url, "legacy:admin:write"),
 ])
 def test_rutas_conocidas(metodo, ruta, servicio, permiso):

@@ -98,7 +98,7 @@ def test_el_listado_incluye_la_transferencia_recien_creada(client, h):
 
     assert r["general_data"]["total_rows"] == 4
     # orden desc por alta; las observaciones llevan quién la cargó (Interbanking sólo ve al operador de API)
-    assert r["transfers"][0]["transfer_comments"] == "Pago agencia A001 - Cargo: cris"
+    assert r["transfers"][0]["transfer_comments"] == "Pago agencia A001 Cargo cris"
 
 
 def test_el_listado_pagina(client, h):
@@ -183,7 +183,7 @@ def test_alta_real_resuelve_el_cbu_debito_y_confecciona(client, db, cred, red, h
     }
     assert transferencia["amount"] == 1500.50
     # El usuario de la plataforma va en las observaciones y queda en el registro local.
-    assert transferencia["comments"] == f"{NUEVA['comentario']} - Cargo: cris"
+    assert transferencia["comments"] == f"{NUEVA['comentario']} Cargo cris"
     assert envio["json"]["description"] == NUEVA["comentario"]
     assert db.query(Transfer).one().cargado_por == "cris" and r.json()["cargado_por"] == "cris"
     assert transferencia["request_date"] == datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
@@ -464,7 +464,90 @@ def test_los_envios_rechazados_no_van_a_conciliacion(client, db):
 
 def test_observaciones_con_el_usuario_que_cargo():
     from app.services.transfer_service import _comentario_con_usuario
-    assert _comentario_con_usuario("Pago", "jperez") == "Pago - Cargo: jperez"
+    assert _comentario_con_usuario("Pago", "jperez") == "Pago Cargo jperez"
     assert _comentario_con_usuario("Pago", None) == "Pago" and _comentario_con_usuario("Pago", " ") == "Pago"
     largo = _comentario_con_usuario("x" * 300, "jperez")
-    assert len(largo) == 120 and largo.endswith(" - Cargo: jperez")
+    assert len(largo) == 120 and largo.endswith(" Cargo jperez")
+
+
+# ───────────────── Caracteres especiales (1047) y evidencia del envío ─────────────────
+
+def test_textos_para_interbanking_sin_caracteres_especiales():
+    from app.services import texto_ib
+    assert texto_ib.limpiar("Pagó a Muñoz - lote 2026/0001: ok") == "Pago a Munoz lote 2026 0001 ok"
+    assert texto_ib.no_permitidos("Pagó a Muñoz") == []
+    assert texto_ib.no_permitidos("tranferencia - Cargo: admin") == ["-", ":"]
+
+
+def test_el_usuario_que_cargo_no_agrega_caracteres_especiales():
+    from app.services.transfer_service import _comentario_con_usuario
+    # El caso de producción del 21/10: " - Cargo: admin" hizo que Interbanking rechazara con 1047.
+    assert _comentario_con_usuario("tranferencia de pruba", "admin") == "tranferencia de pruba Cargo admin"
+    assert _comentario_con_usuario("Pago", "j.perez@capresca") == "Pago Cargo j perez capresca"
+
+
+@pytest.mark.parametrize("comentario", ["Pago - agencia", "Pago: agencia", "Pago #42", "Pago (x)", "Pago agencia\n"])
+def test_el_alta_rechaza_caracteres_especiales_en_el_comentario(client, h, comentario):
+    r = client.post(BASE, json={**NUEVA, "comentario": comentario}, headers=h)
+    assert r.status_code == 422
+    assert "caracteres especiales" in str(r.json()["detail"])
+
+
+def test_el_alta_acepta_acentos_y_los_manda_sin_acento(client, db, cred, red, h, sin_mock):
+    red.token()
+    _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CC", "bank_number": "011",
+                        "account_cbu": "0110599520000046600513"}])
+    red.ruta("/v1/transfers/confection/third-party", body={"operation_id": "OP-1", "found_transfers": [{}]})
+    assert client.post(BASE, json={**NUEVA, "comentario": "Pagó cuota Muñoz"}, headers=h).status_code == 200
+    envio = red.llamadas_a("/v1/transfers/confection/third-party")[0]["json"]
+    assert envio["description"] == envio["found_transfers"][0]["reason"] == "Pago cuota Munoz"
+    assert envio["found_transfers"][0]["comments"].startswith("Pago cuota Munoz")
+
+
+def test_los_pagos_automaticos_se_limpian_en_vez_de_rechazarse(client, db, cred, red, sin_mock):
+    from app.services import transfer_service
+    red.token()
+    _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CC", "bank_number": "011",
+                        "account_cbu": "0110599520000046600513"}])
+    red.ruta("/v1/transfers/confection/third-party", body={"operation_id": "OP-1", "found_transfers": [{}]})
+    transfer_service.crear_transferencia(
+        db=db, user_id=0, cuenta_debito_account_number="46600513539", cuenta_debito_account_type="CC",
+        cuenta_debito_bank_id="011", cbu_destino="0" * 22, monto=Decimal("10"), moneda="ARS",
+        comentario="Lote 2026-0001: créditos", cargado_por="tesoreria")
+    t = red.llamadas_a("/v1/transfers/confection/third-party")[0]["json"]["found_transfers"][0]
+    assert t["comments"] == "Lote 2026 0001 creditos Cargo tesoreria" and t["reason"] == "Lote 2026 0001 creditos"
+
+
+def test_se_ve_lo_que_se_envio_y_lo_que_contesto_interbanking(client, db, cred, red, h, sin_mock):
+    red.token()
+    _ruta_cuenta(red, [{"account_number": "46600513539", "account_type": "CC", "bank_number": "011",
+                        "account_cbu": "0110599520000046600513"}])
+    red.ruta("/v1/transfers/confection/third-party", status=400,
+             body={"status": 400, "message": "1078 - El operador no tiene acceso o no existe la cuenta crédito"})
+    assert client.post(BASE, json=NUEVA, headers=h).status_code >= 400
+    t = db.query(Transfer).one()
+    assert t.audit_log_id
+
+    e = client.get(f"{BASE}/local/{t.id}/envio", headers=h).json()
+    assert e["transferencia"] == t.id and e["estado_http"] == 400 and e["exito"] is False
+    assert e["endpoint"] == "/v1/transfers/confection/third-party" and e["metodo"] == "POST"
+    assert e["enviado"]["found_transfers"][0]["confection_id"] == t.id
+    assert e["respuesta"]["message"].startswith("1078")
+
+
+def test_la_evidencia_de_un_envio_viejo_se_encuentra_por_confection_id(client, db, h):
+    # Las anteriores al cambio no quedaron ligadas a su registro de auditoría.
+    cuando = datetime(2026, 10, 21, 15, 21, 21, tzinfo=timezone.utc)
+    t = Transfer(cbu_destino="1" * 22, monto=100, status="ERROR", initiated_at=cuando)
+    db.add(t)
+    db.flush()
+    for cid, http in ((t.id + 1, 200), (t.id, 400)):
+        db.add(ApiAuditLog(user_id=1, operation="CREAR_TRANSFERENCIA", http_method="POST",
+                           endpoint="/v1/transfers/confection/third-party", response_status=http,
+                           request_payload={"found_transfers": [{"confection_id": cid}]},
+                           response_payload={"message": f"respuesta {cid}"}, success=http == 200,
+                           created_at=cuando + timedelta(seconds=1)))
+    db.commit()
+    e = client.get(f"{BASE}/local/{t.id}/envio", headers=h).json()
+    assert e["respuesta"]["message"] == f"respuesta {t.id}"
+    assert client.get(f"{BASE}/local/99999/envio", headers=h).status_code == 404

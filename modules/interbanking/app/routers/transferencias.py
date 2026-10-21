@@ -83,6 +83,12 @@ def list_local(
     }
 
 
+@router.get("/local/{transfer_id}/envio")
+def envio(transfer_id: int, db: Session = Depends(get_db)):
+    """Evidencia del envío: el cuerpo que se mandó a Interbanking y su respuesta, tal cual."""
+    return transfer_service.envio(db, transfer_id)
+
+
 @router.post("/validar")
 def validar(
     data: TransferValidateRequest,

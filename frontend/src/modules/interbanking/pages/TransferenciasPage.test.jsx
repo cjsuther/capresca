@@ -4,13 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import TransferenciasPage from "./TransferenciasPage";
 import { useAuthStore } from "../../../context/authStore";
-import { listarTransferencias, crearTransferencia, getCuentas, getTransferenciasLocal } from "../../../api/interbanking";
+import { listarTransferencias, crearTransferencia, getCuentas, getTransferenciasLocal, getEnvioTransferencia } from "../../../api/interbanking";
 
 vi.mock("../../../api/interbanking", () => ({
   listarTransferencias: vi.fn(),
   crearTransferencia: vi.fn(),
   getCuentas: vi.fn(),
   getTransferenciasLocal: vi.fn(),
+  getEnvioTransferencia: vi.fn(),
 }));
 
 // Por defecto no hay envíos rechazados en el registro propio.
@@ -361,6 +362,39 @@ describe("TransferenciasPage — transferencias que dieron error", () => {
     expect(screen.queryByText("Intento 10")).not.toBeInTheDocument();
   });
 
+  it("muestra lo que se envió a Interbanking y lo que contestó", async () => {
+    const user = userEvent.setup();
+    getEnvioTransferencia.mockResolvedValue({
+      transferencia: 10, fecha: "2026-10-21T15:21:23Z", metodo: "POST",
+      endpoint: "/v1/transfers/confection/third-party", estado_http: 400, exito: false, duracion_ms: 230,
+      enviado: { payment_number: 10, found_transfers: [{ confection_id: 10, comments: "tranferencia de pruba - Cargo: admin" }] },
+      respuesta: { status: 400, message: "1047 - El campo comments no admite caracteres especiales (confection_id 10)" },
+    });
+    render(<TransferenciasPage />);
+    await screen.findByText("Intento 10");
+    await user.click(screen.getByRole("button", { name: /Ver lo enviado y la respuesta/ }));
+
+    const dialogo = await screen.findByRole("dialog", { name: "Envío a Interbanking" });
+    expect(getEnvioTransferencia).toHaveBeenCalledWith(10);
+    expect(await within(dialogo).findByLabelText("Enviado")).toHaveTextContent('"comments": "tranferencia de pruba - Cargo: admin"');
+    expect(within(dialogo).getByLabelText("Respuesta")).toHaveTextContent("1047 - El campo comments no admite caracteres especiales");
+    expect(dialogo).toHaveTextContent("POST /v1/transfers/confection/third-party");
+    expect(dialogo).toHaveTextContent("21/10/2026, 12:21:23");
+    expect(within(dialogo).getByRole("button", { name: /Descargar/ })).toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Cerrar envío" }));
+    expect(screen.queryByRole("dialog", { name: "Envío a Interbanking" })).not.toBeInTheDocument();
+  });
+
+  it("avisa si no hay registro del envío", async () => {
+    const user = userEvent.setup();
+    getEnvioTransferencia.mockRejectedValue({ response: { data: { detail: "No hay registro de lo que se envió a Interbanking para esta transferencia." } } });
+    render(<TransferenciasPage />);
+    await screen.findByText("Intento 10");
+    await user.click(screen.getByRole("button", { name: /Ver lo enviado y la respuesta/ }));
+    expect(await screen.findByText(/No hay registro de lo que se envió/)).toBeInTheDocument();
+  });
+
   it("se pueden ocultar", async () => {
     const user = userEvent.setup();
     render(<TransferenciasPage />);
@@ -430,6 +464,23 @@ describe("TransferenciasPage — alta de transferencia", () => {
 
     await completarFormulario(user, { cbu: "12345" });
     expect(screen.getByRole("button", { name: "Crear transferencia" })).toBeDisabled();
+  });
+
+  it("no deja enviar un comentario con caracteres especiales y dice cuáles sacar", async () => {
+    const user = userEvent.setup();
+    render(<TransferenciasPage />);
+    await screen.findByText("Sin transferencias en el rango");
+    await abrirFormulario(user);
+
+    await completarFormulario(user, { comentario: "Pago - lote: 42" });
+    expect(screen.getByRole("alert")).toHaveTextContent('sacá "-", ":"');
+    expect(screen.getByRole("button", { name: "Crear transferencia" })).toBeDisabled();
+    expect(campo("Comentario")).toHaveAttribute("aria-invalid", "true");
+
+    await user.clear(campo("Comentario"));
+    await user.type(campo("Comentario"), "Pagó cuota Muñoz 42");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Crear transferencia" })).toBeEnabled();
   });
 
   it("descarta los caracteres no numéricos del CBU destino", async () => {

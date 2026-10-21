@@ -155,6 +155,7 @@ ROUTE_MAP = [
     ("GET",    r"^/api/interbanking/cuentas",                       settings.interbanking_service_url, "interbanking:cuentas:read"),
     ("POST",   r"^/api/interbanking/transferencias/validar$",       settings.interbanking_service_url, "interbanking:transferencias:write"),
     ("GET",    r"^/api/interbanking/transferencias/local$",         settings.interbanking_service_url, "interbanking:transferencias:read"),
+    ("GET",    r"^/api/interbanking/transferencias/local/\d+/envio$", settings.interbanking_service_url, "interbanking:transferencias:read"),
     ("GET",    r"^/api/interbanking/transferencias/\w+/estado$",    settings.interbanking_service_url, "interbanking:transferencias:read"),
     ("POST",   r"^/api/interbanking/transferencias$",               settings.interbanking_service_url, "interbanking:transferencias:write"),
     ("GET",    r"^/api/interbanking/transferencias",                settings.interbanking_service_url, "interbanking:transferencias:read"),
