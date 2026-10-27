@@ -8,7 +8,7 @@ vi.mock("../../../api/tesoreria", async (orig) => ({
   verLote: vi.fn(), aprobarLote: vi.fn(), rechazarLote: vi.fn(), excluirPago: vi.fn(), incluirPago: vi.fn(),
   cuentasOrigen: vi.fn(),
   enviarLote: vi.fn(), actualizarLote: vi.fn(), reintentarPago: vi.fn(), resolverPago: vi.fn(),
-  reintentarFallidos: vi.fn(),
+  reintentarFallidos: vi.fn(), archivoAltaCuentas: vi.fn(),
 }));
 
 import * as api from "../../../api/tesoreria";
@@ -185,5 +185,47 @@ describe("LotePage", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Aprobar/ }));
     await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Aprobar" }));
     expect(await screen.findByText("El lote cambió.")).toBeInTheDocument();
+  });
+  describe("archivo de alta de cuentas para Interbanking", () => {
+    const ARCHIVO = { nombre: "ALTA_CUENTAS_LOT-2026-00003_20261027.txt", contenido: "1X79555A...\r\n", cuentas: 2, omitidas: [] };
+    beforeEach(() => {
+      URL.createObjectURL = vi.fn(() => "blob:x");
+      URL.revokeObjectURL = vi.fn();
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});   // jsdom no navega
+    });
+
+    it("desde el lote aprobado baja el archivo con todas las cuentas y dice dónde subirlo", async () => {
+      api.archivoAltaCuentas.mockResolvedValue(ARCHIVO);
+      montar({ ...BASE, estado: "APROBADO" });
+      await userEvent.click(await screen.findByRole("button", { name: /Archivo de alta de cuentas/ }));
+      expect(api.archivoAltaCuentas).toHaveBeenCalledWith(3, false);
+      expect(URL.createObjectURL).toHaveBeenCalled();
+      expect(await screen.findByText(/Se descargó ALTA_CUENTAS_LOT-2026-00003_20261027.txt con 2 cuenta\(s\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Alta y Modificación desde Archivo/)).toBeInTheDocument();
+    });
+
+    it("avisa qué cuentas quedaron afuera por no tener CUIT válido", async () => {
+      api.archivoAltaCuentas.mockResolvedValue({ ...ARCHIVO, cuentas: 1, omitidas: [
+        { beneficiario: "GOMEZ ANA", cbu: "2850590940090418135201", documento: "123", motivo: "Sin CUIT/CUIL válido" }] });
+      montar({ ...BASE, estado: "APROBADO" });
+      await userEvent.click(await screen.findByRole("button", { name: /Archivo de alta de cuentas/ }));
+      expect(await screen.findByText(/Quedaron fuera del archivo 1 cuenta/)).toBeInTheDocument();
+      expect(screen.getByText(/GOMEZ ANA \(123\)/)).toBeInTheDocument();
+    });
+
+    it("después del envío ofrece el archivo sólo con las cuentas de los fallidos", async () => {
+      api.archivoAltaCuentas.mockResolvedValue({ ...ARCHIVO, cuentas: 1 });
+      montar({ ...BASE, estado: "CON_ERRORES", por_estado: { FALLIDO: 1, CONFIRMADO: 1 },
+               pagos: [{ ...P1, estado: "FALLIDO", motivo: "1078" }, { ...P2, estado: "CONFIRMADO" }] });
+      await userEvent.click(await screen.findByRole("button", { name: /Alta de cuentas de los fallidos/ }));
+      expect(api.archivoAltaCuentas).toHaveBeenCalledWith(3, true);
+    });
+
+    it("muestra el error si no hay cuentas para dar de alta", async () => {
+      api.archivoAltaCuentas.mockRejectedValue({ response: { data: { detail: "Ninguna cuenta tiene CUIT/CUIL válido" } } });
+      montar({ ...BASE, estado: "APROBADO" });
+      await userEvent.click(await screen.findByRole("button", { name: /Archivo de alta de cuentas/ }));
+      expect(await screen.findByText(/Ninguna cuenta tiene CUIT\/CUIL válido/)).toBeInTheDocument();
+    });
   });
 });

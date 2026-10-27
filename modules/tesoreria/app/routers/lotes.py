@@ -33,6 +33,10 @@ class EnviarIn(BaseModel):
     cuenta_origen: str | None = None      # número de cuenta desde la que sale el pago
 
 
+class AltaCuentasIn(BaseModel):
+    solo_fallidos: bool = False
+
+
 class ResolverIn(BaseModel):
     resultado: str
     observacion: str = ""
@@ -144,6 +148,13 @@ def reintentar_fallidos(lote_id: int, db: Session = Depends(get_db), user: Usuar
     lote = _lote(db, lote_id)
     r = svc.reintentar_fallidos(db, lote, user)
     return {**svc.detalle(db, lote, user), **r}
+
+
+@router.post("/{lote_id}/archivo-alta-cuentas")
+def archivo_alta_cuentas(lote_id: int, data: AltaCuentasIn | None = None, db: Session = Depends(get_db),
+                         user: Usuario = Depends(requiere("lotes:enviar"))):
+    """Archivo para dar de alta en Interbanking las cuentas destino del lote (o las de sus fallidos)."""
+    return svc.archivo_alta_cuentas(db, _lote(db, lote_id), user, bool(data and data.solo_fallidos))
 
 
 @router.post("/{lote_id}/pagos/{pago_id}/resolver")

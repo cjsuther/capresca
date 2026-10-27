@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Download, RefreshCw, RotateCcw, Send, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, FileText, RefreshCw, RotateCcw, Send, XCircle } from "lucide-react";
 import {
-  actualizarLote, aprobarLote, cuentasOrigen, enviarLote, excluirPago, incluirPago, mensajeDeError, rechazarLote,
+  actualizarLote, aprobarLote, archivoAltaCuentas, cuentasOrigen, enviarLote, excluirPago, incluirPago, mensajeDeError, rechazarLote,
   reintentarFallidos, reintentarPago, resolverPago, verLote,
 } from "../../../api/tesoreria";
 import { Alerta, Boton, Card, Field, Kpis, Modal, PageHeader } from "../../../components/ui";
@@ -13,7 +13,7 @@ import { ESTADO_LOTE, ESTADO_PAGO, ORIGENES, cbuLegible, cuentaLegible, fechaHor
 import { descargarReporte, reporteEnvio } from "../reporteEnvio";
 
 /** Resultado del envío: qué salió, qué no y qué cuentas hay que habilitar en Interbanking. */
-function ReporteEnvio({ lote, puedeReintentar, ocupado, onReintentar }) {
+function ReporteEnvio({ lote, puedeReintentar, ocupado, onReintentar, onAltaCuentas }) {
   const r = reporteEnvio(lote);
   const [operador, setOperador] = useState("");
   const faltaHabilitar = r.cuentasAHabilitar.length > 0 || r.origenSinHabilitar;
@@ -40,6 +40,12 @@ function ReporteEnvio({ lote, puedeReintentar, ocupado, onReintentar }) {
           <Download size={15} /> Descargar reporte
         </Boton>
         {puedeReintentar && r.fallidos > 0 && (
+          <Boton variante="secundario" disabled={ocupado} className="flex items-center gap-1"
+                 onClick={() => onAltaCuentas(true)}>
+            <FileText size={15} /> Alta de cuentas de los fallidos
+          </Boton>
+        )}
+        {puedeReintentar && r.fallidos > 0 && (
           <Boton disabled={ocupado} className="flex items-center gap-1" onClick={onReintentar}>
             <RotateCcw size={15} /> Reintentar fallidos ({r.fallidos})
           </Boton>
@@ -50,8 +56,9 @@ function ReporteEnvio({ lote, puedeReintentar, ocupado, onReintentar }) {
           <p>
             Interbanking rechazó {r.cuentasAHabilitar.length === 1 ? "una cuenta destino que no está habilitada"
               : `${r.cuentasAHabilitar.length} cuentas destino que no están habilitadas`}. Un administrador de
-            Interbanking tiene que darlas de alta como cuentas de terceros y habilitárselas {quien} (Administración →
-            Colaboradores → Habilitaciones de Cuentas). Después, reintentá los fallidos.
+            Interbanking tiene que darlas de alta como cuentas de terceros (con el archivo de "Alta de cuentas de los
+            fallidos") y habilitárselas {quien} (Administración → Colaboradores → Habilitaciones de Cuentas). Después,
+            reintentá los fallidos.
           </p>
           <ul className="mt-2 space-y-0.5">
             {r.cuentasAHabilitar.map((c) => (
@@ -69,6 +76,14 @@ function ReporteEnvio({ lote, puedeReintentar, ocupado, onReintentar }) {
       )}
     </Card>
   );
+}
+
+function descargarTxt(nombre, contenido) {
+  const url = URL.createObjectURL(new Blob([contenido], { type: "text/plain" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
 }
 
 /** Pide un texto obligatorio (motivo de exclusión/rechazo, observación de lo verificado en el banco). */
@@ -111,6 +126,7 @@ export default function LotePage() {
   const [dialogo, setDialogo] = useState(null);   // {tipo, pago?}
   const [cuentas, setCuentas] = useState(null);   // {items, error} | null mientras carga
   const [cuentaElegida, setCuentaElegida] = useState("");   // cuenta de origen elegida para enviar
+  const [omitidas, setOmitidas] = useState([]);   // cuentas que quedaron fuera del archivo de alta
 
   useEffect(() => {
     verLote(id).then(setLote).catch((e) => setError(mensajeDeError(e, "No se pudo cargar el lote")));
@@ -137,6 +153,24 @@ export default function LotePage() {
     } catch (e) {
       setError(mensajeDeError(e));
       setDialogo(null);
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  // Interbanking no da de alta cuentas por API: se baja el TXT y se sube a mano en su portal.
+  const altaCuentas = async (soloFallidos) => {
+    setOcupado(true); setError(""); setOk(""); setOmitidas([]);
+    try {
+      const r = await archivoAltaCuentas(lote.id, soloFallidos);
+      descargarTxt(r.nombre, r.contenido);
+      setOk(`Se descargó ${r.nombre} con ${r.cuentas} cuenta(s). Subilo en Interbanking: Administración → Cuenta → `
+        + "Alta y Modificación desde Archivo (diseño \"Carga de cuentas para todo tipo de transferencias\"); "
+        + "otro administrador lo autoriza en Administración → Cuenta → Autorizaciones masivas.");
+      setOmitidas(r.omitidas || []);
+      setLote(await verLote(lote.id));
+    } catch (e) {
+      setError(mensajeDeError(e, "No se pudo generar el archivo de alta de cuentas"));
     } finally {
       setOcupado(false);
     }
@@ -221,6 +255,17 @@ export default function LotePage() {
       {lote.estado === "RECHAZADO" && <Alerta>Rechazado: {lote.motivo_rechazo}</Alerta>}
       <Alerta>{error}</Alerta>
       {ok && <Alerta tipo="ok">{ok}</Alerta>}
+      {omitidas.length > 0 && (
+        <Alerta tipo="warn">
+          Quedaron fuera del archivo {omitidas.length} cuenta(s) sin CUIT/CUIL válido; cargalas a mano en Interbanking
+          o corregí el documento en el origen:
+          <ul className="mt-1">
+            {omitidas.map((o) => (
+              <li key={o.cbu} className="tabular-nums">{cbuLegible(o.cbu)} · {o.beneficiario}{o.documento ? ` (${o.documento})` : ""}</li>
+            ))}
+          </ul>
+        </Alerta>
+      )}
 
       <Kpis items={[
         { label: "Pagos a enviar", valor: lote.cantidad },
@@ -267,6 +312,10 @@ export default function LotePage() {
             </p>
             {lote.puede_enviar && (
               <>
+                <Boton variante="secundario" disabled={ocupado} className="flex items-center gap-1"
+                       onClick={() => altaCuentas(false)}>
+                  <FileText size={15} /> Archivo de alta de cuentas
+                </Boton>
                 <Field label="Cuenta desde la que se paga">
                   <select className="input min-w-[18rem]" value={cuentaElegida} disabled={!cuentas}
                           onChange={(e) => setCuentaElegida(e.target.value)}>
@@ -313,7 +362,7 @@ export default function LotePage() {
 
       {(enCurso || lote.estado === "CONFIRMADO") && (
         <ReporteEnvio lote={lote} puedeReintentar={enCurso && lote.puede_enviar} ocupado={ocupado}
-                      onReintentar={() => setDialogo({ tipo: "reintentarFallidos" })} />
+                      onReintentar={() => setDialogo({ tipo: "reintentarFallidos" })} onAltaCuentas={altaCuentas} />
       )}
 
       {lote.cuenta_origen && !enCurso && lote.estado !== "APROBADO" && (

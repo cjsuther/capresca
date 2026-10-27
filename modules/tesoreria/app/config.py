@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Encendido por defecto: para mover dinero real hay que apagarlo a propósito.
     envio_simulado: bool = True
 
+    # Código de cliente (abonado) en Interbanking: encabeza el archivo de alta de cuentas de terceros.
+    interbanking_codigo_cliente: str = "X79555A"
+
     class Config:
         env_file = ".env"
 

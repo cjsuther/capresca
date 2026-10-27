@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies.auth import Usuario
-from app.services import (auditoria_central as central, avisos, contabilidad_central as contab,
+from app.services import (alta_cuentas, auditoria_central as central, avisos, contabilidad_central as contab,
                           interbanking, workflow)
 
 # Estados de un pago que lo mantienen "vivo" (no se puede cargar de nuevo en otro lote).
@@ -533,3 +533,27 @@ def resolver_incierto(db: Session, lote: models.Lote, pago_id: int, resultado: s
     recalcular(lote)
     db.commit()
     avisos.avisar(db, lote)
+
+
+# ── Alta de cuentas en Interbanking ──────────────────────────────────────────────────────────────
+def archivo_alta_cuentas(db: Session, lote: models.Lote, user: Usuario, solo_fallidos: bool = False) -> dict:
+    """TXT para dar de alta en Interbanking las cuentas destino del lote (todas, o las de los pagos que
+    fallaron). Interbanking no las da de alta por API: el archivo se sube a mano en su portal."""
+    if solo_fallidos:
+        pagos = [p for p in lote.pagos if p.estado == "FALLIDO"]
+        if not pagos:
+            raise HTTPException(409, "El lote no tiene pagos fallidos.")
+    else:
+        pagos = [p for p in lote.pagos if p.estado not in ("EXCLUIDO", "RECHAZADO")]
+    cuentas, omitidas = alta_cuentas.cuentas_de(pagos)
+    if not cuentas:
+        raise HTTPException(409, "Ninguna cuenta tiene CUIT/CUIL válido: no hay nada para dar de alta.")
+    hoy = date.today()
+    nombre = f"ALTA_CUENTAS_{lote.codigo}{'_FALLIDOS' if solo_fallidos else ''}_{hoy:%Y%m%d}.txt"
+    detalle = f"{len(cuentas)} cuenta(s){' de pagos fallidos' if solo_fallidos else ''}"
+    if omitidas:
+        detalle += f"; {len(omitidas)} sin CUIT/CUIL válido"
+    evento(db, lote, user.username, "ARCHIVO_ALTA_CUENTAS", detalle)
+    db.commit()
+    return {"nombre": nombre, "contenido": alta_cuentas.generar(cuentas, settings.interbanking_codigo_cliente, hoy),
+            "cuentas": len(cuentas), "omitidas": omitidas}
