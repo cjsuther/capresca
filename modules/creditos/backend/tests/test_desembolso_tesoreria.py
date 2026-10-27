@@ -300,3 +300,29 @@ def test_el_desembolso_por_tesoreria_va_a_contabilidad_con_lote_y_fecha_de_acred
     d = f.payload["datos"]
     assert d["via_tesoreria"] is True and d["lote"] == "LOT-2026-00007"
     assert d["orden_pago"] == "OP-2026-00003" and d["id_operacion_ib"] == "IB-55"
+
+
+def test_el_pago_lleva_el_cuil_aunque_la_solicitud_solo_tenga_dni():
+    """Tesorería da de alta la cuenta destino en Interbanking por CUIT/CUIL: el DNI sólo si no hay CUIL."""
+    from types import SimpleNamespace
+
+    from app.api import contratos
+
+    class Db:
+        def __init__(self, sol, cliente):
+            self.sol, self.cliente = sol, cliente
+
+        def query(self, *_):
+            return SimpleNamespace(filter=lambda *_: SimpleNamespace(first=lambda: self.sol))
+
+        def get(self, _modelo, _id):
+            return self.cliente
+
+    c = SimpleNamespace(id="c1", datos_adicionales={"cbu": CBU}, snapshot_producto={}, monto_original=1000,
+                        cliente_nombre="PEREZ JUAN", numero_contrato="PP-1")
+    sol = SimpleNamespace(cliente_id=5, datos_adicionales={}, cliente_datos={"dni": "30123456"})
+    cliente = SimpleNamespace(cuil="20-30123456-3", dni="30123456", cbu="")
+    pago, _ = contratos._pago_de(Db(sol, cliente), c)
+    assert pago["documento"] == "20301234563"
+    pago, _ = contratos._pago_de(Db(sol, None), c)
+    assert pago["documento"] == "30123456"

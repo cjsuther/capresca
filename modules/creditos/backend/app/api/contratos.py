@@ -1026,7 +1026,8 @@ def _pago_de(db: Session, c: m.PPContrato) -> tuple[dict | None, str]:
     if len(cbu) != 22:
         return None, "Sin CBU de acreditación válido (22 dígitos) en el contrato, la solicitud ni el cliente."
     datos = (sol.cliente_datos if sol else None) or {}
-    documento = _solo_digitos(datos.get("cuil") or datos.get("dni") or getattr(cliente, "cuil", "")
+    # El CUIL primero (de la solicitud o del cliente): Interbanking da de alta la cuenta destino por CUIT/CUIL.
+    documento = _solo_digitos(datos.get("cuil") or getattr(cliente, "cuil", "") or datos.get("dni")
                               or getattr(cliente, "dni", ""))
     neto = ((c.snapshot_producto or {}).get("liquidacion") or {}).get("neto")
     monto = round(float(neto if neto is not None else c.monto_original), 2)
