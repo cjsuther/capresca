@@ -13,6 +13,7 @@ import pytest
 from decimal import Decimal
 from fastapi.testclient import TestClient
 from tests.resolucion import otorgar
+from tests.documentacion import adjuntar_pedidos
 
 
 @pytest.fixture()
@@ -338,6 +339,7 @@ def test_e2e_linea_a_cierre_con_persistencia(client, sistema):
         "solicitante_tipo": "REGISTRADO", "cliente_id": cliente_id}).json()
     sid = sol["id"]
     assert sol["evaluacion"]["elegible"] is True
+    adjuntar_pedidos(client, hcred, sid)
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hcred, json={"accion": "enviar"})
     ap = client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hadmin, json={"accion": "aprobar"})
     assert ap.status_code == 200 and ap.json()["estado"] == "APROBADA"

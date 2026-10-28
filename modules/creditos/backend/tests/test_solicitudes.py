@@ -2,6 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from tests.resolucion import otorgar
+from tests.documentacion import adjuntar_pedidos
 
 
 @pytest.fixture()
@@ -61,6 +62,7 @@ def test_workflow_cuatro_ojos(client):
     hcred, hadmin = _auth(client, "creditos", "cred123"), _auth(client)
     sid = client.post("/api/creditos/solicitudes", headers=hcred, json=_base(client, hcred)).json()["id"]
     # enviar a evaluación (créditos)
+    adjuntar_pedidos(client, hcred, sid)
     r = client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hcred, json={"accion": "enviar"})
     assert r.json()["estado"] == "EN_EVALUACION"
     # el mismo que envió NO puede aprobar (cuatro-ojos) — pero créditos tampoco tiene perfil aprobador
@@ -76,6 +78,7 @@ def test_aprobar_exige_rol_aun_con_workflow_inactivo(client):
     'admin' (aprobador) sí. Antes el motor auto-aprobaba sin mirar permisos → cualquiera resolvía."""
     hcred, hadmin, hcaja = _auth(client, "creditos", "cred123"), _auth(client), _auth(client, "caja", "caja123")
     sid = client.post("/api/creditos/solicitudes", headers=hcred, json=_base(client, hcred)).json()["id"]
+    adjuntar_pedidos(client, hcred, sid)
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hcred, json={"accion": "enviar"})
     # workflow inactivo (default) → caja NO puede aprobar ni rechazar
     assert client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hcaja, json={"accion": "aprobar"}).status_code == 403
@@ -89,6 +92,7 @@ def test_cuatro_ojos_bloquea_autoaprobacion(client):
     _activar_wf("SOLICITUD")
     h = _auth(client)  # admin envía y quiere aprobar lo suyo
     sid = client.post("/api/creditos/solicitudes", headers=h, json=_base(client, h)).json()["id"]
+    adjuntar_pedidos(client, h, sid)
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=h, json={"accion": "enviar"})
     assert client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=h, json={"accion": "aprobar"}).status_code == 409
 
@@ -105,6 +109,7 @@ def test_no_crear_solicitud_no_elegible(client):
 def test_originar_desde_solicitud_aprobada(client):
     hcred, hadmin = _auth(client, "creditos", "cred123"), _auth(client)
     sid = client.post("/api/creditos/solicitudes", headers=hcred, json=_base(client, hcred)).json()["id"]
+    adjuntar_pedidos(client, hcred, sid)
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hcred, json={"accion": "enviar"})
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hadmin, json={"accion": "aprobar"})
     prod = _pers_id(client, hadmin)
@@ -275,6 +280,7 @@ def test_la_solicitud_del_backoffice_con_cbu_entra_a_un_lote_al_aprobarse(client
     s = client.post("/api/creditos/solicitudes", headers=h, json=_base(
         client, h, datos_adicionales={"cbu": "0110-5995-2000-0001-2345-67", "sueldo_declarado": 3000000})).json()
     assert s["datosAdicionales"]["cbu"] == cbu
+    adjuntar_pedidos(client, h, s['id'])
     client.post(f"/api/creditos/solicitudes/{s['id']}/estado", headers=h, json={"accion": "enviar"})
     r = client.post(f"/api/creditos/solicitudes/{s['id']}/estado", headers=h, json={"accion": "aprobar"})
     assert r.status_code == 200 and r.json()["estado"] == "APROBADA"
@@ -286,6 +292,7 @@ def test_en_evaluacion_se_corrige_y_queda_quien_y_cuando(client):
     _activar_wf("SOLICITUD")
     hcred, hadmin = _auth(client, "creditos", "cred123"), _auth(client)
     s = client.post("/api/creditos/solicitudes", headers=hcred, json=_base(client, hcred)).json()
+    adjuntar_pedidos(client, hcred, s['id'])
     client.post(f"/api/creditos/solicitudes/{s['id']}/estado", headers=hcred, json={"accion": "enviar"})
     r = client.put(f"/api/creditos/solicitudes/{s['id']}", headers=hadmin,
                    json={"cbu": "0110599520000001234567", "plazo_solicitado": 36, "sueldo": 2500000})
@@ -318,6 +325,7 @@ def test_la_modificacion_queda_en_la_auditoria(client):
 def test_aprobada_ya_no_se_modifica(client):
     h = _auth(client)
     s = client.post("/api/creditos/solicitudes", headers=h, json=_base(client, h)).json()
+    adjuntar_pedidos(client, h, s['id'])
     client.post(f"/api/creditos/solicitudes/{s['id']}/estado", headers=h, json={"accion": "enviar"})
     client.post(f"/api/creditos/solicitudes/{s['id']}/estado", headers=h, json={"accion": "aprobar"})
     r = client.put(f"/api/creditos/solicitudes/{s['id']}", headers=h, json={"cbu": "0110599520000001234567"})

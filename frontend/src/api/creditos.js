@@ -51,6 +51,19 @@ async function req(path, options = {}) {
   }
 }
 
+/** POST multipart (adjuntos): el Content-Type con su boundary lo pone el navegador. */
+async function subir(path, campos) {
+  const f = new FormData();
+  Object.entries(campos).forEach(([k, v]) => f.append(k, v));
+  try {
+    const res = await api.request({ url: `/creditos${path}`, method: "POST", data: f });
+    return res.data;
+  } catch (e) {
+    if (!e.response) throw e;
+    throw new Error(mensajeDeError(e.response.data, e.response.status));
+  }
+}
+
 // POST idempotente: manda una Idempotency-Key para que el backend deduplique reintentos y, además,
 // dedup-lica en el cliente los envíos idénticos EN VUELO (doble clic) reusando la misma promesa.
 // Sólo mientras está en vuelo: una segunda acción deliberada e idéntica sí tiene que salir.
@@ -167,6 +180,10 @@ export const creditos = {
   ppSolicitudPromover: (id, d = {}) => req(`/solicitudes/${id}/promover-cliente`, { method: "POST", body: JSON.stringify(d) }),
   ppSolicitudDocsAlCliente: (id) => req(`/solicitudes/${id}/documentos/copiar-al-cliente`, { method: "POST" }),
   ppSolicitudDocs: (sid) => req(`/solicitudes/${sid}/documentos`),
+  // Lo que pide la línea (la misma documentación y datos que el portal) y los adjuntos de sucursal.
+  ppRequisitosLinea: (productoId) => req(`/solicitudes/requisitos/${productoId}`),
+  ppSolicitudDocSubir: (sid, tipo, archivo) => subir(`/solicitudes/${sid}/documentos`, { tipo, archivo }),
+  ppSolicitudDocQuitar: (sid, docId) => req(`/solicitudes/${sid}/documentos/${docId}`, { method: "DELETE" }),
   ppSolicitudDocAbrir: (sid, docId) => abrirArchivo(`${API}/solicitudes/${sid}/documentos/${docId}`),
   ppSolicitudDocArchivo: (sid, docId) => traerArchivo(`${API}/solicitudes/${sid}/documentos/${docId}`),
   ctoDevengar: (id) => req(`/contratos/${id}/devengar`, { method: "POST" }),

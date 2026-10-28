@@ -14,6 +14,7 @@ import { CampoCbu, CampoSueldo, CondicionesCredito, enRangoDe } from "./solicitu
 import { EditarSolicitud } from "./solicitud/EditarSolicitud";
 import { AvisoCobro } from "./solicitud/AvisoCobro";
 import { CAMPO_EDITADO, HistorialModificaciones, fechaHora } from "./solicitud/HistorialModificaciones";
+import { DatosDeLaLinea, ListaDocumentos, datosFaltantes, docsFaltantes as faltanDocs, errorArchivo } from "./solicitud/DocumentacionSolicitud";
 
 const TONO_ESTADO = {
   BORRADOR: "neutral", EN_EVALUACION: "warn", OBSERVADA: "warn", APROBADA: "ok",
@@ -66,7 +67,7 @@ const DESTINO = {
   EDUCACION: "Educación", SALUD: "Salud", REFINANCIACION: "Refinanciación de deudas",
   EMPRENDIMIENTO: "Emprendimiento / negocio", OTRO: "Otro",
 };
-const PASOS = ["Solicitante", "Simulación", "Confirmación"];
+const PASOS = ["Solicitante", "Simulación", "Documentación", "Confirmación"];
 
 /** Años declarados → meses, que es como lo guarda la solicitud. Vacío = sin valor. */
 const aniosAMeses = (v) => {
@@ -104,6 +105,12 @@ export default function SolicitudesCreditoPage() {
   const [editando, setEditando] = useState(null);    // corrección de una solicitud en curso
   const [enPadron, setEnPadron] = useState(null);    // la persona de una express, si ya está en el padrón
   const [creando, setCreando] = useState(false);
+  // Lo que pide la línea elegida (la misma documentación y datos que el portal) y lo que se cargó.
+  const [reqLinea, setReqLinea] = useState(null);     // { documentos, campos }
+  const [archivos, setArchivos] = useState({});       // { tipo: File }
+  const [respuestas, setRespuestas] = useState({});   // { codigo: [opciones] }
+  const [errDoc, setErrDoc] = useState("");
+  const errAlCrear = useRef("");                       // lo que falló al adjuntar/enviar, para el detalle
 
   // Detalle de una solicitud
   const [sel, setSel] = useState(null);
@@ -113,6 +120,8 @@ export default function SolicitudesCreditoPage() {
   const [docsPedidos, setDocsPedidos] = useState([]);       // lo que pide la línea (para observar)
   const [observando, setObservando] = useState(null);       // { detalle, documentos: [], cbu }
   const [docsFaltantes, setDocsFaltantes] = useState([]);   // obligatorios de la línea que no llegaron
+  const [puedeAdjuntar, setPuedeAdjuntar] = useState(false); // sucursal editable: el asesor adjunta
+  const [subiendo, setSubiendo] = useState(false);
   const [viendoDoc, setViendoDoc] = useState(null);   // índice del documento abierto en el visor
   const [crono, setCrono] = useState([]);
   const [cronoAbierto, setCronoAbierto] = useState(false);
@@ -182,11 +191,10 @@ export default function SolicitudesCreditoPage() {
     if (sel?.id && sel.solicitanteTipo === "NO_REGISTRADO") {
       Promise.resolve(creditos.ppSolicitud(sel.id)).then((d) => setEnPadron(d?.clienteEnPadron || null)).catch(() => {});
     }
-    if (!sel?.id) { setDocs([]); setDocsFaltantes([]); setCrono([]); return; }
-    setObs(sel.datosAdicionales?.obs_revision || ""); setDetErr(""); setCronoAbierto(false);
-    creditos.ppSolicitudDocs(sel.id)
-      .then((d) => { setDocs(d.items); setDocsFaltantes(d.faltantes || []); setDocsPedidos(d.pedidos || []); })
-      .catch(() => { setDocs([]); setDocsFaltantes([]); });
+    if (!sel?.id) { setDocs([]); setDocsFaltantes([]); setPuedeAdjuntar(false); setCrono([]); return; }
+    setObs(sel.datosAdicionales?.obs_revision || ""); setDetErr(errAlCrear.current); setCronoAbierto(false);
+    errAlCrear.current = "";
+    cargarDocs(sel.id);
     if (!sel.productoId) { setCrono([]); return; }
     setCargandoCrono(true);
     creditos.ppSimPreview(sel.productoId, {
@@ -194,6 +202,50 @@ export default function SolicitudesCreditoPage() {
       fecha_nacimiento: sel.fechaNacimiento || undefined, antiguedad_meses: sel.antiguedadMeses ?? undefined,
     }).then((s) => setCrono(s.cuotas || [])).catch(() => setCrono([])).finally(() => setCargandoCrono(false));
   }, [sel?.id]); // eslint-disable-line
+
+  function cargarDocs(sid) {
+    return Promise.resolve(creditos.ppSolicitudDocs(sid))
+      .then((d) => {
+        setDocs(d.items); setDocsFaltantes(d.faltantes || []); setDocsPedidos(d.pedidos || []);
+        setPuedeAdjuntar(!!d.puedeAdjuntar);
+      })
+      .catch(() => { setDocs([]); setDocsFaltantes([]); setPuedeAdjuntar(false); });
+  }
+
+  // Al cambiar la línea del alta se traen sus requisitos; lo cargado para otra línea no vale.
+  useEffect(() => {
+    if (!nueva || !form.producto_id) { setReqLinea(null); return; }
+    setReqLinea(null); setArchivos({}); setRespuestas({}); setErrDoc("");
+    Promise.resolve(creditos.ppRequisitosLinea(form.producto_id))
+      .then((r) => setReqLinea({ documentos: r?.documentos || [], campos: r?.campos || [] }))
+      .catch((e) => setErrDoc(`No se pudo leer qué documentación pide la línea: ${e.message}`));
+  }, [nueva, form.producto_id]); // eslint-disable-line
+
+  const faltanEnAlta = reqLinea ? faltanDocs(reqLinea.documentos, archivos) : [];
+  const datosSinCompletar = reqLinea ? datosFaltantes(reqLinea.campos, respuestas) : [];
+  const paso3OK = !!reqLinea && datosSinCompletar.length === 0;
+
+  function elegirArchivo(d, f) {
+    const err = errorArchivo(f);
+    setErrDoc(err ? `${d.titulo}: ${err}` : "");
+    if (!err) setArchivos((a) => ({ ...a, [d.tipo]: f }));
+  }
+
+  /** En el detalle: el asesor adjunta (o reemplaza) un documento de una solicitud de sucursal. */
+  async function adjuntarEnDetalle(d, f) {
+    const err = errorArchivo(f);
+    if (err) { setDetErr(`${d.titulo}: ${err}`); return; }
+    setDetErr(""); setSubiendo(true);
+    try { await creditos.ppSolicitudDocSubir(sel.id, d.tipo, f); await cargarDocs(sel.id); }
+    catch (e) { setDetErr(`${d.titulo}: ${e.message}`); }
+    finally { setSubiendo(false); }
+  }
+  async function quitarEnDetalle(d, doc) {
+    setDetErr(""); setSubiendo(true);
+    try { await creditos.ppSolicitudDocQuitar(sel.id, doc.id); await cargarDocs(sel.id); }
+    catch (e) { setDetErr(`${d.titulo}: ${e.message}`); }
+    finally { setSubiendo(false); }
+  }
 
   const edadForm = edadDe(form.fecha_nacimiento);
   const edadInvalida = form.fecha_nacimiento !== "" && (edadForm === null || edadForm < 18 || edadForm > 99);
@@ -247,13 +299,23 @@ export default function SolicitudesCreditoPage() {
           ...form.datos_adicionales,
           ...(Number(form.sueldo) > 0 ? { sueldo_declarado: Number(form.sueldo) } : {}),
         },
+        ...(reqLinea?.campos.length ? { respuestas } : {}),
       };
       delete payload.sueldo;
       let s = await creditos.ppSolicitudCrear(payload);
-      if (enviar) {
+      // La documentación se adjunta a la solicitud ya creada; si un archivo falla, queda en borrador.
+      const fallidos = [];
+      for (const d of reqLinea?.documentos || []) {
+        if (!archivos[d.tipo]) continue;
+        try { await creditos.ppSolicitudDocSubir(s.id, d.tipo, archivos[d.tipo]); }
+        catch (e) { fallidos.push(`${d.titulo} (${e.message})`); }
+      }
+      if (fallidos.length) {
+        errAlCrear.current = `La solicitud quedó en borrador: no se pudo adjuntar ${fallidos.join(", ")}.`;
+      } else if (enviar) {
         // Crear y mandar a evaluación en un paso: queda en el Inbox de aprobaciones.
         try { const r = await creditos.ppSolicitudEstado(s.id, "enviar", "", ""); if (r?.id) s = r; }
-        catch { /* si falla el envío queda en borrador */ }
+        catch (e) { errAlCrear.current = `La solicitud quedó en borrador: ${e.message}`; }
       }
       cerrarNueva(); setSel(s); cargar();
     } catch (e) { setError(e.message); }
@@ -385,12 +447,18 @@ export default function SolicitudesCreditoPage() {
                        onClick={() => setPaso(3)}>Continuar →</Boton>
               )}
               {paso === 3 && (
+                <Boton disabled={!paso3OK}
+                       title={datosSinCompletar.length ? `Completá: ${datosSinCompletar.join(", ")}.` : ""}
+                       onClick={() => setPaso(4)}>Continuar →</Boton>
+              )}
+              {paso === 4 && (
                 <>
                   <Boton variante="secundario" disabled={creando || sim?.elegible === false} onClick={() => crear(false)}>
                     Guardar borrador
                   </Boton>
-                  <Boton disabled={creando || sim?.elegible === false || !cbuOK}
-                         title={cbuOK ? "" : "Cargá el CBU de acreditación (22 dígitos) para enviarla."}
+                  <Boton disabled={creando || sim?.elegible === false || !cbuOK || faltanEnAlta.length > 0}
+                         title={!cbuOK ? "Cargá el CBU de acreditación (22 dígitos) para enviarla."
+                           : faltanEnAlta.length ? `Falta adjuntar: ${faltanEnAlta.join(", ")}.` : ""}
                          onClick={() => crear(true)}>
                     {creando ? "Creando…" : "Crear y enviar a evaluación"}
                   </Boton>
@@ -482,6 +550,33 @@ export default function SolicitudesCreditoPage() {
 
           {paso === 3 && (
             <>
+              <p className="text-sm text-gray-600 mb-3">
+                La misma documentación y datos que pide el portal para esta línea. Sin los obligatorios se puede
+                guardar como borrador, pero no enviar a evaluación.
+              </p>
+              {errDoc && <div className="mb-3"><Alerta>{errDoc}</Alerta></div>}
+              {!reqLinea && !errDoc && <p className="text-sm text-gray-500">Cargando lo que pide la línea…</p>}
+              {reqLinea && (
+                <>
+                  {reqLinea.campos.length > 0 && (
+                    <div className="mb-4"><DatosDeLaLinea campos={reqLinea.campos} valores={respuestas} onChange={setRespuestas} /></div>
+                  )}
+                  <ListaDocumentos pedidos={reqLinea.documentos} ocupado={creando}
+                                   actuales={Object.fromEntries(Object.entries(archivos).map(([t, f]) => [t, { nombre: f.name, tamano: f.size }]))}
+                                   onElegir={elegirArchivo}
+                                   onQuitar={(d) => setArchivos(({ [d.tipo]: _, ...resto }) => resto)} />
+                </>
+              )}
+            </>
+          )}
+
+          {paso === 4 && (
+            <>
+              {faltanEnAlta.length > 0 && (
+                <div className="mb-3"><Alerta tipo="warn">
+                  Falta adjuntar: {faltanEnAlta.join(", ")}. Se puede guardar como borrador y completarla después.
+                </Alerta></div>
+              )}
               <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <div className="flex justify-between border-b border-gray-100 py-1">
                   <dt className="text-gray-500">Cliente</dt><dd>{nombreCliente(cliente)}</dd></div>
@@ -560,7 +655,9 @@ export default function SolicitudesCreditoPage() {
                 <Boton variante="secundario" disabled={accionando} onClick={() => setEditando(sel)}>Modificar</Boton>
               )}
               {sel.estado === "BORRADOR" && (
-                <Boton disabled={accionando || !puedeEditar} onClick={() => resolver("enviar")}>Enviar a evaluación</Boton>
+                <Boton disabled={accionando || !puedeEditar || docsFaltantes.length > 0}
+                       title={docsFaltantes.length ? `Falta adjuntar: ${docsFaltantes.join(", ")}.` : ""}
+                       onClick={() => resolver("enviar")}>Enviar a evaluación</Boton>
               )}
               {!["ORIGINADA", "ANULADA"].includes(sel.estado) && (
                 <Boton variante="secundario" disabled={accionando || !puedeEditar || congelada}
@@ -740,7 +837,28 @@ export default function SolicitudesCreditoPage() {
             <div className="mt-3"><Alerta tipo="warn">Falta documentación obligatoria: {docsFaltantes.join(", ")}.</Alerta></div>
           )}
 
-          {docs.length > 0 && (
+          {puedeAdjuntar && puedeEditar && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs text-gray-500">Documentación (la misma que pide el portal)</p>
+                <span className="flex-1" />
+                {docs.length > 0 && sel.solicitanteTipo === "REGISTRADO" && sel.clienteId && (
+                  <button onClick={guardarDocsEnCliente} disabled={accionando}
+                          className="text-xs text-blue-600 hover:underline disabled:opacity-50">Guardar en el cliente</button>
+                )}
+              </div>
+              <ListaDocumentos pedidos={docsPedidos} ocupado={subiendo}
+                               actuales={Object.fromEntries(docs.map((d) => [d.tipo, d]))}
+                               onElegir={adjuntarEnDetalle}
+                               onQuitar={sel.estado === "BORRADOR" ? quitarEnDetalle : undefined}
+                               onVer={(d) => setViendoDoc(docs.indexOf(d))} />
+              {sel.estado === "EN_EVALUACION" && (
+                <p className="text-xs text-gray-500 mt-1">En evaluación un documento se reemplaza, no se quita, y la cadena de aprobación vuelve a empezar.</p>
+              )}
+            </div>
+          )}
+
+          {docs.length > 0 && !(puedeAdjuntar && puedeEditar) && (
             <div className="mt-4">
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-xs text-gray-500">Documentación del solicitante</p>

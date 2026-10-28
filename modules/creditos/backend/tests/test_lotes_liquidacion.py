@@ -11,6 +11,7 @@ from app import models, models_productos as m
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.services import lotes_liquidacion as lotes
+from tests.documentacion import adjuntar_pedidos
 
 CLAVE = "clave-despacho-test"
 ANIO = date.today().year
@@ -110,6 +111,7 @@ def test_al_aprobarse_entra_al_lote_de_su_tipo_y_fecha(client):
     sol = client.post("/api/creditos/solicitudes", headers=hcred, json={
         "producto_id": pid, "monto_solicitado": 300_000, "plazo_solicitado": 12,
         "solicitante_tipo": "REGISTRADO", "cliente_id": 1}).json()
+    adjuntar_pedidos(client, hcred, sol['id'])
     client.post(f"/api/creditos/solicitudes/{sol['id']}/estado", headers=hcred, json={"accion": "enviar"})
     ap = client.post(f"/api/creditos/solicitudes/{sol['id']}/estado", headers=hadmin, json={"accion": "aprobar"}).json()
     assert ap["estado"] == "APROBADA"

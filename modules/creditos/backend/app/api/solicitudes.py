@@ -7,7 +7,7 @@ APROBADA alimenta la originación (ver contratos.originar con solicitud_pp_id).
 from datetime import date, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Header, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -66,6 +66,8 @@ class SolicitudIn(BaseModel):
     relacion: str = "ESTANDAR"
     datos_adicionales: dict = {}
     origen: str = "SUCURSAL"
+    # Los datos que pide la línea (componente "Documentación y datos"), igual que en el portal.
+    respuestas: dict[str, list[str]] | None = None
 
 
 class AccionIn(BaseModel):
@@ -296,6 +298,15 @@ def crear(data: SolicitudIn, db: Session = Depends(get_db),
     # portal. La evaluación usa la misma fuente que la simulación. (Un dato NO declarado no bloquea:
     # `_elegibilidad` sólo aplica la regla del atributo cuando ese dato viene.)
     _cbu_valido(data.datos_adicionales)
+    # Los datos que pide la línea se validan como en el portal y se guardan con la pregunta tal como se hizo.
+    data.datos_adicionales = {k: v for k, v in (data.datos_adicionales or {}).items() if k != "requisitos"}
+    try:
+        respuestas = requisitos.respuestas(_version_efectiva(db.get(m.PPProducto, data.producto_id)),
+                                           data.respuestas)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    if respuestas:
+        data.datos_adicionales["requisitos"] = respuestas
     _tmp = m.PPSolicitud(producto_id=data.producto_id, monto_solicitado=Decimal(str(data.monto_solicitado)),
                          plazo_solicitado=data.plazo_solicitado, segmento=data.segmento, canal=data.canal,
                          edad=edad_de(data.fecha_nacimiento), fecha_nacimiento=data.fecha_nacimiento,
@@ -337,6 +348,16 @@ def _crear_solicitud(db: Session, data, tipo: str, user) -> dict:
     s = crear_con_numero_unico(db, lambda: _numero(db), _construir)
     db.commit(); db.refresh(s)
     return _serial(db, s)
+
+
+@router.get("/requisitos/{producto_id}")
+def requisitos_linea(producto_id: str, db: Session = Depends(get_db)):
+    """Lo que pide la línea al cargar la solicitud: la misma documentación y datos que el portal."""
+    prod = db.get(m.PPProducto, producto_id)
+    if not prod:
+        raise HTTPException(404, "Producto no encontrado.")
+    v = _version_efectiva(prod)
+    return {"documentos": requisitos.documentos_de(db, v), "campos": requisitos.campos(v)}
 
 
 @router.get("/{sid}")
@@ -466,6 +487,12 @@ def cambiar_estado(sid: str, data: AccionIn, db: Session = Depends(get_db),
         _req_edita(db, user)
         if s.estado != "BORRADOR":
             raise HTTPException(409, "Sólo se envía a evaluación desde BORRADOR.")
+        # La de sucursal tiene que llevar el mismo respaldo que pide el portal: sin la documentación
+        # obligatoria de la línea no entra a evaluación (las del portal ya llegan EN_EVALUACION).
+        faltan = _documentos_faltantes(db, s)
+        if faltan:
+            raise HTTPException(409, "Falta documentación obligatoria: " + ", ".join(faltan)
+                                     + ". Adjuntala antes de enviar a evaluación.")
         s.estado = "EN_EVALUACION"; s.enviada_por = user.username
         s.evaluacion = _evaluar(db, s)
         wf.limpiar_aprobaciones(db, "SOLICITUD", s.id)
@@ -671,6 +698,23 @@ def copiar_documentos_al_cliente(sid: str, db: Session = Depends(get_db),
 
 
 # ---------------- Documentación adjunta (la sube el ciudadano; la ve el asesor) ----------------
+def _pedidos(db: Session, s: m.PPSolicitud) -> list[dict]:
+    """La documentación que pide la línea de la solicitud (la misma que pide el portal)."""
+    prod = db.get(m.PPProducto, s.producto_id)
+    return requisitos.documentos_de(db, _version_efectiva(prod) if prod else None)
+
+
+def _documentos_faltantes(db: Session, s: m.PPSolicitud) -> list[str]:
+    subidos = {t for (t,) in db.query(m.PPSolicitudDocumento.tipo).filter_by(solicitud_id=s.id).all()}
+    return [d["titulo"] for d in _pedidos(db, s) if d["obligatorio"] and d["tipo"] not in subidos]
+
+
+def _puede_adjuntar(s: m.PPSolicitud) -> bool:
+    """El asesor adjunta en las de sucursal mientras se pueden modificar. Las del portal son del ciudadano:
+    si falta o hay que cambiar algo, se le pide con "Observar"."""
+    return s.origen != "PORTAL" and s.estado in EDITABLES
+
+
 @router.get("/{sid}/documentos")
 def documentos_solicitud(sid: str, db: Session = Depends(get_db),
                          user: models.Usuario = Depends(get_current_user)):
@@ -679,16 +723,86 @@ def documentos_solicitud(sid: str, db: Session = Depends(get_db),
         raise HTTPException(404, "Solicitud no encontrada.")
     docs = db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id).order_by(m.PPSolicitudDocumento.subido_en).all()
     # Cada línea define su documentación: el título sale de ahí (ORDEN_MEDICA → "Orden médica").
-    prod = db.get(m.PPProducto, s.producto_id)
-    pedidos = requisitos.documentos_de(db, _version_efectiva(prod) if prod else None)
+    pedidos = _pedidos(db, s)
     titulos = {**documentos.TITULOS, **{d["tipo"]: d["titulo"] for d in pedidos}}
     subidos = {d.tipo for d in docs}
-    # El portal sube los archivos después de enviar: si alguno no llegó, el asesor lo tiene que ver.
-    faltantes = ([d["titulo"] for d in pedidos if d["obligatorio"] and d["tipo"] not in subidos]
-                 if s.origen == "PORTAL" else [])
+    # Si algún obligatorio no llegó (portal) o no se adjuntó (sucursal), el asesor lo tiene que ver.
+    faltantes = [d["titulo"] for d in pedidos if d["obligatorio"] and d["tipo"] not in subidos]
     return {"items": [{**documentos.serial(d), "titulo": titulos.get(d.tipo, d.tipo)} for d in docs],
-            "pedidos": [{"tipo": d["tipo"], "titulo": d["titulo"], "obligatorio": d["obligatorio"]} for d in pedidos],
-            "faltantes": faltantes}
+            "pedidos": [{"tipo": d["tipo"], "titulo": d["titulo"], "ayuda": d.get("ayuda", ""),
+                         "obligatorio": d["obligatorio"]} for d in pedidos],
+            "faltantes": faltantes, "puedeAdjuntar": _puede_adjuntar(s)}
+
+
+@router.post("/{sid}/documentos", status_code=201)
+async def adjuntar_documento(sid: str, request: Request, tipo: str = Form(...), archivo: UploadFile = File(...),
+                             db: Session = Depends(get_db), user: models.Usuario = Depends(get_current_user)):
+    """El asesor adjunta la documentación de una solicitud de sucursal: uno por cada documento que pide la
+    línea. Si ya había uno de ese tipo, el nuevo lo reemplaza (en la misma transacción)."""
+    _req_edita(db, user)
+    s = db.get(m.PPSolicitud, sid)
+    if not s:
+        raise HTTPException(404, "Solicitud no encontrada.")
+    if s.origen == "PORTAL":
+        raise HTTPException(409, "La documentación de una solicitud del portal la adjunta el solicitante: "
+                                 "si falta algo, observala.")
+    if s.estado not in EDITABLES:
+        raise HTTPException(409, "Sólo se adjunta documentación a una solicitud en BORRADOR o EN_EVALUACION.")
+    tipo = (tipo or "").upper()
+    pedidos = {d["tipo"]: d["titulo"] for d in _pedidos(db, s)}
+    if tipo not in pedidos:
+        detalle = ", ".join(pedidos.values()) or "ninguna documentación"
+        raise HTTPException(422, f"Ese documento no se pide en esta línea. Se adjunta: {detalle}.")
+    contenido = await archivo.read()
+    try:
+        documentos.validar(archivo.content_type, len(contenido), contenido)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    anterior = db.query(m.PPSolicitudDocumento).filter_by(solicitud_id=s.id, tipo=tipo).first()
+    if anterior:
+        db.delete(anterior)
+        db.flush()
+    doc = m.PPSolicitudDocumento(
+        solicitud_id=s.id, tipo=tipo, nombre=(archivo.filename or "documento")[:200],
+        content_type=archivo.content_type, tamano=len(contenido), contenido=contenido, subido_por=user.username)
+    db.add(doc)
+    if s.estado == "EN_EVALUACION":
+        # Cambió el respaldo: lo que se hubiera aprobado en la cadena ya no vale.
+        from app.services import workflow as wf
+        wf.limpiar_aprobaciones(db, "SOLICITUD", s.id)
+    db.commit(); db.refresh(doc)
+    audit.registrar_cambio(db, usuario=user.username, ip=audit.ip_de(request), entidad="Documento",
+                           entidad_id=doc.id, operacion="MODIFICACION" if anterior else "ALTA", resultado="OK",
+                           antes={"nombre": anterior.nombre} if anterior else None,
+                           despues={"solicitud": s.numero, "tipo": doc.tipo, "nombre": doc.nombre},
+                           detalle=f"{pedidos[tipo]} '{doc.nombre}' adjuntado a {s.numero} desde la plataforma"
+                                   + (f" (reemplaza '{anterior.nombre}')" if anterior else ""))
+    return {**documentos.serial(doc), "titulo": pedidos[tipo]}
+
+
+@router.delete("/{sid}/documentos/{doc_id}")
+def quitar_documento(sid: str, doc_id: str, request: Request, db: Session = Depends(get_db),
+                     user: models.Usuario = Depends(get_current_user)):
+    """Quita un adjunto de una solicitud de sucursal en BORRADOR. En evaluación se reemplaza, no se quita:
+    la solicitud no puede quedar sin el respaldo con el que se envió."""
+    _req_edita(db, user)
+    s = db.get(m.PPSolicitud, sid)
+    if not s:
+        raise HTTPException(404, "Solicitud no encontrada.")
+    if s.origen == "PORTAL":
+        raise HTTPException(409, "La documentación de una solicitud del portal la gestiona el solicitante.")
+    if s.estado != "BORRADOR":
+        raise HTTPException(409, "Sólo se quita documentación de un borrador. En evaluación, adjuntá el "
+                                 "archivo correcto y reemplaza al anterior.")
+    doc = db.query(m.PPSolicitudDocumento).filter_by(id=doc_id, solicitud_id=s.id).first()
+    if not doc:
+        raise HTTPException(404, "Documento no encontrado.")
+    antes = {"solicitud": s.numero, "tipo": doc.tipo, "nombre": doc.nombre}
+    db.delete(doc); db.commit()
+    audit.registrar_cambio(db, usuario=user.username, ip=audit.ip_de(request), entidad="Documento",
+                           entidad_id=doc_id, operacion="BAJA", resultado="OK", antes=antes,
+                           detalle=f"Documento '{antes['nombre']}' quitado de {s.numero}")
+    return {"ok": True}
 
 
 @router.get("/{sid}/documentos/{doc_id}")

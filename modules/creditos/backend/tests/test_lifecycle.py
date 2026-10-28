@@ -5,6 +5,7 @@ Más refinanciación y cancelación anticipada. Verifica invariantes en cada pas
 import pytest
 from fastapi.testclient import TestClient
 from tests.resolucion import otorgar
+from tests.documentacion import adjuntar_pedidos
 
 
 @pytest.fixture()
@@ -58,6 +59,7 @@ def test_ciclo_completo_por_sistema(client, sistema):
         "solicitante_tipo": "REGISTRADO", "cliente_id": _cliente_id(client, hcred)}).json()
     sid = sol["id"]
     assert sol["evaluacion"]["elegible"] is True
+    adjuntar_pedidos(client, hcred, sid)
     client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hcred, json={"accion": "enviar"})
     ap = client.post(f"/api/creditos/solicitudes/{sid}/estado", headers=hadmin, json={"accion": "aprobar"})
     assert ap.status_code == 200 and ap.json()["estado"] == "APROBADA"

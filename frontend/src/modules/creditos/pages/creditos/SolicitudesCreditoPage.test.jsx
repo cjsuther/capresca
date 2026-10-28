@@ -14,6 +14,7 @@ vi.mock("../../../../api/creditos", () => ({
     ppSolicitudPromover: vi.fn(), ppSolicitudDocs: vi.fn(), ppSolicitudDocAbrir: vi.fn(), ppSolicitudDocArchivo: vi.fn(), ppSolicitudDocsAlCliente: vi.fn(),
     ppSimPreview: vi.fn(), ppOferta: vi.fn(), ctoSegmentos: vi.fn(), ctoOriginar: vi.fn(),
     ppDatosCliente: vi.fn(), ppPreAprobado: vi.fn(), ppSolicitudEditar: vi.fn(),
+    ppRequisitosLinea: vi.fn(), ppSolicitudDocSubir: vi.fn(), ppSolicitudDocQuitar: vi.fn(),
   },
 }));
 vi.mock("../../../../api/clientes", () => ({ searchClients: vi.fn() }));
@@ -54,6 +55,12 @@ const sesion = (acciones) =>
   useAuthStore.setState({ token: "tok", user: { username: "ana" },
     permissions: { modules: ["creditos"], actions: { creditos: acciones } } });
 
+/** El paso de documentación: la línea de estos tests no pide nada, se sigue de largo. */
+async function pasarDocumentacion(u, modal) {
+  await within(modal).findByText("Esta línea no pide documentación.");
+  await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+}
+
 const montar = () => render(<MemoryRouter><SolicitudesCreditoPage /></MemoryRouter>);
 
 beforeEach(() => {
@@ -66,6 +73,7 @@ beforeEach(() => {
   creditos.ctoSegmentos.mockResolvedValue({ segmentos: ["AGENTE_PUBLICO"], canales: ["SUCURSAL"], canalBackoffice: "SUCURSAL", decimalesMostrar: 2 });
   creditos.ppSimPreview.mockResolvedValue(SIMULACION);
   creditos.ppSolicitudDocs.mockResolvedValue({ items: [] });
+  creditos.ppRequisitosLinea.mockResolvedValue({ documentos: [], campos: [] });
   creditos.ppSolicitud.mockResolvedValue({});
   creditos.ppSolicitudCrear.mockResolvedValue({ ...SOL_EVALUACION, estado: "BORRADOR" });
   creditos.ppSolicitudEstado.mockResolvedValue({ ...SOL_EVALUACION, estado: "APROBADA" });
@@ -333,6 +341,7 @@ describe("Solicitudes de crédito · alta", () => {
     expect(await screen.findByText("Elegible con estos datos.")).toBeInTheDocument();
 
     await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await pasarDocumentacion(u, modal);
     await u.click(within(modal).getByRole("button", { name: /Crear y enviar a evaluación/ }));
 
     await waitFor(() => expect(creditos.ppSolicitudCrear).toHaveBeenCalledWith(expect.objectContaining({
@@ -422,6 +431,7 @@ describe("Solicitudes de crédito · alta con los datos del padrón", () => {
     await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
     await screen.findByText("Elegible con estos datos.");
     await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await pasarDocumentacion(u, modal);
     const enviar = within(modal).getByRole("button", { name: /Crear y enviar a evaluación/ });
     expect(enviar).toBeDisabled();
     await u.type(within(modal).getByLabelText("CBU"), "01105995");
@@ -475,6 +485,7 @@ describe("Solicitudes de crédito · forma de cobro", () => {
     await screen.findByText("Elegible con estos datos.");
     expect(within(modal).queryByRole("note")).toBeNull();          // recién al final
     await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await pasarDocumentacion(u, modal);
     const aviso = within(modal).getByRole("note", { name: /cómo se cobra/i });
     expect(aviso).toHaveTextContent("La cuota de $62.000,00 se descuenta directamente del sueldo");
     expect(aviso).toHaveTextContent("«CAPRESCA PREST PERSONAL», código de descuento 4521");
@@ -492,6 +503,7 @@ describe("Solicitudes de crédito · forma de cobro", () => {
     await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
     await screen.findByText("Elegible con estos datos.");
     await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await pasarDocumentacion(u, modal);
     expect(within(modal).queryByRole("note")).toBeNull();
   });
 
@@ -701,5 +713,121 @@ describe("Solicitudes de crédito · resolución", () => {
     const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
     expect(within(modal).getByRole("button", { name: "Aprobar" })).toBeDisabled();
     expect(within(modal).getByRole("button", { name: "Anular" })).toBeDisabled();
+  });
+});
+
+describe("Solicitudes de crédito · documentación de sucursal (la misma que el portal)", () => {
+  const PEDIDOS = [
+    { tipo: "DNI_FRENTE", titulo: "DNI (frente)", ayuda: "", obligatorio: true },
+    { tipo: "PRESUPUESTO", titulo: "Presupuesto del prestador", ayuda: "Con membrete", obligatorio: false },
+  ];
+  const CAMPOS = [{ codigo: "COBERTURA", etiqueta: "Obra social", ayuda: "", tipo: "UNICA",
+                    opciones: ["OSEP", "PAMI"], obligatorio: true }];
+  const dni = () => new File(["png"], "dni.png", { type: "image/png" });
+
+  async function hastaDocumentacion(u) {
+    montar();
+    await screen.findByText("SOL-1");
+    await u.click(screen.getByRole("button", { name: /Nueva solicitud/ }));
+    const modal = await screen.findByRole("dialog", { name: "Nueva solicitud" });
+    await u.type(within(modal).getByPlaceholderText(/Buscar cliente/), "perez");
+    await u.click(await screen.findByText(/Perez, Ana/));
+    await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await screen.findByText("Elegible con estos datos.");
+    await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await within(modal).findByText("DNI (frente)");
+    return modal;
+  }
+
+  beforeEach(() => {
+    creditos.ppRequisitosLinea.mockResolvedValue({ documentos: PEDIDOS, campos: CAMPOS });
+    creditos.ppSolicitudDocSubir.mockResolvedValue({ id: "d1" });
+  });
+
+  it("pide los datos y la documentación de la línea, los adjunta y recién ahí la envía", async () => {
+    const u = userEvent.setup();
+    const modal = await hastaDocumentacion(u);
+    expect(creditos.ppRequisitosLinea).toHaveBeenCalledWith("pp_1");
+    expect(within(modal).getByText("Con membrete")).toBeInTheDocument();
+    const seguir = within(modal).getByRole("button", { name: "Continuar →" });
+    expect(seguir).toBeDisabled();                                   // falta la obra social
+    await u.selectOptions(within(modal).getByLabelText("Obra social"), "PAMI");
+    expect(seguir).toBeEnabled();
+
+    // Sin el DNI se puede guardar como borrador, pero no enviar.
+    await u.click(seguir);
+    expect(within(modal).getByText(/Falta adjuntar: DNI \(frente\)/)).toBeInTheDocument();
+    expect(within(modal).getByRole("button", { name: /Crear y enviar a evaluación/ })).toBeDisabled();
+
+    await u.click(within(modal).getByRole("button", { name: "← Volver" }));
+    await u.upload(within(modal).getByLabelText("Archivo de DNI (frente)"), dni());
+    expect(within(modal).getByText("dni.png")).toBeInTheDocument();
+    await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await u.click(within(modal).getByRole("button", { name: /Crear y enviar a evaluación/ }));
+
+    await waitFor(() => expect(creditos.ppSolicitudEstado).toHaveBeenCalledWith("s1", "enviar", "", ""));
+    expect(creditos.ppSolicitudCrear).toHaveBeenCalledWith(expect.objectContaining({ respuestas: { COBERTURA: ["PAMI"] } }));
+    expect(creditos.ppSolicitudDocSubir).toHaveBeenCalledWith("s1", "DNI_FRENTE", expect.any(File));
+    expect(creditos.ppSolicitudDocSubir).toHaveBeenCalledTimes(1);   // el opcional no se adjuntó
+    expect(creditos.ppSolicitudDocSubir.mock.invocationCallOrder[0])
+      .toBeLessThan(creditos.ppSolicitudEstado.mock.invocationCallOrder[0]);
+  });
+
+  it("no acepta un archivo que no es imagen ni PDF", async () => {
+    const u = userEvent.setup();
+    const modal = await hastaDocumentacion(u);
+    fireEvent.change(within(modal).getByLabelText("Archivo de DNI (frente)"),
+                     { target: { files: [new File(["x"], "dni.docx", { type: "application/msword" })] } });
+    expect(within(modal).getByText(/DNI \(frente\): Formato no permitido/)).toBeInTheDocument();
+    expect(within(modal).queryByText("dni.docx")).toBeNull();
+  });
+
+  it("si un archivo no se pudo adjuntar, no la envía y lo avisa en el detalle", async () => {
+    creditos.ppSolicitudDocSubir.mockRejectedValue(new Error("El archivo supera el máximo de 5 MB."));
+    const u = userEvent.setup();
+    const modal = await hastaDocumentacion(u);
+    await u.selectOptions(within(modal).getByLabelText("Obra social"), "OSEP");
+    await u.upload(within(modal).getByLabelText("Archivo de DNI (frente)"), dni());
+    await u.click(within(modal).getByRole("button", { name: "Continuar →" }));
+    await u.click(within(modal).getByRole("button", { name: /Crear y enviar a evaluación/ }));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    expect(await within(detalle).findByText(/quedó en borrador: no se pudo adjuntar DNI \(frente\)/)).toBeInTheDocument();
+    expect(creditos.ppSolicitudEstado).not.toHaveBeenCalled();
+  });
+
+  it("en el detalle de un borrador se adjunta lo que falta y se puede quitar", async () => {
+    const BORRADOR = { ...SOL_EVALUACION, estado: "BORRADOR", editable: true };
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([BORRADOR]));
+    creditos.ppSolicitudDocs.mockResolvedValue({ items: [], pedidos: PEDIDOS, faltantes: ["DNI (frente)"], puedeAdjuntar: true });
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-1"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    const enviar = await within(detalle).findByRole("button", { name: "Enviar a evaluación" });
+    await within(detalle).findByText("Documentación (la misma que pide el portal)");
+    expect(enviar).toBeDisabled();
+
+    creditos.ppSolicitudDocs.mockResolvedValue({
+      items: [{ id: "d1", tipo: "DNI_FRENTE", titulo: "DNI (frente)", nombre: "dni.png", tamano: 3 }],
+      pedidos: PEDIDOS, faltantes: [], puedeAdjuntar: true });
+    await u.upload(within(detalle).getByLabelText("Archivo de DNI (frente)"), dni());
+    await waitFor(() => expect(creditos.ppSolicitudDocSubir).toHaveBeenCalledWith("s1", "DNI_FRENTE", expect.any(File)));
+    await waitFor(() => expect(enviar).toBeEnabled());
+    expect(within(detalle).getByRole("button", { name: "Quitar" })).toBeInTheDocument();
+  });
+
+  it("en evaluación el documento se reemplaza pero no se quita", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_EVALUACION, origen: "SUCURSAL" }]));
+    creditos.ppSolicitudDocs.mockResolvedValue({
+      items: [{ id: "d1", tipo: "DNI_FRENTE", titulo: "DNI (frente)", nombre: "dni.png", tamano: 3 }],
+      pedidos: PEDIDOS, faltantes: [], puedeAdjuntar: true });
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-1"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    await within(detalle).findByText("Documentación (la misma que pide el portal)");
+    expect(within(detalle).getAllByRole("button", { name: "Reemplazar" })).toHaveLength(1);
+    expect(within(detalle).queryByRole("button", { name: "Quitar" })).toBeNull();
+    expect(within(detalle).getByText(/se reemplaza, no se quita/)).toBeInTheDocument();
   });
 });
