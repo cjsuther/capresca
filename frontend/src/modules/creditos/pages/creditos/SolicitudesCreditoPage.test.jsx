@@ -641,6 +641,20 @@ describe("Solicitudes de crédito · resolución", () => {
     await waitFor(() => expect(creditos.ppSolicitudEstado).toHaveBeenCalledWith("s1", "anular", "", ""));
   });
 
+  it("en el detalle, Anular va a la izquierda en rojo y Cerrar al final", async () => {
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-1"));
+
+    const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    const anular = within(modal).getByRole("button", { name: "Anular" });
+    const cerrar = within(modal).getByText("Cerrar", { selector: "button" });   // la X del encabezado también se llama "Cerrar"
+    const pie = [...cerrar.parentElement.querySelectorAll("button")];
+    expect(pie[0]).toBe(anular);
+    expect(pie.at(-1)).toBe(cerrar);
+    expect(anular).toHaveClass("bg-red-600");
+  });
+
   it("una aprobada no se origina sola: se origina al liquidar su lote", async () => {
     creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, resolucion: null,
       lote: { id: 3, codigo: "2026-0003", estado: "ABIERTO", resolucion: null } }]));

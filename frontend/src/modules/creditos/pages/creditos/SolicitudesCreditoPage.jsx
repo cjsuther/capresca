@@ -643,7 +643,17 @@ export default function SolicitudesCreditoPage() {
           onClose={() => setSel(null)}
           footer={
             <>
-              <Boton variante="secundario" onClick={() => setSel(null)}>Cerrar</Boton>
+              {!["ORIGINADA", "ANULADA"].includes(sel.estado) && (
+                <Boton variante="danger" disabled={accionando || !puedeEditar || congelada}
+                       title={congelada ? "Está en un lote con resolución: no se modifica."
+                         : "Baja administrativa del trámite (no es una decisión crediticia)."}
+                       onClick={() => setConfirmando({
+                         titulo: "Anular solicitud",
+                         mensaje: `¿Anular ${sel.numero}? Es una baja administrativa del trámite, no una decisión crediticia.`,
+                         confirmar: "Anular",
+                         onSi: () => resolver("anular"),
+                       })}>Anular</Boton>
+              )}
               <span className="flex-1" />
               {sel.solicitanteTipo === "NO_REGISTRADO" && puedeEditar && (
                 <>
@@ -658,17 +668,6 @@ export default function SolicitudesCreditoPage() {
                 <Boton disabled={accionando || !puedeEditar || docsFaltantes.length > 0}
                        title={docsFaltantes.length ? `Falta adjuntar: ${docsFaltantes.join(", ")}.` : ""}
                        onClick={() => resolver("enviar")}>Enviar a evaluación</Boton>
-              )}
-              {!["ORIGINADA", "ANULADA"].includes(sel.estado) && (
-                <Boton variante="secundario" disabled={accionando || !puedeEditar || congelada}
-                       title={congelada ? "Está en un lote con resolución: no se modifica."
-                         : "Baja administrativa del trámite (no es una decisión crediticia)."}
-                       onClick={() => setConfirmando({
-                         titulo: "Anular solicitud",
-                         mensaje: `¿Anular ${sel.numero}? Es una baja administrativa del trámite, no una decisión crediticia.`,
-                         confirmar: "Anular",
-                         onSi: () => resolver("anular"),
-                       })}>Anular</Boton>
               )}
               {sel.estado === "EN_EVALUACION" && sel.origen === "PORTAL" && (
                 <Boton variante="secundario" disabled={accionando || !puedeEditar}
@@ -687,6 +686,7 @@ export default function SolicitudesCreditoPage() {
                          onClick={() => resolver("aprobar")}>Aprobar</Boton>
                 </>
               )}
+              <Boton variante="secundario" onClick={() => setSel(null)}>Cerrar</Boton>
             </>
           }
         >
