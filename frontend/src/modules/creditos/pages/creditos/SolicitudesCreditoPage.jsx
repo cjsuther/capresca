@@ -5,7 +5,7 @@ import { PageHeader, Card, Field, Boton, Alerta, Modal } from "../../components/
 import { Pill } from "../../components/Pill";
 import { DataTable } from "../../components/DataTable";
 import { Confirmacion } from "../../components/Confirmacion";
-import { VisorDocumento } from "../../components/VisorDocumento";
+import { VisorDocumento, abrirEnPestana } from "../../components/VisorDocumento";
 import { BuscadorCliente, nombreCliente } from "../../components/BuscadorCliente";
 import { useSoloLectura } from "../../permisos";
 import { fecha, fmtBytes } from "../../components/format";
@@ -14,7 +14,7 @@ import { CampoCbu, CampoSueldo, CondicionesCredito, enRangoDe } from "./solicitu
 import { EditarSolicitud } from "./solicitud/EditarSolicitud";
 import { AvisoCobro } from "./solicitud/AvisoCobro";
 import { CAMPO_EDITADO, HistorialModificaciones, fechaHora } from "./solicitud/HistorialModificaciones";
-import { DatosDeLaLinea, ListaDocumentos, datosFaltantes, docsFaltantes as faltanDocs, errorArchivo } from "./solicitud/DocumentacionSolicitud";
+import { BotonPestana, DatosDeLaLinea, ListaDocumentos, datosFaltantes, docsFaltantes as faltanDocs, errorArchivo } from "./solicitud/DocumentacionSolicitud";
 
 const TONO_ESTADO = {
   BORRADOR: "neutral", EN_EVALUACION: "warn", OBSERVADA: "warn", APROBADA: "ok",
@@ -123,6 +123,7 @@ export default function SolicitudesCreditoPage() {
   const [puedeAdjuntar, setPuedeAdjuntar] = useState(false); // sucursal editable: el asesor adjunta
   const [subiendo, setSubiendo] = useState(false);
   const [viendoDoc, setViendoDoc] = useState(null);   // índice del documento abierto en el visor
+  const [corrigiendoCbu, setCorrigiendoCbu] = useState(null);   // { valor, error, guardando }
   const [crono, setCrono] = useState([]);
   const [cronoAbierto, setCronoAbierto] = useState(false);
   const [cargandoCrono, setCargandoCrono] = useState(false);
@@ -393,7 +394,23 @@ export default function SolicitudesCreditoPage() {
   }
 
   const puedeEditar = permisos.edita && !soloLectura;
+
+  /** Documento en una pestaña nueva: se ve al mismo tiempo que los datos de la solicitud. */
+  const abrirDoc = (d) =>
+    abrirEnPestana(() => creditos.ppSolicitudDocArchivo(sel.id, d.id), d.nombre).catch((e) => setError(e.message));
+
+  async function guardarCbu() {
+    setCorrigiendoCbu((c) => ({ ...c, guardando: true, error: "" }));
+    try {
+      const r = await creditos.ppSolicitudCbu(sel.id, corrigiendoCbu.valor);
+      setCorrigiendoCbu(null); setSel(r); setOk(`CBU de ${r.numero} actualizado.`); cargar();
+    } catch (e) {
+      setCorrigiendoCbu((c) => ({ ...c, guardando: false, error: e.message }));
+    }
+  }
   const congelada = !!sel?.lote && sel.lote.estado !== "ABIERTO";
+  // El CBU se corrige en BORRADOR, EN_EVALUACION y APROBADA, mientras el lote no lo congele.
+  const cbuCorregible = !!sel && ["BORRADOR", "EN_EVALUACION", "APROBADA"].includes(sel.estado) && !congelada && puedeEditar;
   const puedeAprobar = permisos.aprueba && !soloLectura;
 
   return (
@@ -758,8 +775,17 @@ export default function SolicitudesCreditoPage() {
               <div><dt className="text-xs text-gray-500">Destino</dt>
                 <dd className="font-medium">{DESTINO[sel.datosAdicionales.destino] || sel.datosAdicionales.destino}</dd></div>
             )}
-            {sel.datosAdicionales?.cbu && (
-              <div><dt className="text-xs text-gray-500">CBU</dt><dd className="font-medium">{sel.datosAdicionales.cbu}</dd></div>
+            {(sel.datosAdicionales?.cbu || cbuCorregible) && (
+              <div><dt className="text-xs text-gray-500">CBU</dt>
+                <dd className="font-medium tabular-nums">
+                  {sel.datosAdicionales?.cbu || <span className="text-gray-400 font-normal">sin cargar</span>}
+                  {cbuCorregible && (
+                    <button type="button" onClick={() => setCorrigiendoCbu({ valor: sel.datosAdicionales?.cbu || "", error: "" })}
+                            className="ml-2 text-xs font-normal text-blue-600 hover:underline">
+                      {sel.datosAdicionales?.cbu ? "Corregir" : "Cargar"}
+                    </button>
+                  )}
+                </dd></div>
             )}
             {sel.fechaNacimiento && (
               <div><dt className="text-xs text-gray-500">Fecha de nacimiento</dt>
@@ -851,7 +877,7 @@ export default function SolicitudesCreditoPage() {
                                actuales={Object.fromEntries(docs.map((d) => [d.tipo, d]))}
                                onElegir={adjuntarEnDetalle}
                                onQuitar={sel.estado === "BORRADOR" ? quitarEnDetalle : undefined}
-                               onVer={(d) => setViendoDoc(docs.indexOf(d))} />
+                               onVer={(d) => setViendoDoc(docs.indexOf(d))} onAbrir={abrirDoc} />
               {sel.estado === "EN_EVALUACION" && (
                 <p className="text-xs text-gray-500 mt-1">En evaluación un documento se reemplaza, no se quita, y la cadena de aprobación vuelve a empezar.</p>
               )}
@@ -874,6 +900,7 @@ export default function SolicitudesCreditoPage() {
                   <button onClick={() => setViendoDoc(docs.indexOf(d))}
                           className="text-blue-600 hover:underline truncate max-w-xs" title={`Ver ${d.nombre}`}>{d.nombre}</button>
                   <span className="text-gray-400 text-xs">{fmtBytes(d.tamano)}</span>
+                  <BotonPestana nombre={d.nombre} onClick={() => abrirDoc(d)} />
                 </div>
               ))}
             </div>
@@ -1057,6 +1084,25 @@ export default function SolicitudesCreditoPage() {
             Elegí el cliente del padrón para {vinculando.numero}. El alta de personas se hace en el módulo Clientes.
           </p>
           <BuscadorCliente onSelect={(c) => c && vincularCliente(c)} autoFocus />
+        </Modal>
+      )}
+
+      {corrigiendoCbu && sel && (
+        <Modal titulo="CBU de acreditación" eyebrow={`${sel.numero} · ${sel.estado}`} ancho="max-w-lg"
+               onClose={() => setCorrigiendoCbu(null)}
+               footer={<>
+                 <Boton variante="secundario" onClick={() => setCorrigiendoCbu(null)} disabled={corrigiendoCbu.guardando}>Cancelar</Boton>
+                 <span className="flex-1" />
+                 <Boton onClick={guardarCbu} disabled={corrigiendoCbu.guardando || corrigiendoCbu.valor.length !== 22}>
+                   {corrigiendoCbu.guardando ? "Guardando…" : "Guardar CBU"}
+                 </Boton>
+               </>}>
+          {corrigiendoCbu.error && <div className="mb-3"><Alerta>{corrigiendoCbu.error}</Alerta></div>}
+          {sel.estado === "EN_EVALUACION" && (
+            <div className="mb-3"><Alerta tipo="warn">Está en evaluación: al guardar, las aprobaciones que ya tuviera se reinician.</Alerta></div>
+          )}
+          <CampoCbu valor={corrigiendoCbu.valor} requerido onChange={(v) => setCorrigiendoCbu((c) => ({ ...c, valor: v }))} />
+          <p className="text-xs text-gray-500 mt-2">A esta cuenta se transfiere el desembolso. El cambio queda en el historial de la solicitud.</p>
         </Modal>
       )}
 

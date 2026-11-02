@@ -36,8 +36,21 @@ def add_cbu(
                 name = f"{owner.human_profile.first_name} {owner.human_profile.last_name}"
         raise HTTPException(400, f"CBU ya registrado en {name or f'cliente {existing.client_id}'}")
 
-    cbu = ClientCbu(client_id=client_id, created_by=user_id, **data.model_dump())
-    db.add(cbu)
+    # La baja es lógica y la columna `cbu` es UNIQUE: si el CBU existió y se dio de baja, se reactiva
+    # esa fila (con los datos nuevos, y para este cliente) en vez de insertar otra.
+    cbu = db.query(ClientCbu).filter(ClientCbu.cbu == data.cbu).first()
+    if cbu is not None:
+        for k, v in data.model_dump().items():
+            setattr(cbu, k, v)
+        cbu.client_id, cbu.created_by, cbu.is_active = client_id, user_id, True
+    else:
+        cbu = ClientCbu(client_id=client_id, created_by=user_id, **data.model_dump())
+        db.add(cbu)
+    if cbu.is_payment_account:
+        for otro in db.query(ClientCbu).filter(
+            ClientCbu.client_id == client_id, ClientCbu.cbu != data.cbu, ClientCbu.is_payment_account == True
+        ).all():
+            otro.is_payment_account = False
     db.commit()
     db.refresh(cbu)
     return cbu

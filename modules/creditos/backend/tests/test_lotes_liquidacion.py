@@ -149,6 +149,62 @@ def test_lo_que_no_es_liquidable_queda_fuera_de_lote_hasta_completarse(client):
     assert d["fueraDeLote"] == [] and _sol(sid).lote_liquidacion_id is not None
 
 
+CBU_OK = "0110466420046600526713"
+
+
+def test_a_una_aprobada_sin_cbu_se_le_carga_y_entra_a_su_lote(client):
+    h = _auth(client)
+    sid = _aprobada(_producto(), cliente_id=_sin_cbu_cliente())
+    assert _sol(sid).lote_liquidacion_id is None
+
+    r = client.put(f"/api/creditos/solicitudes/{sid}/cbu", headers=h, json={"cbu": "0110-4664 2004660052 6713"})
+    assert r.status_code == 200, r.text
+    assert r.json()["lote"] is not None and r.json()["datosAdicionales"]["cbu"] == CBU_OK
+    s = _sol(sid)
+    assert s.estado == "APROBADA" and s.lote_liquidacion_id is not None
+    mod = s.datos_adicionales["modificaciones"][-1]
+    assert mod["campos"] == ["cbu"] and mod["por"] == "admin" and mod["estado"] == "APROBADA"
+    assert mod["cambios"]["cbu"] == {"antes": None, "despues": CBU_OK}
+
+
+def test_corregir_el_cbu_deja_el_anterior_en_el_historial(client):
+    h = _auth(client)
+    sid = _aprobada(_producto(), cbu="0" * 22)
+    otro = "0720099620000001234501"
+    r = client.put(f"/api/creditos/solicitudes/{sid}/cbu", headers=h, json={"cbu": otro})
+    assert r.status_code == 200
+    assert _sol(sid).datos_adicionales["modificaciones"][-1]["cambios"]["cbu"] == {"antes": "0" * 22, "despues": otro}
+    # El mismo CBU otra vez no es un cambio: no suma otra entrada al historial.
+    client.put(f"/api/creditos/solicitudes/{sid}/cbu", headers=h, json={"cbu": otro})
+    assert len(_sol(sid).datos_adicionales["modificaciones"]) == 1
+
+
+def test_el_cbu_de_una_solicitud_en_lote_cerrado_no_se_corrige(client):
+    h = _auth(client)
+    sid = _aprobada(_producto(), cbu="0" * 22)
+    _cerrar(_sol(sid).lote_liquidacion_id)
+    r = client.put(f"/api/creditos/solicitudes/{sid}/cbu", headers=h, json={"cbu": CBU_OK})
+    assert r.status_code == 409 and "lote" in r.json()["detail"]
+    assert _sol(sid).datos_adicionales["cbu"] == "0" * 22
+
+
+@pytest.mark.parametrize("estado", ["ORIGINADA", "ANULADA", "RECHAZADA"])
+def test_el_cbu_no_se_corrige_fuera_de_curso(client, estado):
+    h = _auth(client)
+    sid = _aprobada(_producto(), cbu="0" * 22, estado=estado)
+    r = client.put(f"/api/creditos/solicitudes/{sid}/cbu", headers=h, json={"cbu": CBU_OK})
+    assert r.status_code == 409
+
+
+@pytest.mark.parametrize("cbu", ["123", "", "0" * 23])
+def test_el_cbu_corregido_tiene_que_tener_22_digitos(client, cbu):
+    h = _auth(client)
+    sid = _aprobada(_producto(), cbu="0" * 22)
+    r = client.put(f"/api/creditos/solicitudes/{sid}/cbu", headers=h, json={"cbu": cbu})
+    assert r.status_code == 422
+    assert _sol(sid).datos_adicionales["cbu"] == "0" * 22
+
+
 def test_lleno_el_lote_se_abre_el_siguiente(client):
     _tope(2)
     pid = _producto()

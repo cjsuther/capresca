@@ -11,7 +11,7 @@ import { useAuthStore } from "../../../../context/authStore";
 vi.mock("../../../../api/creditos", () => ({
   creditos: {
     ppSolicitudes: vi.fn(), ppSolicitud: vi.fn(), ppSolicitudCrear: vi.fn(), ppSolicitudEstado: vi.fn(),
-    ppSolicitudPromover: vi.fn(), ppSolicitudDocs: vi.fn(), ppSolicitudDocAbrir: vi.fn(), ppSolicitudDocArchivo: vi.fn(), ppSolicitudDocsAlCliente: vi.fn(),
+    ppSolicitudPromover: vi.fn(), ppSolicitudDocs: vi.fn(), ppSolicitudDocAbrir: vi.fn(), ppSolicitudDocArchivo: vi.fn(), ppSolicitudDocsAlCliente: vi.fn(), ppSolicitudCbu: vi.fn(),
     ppSimPreview: vi.fn(), ppOferta: vi.fn(), ctoSegmentos: vi.fn(), ctoOriginar: vi.fn(),
     ppDatosCliente: vi.fn(), ppPreAprobado: vi.fn(), ppSolicitudEditar: vi.fn(),
     ppRequisitosLinea: vi.fn(), ppSolicitudDocSubir: vi.fn(), ppSolicitudDocQuitar: vi.fn(),
@@ -233,7 +233,44 @@ describe("Solicitudes de crédito · documentación adjunta", () => {
     const visor = await screen.findByRole("dialog", { name: /DNI/ });
     expect(await within(visor).findByRole("img")).toHaveAttribute("src", "blob:dni");
     expect(creditos.ppSolicitudDocArchivo).toHaveBeenCalledWith("s1", "doc-1");
-    expect(creditos.ppSolicitudDocAbrir).not.toHaveBeenCalled();   // ya no abre otra pestaña
+    expect(creditos.ppSolicitudDocAbrir).not.toHaveBeenCalled();
+  });
+
+  it("un documento se abre en una pestaña nueva y el detalle sigue a la vista", async () => {
+    globalThis.URL.createObjectURL = vi.fn(() => "blob:recibo");
+    const pestana = { document: { title: "", body: { textContent: "" } }, location: { replace: vi.fn() } };
+    const abrir = vi.spyOn(window, "open").mockReturnValue(pestana);
+    creditos.ppSolicitudDocs.mockResolvedValue({ items: [
+      { id: "doc-2", tipo: "RECIBO", nombre: "recibo.pdf", tamano: 180000 },
+    ] });
+    creditos.ppSolicitudDocArchivo.mockResolvedValue(new Blob(["x"], { type: "application/pdf" }));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-1"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    await u.click(await within(detalle).findByRole("button", { name: "Abrir recibo.pdf en pestaña nueva" }));
+
+    expect(abrir).toHaveBeenCalledWith("", "_blank");   // en el mismo click: si no, el navegador la bloquea
+    await waitFor(() => expect(pestana.location.replace).toHaveBeenCalledWith("blob:recibo"));
+    expect(creditos.ppSolicitudDocArchivo).toHaveBeenCalledWith("s1", "doc-2");
+    expect(screen.getByRole("dialog", { name: "PEREZ, ANA" })).toBeInTheDocument();
+    abrir.mockRestore();
+  });
+
+  it("si el navegador bloquea la pestaña nueva lo avisa", async () => {
+    const abrir = vi.spyOn(window, "open").mockReturnValue(null);
+    creditos.ppSolicitudDocs.mockResolvedValue({ items: [
+      { id: "doc-2", tipo: "RECIBO", nombre: "recibo.pdf", tamano: 180000 },
+    ] });
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-1"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    await u.click(await within(detalle).findByRole("button", { name: "Abrir recibo.pdf en pestaña nueva" }));
+
+    expect(await screen.findByText(/bloqueó la pestaña nueva/)).toBeInTheDocument();
+    expect(creditos.ppSolicitudDocArchivo).not.toHaveBeenCalled();
+    abrir.mockRestore();
   });
 
   it("muestra lo que pidió la línea: sus datos, sus documentos y lo que falta", async () => {
@@ -705,6 +742,55 @@ describe("Solicitudes de crédito · resolución", () => {
 
     const modal = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
     expect(within(modal).getByText(/No entra a ningún lote.*falta CBU de acreditación/)).toBeInTheDocument();
+  });
+
+  it("a una aprobada sin CBU se le carga el CBU", async () => {
+    const sinCbu = { ...SOL_APROBADA, resolucion: null, lote: null, faltaParaLote: ["CBU de acreditación (22 dígitos)"] };
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([sinCbu]));
+    creditos.ppSolicitudCbu.mockResolvedValue({ ...sinCbu, faltaParaLote: [], datosAdicionales: { cbu: CBU },
+      lote: { id: 1, codigo: "2026-0001", estado: "ABIERTO", resolucion: null } });
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-3"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    expect(within(detalle).getByText("sin cargar")).toBeInTheDocument();
+    await u.click(within(detalle).getByRole("button", { name: "Cargar" }));
+
+    const modal = await screen.findByRole("dialog", { name: "CBU de acreditación" });
+    const guardar = within(modal).getByRole("button", { name: "Guardar CBU" });
+    expect(guardar).toBeDisabled();
+    await u.type(within(modal).getByLabelText("CBU"), CBU);
+    await u.click(guardar);
+
+    await waitFor(() => expect(creditos.ppSolicitudCbu).toHaveBeenCalledWith("s3", CBU));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "CBU de acreditación" })).toBeNull());
+    expect(await screen.findByText(CBU)).toBeInTheDocument();
+  });
+
+  it("muestra el error si el CBU no se puede guardar", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, datosAdicionales: { cbu: "0".repeat(22) } }]));
+    creditos.ppSolicitudCbu.mockRejectedValue(new Error("La solicitud está en el lote 2026-0001, que ya no está abierto"));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-3"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    await u.click(within(detalle).getByRole("button", { name: "Corregir" }));
+    const modal = await screen.findByRole("dialog", { name: "CBU de acreditación" });
+    await u.clear(within(modal).getByLabelText("CBU"));
+    await u.type(within(modal).getByLabelText("CBU"), CBU);
+    await u.click(within(modal).getByRole("button", { name: "Guardar CBU" }));
+    expect(await within(modal).findByText(/ya no está abierto/)).toBeInTheDocument();
+  });
+
+  it("en un lote cerrado el CBU no se corrige", async () => {
+    creditos.ppSolicitudes.mockResolvedValue(LISTA([{ ...SOL_APROBADA, datosAdicionales: { cbu: CBU },
+      lote: { id: 3, codigo: "2026-0003", estado: "CERRADO", resolucion: null } }]));
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("SOL-3"));
+    const detalle = await screen.findByRole("dialog", { name: "PEREZ, ANA" });
+    expect(within(detalle).getByText(CBU)).toBeInTheDocument();
+    expect(within(detalle).queryByRole("button", { name: "Corregir" })).toBeNull();
   });
 
   it("muestra la resolución que la otorga", async () => {

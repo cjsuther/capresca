@@ -1,6 +1,5 @@
 """Tests de CBUs de clientes (alta, validación, cuenta de cobro y baja lógica)."""
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 CBU_A = "0720099620000001234501"
 CBU_B = "0110012820000034567803"
@@ -84,16 +83,36 @@ def test_cbu_duplicado_de_un_cliente_sin_perfil_informa_el_id(client, h, db, cre
     assert f"cliente {dueno.id}" in r.json()["detail"]
 
 
-def test_recargar_un_cbu_dado_de_baja_rompe_por_unicidad(client, h, crear_pj):
-    # TODO(bug): la baja es lógica (cbus.py:74) pero la columna `cbu` es UNIQUE sin
-    # filtro: volver a cargar el mismo CBU pasa el chequeo de duplicados y explota
-    # con IntegrityError (500) en vez de reactivar el registro.
+def test_recargar_un_cbu_dado_de_baja_lo_reactiva(client, h, crear_pj):
+    # Regresión: la baja es lógica y la columna `cbu` es UNIQUE; volver a cargarlo daba 500.
     pj = crear_pj()
     creado = _alta_cbu(client, h, pj["id"]).json()
     assert client.delete(f"/api/clientes/{pj['id']}/cbus/{creado['id']}").status_code == 204
 
-    with pytest.raises(IntegrityError):
-        _alta_cbu(client, h, pj["id"])
+    r = _alta_cbu(client, h, pj["id"], alias="De nuevo")
+    assert r.status_code == 201
+    assert r.json()["id"] == creado["id"] and r.json()["is_active"] is True
+    assert r.json()["alias"] == "De nuevo"
+    assert [c["cbu"] for c in client.get(f"/api/clientes/{pj['id']}/cbus").json()] == [CBU_A]
+
+
+def test_un_cbu_dado_de_baja_en_un_cliente_se_puede_cargar_en_otro(client, h, crear_pj, crear_ph):
+    pj, ph = crear_pj(), crear_ph()
+    creado = _alta_cbu(client, h, pj["id"]).json()
+    client.delete(f"/api/clientes/{pj['id']}/cbus/{creado['id']}")
+
+    r = _alta_cbu(client, h, ph["id"])
+    assert r.status_code == 201 and r.json()["client_id"] == ph["id"]
+    assert client.get(f"/api/clientes/{pj['id']}/cbus").json() == []
+
+
+def test_persona_fisica_carga_cbu_y_lo_marca_de_cobro(client, h, crear_ph):
+    ph = crear_ph()
+    a = _alta_cbu(client, h, ph["id"], is_payment_account=True).json()
+    b = _alta_cbu(client, h, ph["id"], cbu=CBU_B, is_payment_account=True).json()
+    cbus = {c["id"]: c for c in client.get(f"/api/clientes/{ph['id']}/cbus").json()}
+    assert cbus[b["id"]]["is_payment_account"] is True
+    assert cbus[a["id"]]["is_payment_account"] is False
 
 
 # ── Listado ─────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import {
   getClient, getNotes, addNote,
   updateClient, updateHumanProfile, updateLegalProfile, updatePadron,
   getMembers, addMember, removeMember,
-  searchClients, getCbus, addCbu, deleteCbu,
+  searchClients, getCbus, addCbu, updateCbu, deleteCbu,
 } from "../../../api/clientes";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import {
@@ -124,10 +124,10 @@ export default function ClienteDetailPage() {
   const loadCbus = () => getCbus(id).then(setCbus);
 
   useEffect(() => {
-    if (client?.client_type === "LEGAL") {
-      loadMembers();
-      loadCbus();
-    }
+    if (!client) return;
+    // Los CBUs son de cualquier cliente: la persona física cobra ahí su crédito.
+    loadCbus();
+    if (client.client_type === "LEGAL") loadMembers();
   }, [client]);
 
   const handleAddCbu = async (e) => {
@@ -141,6 +141,16 @@ export default function ClienteDetailPage() {
       loadCbus();
     } catch (err) {
       setCbuError(err.response?.data?.detail || "Error al agregar CBU");
+    }
+  };
+
+  const handleCuentaCobro = async (cbuId) => {
+    setCbuError("");
+    try {
+      await updateCbu(id, cbuId, { is_payment_account: true });
+      loadCbus();
+    } catch (err) {
+      setCbuError(err.response?.data?.detail || "Error al marcar la cuenta de cobro");
     }
   };
 
@@ -537,60 +547,74 @@ export default function ClienteDetailPage() {
         </div>
       )}
 
-      {/* CBUs (solo PJ) */}
-      {!isHuman && (
-        <div className="bg-surface border rounded-xl p-5 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CreditCard size={16} className="text-gray-500" />
-            <h3 className="font-medium text-gray-700">CBUs registrados</h3>
-          </div>
-
-          <PermissionGate moduleCode="clientes" action="clients:write">
-            <form onSubmit={handleAddCbu} className="flex gap-2 mb-4">
-              <input
-                className="input text-sm w-52 font-mono"
-                placeholder="CBU (22 dígitos)"
-                value={newCbu}
-                maxLength={22}
-                onChange={(e) => setNewCbu(e.target.value.replace(/\D/g, ""))}
-              />
-              <input
-                className="input text-sm flex-1"
-                placeholder="Alias (opcional)"
-                value={newCbuAlias}
-                onChange={(e) => setNewCbuAlias(e.target.value)}
-              />
-              <button type="submit" className="flex items-center gap-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                <Plus size={14} /> Agregar
-              </button>
-            </form>
-            {cbuError && <p className="text-xs text-red-600 mb-3">{cbuError}</p>}
-          </PermissionGate>
-
-          {cbus.length === 0 ? (
-            <p className="text-sm text-gray-400">Sin CBUs registrados</p>
-          ) : (
-            <div className="space-y-2">
-              {cbus.map((c) => (
-                <div key={c.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
-                  <div>
-                    <span className="text-sm font-mono text-gray-800">{c.cbu}</span>
-                    {c.alias && <span className="ml-3 text-xs text-gray-500">{c.alias}</span>}
-                  </div>
-                  <PermissionGate moduleCode="clientes" action="clients:write">
-                    <button
-                      onClick={() => handleDeleteCbu(c.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </PermissionGate>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* CBUs (persona física y jurídica). La cuenta de cobro es la que usan los pagos salientes
+          (p. ej. el desembolso de un crédito); si no hay ninguna marcada, se usa la primera. */}
+      <div className="bg-surface border rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <CreditCard size={16} className="text-gray-500" />
+          <h3 className="font-medium text-gray-700">CBUs registrados</h3>
         </div>
-      )}
+
+        <PermissionGate moduleCode="clientes" action="clients:write">
+          <form onSubmit={handleAddCbu} className="flex gap-2 mb-4">
+            <input
+              className="input text-sm w-52 font-mono"
+              placeholder="CBU (22 dígitos)"
+              value={newCbu}
+              maxLength={22}
+              onChange={(e) => setNewCbu(e.target.value.replace(/\D/g, ""))}
+            />
+            <input
+              className="input text-sm flex-1"
+              placeholder="Alias (opcional)"
+              value={newCbuAlias}
+              onChange={(e) => setNewCbuAlias(e.target.value)}
+            />
+            <button type="submit" className="flex items-center gap-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <Plus size={14} /> Agregar
+            </button>
+          </form>
+          {cbuError && <p className="text-xs text-red-600 mb-3">{cbuError}</p>}
+        </PermissionGate>
+
+        {cbus.length === 0 ? (
+          <p className="text-sm text-gray-400">Sin CBUs registrados</p>
+        ) : (
+          <div className="space-y-2">
+            {cbus.map((c) => (
+              <div key={c.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+                <div>
+                  <span className="text-sm font-mono text-gray-800">{c.cbu}</span>
+                  {c.alias && <span className="ml-3 text-xs text-gray-500">{c.alias}</span>}
+                  {c.description && <span className="ml-3 text-xs text-gray-400">{c.description}</span>}
+                  {c.is_payment_account && (
+                    <span className="ml-3 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                      Cuenta de cobro
+                    </span>
+                  )}
+                </div>
+                <PermissionGate moduleCode="clientes" action="clients:write">
+                  {!c.is_payment_account && (
+                    <button
+                      onClick={() => handleCuentaCobro(c.id)}
+                      className="mr-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg"
+                    >
+                      Usar como cuenta de cobro
+                    </button>
+                  )}
+                  <button
+                    aria-label="Eliminar CBU"
+                    onClick={() => handleDeleteCbu(c.id)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </PermissionGate>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Documentos (DNI, recibo…): cargados acá o traídos de una solicitud de crédito */}
       <DocumentosCliente clientId={Number(id)} />

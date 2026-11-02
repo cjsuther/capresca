@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { ExternalLink } from "lucide-react";
 import { Field } from "../../../components/ui";
 import { Pill } from "../../../components/Pill";
 import { fmtBytes } from "../../../components/format";
@@ -23,11 +24,21 @@ export const docsFaltantes = (pedidos, actuales) =>
 export const datosFaltantes = (campos, valores) =>
   campos.filter((c) => c.obligatorio && !(valores[c.codigo] || []).length).map((c) => c.etiqueta);
 
+/** Abre el documento en una pestaña nueva, para verlo al lado de los datos de la solicitud. */
+export function BotonPestana({ nombre, onClick }) {
+  return (
+    <button type="button" onClick={onClick} title="Abrir en pestaña nueva" aria-label={`Abrir ${nombre} en pestaña nueva`}
+            className="ml-2 inline-flex align-middle text-gray-400 hover:text-blue-600">
+      <ExternalLink size={13} />
+    </button>
+  );
+}
+
 /**
  * La documentación que pide la línea, una fila por documento, como en el portal.
  * `actuales`: { tipo: { nombre, tamano } } con lo ya adjuntado (archivo elegido o documento guardado).
  */
-export function ListaDocumentos({ pedidos, actuales, onElegir, onQuitar, onVer, ocupado = false, soloLectura = false }) {
+export function ListaDocumentos({ pedidos, actuales, onElegir, onQuitar, onVer, onAbrir, ocupado = false, soloLectura = false }) {
   const inputs = useRef({});
   if (!pedidos.length) return <p className="text-sm text-gray-500">Esta línea no pide documentación.</p>;
   return (
@@ -49,6 +60,7 @@ export function ListaDocumentos({ pedidos, actuales, onElegir, onQuitar, onVer, 
                     ? <button type="button" className="text-blue-600 hover:underline" onClick={() => onVer(actual)}>{actual.nombre}</button>
                     : actual.nombre}
                   <span className="text-gray-400"> · {fmtBytes(actual.tamano)}</span>
+                  {onAbrir && actual.id && <BotonPestana nombre={actual.nombre} onClick={() => onAbrir(actual)} />}
                 </p>
               )}
             </div>

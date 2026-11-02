@@ -22,7 +22,7 @@ vi.mock("../../api/clientes", () => ({
   addMember: vi.fn(),
   removeMember: vi.fn(),
   searchClients: vi.fn(),
-  getCbus: vi.fn(),
+  getCbus: vi.fn(async () => []),
   addCbu: vi.fn(),
   deleteCbu: vi.fn(),
   createHumanClient: vi.fn(),

@@ -7,6 +7,24 @@
 
 ---
 
+## H-225 · CBU de la solicitud: se corrige también aprobada, y los documentos se abren en otra pestaña
+**Fecha:** 2026-11-02 · **Módulo:** Créditos (solicitudes) y Clientes · **Alcance:** pedido del usuario
+- Una APROBADA sin CBU decía "No se puede liquidar: completá CBU", pero no había dónde cargarlo
+  (Modificar sólo existe en BORRADOR/EN_EVALUACION). `PUT /solicitudes/{id}/cbu` lo corrige en BORRADOR,
+  EN_EVALUACION y APROBADA mientras el lote siga ABIERTO (cerrado o con resolución → 409). Queda en el
+  historial de modificaciones (antes/después) y en la auditoría; en EN_EVALUACION reinicia las
+  aprobaciones; en APROBADA, si sólo le faltaba el CBU, entra a su lote en el acto. No pide cuatro ojos.
+- Los documentos de la solicitud se abren en una pestaña nueva (ícono al lado de cada uno, y botón en el
+  visor) para verlos junto a los datos. La pestaña se abre en el mismo click (si no, el navegador la
+  bloquea) y se llena al llegar el archivo; si igual la bloquea, se avisa.
+- Clientes: la ficha de una persona física no mostraba sus CBUs (sólo PJ), aunque el padrón los carga y
+  Créditos los usa; ahora se ven, se agregan y se marca la cuenta de cobro. Recargar un CBU dado de baja
+  daba 500 (UNIQUE con baja lógica): ahora reactiva la fila.
+Tests: `test_lotes_liquidacion.py` (CBU), `modules/clientes/tests/test_cbus.py`; Vitest de Solicitudes y
+de la ficha del cliente.
+
+---
+
 ## H-224 · Edad de la línea: fecha de nacimiento obligatoria y cuotas que no pasan la edad máxima
 **Fecha:** 2026-10-30 · **Módulo:** Créditos (líneas, solicitudes, portal) · **Alcance:** pedido del usuario
 - El rango de edades ya estaba en Disponibilidad (`edadMin`/`edadMax`) y bloqueaba al cargar (H-202),

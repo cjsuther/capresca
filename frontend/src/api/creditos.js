@@ -174,6 +174,8 @@ export const creditos = {
   ppSolicitudCrear: (d) => postIdem(`/solicitudes`, d),
   ppSolicitud: (id) => req(`/solicitudes/${id}`),
   ppSolicitudEditar: (id, d) => req(`/solicitudes/${id}`, { method: "PUT", body: JSON.stringify(d) }),
+  // El CBU se corrige también en una APROBADA (mientras su lote siga abierto).
+  ppSolicitudCbu: (id, cbu) => req(`/solicitudes/${id}/cbu`, { method: "PUT", body: JSON.stringify({ cbu }) }),
   ppDatosCliente: (clienteId) => req(`/solicitudes/datos-cliente/${clienteId}`),
   ppPreAprobado: (d) => req(`/solicitudes/pre-aprobado`, { method: "POST", body: JSON.stringify(d) }),
   ppSolicitudEstado: (id, accion, motivo = "", observacion = "", extra = {}) => req(`/solicitudes/${id}/estado`, { method: "POST", body: JSON.stringify({ accion, motivo, observacion, ...extra }) }),

@@ -489,6 +489,53 @@ def editar(sid: str, data: SolicitudEditIn, request: Request, db: Session = Depe
     return _serial(db, s)
 
 
+class CbuIn(BaseModel):
+    cbu: str
+
+
+CBU_CORREGIBLE = (*EDITABLES, "APROBADA")
+
+
+@router.put("/{sid}/cbu")
+def corregir_cbu(sid: str, data: CbuIn, request: Request, db: Session = Depends(get_db),
+                 user: models.Usuario = Depends(get_current_user)):
+    """Corrige el CBU de acreditación. A diferencia del resto de los datos, también en una APROBADA
+    (p. ej. la que no entra a un lote porque le falta el CBU), mientras su lote siga ABIERTO: con el
+    lote cerrado o con resolución la solicitud está congelada. Queda en el historial de cambios y en la
+    auditoría; si estaba en evaluación, las aprobaciones se reinician como en cualquier modificación."""
+    _req_edita(db, user)
+    s = db.get(m.PPSolicitud, sid)
+    if not s:
+        raise HTTPException(404, "Solicitud no encontrada.")
+    if s.estado not in CBU_CORREGIBLE:
+        raise HTTPException(409, "El CBU se corrige en una solicitud en BORRADOR, EN_EVALUACION o APROBADA.")
+    lote = lotes.bloqueada(db, s)
+    if lote is not None:
+        raise HTTPException(409, f"La solicitud está en el lote {lote.codigo}, que ya no está abierto: "
+                                 "no se modifica. Sacala del lote primero.")
+    cbu = "".join(ch for ch in data.cbu if ch.isdigit())
+    if len(cbu) != 22:
+        raise HTTPException(422, "El CBU de acreditación debe tener 22 dígitos.")
+    da = dict(s.datos_adicionales or {})
+    antes = da.get("cbu") or None
+    if antes == cbu:
+        return _serial(db, s)
+    registro = {"por": user.username, "en": datetime.now().isoformat(timespec="seconds"),
+                "estado": s.estado, "campos": ["cbu"], "cambios": {"cbu": {"antes": antes, "despues": cbu}}}
+    da["cbu"] = cbu
+    s.datos_adicionales = {**da, "modificaciones": [*(da.get("modificaciones") or []), registro][-MAX_MODIFICACIONES:]}
+    if s.estado == "EN_EVALUACION":
+        from app.services import workflow as wf
+        wf.limpiar_aprobaciones(db, "SOLICITUD", s.id)
+    if s.estado == "APROBADA":
+        lotes.asignar(db, s)          # si sólo le faltaba el CBU, ahora entra a su lote
+    db.commit(); db.refresh(s)
+    audit.registrar_cambio(db, usuario=user.username, ip=audit.ip_de(request), entidad="Solicitud",
+                           entidad_id=s.numero, operacion="MODIFICACION", antes={"cbu": antes},
+                           despues={"cbu": cbu}, detalle=f"CBU de acreditación de {s.numero} corregido en {s.estado}")
+    return _serial(db, s)
+
+
 @router.post("/{sid}/estado")
 def cambiar_estado(sid: str, data: AccionIn, db: Session = Depends(get_db),
                    user: models.Usuario = Depends(get_current_user)):

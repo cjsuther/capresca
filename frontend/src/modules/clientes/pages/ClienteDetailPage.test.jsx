@@ -9,7 +9,7 @@ import {
   getClient, getNotes, addNote,
   updateClient, updateHumanProfile, updateLegalProfile, updatePadron,
   getMembers, addMember, removeMember,
-  searchClients, getCbus, addCbu, deleteCbu,
+  searchClients, getCbus, addCbu, updateCbu, deleteCbu,
 } from "../../../api/clientes";
 
 vi.mock("../../../api/clientes", () => ({
@@ -27,8 +27,9 @@ vi.mock("../../../api/clientes", () => ({
   addMember: vi.fn(),
   removeMember: vi.fn(),
   searchClients: vi.fn(),
-  getCbus: vi.fn(),
+  getCbus: vi.fn(async () => []),
   addCbu: vi.fn(),
+  updateCbu: vi.fn(),
   deleteCbu: vi.fn(),
 }));
 
@@ -146,13 +147,17 @@ describe("ClienteDetailPage — carga y datos", () => {
     expect(screen.getByText("Datos personales")).toBeInTheDocument();
   });
 
-  it("en persona física no aparecen miembros ni CBUs", async () => {
+  it("en persona física no aparecen miembros pero sí sus CBUs", async () => {
+    getCbus.mockResolvedValue([{ id: 7, cbu: "0110466420046600526713", alias: null,
+                                 description: "Padrón CCyPP", is_payment_account: false }]);
     montar();
     await screen.findByText("Ana Pérez");
     expect(screen.queryByText("Personas físicas vinculadas")).not.toBeInTheDocument();
-    expect(screen.queryByText("CBUs registrados")).not.toBeInTheDocument();
     expect(getMembers).not.toHaveBeenCalled();
-    expect(getCbus).not.toHaveBeenCalled();
+    expect(screen.getByText("CBUs registrados")).toBeInTheDocument();
+    expect(getCbus).toHaveBeenCalledWith("1");
+    expect(await screen.findByText("0110466420046600526713")).toBeInTheDocument();
+    expect(screen.getByText("Padrón CCyPP")).toBeInTheDocument();
   });
 
   it("muestra los datos de la empresa y marca inactivo", async () => {
@@ -324,7 +329,7 @@ describe("ClienteDetailPage — notas", () => {
   });
 });
 
-describe("ClienteDetailPage — CBUs (solo persona jurídica)", () => {
+describe("ClienteDetailPage — CBUs", () => {
   beforeEach(() => {
     conPermisoEscritura();
     getClient.mockResolvedValue(JURIDICO);
@@ -415,7 +420,7 @@ describe("ClienteDetailPage — CBUs (solo persona jurídica)", () => {
     montar("2");
 
     const fila = (await screen.findByText("1".repeat(22))).closest("div.bg-gray-50");
-    await user.click(within(fila).getByRole("button"));
+    await user.click(within(fila).getByRole("button", { name: "Eliminar CBU" }));
 
     expect(confirmar).toHaveBeenCalledWith("¿Eliminar este CBU?");
     await waitFor(() => expect(deleteCbu).toHaveBeenCalledWith("2", 5));
@@ -429,7 +434,7 @@ describe("ClienteDetailPage — CBUs (solo persona jurídica)", () => {
     montar("2");
 
     const fila = (await screen.findByText("1".repeat(22))).closest("div.bg-gray-50");
-    await user.click(within(fila).getByRole("button"));
+    await user.click(within(fila).getByRole("button", { name: "Eliminar CBU" }));
 
     expect(deleteCbu).not.toHaveBeenCalled();
     confirmar.mockRestore();
@@ -443,10 +448,44 @@ describe("ClienteDetailPage — CBUs (solo persona jurídica)", () => {
     montar("2");
 
     const fila = (await screen.findByText("1".repeat(22))).closest("div.bg-gray-50");
-    await user.click(within(fila).getByRole("button"));
+    await user.click(within(fila).getByRole("button", { name: "Eliminar CBU" }));
 
     expect(await screen.findByText("CBU en uso")).toBeInTheDocument();
     confirmar.mockRestore();
+  });
+
+  it("marca un CBU como cuenta de cobro y recarga la lista", async () => {
+    getCbus.mockResolvedValue([{ id: 5, cbu: "1".repeat(22), alias: null, is_payment_account: false }]);
+    updateCbu.mockResolvedValue({});
+    const user = userEvent.setup();
+    montar("2");
+
+    const fila = (await screen.findByText("1".repeat(22))).closest("div.bg-gray-50");
+    await user.click(within(fila).getByRole("button", { name: "Usar como cuenta de cobro" }));
+
+    await waitFor(() => expect(updateCbu).toHaveBeenCalledWith("2", 5, { is_payment_account: true }));
+    await waitFor(() => expect(getCbus).toHaveBeenCalledTimes(2));
+  });
+
+  it("señala la cuenta de cobro y no ofrece volver a marcarla", async () => {
+    getCbus.mockResolvedValue([{ id: 5, cbu: "1".repeat(22), alias: null, is_payment_account: true }]);
+    montar("2");
+
+    const fila = (await screen.findByText("1".repeat(22))).closest("div.bg-gray-50");
+    expect(within(fila).getByText("Cuenta de cobro")).toBeInTheDocument();
+    expect(within(fila).queryByRole("button", { name: "Usar como cuenta de cobro" })).not.toBeInTheDocument();
+  });
+
+  it("muestra el error del backend al marcar la cuenta de cobro", async () => {
+    getCbus.mockResolvedValue([{ id: 5, cbu: "1".repeat(22), alias: null, is_payment_account: false }]);
+    updateCbu.mockRejectedValue({ response: { data: { detail: "CBU no encontrado" } } });
+    const user = userEvent.setup();
+    montar("2");
+
+    const fila = (await screen.findByText("1".repeat(22))).closest("div.bg-gray-50");
+    await user.click(within(fila).getByRole("button", { name: "Usar como cuenta de cobro" }));
+
+    expect(await screen.findByText("CBU no encontrado")).toBeInTheDocument();
   });
 
   it("sin permiso de escritura no aparece el alta de CBU pero sí el listado", async () => {
@@ -456,6 +495,7 @@ describe("ClienteDetailPage — CBUs (solo persona jurídica)", () => {
 
     expect(await screen.findByText("1".repeat(22))).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("CBU (22 dígitos)")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Usar como cuenta de cobro" })).not.toBeInTheDocument();
   });
 });
 
