@@ -22,7 +22,7 @@ from app import models, models_productos as m
 from app.seed_productos import _componentes_default
 from app.productos_componentes import COMPONENTES, DEFAULT_CONFIG
 from app.services import cobro, requisitos
-from app.services.productos_calc import cronograma, resumen
+from app.services.productos_calc import cronograma, resumen, vencimiento
 
 router = APIRouter(prefix="/api/creditos/productos", tags=["productos"],
                    dependencies=[Depends(get_current_user)])
@@ -316,12 +316,54 @@ def _disponibilidad(v: m.PPVersion) -> dict | None:
         "canales": _lista(cfg.get("canales")),
         "edadMin": cfg.get("edadMin") or None,
         "edadMax": cfg.get("edadMax") or None,
+        # No = la última cuota tiene que vencer con la edad máxima cumplida como mucho (H-224). Sin el
+        # dato (líneas anteriores), sí: como hasta entonces.
+        "permiteCuotasMasAllaEdadMax": bool(cfg.get("permiteCuotasMasAllaEdadMax", True)),
         "antiguedadMinMeses": cfg.get("antiguedadMinMeses") or None,
         "afectacionMaxPct": cfg.get("afectacionMaxPct") or None,
         "requiereGarante": bool(cfg.get("requiereGarante", False)),
         "vigenteDesde": cfg.get("vigenteDesde") or "",
         "vigenteHasta": cfg.get("vigenteHasta") or "",
     }
+
+
+def pide_edad(disp: dict | None) -> bool:
+    """La línea tiene rango de edades: sin fecha de nacimiento no se puede cargar la solicitud."""
+    return bool(disp and (disp["edadMin"] or disp["edadMax"]))
+
+
+def plazo_maximo_por_edad(v: m.PPVersion, disp: dict | None, nacimiento: date | None,
+                          fecha_valor: date | None = None, feriados: set | None = None) -> int | None:
+    """Cuántas cuotas entran sin que la última venza después de la edad máxima (cumplida) de la línea.
+    None = la línea no limita el plazo por la edad (lo permite, no tiene edad máxima o no hay fecha).
+    0 = ni una cuota entra."""
+    if not disp or disp["permiteCuotasMasAllaEdadMax"] or not disp["edadMax"] or not nacimiento:
+        return None
+    p = _params_cronograma(v, feriados)
+    desde = fecha_valor or date.today()
+    for n in range(max(1, v.plazo_maximo), 0, -1):
+        venc = vencimiento(desde, n, frecuencia=p["frecuencia"], dia_pago=p["dia_pago"],
+                           primer_venc_dias=p["primer_venc_dias"], ajuste_fin_semana=p["ajuste_fin_semana"],
+                           feriados=feriados)
+        if edad_de(nacimiento, venc) <= disp["edadMax"]:
+            return n
+    return 0
+
+
+def motivo_edad_al_terminar(v: m.PPVersion, disp: dict | None, nacimiento: date | None, plazo: int,
+                            fecha_valor: date | None = None, feriados: set | None = None) -> str | None:
+    """Si con ese plazo la última cuota vence después de la edad máxima y la línea no lo permite, el
+    motivo (con el plazo máximo que sí entra); si no, None."""
+    maximo = plazo_maximo_por_edad(v, disp, nacimiento, fecha_valor, feriados)
+    if maximo is None or plazo <= maximo:
+        return None
+    tope = disp["edadMax"]
+    edad = edad_de(nacimiento, fecha_valor)
+    if maximo < v.plazo_minimo:
+        return (f"Con {edad} años la última cuota vencería después de los {tope} años (edad máxima de la "
+                f"línea): por la edad no puede pedir esta línea.")
+    return (f"Con {edad} años la última cuota vencería después de los {tope} años (edad máxima de la "
+            f"línea): el plazo máximo es de {maximo} cuotas.")
 
 
 def _elegibilidad(disp: dict | None, ctx: dict) -> dict:
@@ -897,6 +939,7 @@ class DisponibilidadIn(BaseModel):
     segmentos: list[str] = []
     edadMin: int | None = None
     edadMax: int | None = None
+    permiteCuotasMasAllaEdadMax: bool = True  # No: la última cuota vence con la edad máxima cumplida como mucho
     antiguedadMinMeses: int | None = None
     afectacionMaxPct: float | None = None    # tope del crédito: % del sueldo que puede ocupar la cuota
     requiereGarante: bool = False
@@ -920,6 +963,7 @@ def editar_disponibilidad(producto_id: str, data: DisponibilidadIn, db: Session 
         "canales": [str(c).strip().upper() for c in (data.canales or []) if str(c).strip()],
         "segmentos": [str(s).strip() for s in (data.segmentos or []) if str(s).strip()],
         "edadMin": data.edadMin, "edadMax": data.edadMax,
+        "permiteCuotasMasAllaEdadMax": bool(data.permiteCuotasMasAllaEdadMax),
         "antiguedadMinMeses": data.antiguedadMinMeses, "afectacionMaxPct": data.afectacionMaxPct,
         "requiereGarante": bool(data.requiereGarante),
         "vigenteDesde": data.vigenteDesde or "", "vigenteHasta": data.vigenteHasta or "",

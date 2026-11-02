@@ -3,6 +3,7 @@
 En producción los datos vienen del ETL desde los DBF (fase 3). Esto sólo permite
 levantar el sistema y probar el simulador sin el backup real.
 """
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -93,11 +94,11 @@ def seed(db: Session) -> None:
     _clientes = [
         models.Cliente(
             id=1, id_cliente=codigo_cliente(1), cuil="20123456786", dni="12345678",
-            apellido_nombre="PEREZ, JUAN CARLOS", sueldo=Decimal("650000"),
+            apellido_nombre="PEREZ, JUAN CARLOS", sueldo=Decimal("650000"), fecha_nacimiento=date(1980, 5, 14),
             cbu="0110466420046600526713", organismo_id=org.id),
         models.Cliente(
             id=2, id_cliente=codigo_cliente(2), cuil="27234567818", dni="23456781",
-            apellido_nombre="GOMEZ, MARIA LAURA", sueldo=Decimal("820000"),
+            apellido_nombre="GOMEZ, MARIA LAURA", sueldo=Decimal("820000"), fecha_nacimiento=date(1975, 9, 2),
             cbu="0110466420046600520531", organismo_id=org.id),
     ]
     db.add_all(_clientes); db.flush()

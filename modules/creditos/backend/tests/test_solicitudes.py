@@ -35,6 +35,8 @@ def _base(client, h, **kw):
     d = {"producto_id": _pers_id(client, h), "monto_solicitado": 1_000_000, "plazo_solicitado": 24,
          "solicitante_tipo": "REGISTRADO", "cliente_id": _cliente_id(client, h)}
     d.update(kw)
+    if d["solicitante_tipo"] == "NO_REGISTRADO":
+        d.setdefault("fecha_nacimiento", "1985-03-10")   # la línea pide edad (H-224); el registrado usa la del padrón
     return d
 
 

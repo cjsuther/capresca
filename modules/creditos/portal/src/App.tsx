@@ -510,6 +510,12 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
   }
 
   const prod = useMemo(() => productos.find((p) => p.id === prodId) || null, [productos, prodId]);
+  // Si la línea no deja que las cuotas pasen su edad máxima, el plazo llega hasta lo que entra por la edad.
+  const plazoMax = prod ? Math.min(prod.plazo_max, prod.plazo_max_edad ?? prod.plazo_max) : 60;
+  const sinPlazoPorEdad = !!prod && plazoMax < prod.plazo_min;
+  useEffect(() => {
+    if (prod && !sinPlazoPorEdad && Number(plazo) > plazoMax) setPlazo(String(plazoMax));
+  }, [prod, plazoMax, sinPlazoPorEdad, plazo]);
 
   function irASimulacion() {
     if (!apellido.trim() || !nombre.trim()) { setDatosErr("Cargá tu apellido y nombre."); return; }
@@ -520,6 +526,7 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
     if (edad < 18 || edad > 99) { setDatosErr("Revisá tu fecha de nacimiento: la edad tiene que estar entre 18 y 99 años."); return; }
     if (!emailValido(email)) { setDatosErr("Cargá un email válido para que podamos contactarte."); return; }
     if (telDigits.replace("+", "").length < 8) { setDatosErr("Cargá un teléfono de contacto."); return; }
+    api.productos(nacimiento).then(setProductos).catch((e) => setErr(String(e)));   // plazos según la edad
     setDatosErr(""); setPaso(2);
   }
   function reiniciarWizard() { setPaso(1); setSim(null); }
@@ -830,8 +837,12 @@ function Simulador({ sesion, onSalir }: { sesion: Ciudadano; onSalir: () => void
                 <span>Monto: <b className="p-slider-val">{money(Number(monto))}</b>{prod ? <em className="p-fine"> ({money(prod.monto_min)}–{money(prod.monto_max)})</em> : null}</span>
                 <input type="range" min={prod?.monto_min || 0} max={prod?.monto_max || 1000000} step="10000" value={monto} onChange={(e) => setMonto(e.target.value)} /></div>
               <div className="p-fld p-col2">
-                <span>Cuotas: <b className="p-slider-val">{plazo}</b>{prod ? <em className="p-fine"> ({prod.plazo_min}–{prod.plazo_max})</em> : null}</span>
-                <input type="range" min={prod?.plazo_min || 1} max={prod?.plazo_max || 60} step="1" value={plazo} onChange={(e) => setPlazo(e.target.value)} /></div>
+                <span>Cuotas: <b className="p-slider-val">{plazo}</b>{prod ? <em className="p-fine"> ({prod.plazo_min}–{plazoMax})</em> : null}</span>
+                <input type="range" min={prod?.plazo_min || 1} max={plazoMax} step="1" value={plazo} disabled={sinPlazoPorEdad}
+                       onChange={(e) => setPlazo(e.target.value)} />
+                {sinPlazoPorEdad
+                  ? <em className="p-fine">Por tu edad no podés pedir este crédito: la última cuota vencería después de la edad máxima.</em>
+                  : prod && plazoMax < prod.plazo_max && <em className="p-fine">Por tu edad, hasta {plazoMax} cuotas.</em>}</div>
 
               <div className="p-col2 p-actions">
                 <button type="button" className="p-btn-ghost" onClick={() => setPaso(1)}>← Volver</button>

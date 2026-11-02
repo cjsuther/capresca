@@ -59,6 +59,16 @@ def _venc(fecha_valor: date, k: int, per: int, dia_pago: int,
     return _ajusta(date(y, mo + 1, day), ajuste, feriados)
 
 
+def vencimiento(fecha_valor: date, k: int, *, frecuencia: str = "MENSUAL", dia_pago: int = 5,
+                primer_venc_dias: int = 30, ajuste_fin_semana: str = "SIN_AJUSTE",
+                feriados: set[date] | None = None) -> date:
+    """Vencimiento de la cuota `k`, el mismo que le pone `cronograma` (sin calcular importes)."""
+    per = 3 if str(frecuencia).upper() == "TRIMESTRAL" else 1
+    return _venc(fecha_valor, k, per, int(dia_pago or 5),
+                 int(primer_venc_dias if primer_venc_dias is not None else 30),
+                 str(ajuste_fin_semana or "SIN_AJUSTE"), feriados)
+
+
 def cronograma(sistema: str, monto: float, plazo: int, tna: float,
                cargo_pct: float = 0.0, fecha_valor: date | None = None, *,
                gracia: int = 0, frecuencia: str = "MENSUAL",

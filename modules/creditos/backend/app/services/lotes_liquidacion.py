@@ -252,6 +252,10 @@ def cerrar(db: Session, lote_id: int, usuario: str) -> m.PPLoteLiquidacion:
     problemas = no_liquidables(db, lote)
     if problemas:
         raise HTTPException(409, "El lote tiene solicitudes que no se pueden liquidar. " + "; ".join(problemas))
+    sin_aprobar = desembolsos_sin_aprobar(db, lote)
+    if sin_aprobar:
+        raise HTTPException(409, "El lote tiene desembolsos esperando aprobación: " + ", ".join(sin_aprobar)
+                                 + ". Se cierra cuando estén aprobados.")
     lote.estado = CERRADO
     lote.cerrado_por = usuario
     lote.cerrado_en = datetime.now()
@@ -466,6 +470,20 @@ def no_liquidables(db: Session, lote: m.PPLoteLiquidacion) -> list[str]:
             # de la solicitud, si no al del cliente (contratos._pago_de).
             problemas.append(f"{c.numero_contrato}: falta CBU de acreditación (22 dígitos)")
     return problemas
+
+
+def desembolsos_sin_aprobar(db: Session, lote: m.PPLoteLiquidacion) -> list[str]:
+    """Ítems del lote cuyo desembolso espera aprobación del workflow (en pantalla: "Esperando
+    aprobación"): la solicitud y su contrato, o el contrato si no tiene solicitud."""
+    filas = [(s, c) for s, c in items(db, lote) if c is not None]
+    if not filas:
+        return []
+    pendientes = {p.contrato_id for p in db.query(m.PPWorkflowPendiente)
+                  .filter(m.PPWorkflowPendiente.objeto == "DESEMBOLSO",
+                          m.PPWorkflowPendiente.estado == "PENDIENTE",
+                          m.PPWorkflowPendiente.contrato_id.in_([c.id for _s, c in filas])).all()}
+    return [f"{s.numero} ({c.numero_contrato})" if s is not None else c.numero_contrato
+            for s, c in filas if c.id in pendientes]
 
 
 def _cbu_de(db: Session, s: m.PPSolicitud | None, c: m.PPContrato) -> str:

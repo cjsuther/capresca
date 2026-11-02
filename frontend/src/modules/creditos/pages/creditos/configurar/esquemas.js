@@ -107,7 +107,7 @@ export const CONFIG_DEFAULT = {
   SETTLEMENT: { generaLiquidacion: true, remitirA: "TESORERIA" },
   ACCOUNTING: { cuentaCapital: "1.1.05.01", cuentaInteres: "4.1.01", cuentaComision: "4.1.04",
                 cuentaIva: "2.1.07", cuentaMora: "4.1.02", centroCosto: "CRED" },
-  AVAILABILITY: { canales: ["SUCURSAL", "WEB"], segmentos: ["AGENTE_PUBLICO"], edadMin: 18, edadMax: 75,
+  AVAILABILITY: { canales: ["SUCURSAL", "WEB"], segmentos: ["AGENTE_PUBLICO"], edadMin: 18, edadMax: 75, permiteCuotasMasAllaEdadMax: true,
                   antiguedadMinMeses: 0, afectacionMaxPct: 30, requiereGarante: false,
                   vigenteDesde: "", vigenteHasta: "" },
   ACTIVITY_RESTRICTION: { permitePrepago: true, permiteRenegociacion: true, permiteVacacionPago: false },

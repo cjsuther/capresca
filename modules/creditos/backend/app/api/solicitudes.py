@@ -26,7 +26,8 @@ from app.deps import get_current_user
 from app import models, models_productos as m
 from app.api.productos import (_version_efectiva, _disponibilidad, _elegibilidad,
                                _tna_base, _calc_codigo_por_version, _params_cronograma,
-                               _cargo, _feriados_engine, decimales_calculo)
+                               _cargo, _feriados_engine, decimales_calculo, pide_edad,
+                               motivo_edad_al_terminar)
 from app.core.permisos import caps_creditos
 from app.api.contratos import _ctx
 from app.services.productos_calc import cronograma, resumen
@@ -124,9 +125,15 @@ def _evaluar(db: Session, s: m.PPSolicitud) -> dict:
     ctx = _ctx(s.segmento or None, s.canal or None,
                edad_de(s.fecha_nacimiento) or s.edad, s.antiguedad_meses)
     ctx["afectacion"] = round(cuota_est / sueldo * 100, 1) if (sueldo > 0 and cuota_est) else None
-    elig = _elegibilidad(_disponibilidad(v), ctx)
+    disp = _disponibilidad(v)
+    elig = _elegibilidad(disp, ctx)
     if not elig.get("elegible", True):
         motivos += elig.get("motivos", [])
+    # Si la línea no deja que las cuotas pasen la edad máxima, la última tiene que vencer antes (H-224).
+    if s.fecha_nacimiento and disp and disp["edadMax"] and not disp["permiteCuotasMasAllaEdadMax"]:
+        por_edad = motivo_edad_al_terminar(v, disp, s.fecha_nacimiento, plazo, feriados=_feriados_engine(db))
+        if por_edad:
+            motivos.append(por_edad)
     return {"elegible": not motivos, "motivos": motivos,
             "tna_ofrecida": round(tna_ef or tna, 4), "cuota_estimada": round(cuota_est, 2)}
 
@@ -292,6 +299,15 @@ def crear(data: SolicitudIn, db: Session = Depends(get_db),
         cd = data.cliente_datos or {}
         if not (cd.get("apellido_nombre") and cd.get("cuil")):
             raise HTTPException(422, "El alta express requiere al menos nombre y CUIL.")
+    # Con rango de edades en la línea, la fecha de nacimiento es obligatoria (H-224): la del cliente del
+    # padrón si no se cargó otra.
+    if data.fecha_nacimiento is None and tipo == "REGISTRADO":
+        data.fecha_nacimiento = db.get(models.Cliente, data.cliente_id).fecha_nacimiento
+    disp = _disponibilidad(_version_efectiva(db.get(m.PPProducto, data.producto_id)))
+    if data.fecha_nacimiento is None and pide_edad(disp):
+        rango = " y ".join(x for x in (f"desde {disp['edadMin']}" if disp["edadMin"] else "",
+                                       f"hasta {disp['edadMax']}" if disp["edadMax"] else "") if x)
+        raise HTTPException(422, f"Cargá la fecha de nacimiento: esta línea es para solicitantes {rango} años.")
 
     # H-202: bloqueo duro por elegibilidad. Si lo declarado NO cumple las condiciones de la línea
     # (segmento/canal/edad/antigüedad/monto/plazo), no se puede pedir la solicitud — misma regla que el

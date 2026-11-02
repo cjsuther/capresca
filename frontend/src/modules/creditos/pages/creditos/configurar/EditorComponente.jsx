@@ -283,6 +283,14 @@ export function EditorComponente({
               <input type="number" className="input w-full" disabled={!editableDisp} value={comp.config.edadMax ?? ""}
                      onChange={(e) => setCompCfg(comp.codigo, { edadMax: Number(e.target.value) || 0 })} />
             </Field>
+            {/* No: la última cuota tiene que vencer con la edad máxima cumplida como mucho. Sin el dato, sí. */}
+            <Field label="Cuotas después de la edad máxima">
+              <select className="input w-full" disabled={!editableDisp}
+                      value={String(comp.config.permiteCuotasMasAllaEdadMax !== false)}
+                      onChange={(e) => setCompCfg(comp.codigo, { permiteCuotasMasAllaEdadMax: e.target.value === "true" })}>
+                <option value="true">Se permiten</option><option value="false">No se permiten</option>
+              </select>
+            </Field>
             {/* Se declara y se muestra en años (lo que dice el recibo); adentro sigue siendo meses. */}
             <Field label="Antigüedad mín. (años)">
               <input type="number" min="0" step="0.5" className="input w-full" disabled={!editableDisp}

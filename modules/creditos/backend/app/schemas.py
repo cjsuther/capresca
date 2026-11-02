@@ -151,6 +151,7 @@ class PortalProductoOut(BaseModel):
     monto_max: float
     plazo_min: int
     plazo_max: int
+    plazo_max_edad: int | None = None   # con fecha de nacimiento: cuotas que entran por la edad (None = sin tope)
     cobro: dict | None = None    # forma de cobro (código de descuento): se avisa al final de la solicitud
 
 

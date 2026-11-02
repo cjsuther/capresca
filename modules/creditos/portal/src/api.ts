@@ -72,7 +72,7 @@ export type Haberes = { disponible: boolean; sueldo: number | null; antiguedad_m
 // Producto del product builder nuevo (pp_*), no la línea legacy.
 // Forma de cobro de la línea: con código de descuento, la cuota sale del recibo de sueldo.
 export type Cobro = { modalidad: "CODIGO_DESCUENTO" | "VENTANILLA" | "DEBITO_AUTOMATICO"; codigoDescuento: string; conceptoRecibo: string; detalle: string };
-export type Producto = { id: string; nombre: string; codigo: string; sistema: string; tna: number; monto_min: number; monto_max: number; plazo_min: number; plazo_max: number; cobro?: Cobro | null };
+export type Producto = { id: string; nombre: string; codigo: string; sistema: string; tna: number; monto_min: number; monto_max: number; plazo_min: number; plazo_max: number; plazo_max_edad?: number | null; cobro?: Cobro | null };
 export type Cuota = { numero: number; vencimiento: string; capital: number; interes: number; cargos: number; impuestos: number; total: number };
 export type Datos = { segmento?: string; fecha_nacimiento?: string; antiguedad_meses?: number; sueldo?: number;
                       email?: string; telefono?: string };
@@ -130,7 +130,9 @@ export const api = {
     req(`/portal/auth/evidencia/${encodeURIComponent(intento)}`),
   me: (): Promise<Ciudadano> => req("/portal/me"),
   haberes: (): Promise<Haberes> => req("/portal/haberes"),
-  productos: (): Promise<Producto[]> => req("/portal/productos"),
+  // Con la fecha de nacimiento, cada línea trae hasta cuántas cuotas entran por la edad.
+  productos: (nacimiento?: string): Promise<Producto[]> =>
+    req(`/portal/productos${nacimiento ? `?nacimiento=${encodeURIComponent(nacimiento)}` : ""}`),
   simular: (b: { producto_id: string; monto: number; plazo: number } & Datos): Promise<Simulacion> =>
     req("/portal/simular", { method: "POST", body: JSON.stringify(b) }),
   preAprobado: (b: { producto_id: string; plazo: number; sueldo: number; afectacion_max?: number }): Promise<PreAprobado> =>

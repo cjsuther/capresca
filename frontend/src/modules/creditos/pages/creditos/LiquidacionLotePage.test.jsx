@@ -74,6 +74,17 @@ describe("Lotes", () => {
     expect(await screen.findByText(/Lote 2026-0008 cerrado/)).toBeInTheDocument();
   });
 
+  it("un lote abierto con desembolsos esperando aprobación no se puede cerrar", async () => {
+    creditos.ctoLotesLiquidacion.mockResolvedValue({ ...LOTES, items: [{ ...LOTES.items[1], pendientes: 1,
+      contratos: [item("c", { tipo: "contrato", numero: "CTO-1", pendienteAprobacion: true })] }] });
+    const u = userEvent.setup();
+    montar();
+    await u.click(await screen.findByText("2026-0008"));
+    const boton = screen.getByRole("button", { name: "Cerrar lote" });
+    expect(boton).toBeDisabled();
+    expect(boton).toHaveAttribute("title", expect.stringMatching(/esperando aprobación/));
+  });
+
   it("un lote cerrado muestra quién lo cerró y se puede reabrir", async () => {
     const u = userEvent.setup();
     montar();

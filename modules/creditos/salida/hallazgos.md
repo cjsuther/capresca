@@ -7,6 +7,33 @@
 
 ---
 
+## H-224 · Edad de la línea: fecha de nacimiento obligatoria y cuotas que no pasan la edad máxima
+**Fecha:** 2026-10-30 · **Módulo:** Créditos (líneas, solicitudes, portal) · **Alcance:** pedido del usuario
+- El rango de edades ya estaba en Disponibilidad (`edadMin`/`edadMax`) y bloqueaba al cargar (H-202),
+  pero **sin fecha de nacimiento no se controlaba**. Ahora, si la línea tiene rango, la plataforma no
+  carga la solicitud sin fecha (al cliente del padrón se le toma la suya); el portal ya la pedía.
+  Las solicitudes ya cargadas sin fecha no se tocan: el requisito es sólo al cargar.
+- Parámetro nuevo de Disponibilidad `permiteCuotasMasAllaEdadMax` (por defecto **sí**, como hasta ahora;
+  se edita sin versión nueva, como el resto de Disponibilidad, H-189). En **no**, la última cuota tiene
+  que vencer con la edad máxima **cumplida** como mucho (máx. 75 → puede terminar de pagar con 75, no con
+  76). Si no entra, el error dice el plazo máximo posible, o que por la edad no puede pedir la línea.
+- El vencimiento de la última cuota sale del motor (`productos_calc.vencimiento`, el mismo `_venc` del
+  cronograma, con día de pago, 1er vencimiento, ajuste y feriados de la línea): no hay otra cuenta.
+- Rige al cargar, al modificar y al aprobar (`_evaluar`), en la plataforma y en el portal; el simulador
+  del portal limita las cuotas a las que entran por la edad (`/portal/productos?nacimiento=`).
+Tests: `tests/test_edad_linea.py`; Vitest de Configurar créditos y del portal.
+
+## H-223 · Un lote se cerraba con desembolsos esperando aprobación
+**Fecha:** 2026-10-30 · **Módulo:** Créditos (lotes) · **Alcance:** pedido del usuario
+**Evidencia:** en dev, los lotes ABIERTOS 2026-0006 (CTO-2026-00012) y 2026-0011 (SOL-2026-00003 /
+CTO-2026-00002) tenían ítems "Esperando aprobación" (`pp_workflow_pendiente` DESEMBOLSO PENDIENTE) y se
+podían cerrar: `cerrar()` sólo miraba `no_liquidables()`, que acepta un contrato A_LIQUIDAR aunque su
+desembolso no esté aprobado. 2026-0004 llegó así a CON_RESOLUCION (CTO-2026-00009).
+**Impacto:** `cerrar()` rechaza (409) el lote con algún desembolso pendiente de aprobación y lista los
+ítems; en la pantalla el botón "Cerrar lote" queda deshabilitado con el motivo. Sólo frena el cierre: los
+lotes ya cerrados o con resolución no se tocaron (decisión del usuario), y Despacho/Tesorería no cambian.
+Test: `test_no_se_cierra_un_lote_con_un_desembolso_esperando_aprobacion`.
+
 ## H-222 · Módulo Contabilidad: el asiento se arma acá, desde la transacción del módulo
 **Fecha:** 2026-09-22 · **Módulo:** Contabilidad (nuevo) / Créditos / Tesorería · **Alcance:** pedido del usuario
 - Nuevo módulo **Contabilidad** (:8014). **Ningún módulo manda asientos**: mandan la transacción que

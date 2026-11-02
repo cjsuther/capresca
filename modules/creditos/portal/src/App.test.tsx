@@ -520,6 +520,23 @@ describe("paso 4 · videos", () => {
 
 // ---------------------------------------------------------------------------
 describe("paso 2 · simulación", () => {
+  it("con la fecha de nacimiento, las cuotas llegan hasta lo que permite la edad", async () => {
+    api.productos.mockImplementation(async (nac?: string) => [{ ...PRODUCTO, plazo_max_edad: nac ? 20 : null }]);
+    const u = await montarLogueado();
+    await completarDatos(u);
+    await waitFor(() => expect(api.productos).toHaveBeenCalledWith(NACIMIENTO));
+    expect(await screen.findByText(/Por tu edad, hasta 20 cuotas/)).toBeInTheDocument();
+    expect(screen.getAllByRole("slider")[1]).toHaveAttribute("max", "20");
+  });
+
+  it("si por la edad no entra ni el plazo mínimo, lo dice", async () => {
+    api.productos.mockImplementation(async (nac?: string) => [{ ...PRODUCTO, plazo_max_edad: nac ? 3 : null }]);
+    const u = await montarLogueado();
+    await completarDatos(u);
+    expect(await screen.findByText(/Por tu edad no podés pedir este crédito/)).toBeInTheDocument();
+    expect(screen.getAllByRole("slider")[1]).toBeDisabled();
+  });
+
   it("en un sitio sin HTTPS (sin crypto.randomUUID) simula y deja continuar", async () => {
     // Regresión: servido por HTTP en una IP, randomUUID no existe; el error se tapaba y no aparecía
     // ni la simulación ni el botón "Continuar".

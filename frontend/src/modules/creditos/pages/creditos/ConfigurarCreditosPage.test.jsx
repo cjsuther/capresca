@@ -333,6 +333,22 @@ describe("Configurar Créditos · builder", () => {
       expect.objectContaining({ antiguedadMinMeses: 24 })));
   });
 
+  it("la línea decide si las cuotas pueden vencer después de la edad máxima", async () => {
+    creditos.editarDisponibilidad.mockResolvedValue(PUBLICADO);
+    const u = userEvent.setup();
+    render(<ConfigurarCreditosPage />);
+    await abrirLinea(u, "Personal Publicado");
+
+    await u.click(await screen.findByText("Disponibilidad"));
+    const campo = screen.getByLabelText("Cuotas después de la edad máxima");
+    expect(campo).toHaveValue("true");                         // por defecto se permite, como hasta ahora
+    await u.selectOptions(campo, "false");
+    await u.click(screen.getByRole("button", { name: "Guardar disponibilidad" }));
+
+    await waitFor(() => expect(creditos.editarDisponibilidad).toHaveBeenCalledWith("p2",
+      expect.objectContaining({ permiteCuotasMasAllaEdadMax: false })));
+  });
+
   it("la prueba en vivo muestra validaciones y cronograma", async () => {
     const u = userEvent.setup();
     render(<ConfigurarCreditosPage />);

@@ -51,7 +51,8 @@ DEFAULT_CONFIG: dict[str, dict] = {
     # `afectacionMaxPct`: cuánto del sueldo puede ocupar la cuota. Es el tope del crédito por línea
     # (antes estaba fijo en 30% en el código del portal).
     "AVAILABILITY": {"canales": ["SUCURSAL", "WEB"], "segmentos": ["AGENTE_PUBLICO"],
-                      "edadMin": 18, "edadMax": 75, "antiguedadMinMeses": 0,
+                      "edadMin": 18, "edadMax": 75, "permiteCuotasMasAllaEdadMax": True,
+                      "antiguedadMinMeses": 0,
                       "afectacionMaxPct": 30,
                       "requiereGarante": False, "vigenteDesde": "", "vigenteHasta": ""},
     "ACTIVITY_RESTRICTION": {"permitePrepago": True, "permiteRenegociacion": True,

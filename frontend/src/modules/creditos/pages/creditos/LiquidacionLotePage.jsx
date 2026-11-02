@@ -244,7 +244,9 @@ export default function LiquidacionLotePage() {
               <Boton variante="secundario" onClick={() => setSel(null)}>Cerrar</Boton>
               <span className="flex-1" />
               {puedeEscribir && sel.estado === "ABIERTO" && (
-                <Boton disabled={cambiando || !sel.cantidad} onClick={() => setCerrando(true)}>
+                <Boton disabled={cambiando || !sel.cantidad || !!sel.pendientes}
+                       title={sel.pendientes ? `Tiene ${sel.pendientes} desembolso(s) esperando aprobación: se cierra cuando estén aprobados.` : ""}
+                       onClick={() => setCerrando(true)}>
                   Cerrar lote
                 </Boton>
               )}

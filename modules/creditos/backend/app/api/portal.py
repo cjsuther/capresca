@@ -40,7 +40,8 @@ from app.services.productos_calc import cronograma, resumen
 # el mismo cronograma que la originación del contrato (pp_contrato) → simulado == contratado.
 from app.api.productos import (_calc_codigo_por_version, _tna_base, _cargo,
                                _params_cronograma, _feriados_engine, _version_publicada_vigente,
-                               _disponibilidad, _elegibilidad, canal_portal, decimales_calculo)
+                               _disponibilidad, _elegibilidad, canal_portal, decimales_calculo,
+                               plazo_maximo_por_edad, motivo_edad_al_terminar)
 from app.api.contratos import _ctx
 from app.api.solicitudes import _numero as _numero_solicitud, _evaluar as _evaluar_solicitud, cliente_en_padron
 from app import models, models_productos as m, schemas
@@ -353,9 +354,12 @@ def _ofrecible_web(db: Session, v: m.PPVersion) -> bool:
 
 
 @router.get("/productos", response_model=list[schemas.PortalProductoOut])
-def productos_publicos(db: Session = Depends(get_db), _c: Ciudadano = Depends(get_ciudadano)):
-    """Sólo productos PUBLICADOS y VIGENTES hoy, y habilitados en el canal del portal (H-185)."""
+def productos_publicos(nacimiento: date | None = None, db: Session = Depends(get_db),
+                       _c: Ciudadano = Depends(get_ciudadano)):
+    """Sólo productos PUBLICADOS y VIGENTES hoy, y habilitados en el canal del portal (H-185). Con la
+    fecha de nacimiento, cada línea dice hasta cuántas cuotas entran por la edad (H-224)."""
     calc = _calc_codigo_por_version(db)
+    feriados = _feriados_engine(db) if nacimiento else None
     out = []
     for p in db.query(m.PPProducto).all():
         v = _version_publicada_vigente(p)
@@ -365,7 +369,9 @@ def productos_publicos(db: Session = Depends(get_db), _c: Ciudadano = Depends(ge
             id=p.id, nombre=p.nombre, codigo=p.codigo,
             sistema=calc.get(v.calculador_version_id, "FRANCES"), tna=round(_tna_base(db, v), 4),
             monto_min=float(v.monto_minimo), monto_max=float(v.monto_maximo),
-            plazo_min=v.plazo_minimo, plazo_max=v.plazo_maximo, cobro=cobro.de(v)))
+            plazo_min=v.plazo_minimo, plazo_max=v.plazo_maximo,
+            plazo_max_edad=plazo_maximo_por_edad(v, _disponibilidad(v), nacimiento, feriados=feriados),
+            cobro=cobro.de(v)))
     return sorted(out, key=lambda x: x.nombre)
 
 
@@ -399,7 +405,7 @@ def simular(req: schemas.PortalSimularIn, db: Session = Depends(get_db),
         total=round(float(f["total"]), 2)) for f in filas]
     cuota_prom = round(r["totalCuotas"] / len(filas), 2) if filas else 0.0
     # La afectación se mide con la primera cuota (la más alta), igual que al evaluar la solicitud.
-    elegible, motivos, afectacion = _evaluar_ciudadano(db, v, req, r["primeraCuota"])
+    elegible, motivos, afectacion = _evaluar_ciudadano(db, v, req, r["primeraCuota"], req.plazo)
     return schemas.PortalSimulacionOut(
         producto=prod.nombre, sistema=sistema, tna=round(tna, 4), monto=req.monto,
         cantidad_cuotas=len(filas), total_a_pagar=r["totalCuotas"], total_interes=r["totalInteres"],
@@ -458,7 +464,7 @@ def calcular_pre_aprobado(db: Session, v, plazo: int, sueldo: float,
         afectacion_max=afectacion_max)
 
 
-def _evaluar_ciudadano(db: Session, v, datos: schemas.DatosSolicitante, cuota: float):
+def _evaluar_ciudadano(db: Session, v, datos: schemas.DatosSolicitante, cuota: float, plazo: int):
     """Elegibilidad (según los datos declarados, canal WEB) + afectación estimada (cuota/sueldo).
     Devuelve (elegible|None, motivos, afectacion%|None). elegible=None si no declaró datos."""
     edad = edad_de(datos.fecha_nacimiento)
@@ -466,10 +472,18 @@ def _evaluar_ciudadano(db: Session, v, datos: schemas.DatosSolicitante, cuota: f
     afectacion = round(cuota / datos.sueldo * 100, 1) if (datos.sueldo and datos.sueldo > 0) else None
     elegible, motivos = None, []
     if declaro or afectacion is not None:
+        disp = _disponibilidad(v)
         ctx = _ctx(datos.segmento or None, "WEB", edad, datos.antiguedad_meses)
         ctx["afectacion"] = afectacion          # el tope de la línea también decide la elegibilidad
-        ev = _elegibilidad(_disponibilidad(v), ctx)
-        elegible, motivos = ev["elegible"], ev["motivos"]
+        ev = _elegibilidad(disp, ctx)
+        elegible, motivos = ev["elegible"], list(ev["motivos"])
+        # Lo mismo que se controla al enviar: la última cuota y la edad máxima de la línea (H-224).
+        if datos.fecha_nacimiento and disp and disp["edadMax"] and not disp["permiteCuotasMasAllaEdadMax"]:
+            por_edad = motivo_edad_al_terminar(v, disp, datos.fecha_nacimiento, plazo,
+                                               feriados=_feriados_engine(db))
+            if por_edad:
+                elegible = False
+                motivos.append(por_edad)
     return elegible, motivos, afectacion
 
 

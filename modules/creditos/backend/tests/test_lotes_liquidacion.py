@@ -260,6 +260,36 @@ def test_no_se_cierra_un_lote_con_algo_que_no_se_puede_liquidar(client):
     assert _lote(lid).estado == "ABIERTO"
 
 
+def test_no_se_cierra_un_lote_con_un_desembolso_esperando_aprobacion(client):
+    """El ítem que la pantalla muestra "Esperando aprobación" (contrato del circuito anterior con la
+    aprobación del desembolso pendiente) frena el cierre hasta que se apruebe."""
+    h = _auth(client)
+    pid = _producto()
+    lid = _sol(_aprobada(pid)).lote_liquidacion_id
+    with SessionLocal() as db:
+        c = m.PPContrato(producto_id=pid, producto_version_numero=1, numero_contrato="CTO-P-1",
+                         cliente_nombre="P", sistema="FRANCES", monto_original=Decimal(100),
+                         saldo_capital=Decimal(100), plazo=12, tasa_contratada=Decimal(50),
+                         fecha_valor=_lote(lid).fecha, fecha_vencimiento=_lote(lid).fecha, estado="A_LIQUIDAR",
+                         lote_liquidacion_id=lid, datos_adicionales={"cbu": "0" * 22})
+        db.add(c); db.flush()
+        pend = m.PPWorkflowPendiente(objeto="DESEMBOLSO", contrato_id=c.id, solicitado_por="emisor")
+        db.add(pend); db.commit()
+        pend_id = pend.id
+
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/cerrar", headers=h)
+    assert r.status_code == 409, r.text
+    assert "CTO-P-1" in r.json()["detail"] and "aprobación" in r.json()["detail"]
+    assert _lote(lid).estado == "ABIERTO"
+
+    with SessionLocal() as db:
+        db.get(m.PPWorkflowPendiente, pend_id).estado = "APROBADO"
+        db.commit()
+    r = client.post(f"/api/creditos/contratos/lotes-liquidacion/{lid}/cerrar", headers=h)
+    assert r.status_code == 200, r.text
+    assert _lote(lid).estado == "CERRADO"
+
+
 def test_un_lote_cerrado_se_reabre_mientras_no_tenga_resolucion(client):
     h = _auth(client)
     lid = _sol(_aprobada(_producto())).lote_liquidacion_id
