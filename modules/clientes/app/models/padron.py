@@ -10,7 +10,7 @@ Tres piezas:
   cliente puede tener varias referencias. Sirve para no perder la trazabilidad con lo viejo.
 - `ClientImport` / `ClientImportRechazo`: la importación en sí, con su avance y lo que quedó afuera.
 """
-from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer,
+from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer, false,
                         Numeric, String, Text, func)
 from sqlalchemy.orm import relationship
 
@@ -44,6 +44,8 @@ class ClientPadron(Base):
     cuenta = Column(BigInteger, nullable=True)
     beneficio = Column(String(20), nullable=True)
     debito_automatico = Column(Boolean, nullable=False, default=False)
+    # LCAPRE: "Empleado de C.C. y P.P." en la ficha vieja (empleado de la propia Caja).
+    empleado_ccypp = Column(Boolean, nullable=False, default=False, server_default=false())
     baja = Column(Boolean, nullable=False, default=False)
     fecha_baja = Column(DateTime(timezone=True), nullable=True)
     motivo_baja = Column(String(60), nullable=True)

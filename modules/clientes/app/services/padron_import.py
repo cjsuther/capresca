@@ -353,7 +353,7 @@ def _fila(db: Session, imp: Ctx, row: dict, cache: dict, fila: int, idx: Indices
             _completar(db, client_id, row, cuil, dni, apenom)
     if not nuevo and en_cache is None:
         _completar(db, client_id, row, cuil, dni, apenom)
-    _padron(db, client_id, row, idx)
+    _padron(db, client_id, row, idx, repetido=en_cache is not None)
     _cbu(db, client_id, row, imp, idx)
     _legacy_ref(db, client_id, row, imp, idx)
     return "creado" if nuevo else "actualizado"
@@ -420,7 +420,7 @@ def _completar(db: Session, client_id: int, row: dict, cuil: str, dni: str, apen
             perfil.gender = _s(row.get("csexo"))[:16] or None
 
 
-def _padron(db: Session, client_id: int, row: dict, idx: Indices) -> None:
+def _padron(db: Session, client_id: int, row: dict, idx: Indices, repetido: bool = False) -> None:
     """Datos de revista: acá el maestro viejo manda, así que se actualizan siempre.
 
     Va por sentencia directa (sin objeto del ORM): son 78.000 filas y la sesión no tiene que
@@ -443,6 +443,12 @@ def _padron(db: Session, client_id: int, row: dict, idx: Indices) -> None:
         "fecha_baja": row.get("fecbaja"),
         "motivo_baja": _s(row.get("cmotbaja"))[:60] or None,
     }
+    # La persona figura una vez por organismo y la marca de empleado de la Caja no siempre coincide
+    # entre sus registros (83 casos en el padrón de septiembre): es empleado si lo dice cualquiera.
+    # Por eso un registro repetido en la misma corrida sólo la prende, nunca la apaga.
+    empleado = bool(row.get("lcapre"))
+    if not repetido or empleado:
+        valores["empleado_ccypp"] = empleado
     tabla = ClientPadron.__table__
     if client_id in idx.padrones:
         db.execute(tabla.update().where(tabla.c.client_id == client_id).values(**valores))

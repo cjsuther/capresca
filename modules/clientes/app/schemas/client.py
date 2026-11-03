@@ -135,7 +135,9 @@ class PadronResponse(BaseModel):
     cuenta: Optional[int] = None
     beneficio: Optional[str] = None
     debito_automatico: bool = False
+    empleado_ccypp: bool = False
     baja: bool = False
+    fecha_baja: Optional[datetime] = None
     motivo_baja: Optional[str] = None
 
     model_config = {"from_attributes": True}
@@ -157,6 +159,7 @@ class PadronUpdate(BaseModel):
     cuenta: Optional[int] = None
     beneficio: Optional[str] = None
     debito_automatico: Optional[bool] = None
+    empleado_ccypp: Optional[bool] = None
 
 
 class LegacyRefResponse(BaseModel):
@@ -164,6 +167,7 @@ class LegacyRefResponse(BaseModel):
     cidcliente: str
     organismo_numero: Optional[int] = None
     beneficio: Optional[str] = None
+    tipo_cliente: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

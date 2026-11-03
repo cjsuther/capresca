@@ -834,7 +834,7 @@ describe("ClienteDetailPage — miembros (solo persona jurídica)", () => {
     const categoria = screen.getByLabelText("Categoría");
     await user.clear(categoria);
     await user.type(categoria, "JEFE DE DEPARTAMENTO");
-    expect(screen.getByLabelText("Ingreso")).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText("Fecha de ingreso")).toHaveAttribute("type", "date");
     await user.selectOptions(screen.getByLabelText("Débito automático"), "false");
 
     await user.click(screen.getAllByRole("button", { name: /Guardar/ })[0]);
@@ -851,12 +851,64 @@ describe("ClienteDetailPage — miembros (solo persona jurídica)", () => {
     await screen.findByText("Padrón (sistema anterior)");
 
     await user.click(screen.getByRole("button", { name: "Editar padrón" }));
-    const sueldo = screen.getByLabelText("Sueldo");
+    const sueldo = screen.getByLabelText("Haberes");
     await user.clear(sueldo);
     await user.type(sueldo, "mil pesos");
     await user.click(screen.getAllByRole("button", { name: /Guardar/ })[0]);
 
     expect(await screen.findByText(/El sueldo tiene que ser un número/)).toBeInTheDocument();
     expect(updatePadron).not.toHaveBeenCalled();
+  });
+
+  it("muestra todos los campos de la ficha vieja, con el de empleado de la Caja", async () => {
+    getClient.mockResolvedValue({ ...IMPORTADO, padron: { ...IMPORTADO.padron, tipo_cliente: 1, agente: 20488,
+                                                          empleado_ccypp: true } });
+    montar("3");
+    const p = (await screen.findByText("Padrón (sistema anterior)")).closest("div.bg-surface");
+    for (const etiqueta of ["Organismo (N°)", "Organismo liquidador", "Tipo de cliente", "N° de agente", "Haberes",
+                            "Fecha de ingreso", "Sucursal", "N° de cuenta", "Débito automático",
+                            "Empleado de C.C. y P.P.", "Baja"]) {
+      expect(within(p).getByText(etiqueta)).toBeInTheDocument();
+    }
+    const fila = (etiqueta) => within(p).getByText(etiqueta).closest("div.grid");
+    expect(within(fila("Empleado de C.C. y P.P.")).getByText("Sí")).toBeInTheDocument();
+    expect(within(fila("Organismo liquidador")).getByText("ACA")).toBeInTheDocument();
+    expect(within(fila("N° de agente")).getByText("20488")).toBeInTheDocument();
+  });
+
+  it("marca al cliente como empleado de la Caja", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue(IMPORTADO);
+    updatePadron.mockResolvedValue(IMPORTADO);
+    montar("3");
+    await screen.findByText("Padrón (sistema anterior)");
+
+    await user.click(screen.getByRole("button", { name: "Editar padrón" }));
+    await user.selectOptions(screen.getByLabelText("Empleado de C.C. y P.P."), "true");
+    await user.click(screen.getAllByRole("button", { name: /Guardar/ })[0]);
+    await waitFor(() => expect(updatePadron).toHaveBeenCalledWith("3", expect.objectContaining({ empleado_ccypp: true })));
+  });
+
+  it("muestra la baja con su fecha y motivo, sin dejar editarla", async () => {
+    const user = userEvent.setup();
+    getClient.mockResolvedValue({ ...IMPORTADO, padron: { ...IMPORTADO.padron, baja: true,
+                                  fecha_baja: "2024-05-02T10:00:00", motivo_baja: "RENUNCIA" } });
+    montar("3");
+    const p = (await screen.findByText("Padrón (sistema anterior)")).closest("div.bg-surface");
+    const fila = within(p).getByText("Baja").closest("div.grid");
+    expect(within(fila).getByText(/^Sí · 2\/5\/24.* · RENUNCIA$/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Editar padrón" }));
+    expect(screen.queryByLabelText("Baja")).toBeNull();
+  });
+
+  it("muestra los otros contactos, el tipo y beneficio de cada registro viejo y las fechas de alta", async () => {
+    getClient.mockResolvedValue({ ...IMPORTADO, created_at: "2026-09-24T10:00:00", updated_at: "2026-10-01T12:30:00",
+      contacts: [{ id: 1, contact_type: "PHONE", value: "3834555666", label: "Celular", is_primary: true }],
+      legacy_refs: [{ cidcliente: "MUN20309697473M", organismo_numero: 212, beneficio: "B-9", tipo_cliente: 1 }] });
+    montar("3");
+    expect(await screen.findByText("3834555666")).toBeInTheDocument();
+    expect(screen.getByText("Celular")).toBeInTheDocument();
+    expect(screen.getByText(/MUN20309697473M · org 212/)).toHaveTextContent("tipo 1 · benef. B-9");
+    expect(screen.getByText(/^Alta 24\/9\/26.* · Última modificación 1\/10\/26/)).toBeInTheDocument();
   });
 });

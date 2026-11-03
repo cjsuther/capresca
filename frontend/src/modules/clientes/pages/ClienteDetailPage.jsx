@@ -17,6 +17,8 @@ import {
 import { DocumentosCliente } from "../components/DocumentosCliente";
 
 // ── Campo editable ───────────────────────────────────────────────
+const fechaHora = (iso) =>
+  iso ? new Date(iso).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "—";
 const money = (n) =>
   `$ ${Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -111,7 +113,8 @@ export default function ClienteDetailPage() {
                     country: c.country || "" });
       const p = c.client_type === "HUMAN" ? c.human_profile : c.legal_profile;
       setProfileForm(p ? { ...p } : {});
-      setPadronForm(c.padron ? { ...c.padron, debito_automatico: String(!!c.padron.debito_automatico) } : {});
+      setPadronForm(c.padron ? { ...c.padron, debito_automatico: String(!!c.padron.debito_automatico),
+                                 empleado_ccypp: String(!!c.padron.empleado_ccypp) } : {});
     });
 
   const loadMembers = () => getMembers(id).then(setMembers);
@@ -198,7 +201,7 @@ export default function ClienteDetailPage() {
         if (v === "" || v == null) return [k, null];
         if (["organismo_numero", "categoria_numero", "tipo_cliente", "situacion",
              "agente", "sucursal", "cuenta"].includes(k)) return [k, Number(v)];
-        if (k === "debito_automatico") return [k, v === "true" || v === true];
+        if (k === "debito_automatico" || k === "empleado_ccypp") return [k, v === "true" || v === true];
         return [k, v];
       }));
       await updatePadron(id, limpio);
@@ -294,6 +297,9 @@ export default function ClienteDetailPage() {
         <div>
           <h2 className="text-xl font-semibold text-gray-800">{displayName}</h2>
           <span className="text-xs font-mono text-gray-400">{client.code}</span>
+          <p className="text-xs text-gray-400">
+            Alta {fechaHora(client.created_at)} · Última modificación {fechaHora(client.updated_at)}
+          </p>
         </div>
         <span className={`ml-auto text-xs px-2 py-1 rounded-full ${client.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
           {client.is_active ? "Activo" : "Inactivo"}
@@ -336,6 +342,20 @@ export default function ClienteDetailPage() {
             <Field label="Código postal" value={client.postal_code} editing={editingBase} name="postal_code" form={baseForm} onChange={setBase} />
             <Field label="País"      value={client.country} editing={editingBase} name="country" form={baseForm} onChange={setBase} />
           </dl>
+          {client.contacts?.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-500 mb-1">Otros contactos</p>
+              <ul className="space-y-1 text-sm">
+                {client.contacts.map((c) => (
+                  <li key={c.id} className="flex gap-2">
+                    <span className="text-gray-500 w-24 shrink-0">{c.label || c.contact_type}</span>
+                    <span className="text-gray-800 break-all">{c.value}</span>
+                    {c.is_primary && <span className="text-xs text-blue-600">principal</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Perfil */}
@@ -417,19 +437,24 @@ export default function ClienteDetailPage() {
             </div>
           </div>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-            <Field label="Organismo"   value={client.padron.organismo_numero} editing={editingPadron} name="organismo_numero" form={padronForm} onChange={setPad} />
-            <Field label="Cód. organismo" value={client.padron.organismo_codigo} editing={editingPadron} name="organismo_codigo" form={padronForm} onChange={setPad} />
+            <Field label="Organismo (N°)" value={client.padron.organismo_numero} editing={editingPadron} name="organismo_numero" form={padronForm} onChange={setPad} />
+            <Field label="Organismo liquidador" value={client.padron.organismo_codigo} editing={editingPadron} name="organismo_codigo" form={padronForm} onChange={setPad} />
+            <Field label="Tipo de cliente" value={client.padron.tipo_cliente} editing={editingPadron} name="tipo_cliente" form={padronForm} onChange={setPad} />
+            <Field label="N° de agente" value={client.padron.agente} editing={editingPadron} name="agente" form={padronForm} onChange={setPad} />
             <Field label="Categoría"   value={client.padron.categoria} editing={editingPadron} name="categoria" form={padronForm} onChange={setPad} />
             <Field label="Nro. categoría" value={client.padron.categoria_numero} editing={editingPadron} name="categoria_numero" form={padronForm} onChange={setPad} />
-            <Field label="Sueldo"      value={client.padron.sueldo != null ? money(client.padron.sueldo) : null} editing={editingPadron} name="sueldo" form={padronForm} onChange={setPad} />
-            <Field label="Ingreso"     value={client.padron.fecha_ingreso} editing={editingPadron} name="fecha_ingreso" form={padronForm} onChange={setPad} type="date" max={hoyISO()} />
-            <Field label="Beneficio"   value={client.padron.beneficio} editing={editingPadron} name="beneficio" form={padronForm} onChange={setPad} />
-            <Field label="Tipo"        value={client.padron.tipo_cliente} editing={editingPadron} name="tipo_cliente" form={padronForm} onChange={setPad} />
+            <Field label="Haberes"     value={client.padron.sueldo != null ? money(client.padron.sueldo) : null} editing={editingPadron} name="sueldo" form={padronForm} onChange={setPad} />
+            <Field label="Fecha de ingreso" value={client.padron.fecha_ingreso} editing={editingPadron} name="fecha_ingreso" form={padronForm} onChange={setPad} type="date" max={hoyISO()} />
             <Field label="Situación"   value={client.padron.situacion} editing={editingPadron} name="situacion" form={padronForm} onChange={setPad} />
-            <Field label="Agente"      value={client.padron.agente} editing={editingPadron} name="agente" form={padronForm} onChange={setPad} />
+            <Field label="Beneficio"   value={client.padron.beneficio} editing={editingPadron} name="beneficio" form={padronForm} onChange={setPad} />
             <Field label="Sucursal"    value={client.padron.sucursal} editing={editingPadron} name="sucursal" form={padronForm} onChange={setPad} />
-            <Field label="Cuenta"      value={client.padron.cuenta} editing={editingPadron} name="cuenta" form={padronForm} onChange={setPad} />
+            <Field label="N° de cuenta" value={client.padron.cuenta} editing={editingPadron} name="cuenta" form={padronForm} onChange={setPad} />
             <Field label="Débito automático" value={client.padron.debito_automatico ? "Sí" : "No"} editing={editingPadron} name="debito_automatico" form={padronForm} onChange={setPad} options={[["true", "Sí"], ["false", "No"]]} />
+            <Field label="Empleado de C.C. y P.P." value={client.padron.empleado_ccypp ? "Sí" : "No"} editing={editingPadron} name="empleado_ccypp" form={padronForm} onChange={setPad} options={[["true", "Sí"], ["false", "No"]]} />
+            {/* La baja es un cambio de estado del cliente: se ve acá pero no se edita desde la ficha. */}
+            <Field label="Baja" value={client.padron.baja
+              ? ["Sí", client.padron.fecha_baja && fechaHora(client.padron.fecha_baja), client.padron.motivo_baja].filter(Boolean).join(" · ")
+              : "No"} editing={false} />
           </dl>
 
           {client.legacy_refs?.length > 0 && (
@@ -443,6 +468,7 @@ export default function ClienteDetailPage() {
                   <span key={r.cidcliente}
                         className="font-mono text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600">
                     {r.cidcliente}{r.organismo_numero ? ` · org ${r.organismo_numero}` : ""}
+                    {r.tipo_cliente != null ? ` · tipo ${r.tipo_cliente}` : ""}{r.beneficio ? ` · benef. ${r.beneficio}` : ""}
                   </span>
                 ))}
               </div>

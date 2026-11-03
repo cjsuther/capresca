@@ -22,6 +22,7 @@ CAMPOS = [
     ("CEMAIL", "C", 100), ("NORGANO", "N", 12), ("CORGA", "C", 3), ("NTIPOCLI", "N", 2),
     ("CBENEF", "C", 20), ("CCATFUN", "C", 40), ("NSUELDO", "N", 10), ("NSITUACION", "N", 1),
     ("CCBUCTA", "C", 23), ("LDEBAUTO", "L", 1), ("LBAJA", "L", 1), ("CMOTBAJA", "C", 60),
+    ("LCAPRE", "L", 1),
 ]
 
 
@@ -155,6 +156,29 @@ def test_trae_domicilio_completo_padron_y_cbu(db, correr):
     assert cbu.cbu == "2850590940090418135201" and cbu.client_id == c.id
 
 
+def test_trae_la_marca_de_empleado_de_la_caja(db, correr):
+    correr([fila("ACA20305047571M", "20305047571", "CORDOBA, EDGARDO", 30504757, LCAPRE=True),
+            fila("ACA27111222333F", "27111222333", "GOMEZ, ANA", 11122233)])
+    marcas = {db.get(HumanClient, h.id).cuil: db.get(ClientPadron, h.client_id).empleado_ccypp
+              for h in db.query(HumanClient).all()}
+    assert marcas == {"20305047571": True, "27111222333": False}
+
+
+def test_es_empleado_si_lo_dice_cualquiera_de_sus_registros(db, correr):
+    # En el padrón real la marca no coincide entre los registros de una misma persona (83 casos).
+    correr([fila("MUN20305047571M", "20305047571", "CORDOBA, EDGARDO", 30504757, LCAPRE=True),
+            fila("DIO20305047571M", "20305047571", "CORDOBA, EDGARDO", 30504757, LCAPRE=False)])
+    assert db.query(ClientPadron).one().empleado_ccypp is True
+
+
+def test_una_importacion_nueva_recalcula_la_marca_de_empleado(db, correr):
+    correr([fila("MUN20305047571M", "20305047571", "CORDOBA, EDGARDO", 30504757, LCAPRE=True)])
+    correr([fila("MUN20305047571M", "20305047571", "CORDOBA, EDGARDO", 30504757, LCAPRE=False)],
+           archivo="maeclientes-2.dbf")
+    db.expire_all()
+    assert db.query(ClientPadron).one().empleado_ccypp is False
+
+
 def test_un_cbu_invalido_no_se_carga(db, correr):
     correr([fila("A1", "20305047571", "UNO, UNO", 30504757, CCBUCTA="123")])
     assert db.query(ClientCbu).count() == 0
@@ -275,10 +299,10 @@ def test_una_fila_que_la_base_rechaza_no_tumba_el_lote(db, correr, monkeypatch, 
     tamaño de su columna, por ejemplo), se rehace el lote fila por fila y sólo esa queda afuera."""
     original = padron_import._padron
 
-    def _explota_en_una(db_, client_id, row, idx):
+    def _explota_en_una(db_, client_id, row, idx, **kw):
         if row.get("cidcliente") == "MALA":
             raise ValueError("integer out of range")
-        return original(db_, client_id, row, idx)
+        return original(db_, client_id, row, idx, **kw)
 
     monkeypatch.setattr(padron_import, "_padron", _explota_en_una)
     imp = correr([
@@ -321,7 +345,9 @@ def test_el_detalle_devuelve_los_datos_del_padron(client, h, db, correr):
     assert (d["neighborhood"], d["department"], d["postal_code"]) == ("CENTRO", "CAPITAL", "K4700")
     assert d["padron"]["categoria"] == "AGENTE" and float(d["padron"]["sueldo"]) == 910000
     assert d["padron"]["debito_automatico"] is True
+    assert d["padron"]["empleado_ccypp"] is False and d["padron"]["fecha_baja"] is None
     assert [r["cidcliente"] for r in d["legacy_refs"]] == ["ACA20305047571M", "AGJ20305047571M"]
+    assert "tipo_cliente" in d["legacy_refs"][0]
 
 
 def test_el_listado_no_trae_el_padron(client, h, db, correr):
@@ -348,6 +374,17 @@ def test_se_corrige_la_ficha_de_revista(client, h, db, correr):
 
     # Quedó guardado de verdad.
     assert client.get(f"/api/clientes/{cid}", headers=h).json()["padron"]["categoria"] == "JEFE DE DEPARTAMENTO"
+
+
+def test_se_marca_y_desmarca_empleado_de_la_caja(client, h, db, correr):
+    correr([fila("A1", "20305047571", "CORDOBA, EDGARDO", 30504757)])
+    cid = db.query(Client).one().id
+    r = client.put(f"/api/clientes/{cid}/padron", headers=h, json={"empleado_ccypp": True})
+    assert r.status_code == 200 and r.json()["padron"]["empleado_ccypp"] is True
+    db.expire_all()
+    assert db.get(ClientPadron, cid).empleado_ccypp is True
+    r = client.put(f"/api/clientes/{cid}/padron", headers=h, json={"empleado_ccypp": False})
+    assert r.json()["padron"]["empleado_ccypp"] is False
 
 
 def test_un_cliente_sin_ficha_la_recibe_al_corregirla(client, h, crear_ph):
