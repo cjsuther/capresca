@@ -253,6 +253,11 @@ def test_numeracion_de_despacho(metodo, ruta, permiso):
     ("DELETE", "/api/despacho/modelos/2", "despacho:modelos:write"),
     ("POST", "/api/despacho/modelos/2/activo", "despacho:modelos:write"),
     ("GET", "/api/despacho/clasificacion", "despacho:resoluciones:read"),
+    ("GET", "/api/despacho/series", "despacho:resoluciones:read"),
+    ("POST", "/api/despacho/series", "despacho:series:write"),
+    ("PUT", "/api/despacho/series/8", "despacho:series:write"),
+    ("POST", "/api/despacho/series/8/activa", "despacho:series:write"),
+    ("DELETE", "/api/despacho/series/8", "despacho:series:write"),
 ])
 def test_rutas_de_escritura_de_despacho(metodo, ruta, permiso):
     """Cada acción de la pantalla tiene su ruta en el gateway: sin ella, responde 404."""

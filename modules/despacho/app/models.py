@@ -27,21 +27,43 @@ from app.db.base import Base
 
 TIPOS = ("RES", "DIS")                 # Resolución / Disposición
 
-# Series de numeración del despacho (VFP: TIPO_RES). El número es el del sistema anterior y es el que
-# manda; el nombre es sólo la etiqueta en pantalla y el orden es el de las listas. La 3 era
+# Series de numeración del despacho (VFP: TIPO_RES). Viven en la tabla `series` y se administran desde
+# Catálogos. El número es el del sistema anterior y es el que manda (no se cambia); el nombre es sólo la
+# etiqueta en pantalla y `orden`, el de las listas. Éstas son las que carga la migración 0008; la 3 era
 # "Préstamos y garantías" en el sistema anterior.
-SERIES = {
-    1: "GENERAL",
-    3: "CRÉDITOS",
-    6: "JUEGOS",
-    4: "SEGUROS",
-    5: "PROVEEDORES Y OBRAS",
-}
+SERIES_INICIALES = (
+    (1, "GENERAL"),
+    (3, "CRÉDITOS"),
+    (6, "JUEGOS"),
+    (4, "SEGUROS"),
+    (5, "PROVEEDORES Y OBRAS"),
+)
+# La serie por defecto (y la del anexo de créditos): no se desactiva ni se borra.
 SERIE_POR_DEFECTO = 1
 
 
-def nombre_serie(serie: int) -> str:
-    return SERIES.get(serie, f"Serie {serie}")
+def nombre_serie(serie: int, s: "Serie | None" = None) -> str:
+    return s.nombre if s is not None else f"Serie {serie}"
+
+
+class Serie(Base):
+    """Serie de numeración: el área que emite el acto. Cada una lleva su propio correlativo y su
+    propio N° oficial por año. Inactiva: no se ofrece para modelos ni actos nuevos, pero lo ya emitido
+    en ella sigue igual."""
+    __tablename__ = "series"
+
+    numero: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)   # TIPO_RES
+    nombre: Mapped[str] = mapped_column(String(60), unique=True)
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    activa: Mapped[bool] = mapped_column(Boolean, default=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# La serie no es FK (los actos importados pueden traer un TIPO_RES que no esté en el catálogo): la
+# relación es sólo para leer el nombre.
+def _rel_serie(clase: str):
+    return relationship("Serie", primaryjoin=f"foreign({clase}.serie) == Serie.numero",
+                        viewonly=True, lazy="joined")
 
 
 BORRADOR, FIRMADA = "B", "F"
@@ -68,13 +90,15 @@ class ModeloResolucion(Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    serie_rel: Mapped["Serie | None"] = _rel_serie("ModeloResolucion")
+
     @property
     def tiene_plantilla(self) -> bool:
         return bool((self.plantilla or "").strip())
 
     @property
     def serie_nombre(self) -> str:
-        return nombre_serie(self.serie)
+        return nombre_serie(self.serie, self.serie_rel)
 
 
 class Resolucion(Base):
@@ -113,10 +137,11 @@ class Resolucion(Base):
 
     beneficiarios: Mapped[list["ResolucionBeneficiario"]] = relationship(
         back_populates="resolucion", cascade="all, delete-orphan")
+    serie_rel: Mapped["Serie | None"] = _rel_serie("Resolucion")
 
     @property
     def serie_nombre(self) -> str:
-        return nombre_serie(self.serie)
+        return nombre_serie(self.serie, self.serie_rel)
 
     @property
     def oficial(self) -> bool:

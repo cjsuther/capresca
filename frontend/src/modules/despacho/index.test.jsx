@@ -6,7 +6,8 @@ import DespachoModule, { despachoMenu } from "./index";
 import { useAuthStore } from "../../context/authStore";
 
 vi.mock("../../api/despacho", () => ({
-  getSeries: vi.fn(async () => [{ serie: 1, nombre: "GENERAL" }]),
+  getSeries: vi.fn(async () => [{ serie: 1, nombre: "GENERAL", orden: 1, activa: true, en_uso: true }]),
+  crearSerie: vi.fn(), editarSerie: vi.fn(), activarSerie: vi.fn(), eliminarSerie: vi.fn(),
   getModelos: vi.fn(async () => []),
   crearModelo: vi.fn(), editarModelo: vi.fn(), activarModelo: vi.fn(), eliminarModelo: vi.fn(),
   getClasificacion: vi.fn(async () => ({ sectores: [], actividades: [] })),
@@ -58,7 +59,8 @@ describe("DespachoModule", () => {
       "Modelo de resoluciones", "Resoluciones y disposiciones",
     ]);
     expect(despachoMenu.map((i) => i.permission)).toEqual([
-      "resoluciones:read", "resoluciones:read", "resoluciones:read", "resoluciones:read", "resoluciones:read", "importar",
+      "resoluciones:read", "resoluciones:read", "resoluciones:read", "resoluciones:read", "resoluciones:read",
+      "resoluciones:read", "importar",
     ]);
     expect(despachoMenu.find((i) => i.label === "Numeración")?.path).toBe("/modules/despacho/numeracion");
   });
@@ -92,5 +94,8 @@ describe("DespachoModule", () => {
 
     montar("/modules/despacho/expedientes");
     expect(await screen.findByRole("heading", { name: "Expedientes y pases" })).toBeInTheDocument();
+
+    montar("/modules/despacho/catalogos");
+    expect(await screen.findByRole("heading", { name: "Catálogos" })).toBeInTheDocument();
   });
 });

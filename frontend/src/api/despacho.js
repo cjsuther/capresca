@@ -1,8 +1,22 @@
 import api from "./client";
 
-// ── Series de numeración: cada área lleva su propio correlativo ──
-export const getSeries = () =>
-  api.get("/despacho/series").then((r) => r.data);
+// ── Series de numeración: cada área lleva su propio correlativo (catálogo editable) ──
+// Sin parámetros, sólo las activas: las que se ofrecen en los combos.
+export const getSeries = (params = {}) =>
+  api.get("/despacho/series", { params }).then((r) => r.data);
+
+export const crearSerie = (data) =>
+  api.post("/despacho/series", data).then((r) => r.data);
+
+// El número no se cambia: sólo nombre y orden.
+export const editarSerie = (serie, data) =>
+  api.put(`/despacho/series/${serie}`, data).then((r) => r.data);
+
+export const activarSerie = (serie, activa) =>
+  api.post(`/despacho/series/${serie}/activa`, { activa }).then((r) => r.data);
+
+export const eliminarSerie = (serie) =>
+  api.delete(`/despacho/series/${serie}`).then((r) => r.data);
 
 // ── Modelos (plantillas) de resoluciones y disposiciones ──
 export const getModelos = (params = {}) =>

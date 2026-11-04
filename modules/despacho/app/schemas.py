@@ -4,6 +4,30 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
+# --------------------------------------------------------------------------- series
+class SerieIn(BaseModel):
+    serie: int = Field(..., ge=1, le=9999)    # el número (VFP: TIPO_RES); sólo al crear, después no cambia
+    nombre: str = Field(..., max_length=60)
+    orden: int | None = Field(None, ge=0, le=9999)   # vacío: al final de la lista
+
+
+class SerieUpdate(BaseModel):
+    nombre: str = Field(..., max_length=60)
+    orden: int | None = Field(None, ge=0, le=9999)
+
+
+class SerieActivaIn(BaseModel):
+    activa: bool
+
+
+class SerieOut(BaseModel):
+    serie: int
+    nombre: str
+    orden: int
+    activa: bool
+    en_uso: bool          # tiene modelos, actos o numeración: no se puede borrar
+
+
 # --------------------------------------------------------------------------- modelos
 class ModeloIn(BaseModel):
     descripcion: str

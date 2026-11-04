@@ -27,8 +27,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import (BORRADOR, FIRMADA, SERIE_POR_DEFECTO, SERIES, ModeloResolucion, NumeracionSerie,
+from app.models import (BORRADOR, FIRMADA, ModeloResolucion, NumeracionSerie, Serie,
                         Resolucion, ResolucionBeneficiario, TIPOS)
+from app.services import series as svc_series
 
 REINTENTOS_NUMERO = 5
 
@@ -40,11 +41,8 @@ def _validar_tipo(tipo: str) -> str:
     return t
 
 
-def _validar_serie(serie) -> int:
-    s = SERIE_POR_DEFECTO if serie is None else int(serie)
-    if s not in SERIES:
-        raise HTTPException(422, f"La serie {s} no existe.")
-    return s
+def _validar_serie(db: Session, serie) -> int:
+    return svc_series.validar(db, serie)
 
 
 def _desde(db: Session, anio: int, serie: int, campo: str) -> int:
@@ -87,7 +85,8 @@ def _proximo_numero_real(db: Session, anio: int, serie: int) -> int:
 def numeracion(db: Session, anio: int) -> list[dict]:
     """Por serie: el último número usado, desde cuál se fijó que siga y cuál va a ser el próximo."""
     out = []
-    for serie, nombre in SERIES.items():
+    activas = db.scalars(select(Serie).where(Serie.activa.is_(True)).order_by(Serie.orden, Serie.numero))
+    for serie, nombre in ((x.numero, x.nombre) for x in activas):
         n = db.get(NumeracionSerie, (anio, serie))
         out.append({
             "anio": anio, "serie": serie, "nombre": nombre,
@@ -106,7 +105,7 @@ def fijar_numeracion(db: Session, anio: int, serie: int, desde_numero: int | Non
                      usuario: str) -> dict:
     """Fija desde qué número siguen el correlativo y el N° oficial de la serie en el año. No puede quedar
     en un número ya usado: la numeración no vuelve atrás."""
-    serie = _validar_serie(serie)
+    serie = _validar_serie(db, serie)
     for valor, columna, que in ((desde_numero, Resolucion.numero, "correlativo"),
                                 (desde_oficial, Resolucion.numero_real, "N° oficial")):
         if valor is None:
@@ -163,7 +162,7 @@ def crear(db: Session, datos, usuario: str = "") -> Resolucion:
     fecha = datos.fecha or date.today()
     modelo = _modelo(db, datos.modelo_id)
     # El modelo ya pertenece a una serie: manda la suya, así el motivo y el número van juntos.
-    serie = _validar_serie(modelo.serie if modelo is not None else datos.serie)
+    serie = _validar_serie(db, modelo.serie if modelo is not None else datos.serie)
 
     texto = (datos.texto or "").strip()
     motivo_codigo, motivo = 0, ""

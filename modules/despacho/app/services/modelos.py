@@ -9,19 +9,17 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import SERIE_POR_DEFECTO, SERIES, ModeloResolucion, Resolucion, TIPOS
+from app.models import ModeloResolucion, Resolucion, TIPOS
+from app.services import series as svc_series
 
 
-def _validar(datos) -> tuple[str, int]:
+def _validar(db: Session, datos, serie_actual: int | None = None) -> tuple[str, int]:
     if not (datos.descripcion or "").strip():
         raise HTTPException(422, "La descripción del modelo es obligatoria.")
     tipo = (datos.tipo or "RES").upper()
     if tipo not in TIPOS:
         raise HTTPException(422, "El tipo tiene que ser RES (resolución) o DIS (disposición).")
-    serie = SERIE_POR_DEFECTO if getattr(datos, "serie", None) is None else int(datos.serie)
-    if serie not in SERIES:
-        raise HTTPException(422, f"La serie {serie} no existe.")
-    return tipo, serie
+    return tipo, svc_series.validar(db, getattr(datos, "serie", None), serie_actual)
 
 
 def _codigo(db: Session, valor, excluir_id: int | None = None) -> int:
@@ -75,7 +73,7 @@ def obtener(db: Session, modelo_id: int) -> ModeloResolucion:
 
 
 def crear(db: Session, datos) -> ModeloResolucion:
-    tipo, serie = _validar(datos)
+    tipo, serie = _validar(db, datos)
     codigo = _codigo(db, datos.codigo)
     m = ModeloResolucion(codigo=codigo, serie=serie, descripcion=datos.descripcion.strip()[:120],
                          tipo=tipo, es_seguros=bool(datos.es_seguros),
@@ -87,7 +85,7 @@ def crear(db: Session, datos) -> ModeloResolucion:
 
 def editar(db: Session, modelo_id: int, datos) -> ModeloResolucion:
     m = obtener(db, modelo_id)
-    m.tipo, m.serie = _validar(datos)
+    m.tipo, m.serie = _validar(db, datos, m.serie)
     if datos.codigo is not None:
         m.codigo = _codigo(db, datos.codigo, excluir_id=m.id)
     m.descripcion = datos.descripcion.strip()[:120]

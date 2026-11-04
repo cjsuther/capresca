@@ -68,6 +68,7 @@ PERMISSIONS = {
         ("resoluciones:write", "Crear y editar resoluciones"),
         ("resoluciones:firmar", "Firmar, cargar el N° real y anular"),
         ("modelos:write", "Administrar los modelos de resolución"),
+        ("series:write", "Administrar las series de numeración (Catálogos)"),
         ("expedientes:write", "Crear expedientes y registrar pases"),
         ("importar", "Importar el despacho del sistema anterior"),
     ],

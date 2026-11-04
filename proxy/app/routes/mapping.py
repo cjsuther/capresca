@@ -204,6 +204,11 @@ ROUTE_MAP = [
     ("PUT",  r"^/api/despacho/modelos/\d+$",                            settings.despacho_service_url, "despacho:modelos:write"),
     ("POST", r"^/api/despacho/modelos/\d+/activo$",                     settings.despacho_service_url, "despacho:modelos:write"),
     ("DELETE", r"^/api/despacho/modelos/\d+$",                          settings.despacho_service_url, "despacho:modelos:write"),
+    # Catálogo de series de numeración (el GET lo lee cualquiera del módulo: llena los combos).
+    ("POST", r"^/api/despacho/series$",                                 settings.despacho_service_url, "despacho:series:write"),
+    ("PUT",  r"^/api/despacho/series/\d+$",                             settings.despacho_service_url, "despacho:series:write"),
+    ("POST", r"^/api/despacho/series/\d+/activa$",                      settings.despacho_service_url, "despacho:series:write"),
+    ("DELETE", r"^/api/despacho/series/\d+$",                           settings.despacho_service_url, "despacho:series:write"),
     ("POST", r"^/api/despacho/resoluciones/\d+/(firmar|numero-real|anular)$", settings.despacho_service_url, "despacho:resoluciones:firmar"),
     # Eliminar un acto lo decide quien los emite; inactivarlo, quien los redacta.
     ("DELETE", r"^/api/despacho/resoluciones/\d+$",                     settings.despacho_service_url, "despacho:resoluciones:firmar"),

@@ -35,6 +35,11 @@ TestSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 def db():
     Base.metadata.create_all(bind=engine)
     session = TestSession()
+    # Las series que carga la migración 0008 (los tests crean el esquema sin Alembic).
+    from app.models import SERIES_INICIALES, Serie
+    session.add_all(Serie(numero=n, nombre=nombre, orden=i, activa=True)
+                    for i, (n, nombre) in enumerate(SERIES_INICIALES, start=1))
+    session.commit()
 
     def _get_db():
         yield session
@@ -60,7 +65,7 @@ def gateway(*acciones, user_id=7, username="despacho"):
 
 
 TODO = ("resoluciones:read", "resoluciones:write", "resoluciones:firmar",
-        "modelos:write", "expedientes:write", "importar")
+        "modelos:write", "series:write", "expedientes:write", "importar")
 
 
 @pytest.fixture

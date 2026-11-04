@@ -7,19 +7,49 @@ from sqlalchemy.orm import Session
 from app import schemas
 from app.db.session import get_db
 from app.dependencies.auth import Usuario, requiere, usuario_actual
-from app.models import SERIES
 from app.reports.word import resolucion_docx
 from app.services import modelos as svc_modelos
 from app.services import resoluciones as svc
+from app.services import series as svc_series
 
 router = APIRouter(tags=["despacho"])
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
-@router.get("/series")
-def series(_u: Usuario = Depends(usuario_actual)):
-    """Las series de numeración: cada una lleva su propio correlativo."""
-    return [{"serie": s, "nombre": n} for s, n in SERIES.items()]
+# --------------------------------------------------------------------------- series (catálogo)
+@router.get("/series", response_model=list[schemas.SerieOut])
+def series(incluir_inactivas: bool = False, db: Session = Depends(get_db),
+           _u: Usuario = Depends(usuario_actual)):
+    """Las series de numeración: cada una lleva su propio correlativo. Por defecto, sólo las activas
+    (las que se ofrecen para modelos y actos nuevos)."""
+    return svc_series.listar(db, incluir_inactivas)
+
+
+@router.post("/series", response_model=schemas.SerieOut, status_code=201)
+def crear_serie(datos: schemas.SerieIn, db: Session = Depends(get_db),
+                _u: Usuario = Depends(requiere("series:write"))):
+    return svc_series.crear(db, datos)
+
+
+@router.put("/series/{numero}", response_model=schemas.SerieOut)
+def editar_serie(numero: int, datos: schemas.SerieUpdate, db: Session = Depends(get_db),
+                 _u: Usuario = Depends(requiere("series:write"))):
+    """Nombre y orden. El número no se cambia: es la clave de la numeración de los actos."""
+    return svc_series.editar(db, numero, datos)
+
+
+@router.post("/series/{numero}/activa", response_model=schemas.SerieOut)
+def activar_serie(numero: int, datos: schemas.SerieActivaIn, db: Session = Depends(get_db),
+                  _u: Usuario = Depends(requiere("series:write"))):
+    return svc_series.activar(db, numero, datos.activa)
+
+
+@router.delete("/series/{numero}", status_code=204)
+def eliminar_serie(numero: int, db: Session = Depends(get_db),
+                   _u: Usuario = Depends(requiere("series:write"))):
+    """Sólo si no tiene modelos, actos ni numeración; si no, se desactiva."""
+    svc_series.eliminar(db, numero)
+    return Response(status_code=204)
 
 
 @router.get("/numeracion")
