@@ -78,7 +78,11 @@ async def proxy_request(path: str, request: Request):
     # Inyectar usuario autenticado y sus permisos efectivos ("modulo:accion" separados por coma)
     if hasattr(request.state, "user_id"):
         headers["X-User-Id"] = str(request.state.user_id)
-        headers["X-Username"] = request.state.username
+        # En bytes latin-1: httpx codifica las cabeceras de texto en ASCII y un username con ñ o tilde
+        # (p. ej. "ibañeza") rompía todo el reenvío con 500. Starlette decodifica en latin-1, así que
+        # los módulos reciben el username tal cual. Lo que no entre en latin-1 queda como "?".
+        username = request.state.username or ""
+        headers["X-Username"] = username if username.isascii() else username.encode("latin-1", errors="replace")
         actions = request.state.permissions.get("actions", {})
         headers["X-User-Permissions"] = ",".join(
             f"{module}:{action}" for module, codes in sorted(actions.items()) for action in sorted(codes)

@@ -205,3 +205,15 @@ def test_la_clave_interna_viaja_a_security(client, auth, permisos, monkeypatch):
     permisos({"clientes": ["clients:read"]})
     client.get("/api/clientes", headers=auth())
     assert capturados.get("X-Internal-Key") == "k-interna"
+
+
+@pytest.mark.parametrize("username", ["ibañeza", "muñoz.josé", "ana"])
+def test_usuario_con_acentos_o_enie_se_reenvia(client, auth, permisos, username):
+    """Un username con ñ o tilde rompía el reenvío (500): httpx sólo codifica cabeceras de texto en
+    ASCII. Se manda en latin-1, que es como Starlette las decodifica en los módulos."""
+    falso = permisos({"creditos": ["creditos:read"]})
+    r = client.get("/api/creditos/contratos/tablero", headers=auth(user_id=12, username=username))
+    assert r.status_code == 200
+    enviadas = httpx.Headers(falso.llamadas[-1]["headers"])   # lo que hace httpx al mandar el request
+    crudo = dict((k.lower(), v) for k, v in enviadas.raw)
+    assert crudo[b"x-username"].decode("latin-1") == username
