@@ -42,6 +42,8 @@ class LoginResponse(BaseModel):
     # Al ingresar con un código de recuperación: cuántos le quedan (para sugerirle regenerarlos).
     remaining_recovery_codes: Optional[int] = None
     recovery_codes: Optional[List[str]] = None
+    # Con sesión: {"habilitado": la función está prendida, "activo": el usuario tiene 2FA}.
+    mfa: Optional[Dict[str, bool]] = None
 
 
 class RefreshResponse(BaseModel):

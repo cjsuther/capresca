@@ -104,6 +104,7 @@ def test_codigo_correcto_emite_la_sesion_con_amr_otp(client, crear_usuario, fals
     body = r.json()
     assert body["user"]["id"] == u.id
     assert decode_token(body["access_token"])["amr"] == ["pwd", "otp"]
+    assert body["mfa"] == {"habilitado": True, "activo": True}
     assert ("POST", f"/v1/users/{u.id}/verify") in falso.llamadas   # uid = id interno, no el mail
 
 

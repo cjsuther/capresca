@@ -7,10 +7,16 @@ export const useAuthStore = create(
       token: null,
       user: null,
       permissions: null,
+      // Doble factor: { habilitado, activo } (lo informa el login).
+      mfa: null,
 
-      setAuth: (token, user, permissions) => set({ token, user, permissions }),
+      setAuth: (token, user, permissions, mfa = null) => set({ token, user, permissions, mfa }),
 
-      logout: () => set({ token: null, user: null, permissions: null }),
+      // Activar o desactivar el 2FA renueva la sesión (el token nuevo dice si tiene segundo factor).
+      setToken: (token) => set({ token }),
+      setMfa: (mfa) => set({ mfa }),
+
+      logout: () => set({ token: null, user: null, permissions: null, mfa: null }),
 
       // Helpers
       hasModule: (moduleCode) => {

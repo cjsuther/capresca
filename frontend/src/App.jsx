@@ -15,10 +15,13 @@ import TesoreriaModule from "./modules/tesoreria";
 import AuditoriaModule from "./modules/auditoria";
 import ContabilidadModule from "./modules/contabilidad";
 import DespachoModule from "./modules/despacho";
+import { StepUpModal } from "./components/dobleFactor/StepUpModal";
 
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Doble factor de las operaciones sensibles: lo abre la API cuando el gateway lo pide. */}
+      <StepUpModal />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 

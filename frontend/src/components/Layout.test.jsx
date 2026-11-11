@@ -211,3 +211,30 @@ describe("Layout", () => {
     expect(overlay().className).toContain("opacity-0");
   });
 });
+
+describe("Layout: doble factor en el menú del usuario", () => {
+  beforeEach(() => {
+    apiLogout.mockResolvedValue(undefined);
+  });
+
+  it("con la función apagada no aparece", async () => {
+    useAuthStore.setState({ token: "t", user: { username: "ana", full_name: "Ana Gómez" },
+      permissions: { modules: [], actions: {} }, mfa: { habilitado: false, activo: false } });
+    const user = userEvent.setup();
+    montar();
+    await abrirMenuUsuario(user);
+    expect(screen.queryByRole("button", { name: /Doble factor/ })).toBeNull();
+  });
+
+  it("prendida, aparece (avisando si está inactivo) y abre el modal", async () => {
+    useAuthStore.setState({ token: "t", user: { username: "ana", full_name: "Ana Gómez" },
+      permissions: { modules: [], actions: {} }, mfa: { habilitado: true, activo: false } });
+    const user = userEvent.setup();
+    montar();
+    await abrirMenuUsuario(user);
+    const item = screen.getByRole("button", { name: /Doble factor/ });
+    expect(item).toHaveTextContent("inactivo");
+    await user.click(item);
+    expect(await screen.findByRole("dialog", { name: "Doble factor" })).toBeInTheDocument();
+  });
+});

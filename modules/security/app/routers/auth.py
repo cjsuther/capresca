@@ -31,6 +31,7 @@ def _sesion(db: Session, user: User, amr: list[str] | None = None, **extra) -> L
         access_token=token,
         user=UserInfo(id=user.id, username=user.username, full_name=user.full_name),
         permissions=PermissionsPayload(**permissions),
+        mfa={"habilitado": df.habilitado(), "activo": bool(user.totp_activo) and df.habilitado()},
         **extra,
     )
 
