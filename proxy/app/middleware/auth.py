@@ -23,7 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.routes.mapping import get_service_url, get_required_permission
-from app.routes.stepup import requiere_step_up
+from app.routes.stepup import describir, regla_step_up
 from app import clave_interna
 from app.services import auditoria
 
@@ -138,16 +138,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def _step_up(request: Request, path: str, payload: dict) -> Optional[JSONResponse]:
-        operacion = requiere_step_up(request.method, path)
-        if operacion is None or step_up_valido(request.headers.get("x-2fa-token", ""), payload):
+        regla = regla_step_up(request.method, path)
+        if regla is None or step_up_valido(request.headers.get("x-2fa-token", ""), payload):
             return None
+        operacion = describir(regla, request.method, path)
         tiene_2fa = "otp" in (payload.get("amr") or [])
         if not tiene_2fa:
-            if settings.tokenserver_stepup_sin_2fa.strip().lower() == "permitir":
+            # La marca de la regla manda (Seguridad: siempre "bloquear"); si no tiene, la de la transición.
+            politica = (regla.sin_2fa or settings.tokenserver_stepup_sin_2fa).strip().lower()
+            if politica == "permitir":
                 return None
+            logger.warning("Step-up sin 2FA bloqueado user_id=%s %s %s", payload.get("sub"), request.method, path)
+            detalle = regla.mensaje_sin_2fa or (
+                f"{operacion}: esta operación exige doble factor. Activalo desde tu menú → Doble factor.")
             return JSONResponse(status_code=403, content={
-                "detail": f"{operacion}: esta operación exige doble factor. Activalo desde tu menú → Doble factor.",
-                "code": "2fa_requerido", "operacion": operacion})
+                "detail": detalle, "code": "2fa_requerido", "operacion": operacion})
         return JSONResponse(status_code=403, content={
             "detail": f"{operacion}: ingresá el código de tu app autenticadora para confirmar.",
             "code": "step_up_requerido", "operacion": operacion})

@@ -95,6 +95,21 @@ describe("StepUpModal", () => {
     await expect(promesa).rejects.toThrow();
   });
 
+  it("Seguridad sin 2FA: muestra el mensaje del gateway y el botón para activarlo", async () => {
+    render(<StepUpModal />);
+    const promesa = useStepUpStore.getState().solicitar({
+      code: "2fa_requerido", operacion: "Modificar un rol",
+      detail: "Para hacer cambios en Seguridad tenés que activar el doble factor.",
+    });
+    promesa.catch(() => {});
+    expect(await screen.findByText("Para hacer cambios en Seguridad tenés que activar el doble factor.")).toBeInTheDocument();
+    expect(screen.getByText("Modificar un rol")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Código de 6 dígitos")).toBeNull();      // no tiene app que dé códigos
+    enrolar2fa.mockResolvedValue({ token_id: "t1", qr_png_base64: "QQ==", secret: "ABCD" });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Activar doble factor" }));
+    expect(await screen.findByAltText("Código QR para la app autenticadora")).toBeInTheDocument();
+  });
+
   it("sin 2FA ofrece activarlo y después pide el próximo código", async () => {
     enrolar2fa.mockResolvedValue({ token_id: "t1", qr_png_base64: "QQ==", secret: "JBSWY3DPEHPK3PXP" });
     activar2fa.mockResolvedValue({ access_token: "sesion-2fa", recovery_codes: ["AAAAA-BBBBB"] });

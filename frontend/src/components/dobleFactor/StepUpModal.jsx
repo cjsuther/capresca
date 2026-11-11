@@ -112,9 +112,15 @@ export function StepUpModal() {
 
           {modo === "sin2fa" && (
             <>
+              {/* El gateway explica por qué (p. ej. "Para hacer cambios en Seguridad tenés que activar el
+                  doble factor."); si no lo dice, el texto general. */}
+              <p className="text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {pedido.code === "2fa_requerido" && pedido.detail
+                  ? pedido.detail
+                  : "Esta operación exige doble factor y todavía no lo activaste."}
+              </p>
               <p className="text-sm text-gray-600">
-                Esta operación exige doble factor y todavía no lo activaste. Lleva un minuto: necesitás Google
-                Authenticator o Microsoft Authenticator en el celular.
+                Lleva un minuto: necesitás Google Authenticator o Microsoft Authenticator en el celular.
               </p>
               {error && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">{error}</div>}
               <div className="flex gap-2 justify-end">
