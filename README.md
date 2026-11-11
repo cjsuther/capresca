@@ -152,6 +152,7 @@ TOKENSERVER_API_KEY=                               # tsk_... del tenant de Capre
 TOKENSERVER_OBLIGATORIO_ROLES=                     # vacío = opcional; "*" = todos; o roles: admin,tesoreria
 TOKENSERVER_STEPUP_MINUTOS=5                       # cuánto dura la confirmación de una operación sensible
 TOKENSERVER_STEPUP_SIN_2FA=bloquear                # operación sensible sin 2FA activo: bloquear | permitir
+                                                   # (no rige para Seguridad: ahí sin 2FA siempre se bloquea)
 ```
 
 > **Importante:** En produccion, generar valores seguros para `JWT_SECRET`, `INTERBANKING_ENCRYPTION_KEY`, `LIQUIDACIONES_INTERNAL_API_KEY` y `CONFIGURACIONES_INTERNAL_API_KEY`. Se puede usar `python3 -c "import secrets; print(secrets.token_hex(32))"` para generarlos.
@@ -208,6 +209,23 @@ Quién hace qué:
   localmente el token de step-up (header `X-2FA-Token`, atado a la sesión, `TOKENSERVER_STEPUP_MINUTOS`).
 - **frontend**: login en pasos, modal de step-up global y *menú del usuario → Doble factor*.
 
+**Seguridad, step-up total.** En el módulo de Seguridad **toda escritura** (cualquier método que no sea
+GET, HEAD u OPTIONS sobre `/api/security/...`: usuarios, roles, grupos, permisos, contraseñas, reset del
+2FA de otro usuario y lo que se agregue en el futuro) exige step-up. Es **una sola regla general** en
+`stepup.py` (`REGLA_SEGURIDAD`), no una lista ruta por ruta. Además tiene su propia marca
+`sin_2fa="bloquear"`: a quien no tiene 2FA activo se le niega el cambio (403 `2fa_requerido`, *"Para hacer
+cambios en Seguridad tenés que activar el doble factor."*, con el botón para activarlo) **aunque**
+`TOKENSERVER_STEPUP_SIN_2FA=permitir`, que sigue rigiendo para el resto de los módulos.
+
+- Excepciones: `/api/auth/*` (login, refresh, logout y todo lo del propio doble factor: enrolar, activar,
+  códigos de recuperación, desactivar y pedir el step-up). Ninguna de esas rutas vive bajo `/api/security`.
+- El cambio de la **propia contraseña** (`PUT /api/security/users/me/password`) también lo exige: no hay
+  flujo de cambio de contraseña obligatorio que pueda dejar a alguien afuera.
+- El **reset del 2FA de otro usuario** (`DELETE /api/security/users/{id}/2fa`) exige el token del admin
+  que lo hace (un token de step-up de otro usuario o de otra sesión no sirve).
+- Ojo al prenderlo: quien administre usuarios tiene que tener el 2FA activo antes, o no va a poder hacer
+  cambios en Seguridad (puede activarlo él mismo desde el modal o desde su menú).
+
 Login con 2FA: usuario y clave → `{"requires_2fa": true, "mfa_token": ...}` (token temporal de un solo uso,
 5 min, que sólo sirve para `POST /api/auth/2fa/login`) → código de 6 dígitos o de recuperación → sesión.
 Si el rol exige 2FA y el usuario no lo tiene, el login devuelve `requires_enrollment` y lo lleva a
@@ -228,7 +246,8 @@ usuario desde *Seguridad → Usuarios* (queda en Auditoría).
 Para apagarlo, `TOKENSERVER_ENABLED=false` y reiniciar `security` y `proxy`: el login vuelve a ser sólo con
 clave (las marcas de 2FA quedan guardadas para cuando se vuelva a prender).
 
-Pruebas: los tests de `modules/security` (`tests/test_doble_factor.py`) y `proxy` (`tests/test_stepup.py`)
+Pruebas: los tests de `modules/security` (`tests/test_doble_factor.py`) y `proxy` (`tests/test_stepup.py`, `tests/test_stepup_seguridad.py`, que recorre todos los routers de
+escritura de security)
 usan un TokenServer simulado. El e2e `modules/security/scripts/e2e_doble_factor.py` corre contra un
 TokenServer **local** real con un tenant de prueba (ver el encabezado del script; se niega a correr contra
 hosts que no sean locales).
