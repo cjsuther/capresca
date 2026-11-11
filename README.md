@@ -144,6 +144,14 @@ CONTABILIDAD_DB_USER=contabilidad_user
 CONTABILIDAD_DB_PASS=contabilidad_pass
 CONTABILIDAD_DB_NAME=contabilidad_db
 CONTABILIDAD_INTERNAL_API_KEY=cambiar_por_hash_seguro_aleatorio   # la usan los módulos para mandar transacciones
+
+# Doble factor (TOTP) con TokenServer. Ver "Doble factor (2FA)" más abajo.
+TOKENSERVER_ENABLED=false                          # false = todo como antes (login y operaciones sin código)
+TOKENSERVER_URL=http://tokenserver-web:8080/v1     # en producción, por la red Docker compartida
+TOKENSERVER_API_KEY=                               # tsk_... del tenant de Capresca: SÓLO acá, nunca en el repo
+TOKENSERVER_OBLIGATORIO_ROLES=                     # vacío = opcional; "*" = todos; o roles: admin,tesoreria
+TOKENSERVER_STEPUP_MINUTOS=5                       # cuánto dura la confirmación de una operación sensible
+TOKENSERVER_STEPUP_SIN_2FA=bloquear                # operación sensible sin 2FA activo: bloquear | permitir
 ```
 
 > **Importante:** En produccion, generar valores seguros para `JWT_SECRET`, `INTERBANKING_ENCRYPTION_KEY`, `LIQUIDACIONES_INTERNAL_API_KEY` y `CONFIGURACIONES_INTERNAL_API_KEY`. Se puede usar `python3 -c "import secrets; print(secrets.token_hex(32))"` para generarlos.
@@ -181,6 +189,49 @@ vez en el log de `security` (`docker compose logs security | grep "clave inicial
 | **Auditoria** | 8013 | Registro central de lo que hace cada usuario con la informacion: altas, cambios y bajas por modulo, con el antes/despues. Solo lectura, retencion 5 anios. Ver [modules/auditoria/README.md](modules/auditoria/README.md) |
 | **Tesoreria** | 8012 | Lotes de pagos (desembolsos de Créditos, pagos a agencias de Conciliación, carga manual): revisión, aprobación por workflow y envío por Interbanking. Ver [modules/tesoreria/README.md](modules/tesoreria/README.md) |
 | **Configuraciones** | 8011 | Impuestos, indices de referencia, feriados y workflow de aprobaciones, compartidos por los modulos. Ver [modules/configuraciones/README.md](modules/configuraciones/README.md) |
+
+## Doble factor (2FA)
+
+Segundo factor TOTP (Google Authenticator / Microsoft Authenticator) sobre **TokenServer**, el servidor
+2FA propio (`https://token.bluunit.com`). En producción TokenServer está en la misma red Docker
+(`sistema-modular_app_network`, alias `tokenserver-web:8080`): Capresca lo llama por
+`http://tokenserver-web:8080/v1` sin salir a internet.
+
+**Arranca apagado** (`TOKENSERVER_ENABLED=false`): desplegar no cambia nada hasta prenderlo.
+
+Quién hace qué:
+
+- **security** es el único que habla con TokenServer y el único que tiene `TOKENSERVER_API_KEY`
+  (el frontend y el gateway nunca la ven). El `user_id` en TokenServer es el **id interno** del usuario
+  (no el mail ni el username, que pueden cambiar); la cuenta que se ve en la app es el username.
+- **proxy** exige *step-up* en las operaciones sensibles listadas en `proxy/app/routes/stepup.py` y valida
+  localmente el token de step-up (header `X-2FA-Token`, atado a la sesión, `TOKENSERVER_STEPUP_MINUTOS`).
+- **frontend**: login en pasos, modal de step-up global y *menú del usuario → Doble factor*.
+
+Login con 2FA: usuario y clave → `{"requires_2fa": true, "mfa_token": ...}` (token temporal de un solo uso,
+5 min, que sólo sirve para `POST /api/auth/2fa/login`) → código de 6 dígitos o de recuperación → sesión.
+Si el rol exige 2FA y el usuario no lo tiene, el login devuelve `requires_enrollment` y lo lleva a
+enrolarse (QR, primer código, códigos de recuperación) antes de entrar.
+
+**Falla cerrado:** si TokenServer no responde (timeouts de 2 s de conexión / 4 s totales), quien tiene 2FA
+no entra (503 con mensaje) y las operaciones sensibles no se confirman. Un admin puede resetear el 2FA de un
+usuario desde *Seguridad → Usuarios* (queda en Auditoría).
+
+### Cómo prenderlo
+
+1. En el panel de TokenServer: crear el tenant de Capresca (issuer `Capresca`) y una API key.
+2. En el `.env` del servidor: `TOKENSERVER_API_KEY=tsk_...` y `TOKENSERVER_ENABLED=true`
+   (opcional: `TOKENSERVER_OBLIGATORIO_ROLES`).
+3. `docker compose up -d security proxy` (security aplica la migración `0004` sola al arrancar).
+4. Verificar desde el contenedor: `docker compose exec security python -c "import httpx;print(httpx.get('http://tokenserver-web:8080/healthz').text)"`.
+
+Para apagarlo, `TOKENSERVER_ENABLED=false` y reiniciar `security` y `proxy`: el login vuelve a ser sólo con
+clave (las marcas de 2FA quedan guardadas para cuando se vuelva a prender).
+
+Pruebas: los tests de `modules/security` (`tests/test_doble_factor.py`) y `proxy` (`tests/test_stepup.py`)
+usan un TokenServer simulado. El e2e `modules/security/scripts/e2e_doble_factor.py` corre contra un
+TokenServer **local** real con un tenant de prueba (ver el encabezado del script; se niega a correr contra
+hosts que no sean locales).
 
 ## API interna de Liquidaciones
 

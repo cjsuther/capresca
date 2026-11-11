@@ -96,6 +96,10 @@ services:
       - CONTABILIDAD_SERVICE_URL=http://contabilidad:8014
       - JWT_SECRET=${JWT_SECRET}
       - PERMISSIONS_CACHE_TTL=60
+      # Step-up de operaciones sensibles (proxy/app/routes/stepup.py). El gateway NO usa la API key
+      # de TokenServer: valida localmente el token de step-up que emite security.
+      - TOKENSERVER_ENABLED=${TOKENSERVER_ENABLED:-false}
+      - TOKENSERVER_STEPUP_SIN_2FA=${TOKENSERVER_STEPUP_SIN_2FA:-bloquear}
     depends_on:
       - security
       - cajeros
@@ -130,6 +134,13 @@ services:
       - AUDITORIA_INTERNAL_API_KEY=${AUDITORIA_INTERNAL_API_KEY}
       # Llamadas entre módulos a /internal/* (header X-Internal-Key).
       - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?Falta INTERNAL_SERVICE_KEY en .env}
+      # Doble factor (TOTP) con TokenServer. Apagado por defecto: con false no cambia nada.
+      # En producción TokenServer se une a esta red (app_network) con el alias tokenserver-web.
+      - TOKENSERVER_ENABLED=${TOKENSERVER_ENABLED:-false}
+      - TOKENSERVER_URL=${TOKENSERVER_URL:-http://tokenserver-web:8080/v1}
+      - TOKENSERVER_API_KEY=${TOKENSERVER_API_KEY:-}
+      - TOKENSERVER_OBLIGATORIO_ROLES=${TOKENSERVER_OBLIGATORIO_ROLES:-}
+      - TOKENSERVER_STEPUP_MINUTOS=${TOKENSERVER_STEPUP_MINUTOS:-5}
     depends_on:
       db_security:
         condition: service_healthy
