@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, KeyRound, ChevronDown, Menu, X } from "lucide-react";
+import { LogOut, KeyRound, ChevronDown, Menu, X, ShieldCheck } from "lucide-react";
+import { DobleFactorModal } from "./dobleFactor/DobleFactorModal";
 import { useAuthStore } from "../context/authStore";
+import { useStepUpStore } from "../context/stepUpStore";
 import { useUser } from "../context/usePermissions";
 import { logout as apiLogout } from "../api/auth";
 import { changeMyPassword } from "../api/security";
@@ -16,6 +18,8 @@ export function Layout({ children, sidebar }) {
   const user = useUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [show2faModal, setShow2faModal] = useState(false);
+  const mfa = useAuthStore((s) => s.mfa);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -23,6 +27,7 @@ export function Layout({ children, sidebar }) {
   const handleLogout = async () => {
     await apiLogout();
     logoutStore();
+    useStepUpStore.getState().olvidar();
     navigate("/login");
   };
 
@@ -84,6 +89,16 @@ export function Layout({ children, sidebar }) {
                   <KeyRound size={15} />
                   Cambiar contraseña
                 </button>
+                {mfa?.habilitado && (
+                  <button
+                    onClick={() => { setMenuOpen(false); setShow2faModal(true); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 text-left"
+                  >
+                    <ShieldCheck size={15} />
+                    Doble factor
+                    {!mfa.activo && <span className="ml-auto text-xs text-amber-600">inactivo</span>}
+                  </button>
+                )}
                 <div className="border-t" />
                 <button
                   onClick={handleLogout}
@@ -136,6 +151,8 @@ export function Layout({ children, sidebar }) {
           onClose={() => setShowPasswordModal(false)}
         />
       )}
+
+      {show2faModal && <DobleFactorModal onClose={() => setShow2faModal(false)} />}
     </div>
   );
 }

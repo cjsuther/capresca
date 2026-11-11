@@ -42,6 +42,7 @@ class UserResponse(BaseModel):
     full_name: Optional[str]
     is_active: bool
     created_at: datetime
+    totp_activo: bool = False          # doble factor activo (TokenServer)
     roles: List[RoleRef] = []          # asignados directamente al usuario
     groups: List[GroupRef] = []        # cada grupo trae los roles que el usuario hereda de él
 

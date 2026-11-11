@@ -5,9 +5,12 @@ import {
 import { useHasPermission } from "../../../context/usePermissions";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { ChangePasswordModal } from "../../../components/ChangePasswordModal";
+import { Confirmacion } from "../../../components/ui/Confirmacion";
+import { resetear2fa } from "../../../api/dobleFactor";
+import { useAuthStore } from "../../../context/authStore";
 import {
   Plus, Pencil, Trash2, UserCheck, UserX,
-  ShieldCheck, Check, X, ChevronDown, ChevronUp, KeyRound,
+  ShieldCheck, ShieldOff, Check, X, ChevronDown, ChevronUp, KeyRound,
 } from "lucide-react";
 
 /** Roles que el usuario recibe por sus grupos activos y no tiene asignados directamente. */
@@ -49,6 +52,11 @@ export default function UsersPage() {
 
   // Modal cambio de contraseña por admin
   const [passwordTarget, setPasswordTarget] = useState(null); // { id, username }
+
+  // Doble factor: marca en la lista y reset por un administrador
+  const mfaHabilitado = useAuthStore((s) => s.mfa?.habilitado);
+  const [reset2faTarget, setReset2faTarget] = useState(null);
+  const [reseteando, setReseteando] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -102,6 +110,22 @@ export default function UsersPage() {
       load();
     } catch {
       setError("Error al desactivar usuario");
+    }
+  };
+
+  // ── Reset del doble factor ───────────────────────────────────
+  const handleReset2fa = async () => {
+    setError("");
+    setReseteando(true);
+    try {
+      await resetear2fa(reset2faTarget.id);
+      setReset2faTarget(null);
+      load();
+    } catch (err) {
+      setReset2faTarget(null);
+      setError(err.response?.data?.detail || "No se pudo resetear el doble factor");
+    } finally {
+      setReseteando(false);
     }
   };
 
@@ -210,7 +234,15 @@ export default function UsersPage() {
                 {/* Fila principal */}
                 <tr key={user.id} className={editingId === user.id || rolesPanelId === user.id ? "bg-blue-50" : "hover:bg-gray-50"}>
 
-                  <td className="px-4 py-3 font-medium">{user.username}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {user.username}
+                    {mfaHabilitado && user.totp_activo && (
+                      <span title="Doble factor activo"
+                            className="ml-2 inline-flex items-center gap-0.5 text-xs text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
+                        <ShieldCheck size={11} /> 2FA
+                      </span>
+                    )}
+                  </td>
 
                   <td className="px-4 py-3 text-gray-600">
                     {editingId === user.id
@@ -296,6 +328,16 @@ export default function UsersPage() {
                             >
                               <KeyRound size={15} />
                             </button>
+                            {mfaHabilitado && user.totp_activo && (
+                              <button
+                                onClick={() => setReset2faTarget(user)}
+                                title="Resetear doble factor"
+                                aria-label={`Resetear doble factor de ${user.username}`}
+                                className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg"
+                              >
+                                <ShieldOff size={15} />
+                              </button>
+                            )}
                             <button onClick={() => startEdit(user)} title="Editar" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
                               <Pencil size={15} />
                             </button>
@@ -384,6 +426,19 @@ export default function UsersPage() {
           requireCurrent={false}
           onSave={(_, newPass) => adminChangePassword(passwordTarget.id, newPass)}
           onClose={() => setPasswordTarget(null)}
+        />
+      )}
+
+      {/* Reset del doble factor (queda en Auditoría) */}
+      {reset2faTarget && (
+        <Confirmacion
+          titulo={`Resetear el doble factor de ${reset2faTarget.username}`}
+          mensaje={"Se borran su app autenticadora y sus códigos de recuperación, y se le levanta el bloqueo.\n" +
+                   "Hacelo sólo después de verificar su identidad por otro medio. En el próximo ingreso se vuelve a enrolar."}
+          confirmar="Resetear"
+          ocupado={reseteando}
+          onConfirmar={handleReset2fa}
+          onCancelar={() => setReset2faTarget(null)}
         />
       )}
     </div>

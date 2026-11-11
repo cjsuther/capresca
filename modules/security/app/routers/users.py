@@ -13,6 +13,8 @@ from app.services.user_service import (
 )
 from app.services.group_service import assign_user_groups
 from app.services.permissions_service import get_user_permissions
+from app.services import doble_factor as df
+from app.services import auditoria_central as central
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -84,6 +86,26 @@ def change_my_password(
     if not x_user_id:
         raise HTTPException(status_code=401, detail="No autenticado")
     change_own_password(db, int(x_user_id), data.current_password, data.new_password)
+
+
+# ── Reset del doble factor por un administrador ──────────────────
+@router.delete("/{user_id}/2fa")
+def reset_2fa(user_id: int, db: Session = Depends(get_db), x_user_id: Optional[str] = Header(None),
+              x_username: Optional[str] = Header(None)):
+    """Borra el 2FA del usuario en TokenServer (tokens y códigos de recuperación) y lo desbloquea; en el
+    próximo ingreso se vuelve a enrolar. Queda en Auditoría. Nadie se resetea el propio: eso saltearía
+    el código que exige desactivarlo."""
+    df.exigir_habilitado()
+    if x_user_id and x_user_id.isdigit() and int(x_user_id) == user_id:
+        raise HTTPException(status_code=403, detail="No podés resetear tu propio doble factor: "
+                            "desactivalo desde tu menú o pedíselo a otro administrador.")
+    user = get_user(db, user_id)
+    tenia = bool(user.totp_activo)
+    borrados = df.resetear(db, user)
+    central.registrar(operacion="ACCION", entidad="User", entidad_id=str(user.id),
+                      descripcion=f"Reset del doble factor de {user.username} por {x_username or 'administrador'}",
+                      cambios={"totp_activo": [tenia, False], "dispositivos_borrados": [borrados, 0]})
+    return {"user_id": user.id, "totp_activo": False, "dispositivos_borrados": borrados}
 
 
 # ── Cambio de contraseña por admin ───────────────────────────────

@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     cors_origins: str = ""
     # Los reportes de créditos (PDF/Excel sobre la base completa) pueden pasar los 30s.
     upstream_timeout: float = 120.0
+    # Doble factor: con true, las operaciones de routes/stepup.py exigen step-up (header X-2FA-Token).
+    # El gateway no habla con TokenServer: valida localmente el token de step-up que emite security.
+    tokenserver_enabled: bool = False
+    # Operación sensible y el usuario NO tiene 2FA: "bloquear" (403, que lo active) o "permitir".
+    tokenserver_stepup_sin_2fa: str = "bloquear"
 
     class Config:
         env_file = ".env"

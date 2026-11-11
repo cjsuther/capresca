@@ -1,10 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.routers import auth, users, roles, groups, modules, permissions, internal
 from app.services import auditoria_central as central
+from app.services.doble_factor import ErrorDobleFactor
 
 app = FastAPI(title="Security Module", version="1.0.0")
+
+
+@app.exception_handler(ErrorDobleFactor)
+async def _error_doble_factor(_request: Request, exc: ErrorDobleFactor):
+    """{"detail": mensaje para el usuario, "code": código estable para el frontend, ...extra}."""
+    return JSONResponse(status_code=exc.status, content=exc.cuerpo(), headers=exc.headers)
 
 app.add_middleware(
     CORSMiddleware,
