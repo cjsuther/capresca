@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, false, func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -13,6 +13,9 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Doble factor (TokenServer): si está activo, el login pide el código. Ver services/doble_factor.py.
+    totp_activo = Column(Boolean, default=False, server_default=false(), nullable=False)
+    totp_activado_en = Column(DateTime(timezone=True), nullable=True)
 
     roles = relationship("Role", secondary="user_roles", back_populates="users")
     direct_permissions = relationship("UserPermission", back_populates="user")
