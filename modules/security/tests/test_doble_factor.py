@@ -363,6 +363,12 @@ def test_step_up_tokenserver_caido(client, crear_usuario, falso, db):
     assert r.status_code == 503 and "step_up_token" not in r.json()
 
 
+def test_la_clave_de_step_up_coincide_con_la_del_gateway():
+    # Mismo vector que proxy/tests/test_stepup.py: el gateway valida los tokens que se emiten acá.
+    assert settings.jwt_secret == "secreto-de-test"
+    assert clave_derivada(SCOPE_STEP_UP) == "00233bba2439943fccd602ebea4f66fc01d3132d394437b835ca03c62f89f5c1"
+
+
 # ── Reset por un administrador ───────────────────────────────────────────────────────────────────
 def test_admin_resetea_el_2fa_y_queda_auditado(client, crear_usuario, falso, db, auditados):
     u = _con_2fa(db, falso, crear_usuario())

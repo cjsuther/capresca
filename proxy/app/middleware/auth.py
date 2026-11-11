@@ -8,6 +8,8 @@ Flujo:
   4. Verificar que el usuario tiene el permiso requerido para la ruta
   5. Reenviar la solicitud al microservicio correspondiente
 """
+import hashlib
+import hmac
 import logging
 import posixpath
 from typing import Optional
@@ -21,6 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.routes.mapping import get_service_url, get_required_permission
+from app.routes.stepup import requiere_step_up
 from app import clave_interna
 from app.services import auditoria
 
@@ -37,8 +40,31 @@ _revocados: TTLCache = TTLCache(maxsize=5000, ttl=8 * 3600)
 # al reenviarla un `?` o `#` (que llegaron como %3F/%23) cortaría la ruta que ve el módulo.
 _CARACTERES_INVALIDOS = set("?#%\\") | {chr(c) for c in range(32)} | {chr(127)}
 
-# Rutas que no requieren autenticación
-PUBLIC_PATHS = {"/api/auth/login", "/api/auth/refresh", "/health"}
+# Rutas que no requieren autenticación. Los pasos del login con doble factor tampoco: todavía no hay
+# sesión, sólo el token temporal (`mfa_token`, en el cuerpo) que valida security.
+PUBLIC_PATHS = {"/api/auth/login", "/api/auth/refresh", "/health",
+                "/api/auth/2fa/login", "/api/auth/2fa/login/enrolar", "/api/auth/2fa/login/activar"}
+
+# Firma de los tokens de step-up: clave derivada de JWT_SECRET (la misma derivación que security,
+# app/services/auth_service.py::clave_derivada). Un token de sesión no valida como step-up ni al revés.
+SCOPE_STEP_UP = "step_up"
+
+
+def _clave_step_up() -> str:
+    return hmac.new(settings.jwt_secret.encode(), f"portezuelo-2fa:{SCOPE_STEP_UP}".encode(),
+                    hashlib.sha256).hexdigest()
+
+
+def step_up_valido(token: str, sesion: dict) -> bool:
+    """El token de step-up es de este usuario, de ESTA sesión (sid = jti) y no venció."""
+    if not token:
+        return False
+    try:
+        p = jwt.decode(token, _clave_step_up(), algorithms=["HS256"])
+    except JWTError:
+        return False
+    return (p.get("scope") == SCOPE_STEP_UP and str(p.get("sub")) == str(sesion.get("sub"))
+            and bool(sesion.get("jti")) and p.get("sid") == sesion.get("jti"))
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -98,11 +124,33 @@ class AuthMiddleware(BaseHTTPMiddleware):
             self._auditar_rechazo(request, path, user_id, payload.get("username", ""), detalle)
             return JSONResponse(status_code=403, content={"detail": "Acceso denegado", "required": detalle})
 
+        # ── Step-up: operaciones sensibles piden el código otra vez ──
+        if settings.tokenserver_enabled:
+            rechazo = self._step_up(request, path, payload)
+            if rechazo is not None:
+                return rechazo
+
         # Continuar al router de proxy (routes/proxy.py inyecta la identidad en los headers)
         request.state.user_id = user_id
         request.state.username = payload.get("username", "")
         request.state.permissions = permissions
         return await call_next(request)
+
+    @staticmethod
+    def _step_up(request: Request, path: str, payload: dict) -> Optional[JSONResponse]:
+        operacion = requiere_step_up(request.method, path)
+        if operacion is None or step_up_valido(request.headers.get("x-2fa-token", ""), payload):
+            return None
+        tiene_2fa = "otp" in (payload.get("amr") or [])
+        if not tiene_2fa:
+            if settings.tokenserver_stepup_sin_2fa.strip().lower() == "permitir":
+                return None
+            return JSONResponse(status_code=403, content={
+                "detail": f"{operacion}: esta operación exige doble factor. Activalo desde tu menú → Doble factor.",
+                "code": "2fa_requerido", "operacion": operacion})
+        return JSONResponse(status_code=403, content={
+            "detail": f"{operacion}: ingresá el código de tu app autenticadora para confirmar.",
+            "code": "step_up_requerido", "operacion": operacion})
 
     @staticmethod
     def _auditar_rechazo(request: Request, path: str, user_id: int, username: str, permiso: str = "") -> None:
