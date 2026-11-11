@@ -406,3 +406,22 @@ def test_listado_de_usuarios_muestra_el_estado(client, crear_usuario, falso, db)
     _con_2fa(db, falso, crear_usuario())
     data = client.get("/api/security/users").json()["data"]
     assert data[0]["totp_activo"] is True
+
+
+# ── Step-up total en Seguridad (proxy/app/routes/stepup.py: regla general sobre ^/api/security/) ──
+def test_toda_escritura_del_modulo_cae_bajo_la_regla_general_del_gateway():
+    """El gateway exige step-up (y 2FA) a cualquier escritura bajo /api/security/. Si alguien publica una
+    escritura con otro prefijo, quedaría afuera: este test lo impide. /api/auth/ son el login y el propio
+    2FA (exceptuados a propósito); /internal/ no sale por el gateway."""
+    from fastapi.routing import APIRoute
+    from app.main import app
+
+    escrituras = [(sorted(r.methods - {"GET", "HEAD", "OPTIONS"}), r.path) for r in app.routes
+                  if isinstance(r, APIRoute) and r.methods - {"GET", "HEAD", "OPTIONS"}]
+    assert len(escrituras) >= 25
+    fuera = [e for e in escrituras if not e[1].startswith(("/api/security/", "/api/auth/", "/internal/"))]
+    assert fuera == []
+    # Ninguna ruta del propio doble factor vive bajo /api/security (si no, quedaría bloqueada sin 2FA)
+    # salvo el reset del 2FA de OTRO usuario, que sí exige el token del admin.
+    propias = [p for _, p in escrituras if p.startswith("/api/security/") and "2fa" in p]
+    assert propias == ["/api/security/users/{user_id}/2fa"]
