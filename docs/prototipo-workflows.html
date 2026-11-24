@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototipo · Workflows gráficos · Capresca</title>
+<!-- Prototipo ESTÁTICO de la idea (docs/analisis-workflows.md). Sin dependencias ni red.
+     No es el editor real: el real sería React Flow dentro del frontend. -->
+<style>
+  :root{--bg:#f6f7f9;--surface:#fff;--text:#1f2937;--muted:#6b7280;--line:#d1d5db;--edge:#9ca3af;
+        --blue:#2563eb;--blue-bg:#eff6ff;--green:#16a34a;--green-bg:#ecfdf5;--red:#dc2626;--red-bg:#fef2f2;
+        --amber:#d97706;--amber-bg:#fffbeb;--violet:#7c3aed;--violet-bg:#f5f3ff;--gray-bg:#f3f4f6}
+  @media (prefers-color-scheme: dark){:root{--bg:#0f1115;--surface:#181b21;--text:#e5e7eb;--muted:#9ca3af;--line:#374151;
+        --edge:#6b7280;--blue:#60a5fa;--blue-bg:#172554;--green:#4ade80;--green-bg:#052e16;--red:#f87171;--red-bg:#450a0a;
+        --amber:#fbbf24;--amber-bg:#451a03;--violet:#a78bfa;--violet-bg:#2e1065;--gray-bg:#1f2937}}
+  *{box-sizing:border-box} body{margin:0;font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surface);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0} header .sub{color:var(--muted);font-size:13px}
+  .pill{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--green-bg);color:var(--green);font-weight:600}
+  .pill.draft{background:var(--amber-bg);color:var(--amber)}
+  .tabs{display:flex;gap:4px;margin-left:auto}
+  .tabs button{border:1px solid var(--line);background:var(--surface);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer}
+  .tabs button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  main{display:grid;grid-template-columns:170px 1fr 300px;gap:0;height:calc(100vh - 58px)}
+  aside{background:var(--surface);border-right:1px solid var(--line);padding:12px;overflow:auto}
+  aside.right{border-right:0;border-left:1px solid var(--line)}
+  aside h3{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:4px 0 8px}
+  .pal{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px dashed var(--line);border-radius:8px;margin-bottom:6px;cursor:grab;font-size:13px}
+  .canvas{overflow:auto;position:relative;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:18px 18px}
+  svg{display:block;margin:0 auto}
+  .node{cursor:pointer} .node text{fill:var(--text);font-size:13px} .node .t2{fill:var(--muted);font-size:11px}
+  .node.sel rect,.node.sel circle,.node.sel polygon{stroke-width:3}
+  .edge path{fill:none;stroke:var(--edge);stroke-width:1.6} .edge text{fill:var(--muted);font-size:11px}
+  .edge.dash path{stroke-dasharray:5 4}
+  .edge.hit path{stroke:var(--green);stroke-width:2.6} .edge.hit text{fill:var(--green);font-weight:600}
+  .st-done rect,.st-done circle,.st-done polygon{stroke:var(--green)!important;fill:var(--green-bg)!important}
+  .st-curr rect,.st-curr polygon{stroke:var(--blue)!important;stroke-width:3;animation:pulse 1.4s infinite}
+  .st-idle{opacity:.38}
+  @keyframes pulse{50%{stroke-opacity:.35}}
+  .field{margin-bottom:10px} .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+  .field input,.field select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text)}
+  .kv{display:grid;grid-template-columns:90px 1fr;gap:4px 8px;font-size:13px} .kv div:nth-child(odd){color:var(--muted)}
+  .chk{font-size:13px;margin:3px 0} .ok{color:var(--green)} .warn{color:var(--amber)} .bad{color:var(--red)}
+  .btn{border:0;background:var(--blue);color:#fff;padding:7px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  .btn.sec{background:var(--gray-bg);color:var(--text)}
+  .tl{border-left:2px solid var(--line);margin-left:6px;padding-left:12px;font-size:12.5px}
+  .tl div{margin:0 0 10px;position:relative} .tl div:before{content:"";position:absolute;left:-18px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--green)}
+  .tl div.cur:before{background:var(--blue)} .tl small{color:var(--muted);display:block}
+  .note{font-size:12px;color:var(--muted);border-top:1px solid var(--line);margin-top:14px;padding-top:10px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Créditos · Aprobación de solicitud de crédito</h1>
+    <div class="sub">Proceso <code>creditos/SOLICITUD</code> · <span id="verlabel">Versión 3</span> <span class="pill" id="verpill">PUBLICADA</span></div>
+  </div>
+  <div class="tabs">
+    <button data-m="disenio" class="on">✏️ Diseñar</button>
+    <button data-m="simular">▶ Simular</button>
+    <button data-m="caso">📍 Caso SOL-2026-01482</button>
+  </div>
+</header>
+<main>
+  <aside>
+    <h3>Nodos</h3>
+    <div class="pal">🟢 Inicio</div>
+    <div class="pal">▭ Tarea / estado</div>
+    <div class="pal">✔ Aprobación</div>
+    <div class="pal">◆ Decisión</div>
+    <div class="pal">⑃ Paralelo</div>
+    <div class="pal">⚙ Acción automática</div>
+    <div class="pal">✉ Notificación</div>
+    <div class="pal">⏱ Espera / vence</div>
+    <div class="pal">⧉ Subflujo</div>
+    <div class="pal">🔴 Fin</div>
+    <p class="note">En el editor real se arrastran al lienzo y se conectan tirando de los bordes (React Flow). Acá la paleta es ilustrativa.</p>
+  </aside>
+  <section class="canvas"><svg id="svg" width="900" height="830" role="img" aria-label="Diagrama del workflow"></svg></section>
+  <aside class="right" id="panel"></aside>
+</main>
+
+<script>
+// ── Grafo (mismo formato que propone el análisis: nodos + conexiones; el layout va aparte) ──
+const N = [
+  {id:"inicio", tipo:"inicio", nombre:"Envía a evaluación", sub:"asesor o portal", x:450,y:45},
+  {id:"doc",    tipo:"decision", nombre:"¿Documentación", sub:"completa?", x:450,y:140},
+  {id:"obs",    tipo:"tarea", nombre:"Observar / corregir", sub:"asesor · portal", x:735,y:140},
+  {id:"ap1",    tipo:"aprobacion", nombre:"Aprobación", sub:"aprobaciones:aprobar · 4 ojos", x:450,y:250,
+                 props:{"Asigna a":"permiso creditos:aprobaciones:aprobar","Excepciones":"− jperez","Cuatro-ojos":"sí (no aprueba quien envió)","Quórum":"1","Vence":"3 días hábiles → Escalar"}},
+  {id:"esc",    tipo:"notif", nombre:"Escalar", sub:"aviso a Supervisión", x:165,y:250},
+  {id:"monto",  tipo:"decision", nombre:"¿Monto > $5M?", sub:"(ejemplo)", x:450,y:360},
+  {id:"sup",    tipo:"aprobacion", nombre:"Supervisión", sub:"grupo Gerencia Créditos", x:715,y:360,
+                 props:{"Asigna a":"grupo «Gerencia Créditos»","Cuatro-ojos":"sí (ni el emisor ni Aprobación)","Quórum":"1"}},
+  {id:"eval",   tipo:"accion", nombre:"Evaluar elegibilidad", sub:"automática", x:450,y:470},
+  {id:"rech",   tipo:"fin", nombre:"Rechazada", x:165,y:470, res:"RECHAZADO"},
+  {id:"lote",   tipo:"accion", nombre:"Asignar a lote", sub:"de liquidación", x:450,y:575},
+  {id:"notif",  tipo:"notif", nombre:"Avisar al solicitante", sub:"campanita + mail", x:450,y:675},
+  {id:"fin",    tipo:"fin", nombre:"Aprobada", x:450,y:775, res:"APROBADO"},
+];
+const E = [
+  {de:"inicio",a:"doc"},
+  {de:"doc",a:"obs",et:"no"},
+  {de:"obs",a:"inicio",et:"reenvía",pts:[[735,45]]},
+  {de:"doc",a:"ap1",et:"sí"},
+  {de:"ap1",a:"monto",et:"aprueba"},
+  {de:"ap1",a:"rech",et:"rechaza",pts:[[300,250],[300,470]]},
+  {de:"ap1",a:"esc",et:"vencido",dash:1},
+  {de:"esc",a:"ap1",et:"",pts:[[165,300],[390,300]],dash:1},
+  {de:"monto",a:"sup",et:"sí"},
+  {de:"monto",a:"eval",et:"si no"},
+  {de:"sup",a:"eval",et:"aprueba",pts:[[715,470]]},
+  {de:"sup",a:"rech",et:"rechaza",pts:[[715,432],[200,432]]},
+  {de:"eval",a:"rech",et:"no elegible"},
+  {de:"eval",a:"lote",et:"elegible"},
+  {de:"lote",a:"notif"},
+  {de:"notif",a:"fin"},
+];
+const byId = Object.fromEntries(N.map(n=>[n.id,n]));
+const CLR = {inicio:["--green","--green-bg"],fin:["--red","--red-bg"],decision:["--amber","--amber-bg"],aprobacion:["--blue","--blue-bg"],
+             accion:["--violet","--violet-bg"],notif:["--amber","--amber-bg"],tarea:["--muted","--gray-bg"]};
+const ICO = {aprobacion:"✔ ",accion:"⚙ ",notif:"✉ ",tarea:"▭ "};
+const svg = document.getElementById("svg"), panel = document.getElementById("panel");
+const ns = "http://www.w3.org/2000/svg";
+const el = (t,a={},p=svg)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e;};
+let modo="disenio", sel=null, recorrido={nodos:new Set(),aristas:new Set(),actual:null};
+
+function borde(n, hacia){ // punto del borde del nodo en dirección a (x,y)
+  const w = n.tipo==="inicio"||n.tipo==="fin"?28: n.tipo==="decision"?78:95, h = n.tipo==="inicio"||n.tipo==="fin"?28: n.tipo==="decision"?36:26;
+  const dx=hacia[0]-n.x, dy=hacia[1]-n.y;
+  if(Math.abs(dx)*h > Math.abs(dy)*w) return [n.x+Math.sign(dx)*w, n.y];
+  return [n.x, n.y+Math.sign(dy)*h];
+}
+function dibujar(){
+  svg.innerHTML="";
+  const defs=el("defs"); const m=el("marker",{id:"fl",viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto-start-reverse"},defs);
+  el("path",{d:"M0,0 L10,5 L0,10 z",fill:"var(--edge)"},m);
+  const m2=el("marker",{id:"fl2",viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto-start-reverse"},defs);
+  el("path",{d:"M0,0 L10,5 L0,10 z",fill:"var(--green)"},m2);
+  E.forEach((e,i)=>{
+    const a=byId[e.de], b=byId[e.a], mid=e.pts||[];
+    const p0=borde(a, mid[0]||[b.x,b.y]), p1=borde(b, mid[mid.length-1]||[a.x,a.y]);
+    let pts=[p0,...mid,p1];
+    if(!e.pts && p0[0]!==p1[0] && p0[1]!==p1[1]) pts=[p0,[p1[0],p0[1]],p1]; // codo en L
+    const hit = recorrido.aristas.has(i);
+    const g=el("g",{class:"edge"+(e.dash?" dash":"")+(hit?" hit":"")});
+    el("path",{d:"M"+pts.map(p=>p.join(",")).join(" L"),"marker-end":hit?"url(#fl2)":"url(#fl)"},g);
+    if(e.et){const s=pts[Math.floor((pts.length-1)/2)], t=pts[Math.floor((pts.length-1)/2)+1];
+      const tx=el("text",{x:(s[0]+t[0])/2+6,y:(s[1]+t[1])/2-5},g); tx.textContent=e.et;}
+  });
+  N.forEach(n=>{
+    const [c,bg]=CLR[n.tipo]; const st = modo==="disenio"?"" : recorrido.actual===n.id?" st-curr": recorrido.nodos.has(n.id)?" st-done":" st-idle";
+    const g=el("g",{class:"node"+(sel===n.id?" sel":"")+st,tabindex:0}); g.onclick=()=>{sel=n.id;dibujar();render();};
+    const sty=`stroke:var(${c});fill:var(${bg});stroke-width:1.8`;
+    if(n.tipo==="inicio"||n.tipo==="fin"){ el("circle",{cx:n.x,cy:n.y,r:26,style:sty+(n.tipo==="fin"?";stroke-width:3.5":"")},g);
+      const t=el("text",{x:n.x+36,y:n.y+4},g); t.textContent=n.nombre; if(n.sub){const t2=el("text",{x:n.x+36,y:n.y+19,class:"t2"},g);t2.textContent=n.sub;} }
+    else if(n.tipo==="decision"){ el("polygon",{points:`${n.x},${n.y-36} ${n.x+78},${n.y} ${n.x},${n.y+36} ${n.x-78},${n.y}`,style:sty},g);
+      const t=el("text",{x:n.x,y:n.y-2,"text-anchor":"middle"},g); t.textContent=n.nombre;
+      const t2=el("text",{x:n.x,y:n.y+14,"text-anchor":"middle",class:"t2"},g); t2.textContent=n.sub||""; }
+    else { el("rect",{x:n.x-95,y:n.y-26,width:190,height:52,rx:10,style:sty},g);
+      el("rect",{x:n.x-95,y:n.y-26,width:5,height:52,rx:2,style:`fill:var(${c})`},g);
+      const t=el("text",{x:n.x-80,y:n.y-3},g); t.textContent=(ICO[n.tipo]||"")+n.nombre;
+      const t2=el("text",{x:n.x-80,y:n.y+14,class:"t2"},g); t2.textContent=n.sub||""; }
+  });
+}
+
+// ── Validaciones reales del grafo (las de §3.3, versión mínima) ──
+function validar(){
+  const out=(id)=>E.filter(e=>e.de===id).map(e=>e.a), inn=(id)=>E.filter(e=>e.a===id).map(e=>e.de);
+  const bfs=(ini,vec)=>{const v=new Set(ini),q=[...ini];while(q.length){for(const x of vec(q.shift()))if(!v.has(x)){v.add(x);q.push(x);}}return v;};
+  const inicios=N.filter(n=>n.tipo==="inicio"), fines=N.filter(n=>n.tipo==="fin");
+  const alc=bfs(inicios.map(n=>n.id),out), aFin=bfs(fines.map(n=>n.id),inn);
+  const huerf=N.filter(n=>!alc.has(n.id)), sinFin=N.filter(n=>!aFin.has(n.id));
+  const decSinDef=N.filter(n=>n.tipo==="decision"&&!E.some(e=>e.de===n.id&&/^(no|si no)$/.test(e.et||"")));
+  return [
+    [inicios.length===1,"Exactamente un Inicio"],
+    [fines.length>=1,`${fines.length} nodos Fin`],
+    [!huerf.length,huerf.length?"Huérfanos: "+huerf.map(n=>n.nombre).join(", "):"Todos los nodos alcanzables desde Inicio"],
+    [!sinFin.length,sinFin.length?"Sin camino a Fin: "+sinFin.map(n=>n.nombre).join(", "):"Todos los nodos llegan a un Fin"],
+    [!decSinDef.length,"Cada decisión tiene salida por defecto"],
+    [true,"Ciclo «Observar → Inicio» pasa por un nodo humano"],
+    ["warn","Supervisión: hoy 1 solo usuario en «Gerencia Créditos» (riesgo de bloqueo)"],
+  ];
+}
+
+// ── Simulación: recorre el grafo con variables y decisiones humanas ──
+function simular(v){
+  const nodos=new Set(), aristas=new Set(); let cur="inicio", pasos=0, log=[];
+  const ir=(et)=>{const i=E.findIndex(e=>e.de===cur&&(et===undefined||e.et===et)); aristas.add(i); cur=E[i].a;};
+  while(pasos++<30){ nodos.add(cur); const n=byId[cur];
+    if(n.tipo==="fin"){log.push("Fin: "+n.nombre);break;}
+    if(cur==="doc"){ if(!v.doc){log.push("Falta documentación → Observar");ir("no");nodos.add(cur);break;} ir("sí"); continue; }
+    if(cur==="ap1"){ log.push("Aprobación: "+v.ap1); ir(v.ap1==="aprueba"?"aprueba":"rechaza"); continue; }
+    if(cur==="monto"){ const alto=v.monto>5000000; log.push(`Monto ${v.monto.toLocaleString("es-AR")} → ${alto?"Supervisión":"sigue"}`); ir(alto?"sí":"si no"); continue; }
+    if(cur==="sup"){ log.push("Supervisión: "+v.sup); ir(v.sup==="aprueba"?"aprueba":"rechaza"); continue; }
+    if(cur==="eval"){ log.push(v.eleg?"⚙ se ejecutaría evaluar_elegibilidad → elegible":"⚙ evaluar_elegibilidad → no elegible"); ir(v.eleg?"elegible":"no elegible"); continue; }
+    if(n.tipo==="accion"){log.push("⚙ se ejecutaría asignar_a_lote");} if(n.tipo==="notif"){log.push("✉ se enviaría: "+n.nombre);}
+    ir();
+  }
+  return {nodos,aristas,actual:null,log};
+}
+
+function render(){
+  let h="";
+  if(modo==="disenio"){
+    h+=`<h3>Validación</h3>`+validar().map(([ok,t])=>`<div class="chk ${ok==="warn"?"warn":ok?"ok":"bad"}">${ok==="warn"?"⚠":ok?"✔":"✖"} ${t}</div>`).join("");
+    const n=sel&&byId[sel];
+    h+=`<h3 style="margin-top:16px">Propiedades</h3>`;
+    if(!n) h+=`<p class="note" style="border:0;margin:0">Hacé clic en un nodo para ver sus propiedades.</p>`;
+    else{ h+=`<div class="kv"><div>Tipo</div><div>${n.tipo}</div><div>Nombre</div><div>${n.nombre} ${n.sub||""}</div>`;
+      for(const [k,v] of Object.entries(n.props||{})) h+=`<div>${k}</div><div>${v}</div>`;
+      if(n.tipo==="decision"&&n.id==="monto") h+=`<div>Condición</div><div><code>monto &gt; 5.000.000</code><br><small>constructor visual · JSON Logic</small></div>`;
+      if(n.tipo==="accion") h+=`<div>Acción</div><div><code>${n.id==="eval"?"evaluar_elegibilidad":"asignar_a_lote"}</code> (catálogo de Créditos)</div>`;
+      h+=`</div>`; }
+    h+=`<div style="display:flex;gap:6px;margin-top:16px"><button class="btn sec" onclick="this.textContent='Borrador v4 creado (prototipo)'">Nueva versión</button><button class="btn" disabled style="opacity:.5" title="Una versión publicada no se edita">Publicar</button></div>`;
+    h+=`<p class="note">La v3 está publicada y no se edita: «Nueva versión» clona un borrador. Publicar pide el permiso <code>workflow:publish</code> y doble factor. Los casos en curso siguen con la versión con la que arrancaron.</p>`;
+  } else if(modo==="simular"){
+    h+=`<h3>Probar con datos</h3>
+      <div class="field"><label>Monto solicitado</label><input id="v_monto" type="number" value="7200000"></div>
+      <div class="field"><label>Documentación obligatoria</label><select id="v_doc"><option value="1">Completa</option><option value="">Incompleta</option></select></div>
+      <div class="field"><label>Aprobación (actúa como: mgomez)</label><select id="v_ap1"><option>aprueba</option><option>rechaza</option></select></div>
+      <div class="field"><label>Supervisión (actúa como: lrios)</label><select id="v_sup"><option>aprueba</option><option>rechaza</option></select></div>
+      <div class="field"><label>Resultado de la evaluación</label><select id="v_eleg"><option value="1">Elegible</option><option value="">No elegible</option></select></div>
+      <button class="btn" id="run">▶ Correr hasta el final</button>
+      <div id="simlog" class="tl" style="margin-top:14px"></div>
+      <p class="note">En simulación no se ejecutan acciones ni se mandan avisos: sólo se muestra qué pasaría. Los escenarios guardados se vuelven a correr al publicar.</p>`;
+  } else {
+    h+=`<h3>SOL-2026-01482 · versión 3</h3>
+      <div class="kv"><div>Solicitante</div><div>García, Ana</div><div>Línea</div><div>Emprendedores</div><div>Monto</div><div>$ 7.200.000</div><div>Estado</div><div>EN_EVALUACION</div></div>
+      <h3 style="margin-top:16px">Recorrido</h3>
+      <div class="tl">
+        <div>Enviada a evaluación<small>asesor jperez · 18/11 10:02</small></div>
+        <div>Documentación completa<small>automático · 18/11 10:02</small></div>
+        <div>Aprobación ✔<small>mgomez · 19/11 12:40</small></div>
+        <div>Monto &gt; $5M → Supervisión<small>automático · 19/11 12:40</small></div>
+        <div class="cur">Esperando Supervisión<small>pueden actuar: lrios · desde hace 5 días</small></div>
+      </div>
+      <p class="note">El caso se dibuja sobre <b>su</b> versión (la 3), aunque después se publique otra. Verde = recorrido; azul = actual; gris = no recorrido.</p>`;
+  }
+  panel.innerHTML=h;
+  const run=document.getElementById("run");
+  if(run) run.onclick=()=>{ const v={monto:+document.getElementById("v_monto").value,doc:!!document.getElementById("v_doc").value,
+      ap1:document.getElementById("v_ap1").value,sup:document.getElementById("v_sup").value,eleg:!!document.getElementById("v_eleg").value};
+    recorrido=simular(v); dibujar(); document.getElementById("simlog").innerHTML=recorrido.log.map(l=>`<div>${l}</div>`).join(""); };
+  if(run && !recorrido.log) run.onclick();
+}
+function setModo(m){
+  modo=m; sel=null;
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
+  if(m==="caso"){ const idx=(a,b)=>E.findIndex(e=>e.de===a&&e.a===b);
+    recorrido={nodos:new Set(["inicio","doc","ap1","monto"]),aristas:new Set([idx("inicio","doc"),idx("doc","ap1"),idx("ap1","monto"),idx("monto","sup")]),actual:"sup"}; }
+  else recorrido={nodos:new Set(),aristas:new Set(),actual:null};
+  dibujar(); render();
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>setModo(b.dataset.m));
+setModo("disenio");
+</script>
+</body>
+</html>
