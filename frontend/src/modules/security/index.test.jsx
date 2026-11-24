@@ -11,6 +11,7 @@ vi.mock("../../api/notifications", () => ({
 }));
 vi.mock("../../api/security", () => ({
   getUsers: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  searchUsers: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25, pages: 1 }),
   getRoles: vi.fn().mockResolvedValue([]),
   getPermissions: vi.fn().mockResolvedValue([]),
   createUser: vi.fn(),

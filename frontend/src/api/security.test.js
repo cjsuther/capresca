@@ -12,7 +12,7 @@ vi.mock("./client", () => ({
 
 import api from "./client";
 import {
-  getUsers, createUser, updateUser, deleteUser, assignRoles,
+  getUsers, searchUsers, createUser, updateUser, deleteUser, assignRoles,
   adminChangePassword, changeMyPassword,
   getRoles, createRole, updateRole, deleteRole,
   assignPermissions, getPermissions, getModules,
@@ -40,6 +40,16 @@ describe("api/security — usuarios", () => {
 
     await getUsers(3, 50);
     expect(api.get).toHaveBeenCalledWith("/security/users", { params: { page: 3, per_page: 50 } });
+  });
+
+  it("searchUsers pega al listado filtrado y no manda los filtros vacíos", async () => {
+    api.get.mockReturnValue(respuesta({ items: [], total: 0, page: 1, page_size: 25, pages: 1 }));
+
+    await expect(searchUsers({ q: "ana", role_id: "", group_id: null, estado: "activo", mfa: false, page: 2 }))
+      .resolves.toMatchObject({ items: [], total: 0 });
+    expect(api.get).toHaveBeenCalledWith("/security/users/search", {
+      params: { q: "ana", estado: "activo", mfa: false, page: 2 },
+    });
   });
 
   it("createUser postea el formulario completo", async () => {

@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Literal, Optional
 
 from app.db.session import get_db
 from app.schemas.user import (
-    UserCreate, UserUpdate, UserResponse, UserListResponse,
+    UserCreate, UserUpdate, UserResponse, UserListResponse, UserPageResponse,
     AssignRolesRequest, AssignGroupsRequest, AdminChangePasswordRequest, ChangeOwnPasswordRequest,
 )
 from app.services.user_service import (
-    get_users, get_user, create_user, update_user, deactivate_user,
+    get_users, search_users, get_user, create_user, update_user, deactivate_user,
     assign_roles, admin_change_password, change_own_password,
 )
 from app.services.group_service import assign_user_groups
@@ -33,6 +33,27 @@ def list_users(
 ):
     users, total = get_users(db, page, per_page)
     return UserListResponse(data=users, total=total, page=page, per_page=per_page)
+
+
+@router.get("/search", response_model=UserPageResponse)
+def search(
+    q: Optional[str] = Query(None, max_length=100, description="Usuario, email o nombre"),
+    role_id: Optional[int] = Query(None, ge=1, description="Rol directo o heredado de un grupo activo"),
+    group_id: Optional[int] = Query(None, ge=1),
+    estado: Optional[Literal["activo", "inactivo"]] = None,
+    mfa: Optional[bool] = Query(None, description="Con (true) o sin (false) doble factor activo"),
+    sort: Literal["nombre", "username", "email", "estado", "creado"] = "nombre",
+    order: Literal["asc", "desc"] = "asc",
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """Listado paginado y filtrado para la pantalla de Usuarios. `GET /users` sigue igual para
+    quienes necesitan la lista completa (Grupos, Cajeros, scripts)."""
+    users, total = search_users(db, q=q, role_id=role_id, group_id=group_id, estado=estado, mfa=mfa,
+                                sort=sort, order=order, page=page, page_size=page_size)
+    return UserPageResponse(items=users, total=total, page=page, page_size=page_size,
+                            pages=max(1, -(-total // page_size)))
 
 
 @router.post("", response_model=UserResponse, status_code=201)
