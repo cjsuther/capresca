@@ -58,6 +58,8 @@ EJEMPLOS = [
     ("DELETE", "/api/security/groups/2"),
     ("POST", "/api/configuraciones/impuestos"), ("PUT", "/api/configuraciones/impuestos/5"),
     ("PUT", "/api/configuraciones/workflow/reglas/1"), ("DELETE", "/api/configuraciones/workflow/niveles/1"),
+    ("POST", "/api/configuraciones/workflow/versiones/3/publicar"), ("POST", "/api/configuraciones/workflow/versiones/3/retirar"),
+    ("POST", "/api/configuraciones/workflow/procesos/2/habilitado"),
     ("POST", "/api/configuraciones/indices/BADLAR/valores"),
     ("POST", "/api/creditos/aprobaciones/pendientes/9/aprobar"), ("POST", "/api/creditos/contratos/9/desembolsar"),
     ("POST", "/api/creditos/contratos/liquidar-lote"), ("POST", "/api/creditos/contratos/lotes-liquidacion/2/cerrar"),

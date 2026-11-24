@@ -141,7 +141,8 @@ PERMISSIONS = {
         ("feriados:read", "Configuraciones · ver el calendario de feriados"),
         ("feriados:write", "Configuraciones · editar el calendario de feriados"),
         ("workflow:read", "Configuraciones · ver el workflow de aprobaciones"),
-        ("workflow:write", "Configuraciones · configurar el workflow de aprobaciones"),
+        ("workflow:write", "Configuraciones · armar borradores del workflow de aprobaciones"),
+        ("workflow:publish", "Configuraciones · publicar, retirar y habilitar el workflow de aprobaciones"),
     ],
     "creditos": [
         *[perm for area, label in CREDITOS_AREAS for perm in (

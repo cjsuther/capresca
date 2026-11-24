@@ -17,6 +17,7 @@ from app.routers.feriados import fechas_activas
 from app.routers.impuestos import listar_impuestos
 from app.routers.indices import listar_indices, serial as serial_indice
 from app.services.workflow import ROLES, sembrar_reglas, serial_regla
+from app.services.wf_procesos import sincronizar_procesos
 
 router = APIRouter(prefix="/internal/configuraciones", tags=["internal"], dependencies=[Depends(api_interna)])
 
@@ -156,4 +157,6 @@ def importar(data: ImportarIn, db: Session = Depends(get_db)):
                 r.niveles.append(nivel)
         db.add(r); res["reglas"] += 1
     db.commit()
+    if data.workflow:
+        sincronizar_procesos(db)   # el editor gráfico refleja lo importado como nueva versión publicada
     return res

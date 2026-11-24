@@ -8,6 +8,7 @@ const data = (p) => p.then((r) => r.data);
 export function mensajeDeError(err, porDefecto = "No se pudo completar la operación") {
   const d = err?.response?.data?.detail;
   if (typeof d === "string" && d.trim()) return d;
+  if (d && typeof d === "object" && !Array.isArray(d) && typeof d.mensaje === "string") return d.mensaje;
   if (Array.isArray(d) && d.length) {
     const e = d[0];
     const campo = Array.isArray(e?.loc) ? e.loc[e.loc.length - 1] : "";
@@ -39,10 +40,26 @@ export const borrarFeriado = (id) => data(api.delete(`${B}/feriados/${id}`));
 export const importarFeriados = (pais, anio) => data(api.post(`${B}/feriados/importar`, { pais, anio }));
 
 // ── Workflow de aprobaciones ──
+// Vista lista (reglas en serie, sólo lectura): lo que ejecutan hoy Créditos y Tesorería.
 export const listarWorkflow = (modulo) => data(api.get(`${B}/workflow`, { params: modulo ? { modulo } : {} }));
-export const editarRegla = (id, d) => data(api.put(`${B}/workflow/reglas/${id}`, d));
-export const agregarNivel = (reglaId, d) => data(api.post(`${B}/workflow/reglas/${reglaId}/niveles`, d));
-export const editarNivel = (id, d) => data(api.put(`${B}/workflow/niveles/${id}`, d));
-export const borrarNivel = (id) => data(api.delete(`${B}/workflow/niveles/${id}`));
-export const agregarOverride = (nivelId, d) => data(api.post(`${B}/workflow/niveles/${nivelId}/usuarios`, d));
-export const borrarOverride = (id) => data(api.delete(`${B}/workflow/usuarios/${id}`));
+
+// Workflow gráfico versionado. Borradores: permiso workflow:write, sin step-up (autosave).
+// Publicar / retirar / habilitar: permiso workflow:publish + step-up (el modal lo pide el cliente).
+const W = `${B}/workflow`;
+export const catalogoWorkflow = () => data(api.get(`${W}/catalogo`));
+export const listarProcesos = () => data(api.get(`${W}/procesos`));
+export const verProceso = (id) => data(api.get(`${W}/procesos/${id}`));
+export const verVersion = (id) => data(api.get(`${W}/versiones/${id}`));
+export const crearBorrador = (procesoId, desde) => data(api.post(`${W}/procesos/${procesoId}/borrador`, desde ? { desde } : {}));
+export const guardarBorrador = (id, d) => data(api.put(`${W}/versiones/${id}`, d));
+export const descartarBorrador = (id) => data(api.delete(`${W}/versiones/${id}`));
+export const publicarVersion = (id, nota) => data(api.post(`${W}/versiones/${id}/publicar`, nota ? { nota } : {}));
+export const retirarVersion = (id) => data(api.post(`${W}/versiones/${id}/retirar`));
+export const habilitarProceso = (id, habilitado) => data(api.post(`${W}/procesos/${id}/habilitado`, { habilitado }));
+export const compararVersiones = (a, b) => data(api.get(`${W}/comparar`, { params: { a, b } }));
+
+/** Problemas que devuelve la API al publicar (`detail.problemas`), como lista de textos. */
+export function problemasDeError(err) {
+  const p = err?.response?.data?.detail?.problemas;
+  return Array.isArray(p) ? p.map((x) => (typeof x === "string" ? x : x?.mensaje)).filter(Boolean) : [];
+}

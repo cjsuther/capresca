@@ -38,10 +38,15 @@ def _creditos_rutas() -> list:
 
 def _configuraciones_rutas() -> list:
     """Cada catálogo tiene su par de permisos: tener `indices:write` no habilita a tocar impuestos, y
-    el workflow (quién aprueba) se administra con un permiso propio, aparte de operar los módulos."""
+    el workflow (quién aprueba) se administra con un permiso propio, aparte de operar los módulos.
+    En el workflow, armar borradores pide `workflow:write`; PUBLICAR (y retirar o habilitar, que
+    cambian lo que rige) pide `workflow:publish`, que se asigna aparte."""
     url = settings.configuraciones_service_url
     base = r"^/api/configuraciones"
-    rutas = []
+    rutas = [
+        ("POST", base + r"/workflow/versiones/\d+/(publicar|retirar)$", url, "configuraciones:workflow:publish"),
+        ("POST", base + r"/workflow/procesos/\d+/habilitado$", url, "configuraciones:workflow:publish"),
+    ]
     for catalogo in ("impuestos", "indices", "feriados", "workflow"):
         rx = base + rf"/{catalogo}(/|$)"
         rutas += [("GET", rx, url, f"configuraciones:{catalogo}:read"),

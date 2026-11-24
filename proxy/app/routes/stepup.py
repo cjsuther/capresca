@@ -85,6 +85,9 @@ STEP_UP_RUTAS: list[tuple[str, str, str]] = [
     ("POST",   r"^/api/interbanking/config$",                         "Cambiar las credenciales de Interbanking"),
 
     # ── Configuraciones: impuestos, índices y workflow de aprobaciones ──
+    # Publicar/retirar/habilitar un workflow cambia quién aprueba qué: van primero, con su texto.
+    ("POST",   r"^/api/configuraciones/workflow/versiones/\d+/(publicar|retirar)$", "Publicar o retirar un workflow de aprobaciones"),
+    ("POST",   r"^/api/configuraciones/workflow/procesos/\d+/habilitado$",  "Habilitar o deshabilitar un workflow de aprobaciones"),
     ("POST",   r"^/api/configuraciones/(impuestos|indices|workflow)(/|$)",  "Cambiar la configuración"),
     ("PUT",    r"^/api/configuraciones/(impuestos|indices|workflow)(/|$)",  "Cambiar la configuración"),
     ("PATCH",  r"^/api/configuraciones/(impuestos|indices|workflow)(/|$)",  "Cambiar la configuración"),
@@ -119,10 +122,20 @@ STEP_UP_RUTAS: list[tuple[str, str, str]] = [
     ("POST",   r"^/api/contabilidad/ejercicios/\d+/(cerrar|reabrir)$", "Cerrar o reabrir un ejercicio contable"),
 ]
 
+# Escrituras que NO piden step-up aunque caigan bajo una regla de arriba: los BORRADORES del workflow
+# gráfico (crear, guardar —autosave—, descartar). Un borrador no rige nada hasta que se publica, y
+# publicar sí pide step-up. Nunca alcanza a Seguridad: REGLA_SEGURIDAD se aplica antes de mirar esto.
+SIN_STEP_UP: list[tuple[str, str]] = [
+    ("POST",   r"^/api/configuraciones/workflow/procesos/\d+/borrador$"),
+    ("PUT",    r"^/api/configuraciones/workflow/versiones/\d+$"),
+    ("DELETE", r"^/api/configuraciones/workflow/versiones/\d+$"),
+]
+
 REGLAS: list[Regla] = [REGLA_SEGURIDAD] + [
     Regla(metodos=frozenset({m}), regex=re.compile(rx), descripcion=desc) for m, rx, desc in STEP_UP_RUTAS
 ]
 _EXCEPCIONES = [re.compile(rx) for rx in EXCEPCIONES]
+_SIN_STEP_UP = [(m, re.compile(rx)) for m, rx in SIN_STEP_UP]
 _DESCRIPCIONES_SEGURIDAD = [(m, re.compile(rx), d) for m, rx, d in DESCRIPCIONES_SEGURIDAD]
 
 
@@ -139,6 +152,8 @@ def regla_step_up(method: str, path: str) -> Regla | None:
         return None
     for regla in REGLAS:
         if _aplica(regla, method) and regla.regex.match(path):
+            if regla is not REGLA_SEGURIDAD and any(m == method and rx.match(path) for m, rx in _SIN_STEP_UP):
+                return None
             return regla
     return None
 

@@ -64,8 +64,14 @@ def gateway(*acciones: str, user_id: int = 7, username: str = "ana") -> dict:
 
 @pytest.fixture
 def admin():
-    """Lee y escribe todo."""
-    return gateway(*(f"{x}:{y}" for x in TODOS for y in ("read", "write")))
+    """Lee y escribe todo, y publica el workflow."""
+    return gateway(*(f"{x}:{y}" for x in TODOS for y in ("read", "write")), "workflow:publish")
+
+
+@pytest.fixture
+def editor():
+    """Arma borradores del workflow pero no publica."""
+    return gateway("workflow:read", "workflow:write", user_id=9, username="eva")
 
 
 @pytest.fixture

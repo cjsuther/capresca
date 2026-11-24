@@ -25,6 +25,32 @@ CATALOGO: dict[str, list[tuple]] = {
 }
 
 
+# Variables que cada proceso ofrece para las condiciones de las decisiones del editor gráfico.
+# Hoy sólo sirven para diseñar y validar: el motor que las evalúa llega con la fase 3 (cada módulo
+# pasará a declararlas él mismo). tipo: numero | texto | opcion | booleano.
+VARIABLES: dict[tuple[str, str], dict[str, dict]] = {
+    ("creditos", "SOLICITUD"): {
+        "monto": {"nombre": "Monto solicitado", "tipo": "numero"},
+        "plazo": {"nombre": "Plazo (cuotas)", "tipo": "numero"},
+        "origen": {"nombre": "Origen", "tipo": "opcion", "opciones": ["PORTAL", "SUCURSAL"]},
+        "linea": {"nombre": "Línea de crédito", "tipo": "texto"},
+    },
+    ("creditos", "DESEMBOLSO"): {
+        "monto": {"nombre": "Monto a desembolsar", "tipo": "numero"},
+    },
+    ("creditos", "REFINANCIACION"): {
+        "monto": {"nombre": "Saldo refinanciado", "tipo": "numero"},
+        "plazo": {"nombre": "Plazo nuevo (cuotas)", "tipo": "numero"},
+    },
+    ("creditos", "LINEA"): {},
+    ("tesoreria", "LOTE_PAGO"): {
+        "importe_total": {"nombre": "Importe total del lote", "tipo": "numero"},
+        "cantidad_pagos": {"nombre": "Cantidad de pagos", "tipo": "numero"},
+        "origen": {"nombre": "Origen del lote", "tipo": "opcion", "opciones": ["CREDITOS", "CONCILIACION", "MANUAL"]},
+    },
+}
+
+
 def sembrar_reglas(db: Session) -> int:
     """Crea las reglas del catálogo que falten (idempotente). Devuelve cuántas creó."""
     nuevas = 0
