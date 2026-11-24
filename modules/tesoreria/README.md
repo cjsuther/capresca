@@ -49,6 +49,10 @@ acreditación se avisa a Créditos; acreditadas todas las de un lote de Crédito
   se confecciona (Créditos no reserva nada).
 - Anular la orden (o rechazar su lote) sólo antes de enviar: los lotes vuelven a `CON_RESOLUCION` y sus
   créditos ya originados los toma la próxima orden.
+- N° de la orden: la pantalla lo precarga con `GET /ordenes-pago/proximo-numero` (el mayor del año + 1,
+  las anuladas cuentan) y el usuario lo puede cambiar. El `POST` acepta `numero` opcional (1–99999): sin
+  él se asigna el mayor + 1; si ya existe en el año responde **409** `Ya existe la OP-AAAA-NNNNN.` (la
+  unique `anio, numero` decide si dos confeccionan a la vez). Si la confección falla, el número queda libre.
 
 ## Permisos (Seguridad)
 
