@@ -81,7 +81,8 @@ def test_configuraciones_tiene_un_par_de_permisos_por_catalogo(correr_seed, db):
     correr_seed()
     mod = db.query(Module).filter_by(code="configuraciones").one()
     codigos = {p.code for p in db.query(Permission).filter_by(module_id=mod.id).all()}
-    assert codigos == {f"{c}:{a}" for c in ("impuestos", "indices", "feriados", "workflow") for a in ("read", "write")}
+    assert codigos == ({f"{c}:{a}" for c in ("impuestos", "indices", "feriados", "workflow") for a in ("read", "write")}
+                       | {"workflow:publish"})   # publicar el workflow se asigna aparte de armar borradores
 
 
 def test_tesoreria_separa_armar_enviar_y_aprobar(correr_seed, db):

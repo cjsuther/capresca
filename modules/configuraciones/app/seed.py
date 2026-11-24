@@ -13,6 +13,7 @@ from app import models
 from app.db.session import SessionLocal
 from app.services.feriados import ar_calculados
 from app.services.workflow import sembrar_reglas
+from app.services.wf_procesos import sincronizar_procesos
 
 IMPUESTOS = [
     dict(codigo="IVA21", nombre="IVA 21%", tipo="IVA", alicuota=Decimal("21"), base="INTERES", cuenta_contable="2.1.07.01"),
@@ -53,6 +54,9 @@ def sembrar(db: Session) -> None:
     db.commit()
     sembrar_feriados_ar(db)
     sembrar_reglas(db)
+    # Migración automática e idempotente: cada regla en serie queda como versión 1 PUBLICADA del
+    # workflow gráfico (no borra ni toca las reglas viejas).
+    sincronizar_procesos(db)
 
 
 def run() -> None:

@@ -13,6 +13,24 @@ por su API interna y no guardan copia propia.
 Del workflow vive acá **sólo la definición**. La ejecución (qué nivel de qué objeto aprobó quién, con la
 unicidad por nivel) la hace el módulo dueño del objeto.
 
+### Workflow gráfico versionado (fases 1 y 2)
+
+- `wf_proceso` (uno por módulo/objeto) y `wf_version` (un **grafo** por versión: `BORRADOR` → `PUBLICADA`
+  → `RETIRADA`; una sola publicada y un solo borrador por proceso, con índices únicos parciales).
+- API `/api/configuraciones/workflow/{procesos,versiones,comparar,catalogo}` (`app/routers/wf.py`).
+  Borradores con `workflow:write` y **sin step-up** (autosave); publicar/retirar/habilitar con
+  `workflow:publish` y **step-up**.
+- Validación, proyección, diff y conversión del grafo: funciones puras en `app/services/wf_grafo.py`.
+- **Convivencia:** la versión publicada se proyecta sobre `workflow_reglas`/`workflow_niveles`/
+  `workflow_nivel_usuarios`, que es lo que sigue sirviendo `/internal/configuraciones/workflow/...`.
+  Créditos y Tesorería no cambian. Por eso sólo se **publica** un grafo que el motor actual sabe ejecutar
+  (aprobaciones en serie por rol). Decisiones, notificaciones y grupos se diseñan y validan en
+  borrador, y se van a poder publicar cuando llegue el motor nuevo (fase 3).
+- **Migración:** el seed (`sincronizar_procesos`) convierte cada regla en la versión 1 PUBLICADA. Es
+  idempotente y no borra ni toca las tablas viejas. La vista lista (`GET /workflow`) quedó en sólo
+  lectura.
+- Decisiones y supuestos: `docs/decisiones-workflows.md`.
+
 ## API
 
 - **Pública** (por el gateway, `/api/configuraciones/*`): ABM de cada catálogo. Frontend en
@@ -25,8 +43,9 @@ unicidad por nivel) la hace el módulo dueño del objeto.
 ## Permisos (Seguridad → módulo *Configuraciones*)
 
 Un par por catálogo: `impuestos:read|write`, `indices:read|write`, `feriados:read|write`,
-`workflow:read|write`. El gateway exige `read` para GET y `write` para el resto; el módulo revalida
-las escrituras. **Configurar el workflow es un permiso aparte** de operar los módulos: quien diseña o
+`workflow:read|write`, más `workflow:publish`, que se asigna aparte para publicar, retirar o habilitar
+un workflow. El gateway exige `read` para GET y `write` para el resto; el módulo revalida las
+escrituras. **Configurar el workflow es un permiso aparte** de operar los módulos: quien diseña o
 carga créditos no puede sacarse de encima su propio control.
 
 ## Cómo lo consume Créditos
@@ -50,4 +69,5 @@ docker compose run --rm configuraciones sh -c "pip install -q -r requirements-de
 
 El seed (idempotente) carga los impuestos e índices por defecto sólo si la tabla está vacía, el
 calendario AR calculado del año actual y los dos siguientes, y las reglas del catálogo (inactivas, un
-nivel `APROBAR` con cuatro-ojos).
+nivel `APROBAR` con cuatro-ojos). Después sincroniza cada regla con su proceso del workflow gráfico
+(versión 1 publicada).
