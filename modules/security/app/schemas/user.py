@@ -56,6 +56,15 @@ class UserListResponse(BaseModel):
     per_page: int
 
 
+class UserPageResponse(BaseModel):
+    """Página del listado filtrado (`GET /users/search`)."""
+    items: List[UserResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
 class AssignRolesRequest(BaseModel):
     role_ids: List[int]
 

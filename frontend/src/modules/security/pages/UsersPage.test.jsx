@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/security", () => ({
-  getUsers: vi.fn(),
+  searchUsers: vi.fn(),
   getRoles: vi.fn(),
   createUser: vi.fn(),
   updateUser: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock("../../../api/security", () => ({
 }));
 
 import {
-  getUsers, getRoles, createUser, updateUser, deleteUser, assignRoles, adminChangePassword,
+  searchUsers, getRoles, createUser, updateUser, deleteUser, assignRoles, adminChangePassword,
   getGroups, assignUserGroups,
 } from "../../../api/security";
 import UsersPage from "./UsersPage";
@@ -47,17 +47,13 @@ async function montar() {
   await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument());
 }
 
-// TODO(bug): UsersPage.jsx:176 envuelve cada fila en un <> sin key (la key está en el <tr> interno),
-// así que React avisa "Each child in a list should have a unique key" en cada render de la tabla.
-// Los tests reflejan el comportamiento actual: el warning no rompe el render.
-
 // El nombre puede aparecer también dentro del panel de roles: la primera coincidencia es la fila.
 const filaDe = (username) => screen.getAllByText(username)[0].closest("tr");
 
 describe("UsersPage", () => {
   beforeEach(() => {
     sesion(["users:read", "users:write"]);
-    getUsers.mockResolvedValue({ data: [ana, beto], total: 2 });
+    searchUsers.mockResolvedValue({ items: [ana, beto], total: 2, page: 1, page_size: 25, pages: 1 });
     getRoles.mockResolvedValue([ROL_ADMIN, ROL_CAJERO]);
     createUser.mockResolvedValue({ id: 12 });
     updateUser.mockResolvedValue({});
@@ -82,7 +78,7 @@ describe("UsersPage", () => {
   });
 
   it("avisa cuando falla la carga", async () => {
-    getUsers.mockRejectedValue(new Error("500"));
+    searchUsers.mockRejectedValue(new Error("500"));
     await montar();
     expect(screen.getByText("Error al cargar datos")).toBeInTheDocument();
   });
@@ -116,7 +112,7 @@ describe("UsersPage", () => {
     }));
     // Se cierra el formulario y se vuelve a pedir la lista
     await waitFor(() => expect(screen.queryByRole("button", { name: "Crear" })).not.toBeInTheDocument());
-    expect(getUsers).toHaveBeenCalledTimes(2);
+    expect(searchUsers).toHaveBeenCalledTimes(2);
   });
 
   it("muestra el error de la API al crear y deja el formulario abierto", async () => {
@@ -168,7 +164,7 @@ describe("UsersPage", () => {
     await waitFor(() => expect(updateUser).toHaveBeenCalledWith(10, {
       email: "nueva@x.com", full_name: "Ana G.", is_active: false,
     }));
-    await waitFor(() => expect(getUsers).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(searchUsers).toHaveBeenCalledTimes(2));
   });
 
   it("cancelar la edición vuelve a la vista de sólo lectura", async () => {
@@ -202,7 +198,7 @@ describe("UsersPage", () => {
 
     expect(window.confirm).toHaveBeenCalledWith('¿Desactivar al usuario "ana"?');
     await waitFor(() => expect(deleteUser).toHaveBeenCalledWith(10));
-    await waitFor(() => expect(getUsers).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(searchUsers).toHaveBeenCalledTimes(2));
   });
 
   it("si se cancela la confirmación no desactiva", async () => {
@@ -309,7 +305,7 @@ describe("UsersPage · grupos", () => {
   const conGrupo = { ...ana, groups: [GRUPO] };
 
   beforeEach(() => {
-    getUsers.mockResolvedValue({ data: [conGrupo, beto], total: 2 });
+    searchUsers.mockResolvedValue({ items: [conGrupo, beto], total: 2, page: 1, page_size: 25, pages: 1 });
     getRoles.mockResolvedValue([ROL_ADMIN, ROL_CAJERO]);
     getGroups.mockResolvedValue([GRUPO]);
     assignRoles.mockResolvedValue({});

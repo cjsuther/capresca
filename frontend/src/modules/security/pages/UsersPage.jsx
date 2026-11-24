@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
-  getUsers, createUser, updateUser, deleteUser, getRoles, assignRoles, adminChangePassword, getGroups, assignUserGroups,
+  searchUsers, createUser, updateUser, deleteUser, getRoles, assignRoles, adminChangePassword, getGroups, assignUserGroups,
 } from "../../../api/security";
+import { Card, Field, LimpiarFiltros, Toolbar } from "../../../components/ui";
 import { useHasPermission } from "../../../context/usePermissions";
 import { PermissionGate } from "../../../components/PrivateRoute";
 import { ChangePasswordModal } from "../../../components/ChangePasswordModal";
@@ -11,7 +13,57 @@ import { useAuthStore } from "../../../context/authStore";
 import {
   Plus, Pencil, Trash2, UserCheck, UserX,
   ShieldCheck, ShieldOff, Check, X, ChevronDown, ChevronUp, KeyRound,
+  Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
+
+// ── Filtros, orden y página viven en la URL (?q=&rol=&grupo=&estado=&mfa=&orden=&dir=&pagina=&tam=)
+// para poder compartir el link y que sobrevivan al refresh. Lo que vale el default no se escribe.
+export const TAMANIOS = [25, 50, 100];
+const ORDENES = ["nombre", "username", "email", "estado"];
+const DEFAULTS = { q: "", rol: "", grupo: "", estado: "", mfa: "", orden: "nombre", dir: "asc", pagina: 1, tam: 25 };
+const FILTROS = ["q", "rol", "grupo", "estado", "mfa"];
+const DEBOUNCE_MS = 300;
+
+const positivo = (v, def) => {
+  const n = Number.parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : def;
+};
+const entre = (v, validos, def) => (validos.includes(v) ? v : def);
+const id = (v) => { const n = positivo(v, 0); return n ? String(n) : ""; };
+
+/** Lee la URL y descarta valores inválidos (un link editado a mano no rompe la pantalla). */
+export function leerFiltros(sp) {
+  const tam = positivo(sp.get("tam"), DEFAULTS.tam);
+  return {
+    q: (sp.get("q") || "").trim(),
+    rol: id(sp.get("rol")),
+    grupo: id(sp.get("grupo")),
+    estado: entre(sp.get("estado"), ["activo", "inactivo"], ""),
+    mfa: entre(sp.get("mfa"), ["si", "no"], ""),
+    orden: entre(sp.get("orden"), ORDENES, DEFAULTS.orden),
+    dir: sp.get("dir") === "desc" ? "desc" : "asc",
+    pagina: positivo(sp.get("pagina"), DEFAULTS.pagina),
+    tam: TAMANIOS.includes(tam) ? tam : DEFAULTS.tam,
+  };
+}
+
+const num = (n) => Number(n || 0).toLocaleString("es-AR");
+
+/** Encabezado de columna que ordena el listado; un segundo clic invierte el sentido. */
+function ColOrden({ campo, filtros, onOrdenar, children }) {
+  const activo = filtros.orden === campo;
+  const Icono = !activo ? ArrowUpDown : filtros.dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th className="text-left px-4 py-3 font-medium"
+        aria-sort={activo ? (filtros.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button type="button" onClick={() => onOrdenar(campo)}
+              className={`inline-flex items-center gap-1 hover:text-gray-900 ${activo ? "text-gray-900" : ""}`}>
+        {children}
+        <Icono size={12} className={activo ? "" : "text-gray-300"} />
+      </button>
+    </th>
+  );
+}
 
 /** Roles que el usuario recibe por sus grupos activos y no tiene asignados directamente. */
 function heredados(user) {
@@ -29,7 +81,11 @@ function heredados(user) {
 }
 
 export default function UsersPage() {
-  const [data, setData] = useState({ data: [], total: 0 });
+  const [data, setData] = useState({ items: [], total: 0, pages: 1 });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtros = leerFiltros(searchParams);
+  const [texto, setTexto] = useState(filtros.q);   // lo tipeado; llega a la URL con debounce
+  const [recarga, setRecarga] = useState(0);
   const [allRoles, setAllRoles] = useState([]);
   const [allGroups, setAllGroups] = useState([]);
   const verGrupos = useHasPermission("security", "groups:read");
@@ -58,15 +114,77 @@ export default function UsersPage() {
   const [reset2faTarget, setReset2faTarget] = useState(null);
   const [reseteando, setReseteando] = useState(false);
 
-  const load = () => {
-    setLoading(true);
-    Promise.all([getUsers(1, 100), getRoles(), verGrupos ? getGroups() : Promise.resolve([])])
-      .then(([u, r, g]) => { setData(u); setAllRoles(r); setAllGroups(g); })
-      .catch(() => setError("Error al cargar datos"))
-      .finally(() => setLoading(false));
+  /** Cambia filtros/orden/página en la URL. Todo cambio que no sea de página vuelve a la primera. */
+  const actualizar = (cambios, { replace = false } = {}) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [k, v] of Object.entries(cambios)) {
+        if (v === "" || v === null || v === undefined || String(v) === String(DEFAULTS[k])) next.delete(k);
+        else next.set(k, String(v));
+      }
+      if (!("pagina" in cambios)) next.delete("pagina");
+      return next;
+    }, { replace });
   };
 
-  useEffect(load, []);
+  const hayFiltros = FILTROS.some((k) => filtros[k] !== "");
+  const limpiarFiltros = () => {
+    setTexto("");
+    actualizar({ q: "", rol: "", grupo: "", estado: "", mfa: "" });
+  };
+
+  const ordenar = (campo) =>
+    actualizar({ orden: campo, dir: filtros.orden === campo && filtros.dir === "asc" ? "desc" : "asc" });
+
+  // Búsqueda con debounce: se escribe en la URL (sin apilar historial) cuando se deja de tipear.
+  useEffect(() => {
+    if (texto.trim() === filtros.q) return undefined;
+    const t = setTimeout(() => actualizar({ q: texto.trim() }, { replace: true }), DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [texto]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Si la URL cambia por fuera (atrás/adelante, limpiar), el cuadro de búsqueda la sigue.
+  useEffect(() => {
+    if (texto.trim() !== filtros.q) setTexto(filtros.q);
+  }, [filtros.q]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Catálogos para los selects y el panel de roles: una sola vez.
+  useEffect(() => {
+    Promise.all([getRoles(), verGrupos ? getGroups() : Promise.resolve([])])
+      .then(([r, g]) => { setAllRoles(r); setAllGroups(g); })
+      .catch(() => setError("Error al cargar datos"));
+  }, [verGrupos]);
+
+  // La página de usuarios: cada vez que cambian filtros, orden o página (o tras un alta/edición).
+  const clave = JSON.stringify(filtros);
+  useEffect(() => {
+    let vigente = true;
+    setLoading(true);
+    searchUsers({
+      q: filtros.q,
+      role_id: filtros.rol,
+      group_id: verGrupos ? filtros.grupo : "",
+      estado: filtros.estado,
+      mfa: filtros.mfa === "" ? "" : filtros.mfa === "si",
+      sort: filtros.orden,
+      order: filtros.dir,
+      page: filtros.pagina,
+      page_size: filtros.tam,
+    })
+      .then((d) => { if (vigente) setData(d); })
+      .catch(() => { if (vigente) setError("Error al cargar datos"); })
+      .finally(() => { if (vigente) setLoading(false); });
+    return () => { vigente = false; };   // una respuesta vieja no pisa la de los filtros nuevos
+  }, [clave, recarga]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Página fuera de rango (link viejo, o se dio de baja el último de la última página): ir a la última.
+  useEffect(() => {
+    if (!loading && data.items.length === 0 && data.total > 0 && filtros.pagina > data.pages) {
+      actualizar({ pagina: data.pages }, { replace: true });
+    }
+  }, [loading, data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const load = () => setRecarga((n) => n + 1);
 
   // ── Crear ────────────────────────────────────────────────────
   const handleCreate = async (e) => {
@@ -212,15 +330,61 @@ export default function UsersPage() {
         </form>
       )}
 
-      {/* Tabla de usuarios */}
-      <div className="bg-surface border rounded-xl overflow-x-auto">
+      {/* Tabla de usuarios con su barra de filtros */}
+      <Card padding={false}>
+        <Toolbar>
+          <Field label="Buscar" className="flex-1 min-w-[220px]">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="search" className="input w-full pl-9" placeholder="Nombre, usuario o email"
+                     aria-label="Buscar usuarios" value={texto} onChange={(e) => setTexto(e.target.value)} />
+            </div>
+          </Field>
+          <Field label="Rol">
+            <select className="input" aria-label="Filtrar por rol" value={filtros.rol}
+                    onChange={(e) => actualizar({ rol: e.target.value })}>
+              <option value="">Todos</option>
+              {allRoles.map((r) => <option key={r.id} value={String(r.id)}>{r.name}</option>)}
+            </select>
+          </Field>
+          {verGrupos && (
+            <Field label="Grupo">
+              <select className="input" aria-label="Filtrar por grupo" value={filtros.grupo}
+                      onChange={(e) => actualizar({ grupo: e.target.value })}>
+                <option value="">Todos</option>
+                {allGroups.map((g) => <option key={g.id} value={String(g.id)}>{g.name}</option>)}
+              </select>
+            </Field>
+          )}
+          <Field label="Estado">
+            <select className="input" aria-label="Filtrar por estado" value={filtros.estado}
+                    onChange={(e) => actualizar({ estado: e.target.value })}>
+              <option value="">Todos</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
+            </select>
+          </Field>
+          {mfaHabilitado && (
+            <Field label="Doble factor">
+              <select className="input" aria-label="Filtrar por doble factor" value={filtros.mfa}
+                      onChange={(e) => actualizar({ mfa: e.target.value })}>
+                <option value="">Todos</option>
+                <option value="si">Con 2FA</option>
+                <option value="no">Sin 2FA</option>
+              </select>
+            </Field>
+          )}
+          <LimpiarFiltros activo={hayFiltros || texto.trim() !== ""} onClear={limpiarFiltros} />
+        </Toolbar>
+
+      <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-3 font-medium">Usuario</th>
-              <th className="text-left px-4 py-3 font-medium">Email</th>
-              <th className="text-left px-4 py-3 font-medium">Nombre</th>
-              <th className="text-left px-4 py-3 font-medium">Estado</th>
+              <ColOrden campo="username" filtros={filtros} onOrdenar={ordenar}>Usuario</ColOrden>
+              <ColOrden campo="email" filtros={filtros} onOrdenar={ordenar}>Email</ColOrden>
+              <ColOrden campo="nombre" filtros={filtros} onOrdenar={ordenar}>Nombre</ColOrden>
+              <ColOrden campo="estado" filtros={filtros} onOrdenar={ordenar}>Estado</ColOrden>
               <th className="text-left px-4 py-3 font-medium">Roles</th>
               <th className="text-left px-4 py-3 font-medium">Grupos</th>
               <th className="px-4 py-3"></th>
@@ -229,10 +393,20 @@ export default function UsersPage() {
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
-            ) : data.data.map((user) => (
-              <>
+            ) : data.items.length === 0 ? (
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                {hayFiltros ? (
+                  <>
+                    <p>Ningún usuario coincide con los filtros.</p>
+                    <button type="button" onClick={limpiarFiltros}
+                            className="mt-2 text-sm text-blue-600 hover:underline">Limpiar filtros</button>
+                  </>
+                ) : "Todavía no hay usuarios."}
+              </td></tr>
+            ) : data.items.map((user) => (
+              <Fragment key={user.id}>
                 {/* Fila principal */}
-                <tr key={user.id} className={editingId === user.id || rolesPanelId === user.id ? "bg-blue-50" : "hover:bg-gray-50"}>
+                <tr className={editingId === user.id || rolesPanelId === user.id ? "bg-blue-50" : "hover:bg-gray-50"}>
 
                   <td className="px-4 py-3 font-medium">
                     {user.username}
@@ -413,10 +587,44 @@ export default function UsersPage() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
+      </div>
+      </Card>
+
+      {/* Paginador */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+        <p className="text-sm text-gray-500 tabular-nums" aria-live="polite">
+          {data.total === 0
+            ? "Sin resultados"
+            : `${num((filtros.pagina - 1) * filtros.tam + 1)}–${num(Math.min(filtros.pagina * filtros.tam, data.total))} de ${num(data.total)} usuarios`}
+        </p>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-500">
+            Por página
+            <select className="input py-1" value={filtros.tam} aria-label="Usuarios por página"
+                    onChange={(e) => actualizar({ tam: Number(e.target.value) })}>
+              {TAMANIOS.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label="Página anterior" disabled={filtros.pagina <= 1 || loading}
+                    onClick={() => actualizar({ pagina: filtros.pagina - 1 })}
+                    className="p-2 rounded-lg border border-gray-300 text-gray-600 enabled:hover:bg-gray-50 disabled:opacity-40">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-sm text-gray-600 tabular-nums px-2">
+              {num(filtros.pagina)} de {num(data.pages || 1)}
+            </span>
+            <button type="button" aria-label="Página siguiente" disabled={filtros.pagina >= (data.pages || 1) || loading}
+                    onClick={() => actualizar({ pagina: filtros.pagina + 1 })}
+                    className="p-2 rounded-lg border border-gray-300 text-gray-600 enabled:hover:bg-gray-50 disabled:opacity-40">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal cambio de contraseña por admin */}

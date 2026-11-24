@@ -11,6 +11,7 @@ from app.routes.mapping import get_required_permission, get_service_url
     ("POST", "/api/auth/logout", settings.security_service_url, None),
     # Security
     ("GET", "/api/security/users", settings.security_service_url, "security:users:read"),
+    ("GET", "/api/security/users/search", settings.security_service_url, "security:users:read"),
     ("POST", "/api/security/users", settings.security_service_url, "security:users:write"),
     ("PUT", "/api/security/users/me/password", settings.security_service_url, None),
     ("PUT", "/api/security/users/12/password", settings.security_service_url, "security:users:write"),

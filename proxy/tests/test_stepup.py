@@ -89,6 +89,7 @@ def test_cada_entrada_de_la_lista_tiene_un_ejemplo():
 @pytest.mark.parametrize("metodo,ruta", [
     ("GET", "/api/tesoreria/lotes/12"), ("POST", "/api/tesoreria/lotes"), ("POST", "/api/tesoreria/lotes/12/rechazar"),
     ("POST", "/api/tesoreria/lotes/12/actualizar"), ("GET", "/api/security/users"),
+    ("GET", "/api/security/users/search"),
     ("GET", "/api/security/roles"), ("HEAD", "/api/security/users"), ("OPTIONS", "/api/security/users"),
     ("POST", "/api/interbanking/transferencias/validar"),
     ("POST", "/api/interbanking/config/test"), ("POST", "/api/configuraciones/feriados"),

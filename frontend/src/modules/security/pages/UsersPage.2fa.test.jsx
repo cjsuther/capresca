@@ -4,12 +4,12 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/security", () => ({
-  getUsers: vi.fn(), getRoles: vi.fn(), createUser: vi.fn(), updateUser: vi.fn(), deleteUser: vi.fn(),
+  searchUsers: vi.fn(), getRoles: vi.fn(), createUser: vi.fn(), updateUser: vi.fn(), deleteUser: vi.fn(),
   assignRoles: vi.fn(), adminChangePassword: vi.fn(), getGroups: vi.fn(), assignUserGroups: vi.fn(),
 }));
 vi.mock("../../../api/dobleFactor", async (orig) => ({ ...(await orig()), resetear2fa: vi.fn() }));
 
-import { getUsers, getRoles } from "../../../api/security";
+import { searchUsers, getRoles } from "../../../api/security";
 import { resetear2fa } from "../../../api/dobleFactor";
 import UsersPage from "./UsersPage";
 import { useAuthStore } from "../../../context/authStore";
@@ -33,7 +33,7 @@ const filaDe = (u) => screen.getAllByText(u)[0].closest("tr");
 
 describe("UsersPage: doble factor", () => {
   beforeEach(() => {
-    getUsers.mockResolvedValue({ data: [ana, beto], total: 2 });
+    searchUsers.mockResolvedValue({ items: [ana, beto], total: 2, page: 1, page_size: 25, pages: 1 });
     getRoles.mockResolvedValue([]);
   });
 
@@ -62,7 +62,7 @@ describe("UsersPage: doble factor", () => {
     expect(resetear2fa).not.toHaveBeenCalled();
     await user.click(within(dialogo).getByRole("button", { name: "Resetear" }));
     await waitFor(() => expect(resetear2fa).toHaveBeenCalledWith(10));
-    await waitFor(() => expect(getUsers).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(searchUsers).toHaveBeenCalledTimes(2));
   });
 
   it("si falla el reset muestra el motivo", async () => {

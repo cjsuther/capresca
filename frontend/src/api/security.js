@@ -3,6 +3,18 @@ import api from "./client";
 export const getUsers = (page = 1, perPage = 20) =>
   api.get("/security/users", { params: { page, per_page: perPage } }).then((r) => r.data);
 
+/**
+ * Listado paginado y filtrado (pantalla de Usuarios). Devuelve { items, total, page, page_size, pages }.
+ * `getUsers` queda para quien necesita la lista completa (Grupos, Cajeros).
+ * Filtros: q, role_id, group_id, estado ("activo"|"inactivo"), mfa (bool); orden: sort, order.
+ */
+export const searchUsers = (filtros = {}) => {
+  const params = Object.fromEntries(
+    Object.entries(filtros).filter(([, v]) => v !== "" && v !== null && v !== undefined),
+  );
+  return api.get("/security/users/search", { params }).then((r) => r.data);
+};
+
 export const createUser = (data) =>
   api.post("/security/users", data).then((r) => r.data);
 
