@@ -1,9 +1,11 @@
 """Órdenes de pago de créditos: resoluciones / disposiciones con sus lotes, pagadas por un lote de pagos."""
+from datetime import date
+
 import pytest
 from fastapi import HTTPException
 
 from app import models
-from app.services import creditos_central
+from app.services import creditos_central, ordenes as svc_ordenes
 from tests.conftest import gateway, pago
 
 ARMADOR = gateway("lotes:read", "lotes:write", username="ana", user_id=8)
@@ -177,3 +179,86 @@ def test_lista_las_ordenes(client):
     _confeccionar(client, ("id:8",))
     d = client.get("/api/tesoreria/ordenes-pago", headers=ARMADOR).json()["items"]
     assert [x["actos_texto"] for x in d] == ["Disp. 30/2026", "Res. 120/2026"]
+
+
+# ── N° de orden elegido por el usuario ───────────────────────────────────────────────────────────
+def _proximo(client, h=ARMADOR):
+    return client.get("/api/tesoreria/ordenes-pago/proximo-numero", headers=h)
+
+
+def _con_numero(client, numero, actos=("id:7",)):
+    return client.post("/api/tesoreria/ordenes-pago", headers=ARMADOR, json={"actos": list(actos), "numero": numero})
+
+
+def test_proximo_numero_es_el_mayor_del_anio_mas_uno(client, db):
+    anio = date.today().year
+    r = _proximo(client, gateway("lotes:read"))
+    assert r.status_code == 200 and r.json() == {"anio": anio, "numero": 1, "codigo": f"OP-{anio}-00001"}
+    db.add_all([models.OrdenPago(anio=anio, numero=7, actos=[]), models.OrdenPago(anio=anio - 1, numero=40, actos=[])])
+    db.commit()
+    assert _proximo(client).json()["numero"] == 8                 # el de otro año no cuenta
+
+
+def test_sin_numero_se_asigna_el_siguiente(client):
+    a = _con_numero(client, None).json()
+    assert a["numero"] == 1 and a["codigo"].endswith("-00001")
+    assert _proximo(client).json()["numero"] == 2
+
+
+def test_con_numero_elegido_se_usa_ese(client, creditos):
+    r = _con_numero(client, 12)
+    assert r.status_code == 201, r.text
+    op = r.json()
+    assert op["numero"] == 12 and op["codigo"] == f"OP-{op['anio']}-00012"
+    assert creditos.reservas[op["id"]] == ["id:7"]
+    assert _proximo(client).json()["numero"] == 13                # el siguiente sale del mayor
+    assert _confeccionar(client, ("id:8",)).json()["numero"] == 13
+
+
+def test_numero_duplicado_da_409_y_no_toca_creditos(client, db, creditos):
+    a = _con_numero(client, 12).json()
+    r = _con_numero(client, 12, ("id:8",))
+    assert r.status_code == 409 and r.json()["detail"] == f"Ya existe la OP-{a['anio']}-00012."
+    assert db.query(models.OrdenPago).count() == 1 and list(creditos.reservas) == [a["id"]]
+
+
+def test_el_numero_de_una_anulada_sigue_ocupado(client):
+    a = _con_numero(client, 3).json()
+    assert client.post(f"/api/tesoreria/ordenes-pago/{a['id']}/anular", headers=ARMADOR,
+                       json={"motivo": "error"}).status_code == 200
+    r = _con_numero(client, 3)
+    assert r.status_code == 409 and r.json()["detail"].startswith("Ya existe la OP-")
+
+
+def test_si_la_confeccion_falla_el_numero_elegido_queda_libre(client, creditos):
+    creditos.rechazo = "falta CBU"
+    assert _con_numero(client, 5).status_code == 409
+    creditos.rechazo = None
+    r = _con_numero(client, 5)
+    assert r.status_code == 201 and r.json()["numero"] == 5
+
+
+@pytest.mark.parametrize("numero", [0, -4, 100000])
+def test_numero_fuera_de_rango_da_422(client, db, numero):
+    r = _con_numero(client, numero)
+    assert r.status_code == 422 and "entero entre 1 y 99999" in r.json()["detail"]
+    assert db.query(models.OrdenPago).count() == 0
+
+
+@pytest.mark.parametrize("numero", ["doce", 1.5, True])
+def test_numero_no_entero_da_422(client, db, numero):
+    assert _con_numero(client, numero).status_code == 422
+    assert db.query(models.OrdenPago).count() == 0
+
+
+def test_carrera_por_el_mismo_numero_se_traduce_a_409(client, db, monkeypatch, creditos):
+    """Otro proceso da de alta el mismo número entre la consulta y el insert: la unique decide."""
+    def no_lo_ve(db_, anio, numero):
+        db_.add(models.OrdenPago(anio=anio, numero=numero, actos=[], creado_por="otro"))
+        db_.commit()                                               # «el otro» ganó la carrera
+        return False
+
+    monkeypatch.setattr(svc_ordenes, "_existe", no_lo_ve)
+    r = _con_numero(client, 9)
+    assert r.status_code == 409 and r.json()["detail"].startswith("Ya existe la OP-")
+    assert [o.creado_por for o in db.query(models.OrdenPago).all()] == ["otro"] and creditos.reservas == {}

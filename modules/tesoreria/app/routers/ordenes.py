@@ -1,6 +1,6 @@
 """Órdenes de pago de créditos (detrás del gateway: permisos `tesoreria:lotes:*`)."""
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 from sqlalchemy.orm import Session
 
 from app import models
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/ordenes-pago", tags=["ordenes-pago"])
 
 class OrdenIn(BaseModel):
     actos: list[str] = Field(min_length=1)       # claves de /disponibles (una por resolución / disposición)
+    numero: StrictInt | None = None              # N° elegido para el año en curso; sin él, el mayor + 1
 
 
 class AnularIn(BaseModel):
@@ -37,6 +38,12 @@ def disponibles(_u: Usuario = Depends(usuario_actual)):
     return creditos.disponibles()
 
 
+@router.get("/proximo-numero")
+def proximo_numero(db: Session = Depends(get_db), _u: Usuario = Depends(usuario_actual)):
+    """El N° que se sugiere para la próxima orden del año en curso (el usuario lo puede cambiar)."""
+    return svc.proximo_numero(db)
+
+
 @router.get("/{orden_id}")
 def ver(orden_id: int, db: Session = Depends(get_db), user: Usuario = Depends(usuario_actual)):
     return svc.detalle(_orden(db, orden_id), user)
@@ -44,7 +51,7 @@ def ver(orden_id: int, db: Session = Depends(get_db), user: Usuario = Depends(us
 
 @router.post("", status_code=201)
 def confeccionar(data: OrdenIn, db: Session = Depends(get_db), user: Usuario = Depends(requiere("lotes:write"))):
-    return svc.detalle(svc.confeccionar(db, data.actos, user), user)
+    return svc.detalle(svc.confeccionar(db, data.actos, user, data.numero), user)
 
 
 @router.post("/{orden_id}/anular")

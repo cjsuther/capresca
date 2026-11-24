@@ -27,7 +27,10 @@ const OP = "/tesoreria/ordenes-pago";
 export const listarOrdenes = (filtros = {}) => data(api.get(OP, { params: filtros }));
 export const verOrden = (id) => data(api.get(`${OP}/${id}`));
 export const actosDisponibles = () => data(api.get(`${OP}/disponibles`));
-export const confeccionarOrden = (actos) => data(api.post(OP, { actos }));
+export const proximoNumeroOrden = () => data(api.get(`${OP}/proximo-numero`));
+// `numero` opcional: sin él, Tesorería asigna el mayor del año + 1.
+export const confeccionarOrden = (actos, numero) =>
+  data(api.post(OP, numero == null ? { actos } : { actos, numero }));
 export const anularOrden = (id, motivo) => data(api.post(`${OP}/${id}/anular`, { motivo }));
 
 /** Texto del error de la API: `detail` string, `detail.mensaje`, o el primer error de validación. */

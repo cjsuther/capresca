@@ -63,13 +63,51 @@ def detalle(op: models.OrdenPago, user: Usuario) -> dict:
 
 
 # ── Confección ───────────────────────────────────────────────────────────────────────────────────
-def _numerar(db: Session, usuario: str) -> models.OrdenPago:
+NUMERO_MAXIMO = 99999      # el código es OP-AAAA-NNNNN (y Créditos guarda el código en 20 caracteres)
+
+
+def _codigo_de(anio: int, numero: int) -> str:
+    return f"OP-{anio}-{numero:05d}"
+
+
+def proximo_numero(db: Session, anio: int | None = None) -> dict:
+    """El número que se sugiere para la próxima orden del año: el mayor usado + 1 (las anuladas cuentan)."""
+    anio = anio or date.today().year
+    ultimo = db.query(func.max(models.OrdenPago.numero)).filter(models.OrdenPago.anio == anio).scalar()
+    numero = (ultimo or 0) + 1
+    return {"anio": anio, "numero": numero, "codigo": _codigo_de(anio, numero)}
+
+
+def _existe(db: Session, anio: int, numero: int) -> bool:
+    return db.query(models.OrdenPago.id).filter_by(anio=anio, numero=numero).first() is not None
+
+
+def _numerar(db: Session, usuario: str, numero: int | None = None) -> models.OrdenPago:
+    """Crea la orden con su número: el que eligió el usuario o, si no eligió, el mayor del año + 1.
+
+    La unique (anio, numero) es la que decide ante dos confecciones a la vez: con número elegido, perder
+    la carrera es un 409; sin número, se relee el máximo y se reintenta.
+    """
     anio = date.today().year
-    for _ in range(5):
-        ultimo = db.query(func.max(models.OrdenPago.numero)).filter(models.OrdenPago.anio == anio).scalar()
+    if numero is not None:
+        if not 1 <= numero <= NUMERO_MAXIMO:
+            raise HTTPException(422, f"El N° de orden de pago tiene que ser un entero entre 1 y {NUMERO_MAXIMO}.")
+        ocupado = HTTPException(409, f"Ya existe la {_codigo_de(anio, numero)}.")
+        if _existe(db, anio, numero):
+            raise ocupado
         try:
             with db.begin_nested():
-                op = models.OrdenPago(anio=anio, numero=(ultimo or 0) + 1, actos=[], creado_por=usuario)
+                op = models.OrdenPago(anio=anio, numero=numero, actos=[], creado_por=usuario)
+                db.add(op)
+                db.flush()
+            return op
+        except IntegrityError:
+            raise ocupado from None                     # otro la confeccionó entre la consulta y el alta
+    for _ in range(5):
+        siguiente = proximo_numero(db, anio)["numero"]
+        try:
+            with db.begin_nested():
+                op = models.OrdenPago(anio=anio, numero=siguiente, actos=[], creado_por=usuario)
                 db.add(op)
                 db.flush()
             return op
@@ -122,11 +160,11 @@ def _problemas(db: Session, pagos: list[dict]) -> list[str]:
     return out
 
 
-def confeccionar(db: Session, actos: list[str], user: Usuario) -> models.OrdenPago:
+def confeccionar(db: Session, actos: list[str], user: Usuario, numero: int | None = None) -> models.OrdenPago:
     actos = sorted({a for a in actos if a})
     if not actos:
         raise HTTPException(422, "Elegí al menos una resolución o disposición.")
-    op = _numerar(db, user.username)
+    op = _numerar(db, user.username, numero)
     db.commit()                                       # el id ya es de esta orden: Créditos lo guarda
     op_id, codigo = op.id, op.codigo
     try:
